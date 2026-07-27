@@ -1,0 +1,41 @@
+project_id = "yard-dominoes"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+major_version = 15
+
+[realtime]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+enable_anonymous_sign_ins = true   # guest play, so Facebook is never required
+
+[auth.external.apple]
+enabled = false
+[auth.external.google]
+enabled = false
+
+[functions.play-move]
+verify_jwt = true
+[functions.start-hand]
+verify_jwt = true
+[functions.create-table]
+verify_jwt = true
+[functions.join-table]
+verify_jwt = true
+[functions.review-hand]
+verify_jwt = true
+[functions.expire-turns]
+verify_jwt = false
+[functions.checkout]
+verify_jwt = true
+[functions.stripe-webhook]
+verify_jwt = false

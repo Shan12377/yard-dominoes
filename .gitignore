@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+*.log
+supabase/.branches/
+supabase/.temp/
+supabase/functions/_shared/engine/
+ios/
+android/
+CLAUDE.local.md

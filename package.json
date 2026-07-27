@@ -1,0 +1,17 @@
+{
+  "name": "yard-dominoes",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "test": "node --test packages/engine/test/*.test.ts",
+    "bench": "node packages/engine/bench.ts",
+    "dev": "npm run dev --workspace @yard/web",
+    "build": "npm run build --workspace @yard/web",
+    "typecheck": "npm run typecheck --workspace @yard/web",
+    "sync:engine": "rm -rf supabase/functions/_shared/engine && mkdir -p supabase/functions/_shared/engine && cp packages/engine/src/*.ts supabase/functions/_shared/engine/",
+    "db:reset": "supabase db reset",
+    "fn:serve": "npm run sync:engine && supabase functions serve",
+    "fn:deploy": "npm run sync:engine && supabase functions deploy"
+  }
+}

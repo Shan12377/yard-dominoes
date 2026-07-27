@@ -1,0 +1,123 @@
+/**
+ * Install to home screen.
+ *
+ * The two platforms are not symmetric and pretending otherwise loses installs:
+ *
+ *   Android / desktop Chrome — the browser fires `beforeinstallprompt`. We
+ *   catch it, suppress the default banner, and show our own button. One tap.
+ *
+ *   iOS — Safari implements no such event. Every install is a manual Share →
+ *   Add to Home Screen → Add. Most people do not know the option exists, so
+ *   the instructions ARE the install flow, not a fallback for it.
+ *
+ *   iOS in Chrome/Firefox/Edge — those browsers cannot add to the home screen
+ *   at all. Sending them the Safari steps is useless; they need to be told to
+ *   open the page in Safari first.
+ */
+
+export type Platform = 'installed' | 'prompt' | 'ios-safari' | 'ios-other' | 'unsupported';
+
+let deferred: (Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }) | null = null;
+let waitingWorker: ServiceWorker | null = null;
+
+export function isStandalone(): boolean {
+  return window.matchMedia('(display-mode: standalone)').matches
+    // iOS predates display-mode and reports it here instead.
+    || (navigator as unknown as { standalone?: boolean }).standalone === true;
+}
+
+export function isIOS(): boolean {
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua)
+    // iPadOS 13+ reports itself as a Mac; touch points give it away.
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/** On iOS every browser is WebKit, but only Safari can add to the home screen. */
+function isIOSSafari(): boolean {
+  const ua = navigator.userAgent;
+  return isIOS() && !/CriOS|FxiOS|EdgiOS|OPiOS|Brave/i.test(ua);
+}
+
+export function platform(): Platform {
+  if (isStandalone()) return 'installed';
+  if (isIOS()) return isIOSSafari() ? 'ios-safari' : 'ios-other';
+  if (deferred) return 'prompt';
+  return 'unsupported';
+}
+
+/** Call once at startup, before anything might want to show an install button. */
+export function watchInstallability(onChange: () => void) {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();          // suppress the browser's own banner
+    deferred = e as never;
+    onChange();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferred = null;
+    onChange();
+  });
+}
+
+/** Android / desktop Chrome. Resolves true when the user accepted. */
+export async function promptInstall(): Promise<boolean> {
+  if (!deferred) return false;
+  await deferred.prompt();
+  const { outcome } = await deferred.userChoice;
+  // The event is single-use; a declined prompt cannot be replayed.
+  deferred = null;
+  return outcome === 'accepted';
+}
+
+/** The three taps, in the order they appear on an iPhone. */
+export const IOS_STEPS: { n: number; text: string }[] = [
+  { n: 1, text: 'Tap the Share button at the bottom of Safari' },
+  { n: 2, text: 'Scroll down and tap Add to Home Screen' },
+  { n: 3, text: 'Tap Add in the top right' },
+];
+
+// ------------------------------------------------------------ service worker
+/**
+ * Register the worker and watch for updates. `onUpdateReady` fires when a new
+ * version is downloaded — the caller decides WHEN to apply it, because
+ * reloading someone mid-hand is a bug, not a feature.
+ */
+export function registerServiceWorker(onUpdateReady: () => void) {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      if (reg.waiting) { waitingWorker = reg.waiting; onUpdateReady(); }
+      reg.addEventListener('updatefound', () => {
+        const next = reg.installing;
+        if (!next) return;
+        next.addEventListener('statechange', () => {
+          if (next.state === 'installed' && navigator.serviceWorker.controller) {
+            waitingWorker = next;
+            onUpdateReady();
+          }
+        });
+      });
+    }).catch(() => {
+      // No worker means no offline shell. The app still works.
+    });
+  });
+
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+}
+
+/** Apply a pending update. Only call between hands. */
+export function applyUpdate() {
+  waitingWorker?.postMessage('SKIP_WAITING');
+  waitingWorker = null;
+}
+
+export function updatePending(): boolean {
+  return waitingWorker !== null;
+}

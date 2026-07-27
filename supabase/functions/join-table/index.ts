@@ -1,0 +1,30 @@
+// POST /join-table  { joinCode }  or  { tableId, seatIndex }
+import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
+
+Deno.serve(handled(async (req) => {
+  const user = await requireUser(req);
+  const { joinCode, tableId, seatIndex } = await req.json();
+  const db = serviceClient();
+
+  const query = joinCode
+    ? db.from('tables').select('*').eq('join_code', String(joinCode).toUpperCase())
+    : db.from('tables').select('*').eq('id', tableId);
+  const { data: table } = await query.single();
+  if (!table) throw new HttpError(404, 'no table with that code');
+  if (table.status !== 'waiting') throw new HttpError(409, 'that game has already started');
+
+  const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
+  const existing = seats!.find((s: any) => s.user_id === user.id);
+  if (existing) return json({ ok: true, tableId: table.id, seatIndex: existing.seat_index });
+
+  const target = seatIndex != null
+    ? seats!.find((s: any) => s.seat_index === seatIndex && !s.user_id)
+    : seats!.find((s: any) => !s.user_id);
+  if (!target) throw new HttpError(409, 'no free seat');
+
+  await db.from('seats').update({
+    user_id: user.id, duppy_level: null, connected_at: new Date().toISOString(),
+  }).eq('table_id', table.id).eq('seat_index', target.seat_index);
+
+  return json({ ok: true, tableId: table.id, seatIndex: target.seat_index });
+}));
