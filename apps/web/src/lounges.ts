@@ -14,6 +14,7 @@
  */
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { GameMode } from '@yard/engine';
 import { supabase, online } from './online.ts';
 
 export type Tier = 'guest' | 'yardie' | 'vip';
@@ -106,6 +107,35 @@ export async function listLounges(): Promise<Lounge[]> {
   const { data, error } = await db().from('lounges').select('*').order('sort_order');
   if (error) throw new Error(error.message);
   return data as Lounge[];
+}
+
+export interface OpenTable {
+  id: string;
+  joinCode: string;
+  mode: GameMode;
+  format: string;
+  seatCount: number;
+  status: 'waiting' | 'playing';
+  occupiedSeats: number;
+}
+
+/** Tables currently running or waiting for players inside one lounge. */
+export async function listLoungeTables(loungeId: string): Promise<OpenTable[]> {
+  const { data, error } = await db().from('tables')
+    .select('id, join_code, mode, format, seat_count, status, seats(user_id)')
+    .eq('lounge_id', loungeId)
+    .in('status', ['waiting', 'playing'])
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data as any[]).map((t) => ({
+    id: t.id,
+    joinCode: t.join_code,
+    mode: t.mode,
+    format: t.format,
+    seatCount: t.seat_count,
+    status: t.status,
+    occupiedSeats: (t.seats as { user_id: string | null }[]).filter((s) => s.user_id).length,
+  }));
 }
 
 export function canEnter(lounge: Lounge, tier: Tier, occupancy: number): { ok: boolean; why?: string } {
