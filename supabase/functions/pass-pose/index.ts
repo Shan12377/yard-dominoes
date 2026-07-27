@@ -33,7 +33,8 @@ Deno.serve(handled(async (req) => {
   if (mySeat.seat_index !== set.poser && !poserSide) throw new HttpError(403, 'only the side that just won may pass the pose');
 
   const partner = (set.poser + 2) % table.seat_count;
-  await db.from('sets').update({ poser: partner }).eq('id', set.id);
+  const { error } = await db.from('sets').update({ poser: partner }).eq('id', set.id).select().single();
+  if (error) throw new HttpError(500, error.message);
 
   return json({ ok: true });
 }));
