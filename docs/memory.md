@@ -10,7 +10,7 @@ re-deriving it from chat history.
 | # | Topic | Status |
 |---|---|---|
 | 1 | Online play — architecture review | Received 2026-07-27. Spec written: [`docs/superpowers/specs/2026-07-27-online-play-design.md`](superpowers/specs/2026-07-27-online-play-design.md). **Not yet implemented.** |
-| 2 | — | Not yet received |
+| 2 | Design system + lesson art + billing rules | Received 2026-07-27. Installed: `.claude/rules/design.md`, `.claude/rules/lesson-art.md`, `.claude/rules/billing.md`. **CLAUDE.md replacement text was described but not pasted — still needed.** No contradictions found against existing rules or the online-play spec. |
 | 3 | — | Not yet received |
 | 4 | — | Not yet received |
 | 5 | — | Not yet received |
@@ -57,6 +57,18 @@ Everything below is live and verified, not just written:
   built for others. This is what kicked off the current build phase.
 
 ## Open threads not yet in a phase
+
+- **Table-level tier gating inside lounges — undecided.** `billing.md` confirms
+  lounge *chat* is gated by `min_tier` via `effective_tier()`. Nothing gates who
+  can create/join a *table* inside a tier-locked lounge (e.g. Rankers Row is
+  Yardie-only for chat but the online-play plan's open-tables panel doesn't
+  check tier at all). Surfaced 2026-07-27 cross-checking doc #2 against the
+  online-play plan. Decide before or during online-play Task 6/7.
+- **Billing webhook gaps** (`billing.md`, doc #2): only `checkout.session.completed`
+  and `customer.subscription.deleted` are wired. Missing: `invoice.paid` (the
+  one that keeps renewals alive — its absence is a real bug waiting to happen,
+  not a hypothetical), `invoice.payment_failed`, `customer.subscription.updated`,
+  `charge.refunded`, `charge.dispute.created`. No plan written yet for this.
 
 - Rankings/leaderboard UI (per-style ratings already tracked in
   `profiles.rating_partner` / `rating_cutthroat`, never surfaced anywhere).
