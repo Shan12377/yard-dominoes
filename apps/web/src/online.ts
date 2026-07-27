@@ -59,7 +59,7 @@ export class ConflictError extends Error {
 async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await client().functions.invoke(fn, { body });
   if (error) {
-    if (error instanceof FunctionsHttpError && error.context?.status === 409) {
+    if (fn === 'play-move' && error instanceof FunctionsHttpError && error.context?.status === 409) {
       throw new ConflictError();
     }
     throw new Error(error.message);
