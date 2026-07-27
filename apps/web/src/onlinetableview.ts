@@ -113,8 +113,12 @@ export function joinByCodeField(onJoin: (tableId: string) => void): HTMLElement 
   go.onclick = () => void (async () => {
     const code = input.value.trim();
     if (!code) return;
-    const { tableId } = await joinTable(code);
-    onJoin(tableId);
+    try {
+      const { tableId } = await joinTable(code);
+      onJoin(tableId);
+    } catch (err) {
+      showInlineError(row, err);
+    }
   })();
   row.append(input, go);
   return row;
