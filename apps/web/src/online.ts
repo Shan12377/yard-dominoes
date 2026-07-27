@@ -8,7 +8,7 @@
  */
 
 /// <reference types="vite/client" />
-import { createClient, type SupabaseClient, type RealtimeChannel } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type RealtimeChannel, FunctionsHttpError } from '@supabase/supabase-js';
 import type { Board, GameMode, Move, TileId } from '@yard/engine';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -52,9 +52,18 @@ export async function signInWithProvider(provider: 'apple' | 'google') {
   if (error) throw error;
 }
 
+export class ConflictError extends Error {
+  constructor() { super('someone else moved first'); }
+}
+
 async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await client().functions.invoke(fn, { body });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error instanceof FunctionsHttpError && error.context?.status === 409) {
+      throw new ConflictError();
+    }
+    throw new Error(error.message);
+  }
   if ((data as any)?.error) throw new Error((data as any).error);
   return data as T;
 }
@@ -148,4 +157,22 @@ export async function logVerification(handId: string, ok: boolean, reason?: stri
   await client().from('verifications').insert({
     hand_id: handId, user_id: user.user.id, ok, reason,
   });
+}
+
+/**
+ * Find a table this user is currently seated at with a hand in progress.
+ * Used on load to offer "rejoin" instead of losing a live game to a reload.
+ */
+export async function findActiveSeat(): Promise<{ tableId: string; seatIndex: number } | null> {
+  const db = client();
+  const { data: auth } = await db.auth.getUser();
+  if (!auth.user) return null;
+  const { data } = await db.from('seats')
+    .select('table_id, seat_index, tables!inner(status)')
+    .eq('user_id', auth.user.id)
+    .eq('tables.status', 'playing')
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  return { tableId: data.table_id as string, seatIndex: data.seat_index as number };
 }
