@@ -10,7 +10,7 @@ re-deriving it from chat history.
 | # | Topic | Status |
 |---|---|---|
 | 1 | Online play — architecture review | Received 2026-07-27. Spec written: [`docs/superpowers/specs/2026-07-27-online-play-design.md`](superpowers/specs/2026-07-27-online-play-design.md). **Not yet implemented.** |
-| 2 | Design system + lesson art + billing rules | Received 2026-07-27. Installed: `.claude/rules/design.md`, `.claude/rules/lesson-art.md`, `.claude/rules/billing.md`. **CLAUDE.md replacement text was described but not pasted — still needed.** No contradictions found against existing rules or the online-play spec. |
+| 2 | Design system + lesson art + billing rules + CLAUDE.md | Received 2026-07-27 (CLAUDE.md text arrived in a follow-up message). Installed: `.claude/rules/design.md`, `.claude/rules/lesson-art.md`, `.claude/rules/billing.md`, and the replacement `CLAUDE.md`. One real contradiction found and fixed before install: the "Voice is not wired... do not add before paying members" line directly contradicted the Phase 3 voice decision made earlier this session — reworded to reflect voice as planned/gated-on-vendor-account rather than off-limits. |
 | 3 | — | Not yet received |
 | 4 | — | Not yet received |
 | 5 | — | Not yet received |
@@ -24,9 +24,8 @@ re-deriving it from chat history.
    scope decision, not deferred to "later."
 3. **Voice** — not started. Confirmed **real live voice**, not voice notes.
    Requires a LiveKit or Daily account (real per-minute cost, needs your
-   credentials) before any code gets written for it. Reverses the settled
-   "voice is not wired until paying members exist" decision in `CLAUDE.md` —
-   worth updating that file once this phase actually starts.
+   credentials) before any code gets written for it. `CLAUDE.md` updated
+   2026-07-27 to reflect this as planned rather than off-limits.
 
 ## Done — infrastructure (2026-07-27 session)
 

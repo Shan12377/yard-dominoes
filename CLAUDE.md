@@ -46,7 +46,7 @@ preferences.
 5. **The server seed is revealed only after a hand ends.** Never populate
    `hand_public.server_seed` while `status = 'active'`.
 6. **No real-money play in this codebase.** Not behind a flag, not as hidden
-   UI. See "Real money" below.
+   UI. See "Money" below.
 
 ## Rules competitors get wrong
 
@@ -64,7 +64,9 @@ Jamaican players notice these immediately. All are covered by tests.
 - **Tied blocked hands replay at escalating value:** 2, then 3, then 4.
 - **One all play two:** at 1-1 the playoff winner goes straight to 2-0.
 - **Pass the pose:** in Partner the winner may hand the pose across the table,
-  but never when the double-six is forced.
+  but never when the double-six is forced. The engine rule is tested; the
+  online build's server path (`pass-pose`) and client UI for it are in
+  progress — see `docs/superpowers/plans/2026-07-27-online-play.md`.
 
 ## Settled product decisions
 
@@ -81,9 +83,11 @@ Do not relitigate these without asking.
   not a service worker update.
 - **No auto-play.** A tile fitting both ends prompts for which end.
 - **Timed-out seats play a legal move, they do not forfeit.**
-- **Voice is not wired.** Presence carries the roster and the UI has the slot,
-  but audio needs LiveKit or Daily at real per-minute cost. Do not add it
-  before there are paying members.
+- **Voice is planned, not shipped.** Real live voice (not voice notes) is
+  approved as a dedicated build phase after online play and the design pass —
+  see `docs/memory.md`. It's gated on setting up a LiveKit or Daily account
+  first: real per-minute cost, needs your credentials, no code gets written
+  for it before that account exists.
 
 ## Competitive position
 
@@ -100,16 +104,37 @@ and a free game.
 Match what they get right: lounges as places with regulars, pass-the-pose,
 per-style rankings, per-move speed stats, spectator culture, patois register.
 
-## Real money
+## Money
 
-Real-money play must be a separate application with its own store listing and
-legal opinion. Apple forbids using in-app purchase to buy currency for
-real-money gaming, while our cosmetics shop requires IAP — they cannot coexist
-in one binary. Apps have been rejected for merely *resembling* gambling. Keep
-chips, stakes, pots, and casino imagery out of this codebase entirely.
+Web-only, subscription-funded. No app store, so no platform cut and no store
+review. Stripe is the only payment path. Guest free, Yardie $24/yr, VIP $69/yr —
+the game is free, the subscription buys the social layer.
 
-The groundwork is already laid: server authority, a score ledger, and a
-provably fair shuffle that doubles as an audit trail.
+Access is decided by `effective_tier()` in SQL and enforced in RLS. A tier check
+in client code is a suggestion, not a paywall. See `.claude/rules/billing.md`
+for the subscription lifecycle.
+
+**Cash-stakes gaming is a separate problem from subscriptions.** Being web-only
+removes the app-store constraint but changes nothing about gambling law — a
+licence is needed wherever dominoes-for-money counts as gambling, and a public
+site is reachable everywhere unless deliberately geo-gated. Processors also
+treat skill gaming as high risk. So: no stakes, pots, chips, or casino imagery
+in this codebase. If it is ever built it is a separate application with its own
+legal opinion and processor.
+
+## Secrets
+
+- **Any env var prefixed `VITE_` is compiled into the client bundle and visible
+  to anyone who opens devtools.** Only `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_ANON_KEY` belong there — the anon key is public by design and
+  RLS is the real gate.
+- Service role key, Stripe secret key, Stripe webhook secret, and any image-API
+  key go in `supabase secrets set` or `.env.local`. Never in source, never in a
+  `VITE_` var, never committed.
+- Putting `SUPABASE_SERVICE_ROLE_KEY` behind a `VITE_` prefix bypasses every RLS
+  policy in the database. That single underscore undoes the whole security model.
+- Check `git diff --staged` for anything key-shaped before committing. If a
+  secret was ever pushed, rotate it — deleting the commit is not enough.
 
 ## Working style
 
@@ -120,14 +145,3 @@ provably fair shuffle that doubles as an audit trail.
 - Do not invent rules for game modes we have not specified. French and
   Across-the-table are deliberately unbuilt pending a Jamaican consultant.
 - Prefer editing existing files over creating new ones.
-- Never hardcode secrets. Supabase anon key and URL go in `VITE_` env vars
-  (safe to expose — RLS is the real gate). Service role key, Stripe secret
-  key, and webhook signing secret go in `supabase secrets set`, never in
-  code, never in env files committed to git, never in client bundles.
-- Any env var prefixed `VITE_` is bundled into the client build and visible
-  to anyone who opens devtools. Only the anon key and project URL belong
-  there. Putting `SUPABASE_SERVICE_ROLE_KEY` in a `VITE_` var bypasses
-  every RLS policy in the database.
-- Before committing, check `git diff --staged` for anything that looks like
-  a key, token, or secret. If a secret was ever committed, rotate it —
-  deleting the commit is not enough once it has been pushed.
