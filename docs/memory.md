@@ -57,12 +57,6 @@ Everything below is live and verified, not just written:
 
 ## Open threads not yet in a phase
 
-- **Table-level tier gating inside lounges — undecided.** `billing.md` confirms
-  lounge *chat* is gated by `min_tier` via `effective_tier()`. Nothing gates who
-  can create/join a *table* inside a tier-locked lounge (e.g. Rankers Row is
-  Yardie-only for chat but the online-play plan's open-tables panel doesn't
-  check tier at all). Surfaced 2026-07-27 cross-checking doc #2 against the
-  online-play plan. Decide before or during online-play Task 6/7.
 - **Billing webhook gaps** (`billing.md`, doc #2): only `checkout.session.completed`
   and `customer.subscription.deleted` are wired. Missing: `invoice.paid` (the
   one that keeps renewals alive — its absence is a real bug waiting to happen,

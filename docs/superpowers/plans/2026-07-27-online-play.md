@@ -20,20 +20,72 @@
 
 ---
 
-## Task 1: `create-table` accepts a lounge
+## Task 1: `create-table` accepts a lounge, and both create/join enforce its tier gate
+
+**Decision (resolves the open "table tier gating" question):** lounge chat is
+already gated by `min_tier` via `effective_tier()` — a guest can't read Rankers
+Row's chat. Nothing gated who could sit at a *table* inside that same lounge,
+which is a leak in the exact security model this project insists on
+everywhere else ("a tier check in client code is a suggestion, not a paywall,"
+`CLAUDE.md` → Money). Best practice, matching the existing pattern exactly:
+enforce it server-side, in the two places a human occupies a seat —
+`create-table` and `join-table` — the same way `checkout` and every RLS policy
+already treat tier as a server-decided fact, never a client-supplied one.
+Spectating (read-only) stays open to everyone, matching how `hand_public`'s
+own RLS already works — the gate is about *participating*, not *watching*.
 
 **Files:**
+- Modify: `supabase/functions/_shared/lib.ts` (add `effectiveTier`, `TIER_RANK`)
 - Modify: `supabase/functions/create-table/index.ts`
+- Modify: `supabase/functions/join-table/index.ts`
 - Modify: `apps/web/src/online.ts:50-61` (`CreateTableInput`, `createTable`)
 
 **Interfaces:**
-- Produces: `CreateTableInput.loungeId?: string` — when present, the created `tables` row has `lounge_id` set to it.
+- Produces: `effectiveTier(profile: { tier: string; tier_expires_at: string | null }): string` and `TIER_RANK: Record<string, number>` in `_shared/lib.ts` — mirrors the SQL `effective_tier()` function and the client's existing `TIER_RANK` in `lounges.ts`, kept as plain inline logic rather than an RPC call to avoid PostgREST's composite-type argument handling for a two-line check.
+- Produces: `CreateTableInput.loungeId?: string` — when present, the created `tables` row has `lounge_id` set to it, and the caller's tier is checked against that lounge's `min_tier` before the insert happens.
 
-- [ ] **Step 1: Add `loungeId` to the Edge Function**
+- [ ] **Step 1: Add the shared tier helper**
 
-In `supabase/functions/create-table/index.ts`, the insert currently omits `lounge_id`. Change the insert body:
+In `supabase/functions/_shared/lib.ts`, add near the other exported helpers:
 
 ```ts
+export const TIER_RANK: Record<string, number> = { guest: 0, yardie: 1, vip: 2 };
+
+/** Mirrors the SQL effective_tier() function: expired paid tiers read as guest. */
+export function effectiveTier(profile: { tier: string; tier_expires_at: string | null }): string {
+  if (profile.tier === 'guest') return 'guest';
+  if (!profile.tier_expires_at || Date.parse(profile.tier_expires_at) > Date.now()) return profile.tier;
+  return 'guest';
+}
+```
+
+- [ ] **Step 2: Add `loungeId` to `create-table`, and gate it**
+
+In `supabase/functions/create-table/index.ts`, add the tier check before the insert, and set `lounge_id` on it:
+
+```ts
+import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
+
+Deno.serve(handled(async (req) => {
+  const user = await requireUser(req);
+  const body = await req.json();
+  const db = serviceClient();
+
+  const seatCount = Number(body.seatCount ?? 4);
+  if (![2, 3, 4].includes(seatCount)) throw new HttpError(422, 'seat count must be 2, 3 or 4');
+
+  if (body.loungeId) {
+    const { data: lounge } = await db.from('lounges').select('min_tier').eq('id', body.loungeId).single();
+    if (!lounge) throw new HttpError(404, 'no such lounge');
+    const { data: profile } = await db.from('profiles').select('tier, tier_expires_at').eq('id', user.id).single();
+    const mine = effectiveTier(profile ?? { tier: 'guest', tier_expires_at: null });
+    if (TIER_RANK[mine] < TIER_RANK[lounge.min_tier]) {
+      throw new HttpError(403, `${lounge.min_tier} membership required to start a table here`);
+    }
+  }
+
+  const { data: code } = await db.rpc('generate_join_code');
+
   const { data: table, error } = await db.from('tables').insert({
     join_code: code,
     mode: body.mode ?? 'partner',
@@ -47,9 +99,73 @@ In `supabase/functions/create-table/index.ts`, the insert currently omits `loung
     lounge_id: body.loungeId ?? null,
     created_by: user.id,
   }).select().single();
+  if (error) throw new HttpError(500, error.message);
+
+  const duppies: string[] = body.duppies ?? [];
+  const seats: any[] = [{
+    table_id: table.id, seat_index: 0, user_id: user.id,
+    connected_at: new Date().toISOString(),
+  }];
+  for (let i = 1; i < seatCount; i++) {
+    seats.push({
+      table_id: table.id, seat_index: i,
+      user_id: null, duppy_level: duppies[i - 1] ?? null,
+    });
+  }
+  await db.from('seats').insert(seats);
+
+  return json({ ok: true, tableId: table.id, joinCode: table.join_code });
+}));
 ```
 
-- [ ] **Step 2: Add `loungeId` to the client input type and call**
+- [ ] **Step 3: Gate `join-table` the same way**
+
+In `supabase/functions/join-table/index.ts`, add the same check once the table is resolved (a table's lounge, if any, is fixed at creation — check it regardless of whether joining by code or by id):
+
+```ts
+import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
+
+Deno.serve(handled(async (req) => {
+  const user = await requireUser(req);
+  const { joinCode, tableId, seatIndex } = await req.json();
+  const db = serviceClient();
+
+  const query = joinCode
+    ? db.from('tables').select('*').eq('join_code', String(joinCode).toUpperCase())
+    : db.from('tables').select('*').eq('id', tableId);
+  const { data: table } = await query.single();
+  if (!table) throw new HttpError(404, 'no table with that code');
+  if (table.status !== 'waiting') throw new HttpError(409, 'that game has already started');
+
+  if (table.lounge_id) {
+    const { data: lounge } = await db.from('lounges').select('min_tier').eq('id', table.lounge_id).single();
+    const { data: profile } = await db.from('profiles').select('tier, tier_expires_at').eq('id', user.id).single();
+    const mine = effectiveTier(profile ?? { tier: 'guest', tier_expires_at: null });
+    if (lounge && TIER_RANK[mine] < TIER_RANK[lounge.min_tier]) {
+      throw new HttpError(403, `${lounge.min_tier} membership required to sit at a table here`);
+    }
+  }
+
+  const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
+  const existing = seats!.find((s: any) => s.user_id === user.id);
+  if (existing) return json({ ok: true, tableId: table.id, seatIndex: existing.seat_index });
+
+  const target = seatIndex != null
+    ? seats!.find((s: any) => s.seat_index === seatIndex && !s.user_id)
+    : seats!.find((s: any) => !s.user_id);
+  if (!target) throw new HttpError(409, 'no free seat');
+
+  await db.from('seats').update({
+    user_id: user.id, duppy_level: null, connected_at: new Date().toISOString(),
+  }).eq('table_id', table.id).eq('seat_index', target.seat_index);
+
+  return json({ ok: true, tableId: table.id, seatIndex: target.seat_index });
+}));
+```
+
+Note this also closes a second leak for free: previously, joining by a shared join-code bypassed the lounge gate entirely even for chat-equivalent participation, since join-code lookup never looked at `lounge_id` at all.
+
+- [ ] **Step 4: Add `loungeId` to the client input type**
 
 In `apps/web/src/online.ts`, update:
 
@@ -66,11 +182,11 @@ export interface CreateTableInput {
 }
 ```
 
-`createTable` itself is already generic (`call<...>('create-table', { ...input })`), so no change needed to the function body — only the type.
+`createTable` itself is already generic (`call<...>('create-table', { ...input })`), so no change needed to the function body — only the type. The 403 from either function surfaces to the caller as a plain `Error` via the existing `call<T>` error handling — Task 6's `openTablesPanel`/`startTableForm` should let that message reach the player as-is (it's already human-readable: `"vip membership required to start a table here"`), not swallow it.
 
-- [ ] **Step 3: Deploy and verify**
+- [ ] **Step 5: Deploy and verify**
 
-Deploy via the Supabase MCP `deploy_edge_function` tool (bundle `index.ts` + `../_shared/lib.ts` + `../_shared/engine/types.ts`, same pattern as every other deploy this session — no engine logic touched, so no other engine files needed). Then:
+Deploy both functions via the Supabase MCP `deploy_edge_function` tool (bundle `index.ts` + `../_shared/lib.ts` + `../_shared/engine/types.ts` for each, same pattern as every other deploy this session). Then:
 
 ```bash
 cd "/Users/higgi/Jamaican Domino/yard-dominoes" && npm run typecheck
@@ -78,21 +194,21 @@ cd "/Users/higgi/Jamaican Domino/yard-dominoes" && npm run typecheck
 
 Expected: clean, no errors.
 
-- [ ] **Step 4: Manual verification**
+- [ ] **Step 6: Manual verification**
 
-Using an anonymous session token (same curl pattern used earlier this session), call `create-table` with a real `loungeId` (query `select id from public.lounges where slug = 'yard-gate'` for one), then:
+Using an anonymous (guest-tier) session token, attempt `create-table` with `loungeId` set to Red Carpet's id (`select id from public.lounges where slug = 'red-carpet'`). Expect: `403`, message containing `"vip membership required"`. Then manually set that test profile's `tier` to `'vip'` and `tier_expires_at` to a year out via SQL, retry — expect success, and:
 
 ```sql
 select id, lounge_id from public.tables order by created_at desc limit 1;
 ```
 
-Expected: `lounge_id` matches the one passed. Delete the test row after (`delete from public.tables where id = '...'`, cascades).
+`lounge_id` matches. Delete the test row after. Repeat the same guest-then-vip check against `join-table` using a table already created in Red Carpet by another (VIP) session. Also confirm the **negative** case still works: `create-table` with `loungeId` pointing at Yard Gate (`min_tier: 'guest'`) succeeds for a plain guest — the gate must only bind where a lounge actually requires it.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add supabase/functions/create-table/index.ts apps/web/src/online.ts
-git commit -m "feat: create-table accepts a loungeId"
+git add supabase/functions/_shared/lib.ts supabase/functions/create-table/index.ts supabase/functions/join-table/index.ts apps/web/src/online.ts
+git commit -m "feat: create-table accepts a loungeId; both create/join enforce its tier gate"
 ```
 
 ---
