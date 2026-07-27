@@ -65,13 +65,6 @@ create table public.tables (
 
 alter table public.tables enable row level security;
 
-create policy "public tables are listable; private ones need the code"
-  on public.tables for select
-  using (
-    not is_private
-    or exists (select 1 from public.seats s where s.table_id = id and s.user_id = auth.uid())
-  );
-
 -- ------------------------------------------------------------------- seats --
 create table public.seats (
   table_id     uuid not null references public.tables on delete cascade,
@@ -92,6 +85,14 @@ create policy "seats at a table you can see are visible"
   using (exists (select 1 from public.tables t where t.id = table_id));
 
 create index seats_user_idx on public.seats(user_id);
+
+-- `tables` policy references `seats`, so it is declared after seats exists.
+create policy "public tables are listable; private ones need the code"
+  on public.tables for select
+  using (
+    not is_private
+    or exists (select 1 from public.seats s where s.table_id = id and s.user_id = auth.uid())
+  );
 
 -- -------------------------------------------------------------------- sets --
 create table public.sets (

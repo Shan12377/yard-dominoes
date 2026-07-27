@@ -120,3 +120,14 @@ provably fair shuffle that doubles as an audit trail.
 - Do not invent rules for game modes we have not specified. French and
   Across-the-table are deliberately unbuilt pending a Jamaican consultant.
 - Prefer editing existing files over creating new ones.
+- Never hardcode secrets. Supabase anon key and URL go in `VITE_` env vars
+  (safe to expose — RLS is the real gate). Service role key, Stripe secret
+  key, and webhook signing secret go in `supabase secrets set`, never in
+  code, never in env files committed to git, never in client bundles.
+- Any env var prefixed `VITE_` is bundled into the client build and visible
+  to anyone who opens devtools. Only the anon key and project URL belong
+  there. Putting `SUPABASE_SERVICE_ROLE_KEY` in a `VITE_` var bypasses
+  every RLS policy in the database.
+- Before committing, check `git diff --staged` for anything that looks like
+  a key, token, or secret. If a secret was ever committed, rotate it —
+  deleting the commit is not enough once it has been pushed.
