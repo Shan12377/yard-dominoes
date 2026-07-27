@@ -26,12 +26,17 @@ Deno.serve(handled(async (req) => {
   const { data: profile } = await db.from('profiles')
     .select('stripe_customer_id, username').eq('id', user.id).single();
 
+  // Trimmed defensively: a stray trailing newline from a pasted dashboard
+  // secret once turned this into an embedded-newline URL that Stripe
+  // rejected outright with "Not a valid URL".
+  const siteUrl = (Deno.env.get('SITE_URL') ?? '').trim();
+
   const params = new URLSearchParams({
     mode: 'subscription',
     'line_items[0][price]': price,
     'line_items[0][quantity]': '1',
-    success_url: `${Deno.env.get('SITE_URL') ?? ''}/?upgraded=${tier}`,
-    cancel_url: `${Deno.env.get('SITE_URL') ?? ''}/?upgrade=cancelled`,
+    success_url: `${siteUrl}/?upgraded=${tier}`,
+    cancel_url: `${siteUrl}/?upgrade=cancelled`,
     client_reference_id: user.id,
     'metadata[user_id]': user.id,
     'metadata[tier]': tier,
