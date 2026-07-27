@@ -32,6 +32,18 @@ export async function signInAsGuest() {
   return data.user;
 }
 
+/**
+ * Whoever is here already, or a fresh guest. Lounges and membership need a
+ * signed-in user for RLS to resolve anything at all, and the product rule is
+ * that nobody sees a sign-in wall — so this runs silently before either view
+ * loads, never as something the player has to click.
+ */
+export async function ensureSignedIn() {
+  const { data } = await client().auth.getUser();
+  if (data.user) return data.user;
+  return signInAsGuest();
+}
+
 export async function signInWithProvider(provider: 'apple' | 'google') {
   const { error } = await client().auth.signInWithOAuth({
     provider,

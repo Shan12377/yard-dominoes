@@ -11,6 +11,7 @@ import {
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
 } from './lounges.ts';
 import type { Lounge, LoungeMessage, PresenceEntry, Tier } from './lounges.ts';
+import { ensureSignedIn } from './online.ts';
 import { el } from './render.ts';
 
 interface LoungeState {
@@ -43,6 +44,7 @@ export async function loadLounges(rerender: () => void) {
   if (!loungesAvailable || loungeState.loading) return;
   loungeState.loading = true;
   try {
+    await ensureSignedIn();
     const [lounges, me] = await Promise.all([listLounges(), myProfile()]);
     loungeState.lounges = lounges;
     loungeState.me = me;
