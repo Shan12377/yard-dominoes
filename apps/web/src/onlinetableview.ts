@@ -11,6 +11,16 @@ import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
 import type { GameMode } from '@yard/engine';
 
+/** Surface a failed request inline, next to whatever control triggered it —
+ * same `.banner` treatment loungeview.ts uses for its room-level error, just
+ * scoped to one row/form instead of the whole panel. Replaces any previous
+ * banner in `host` so repeated failures update in place rather than stacking. */
+function showInlineError(host: HTMLElement, err: unknown): void {
+  host.querySelector('.banner')?.remove();
+  const message = err instanceof Error ? err.message : 'something went wrong';
+  host.appendChild(el('div', 'banner', message));
+}
+
 export async function openTablesPanel(
   loungeId: string,
   onJoin: (tableId: string) => void,
@@ -34,8 +44,12 @@ export async function openTablesPanel(
       join.className = 'act ghost';
       join.textContent = t.status === 'waiting' ? 'Sit down' : 'Watch';
       join.onclick = () => void (async () => {
-        if (t.status === 'waiting') await joinTable(t.joinCode);
-        onJoin(t.id);
+        try {
+          if (t.status === 'waiting') await joinTable(t.joinCode);
+          onJoin(t.id);
+        } catch (err) {
+          showInlineError(row, err);
+        }
       })();
       row.appendChild(join);
       list.appendChild(row);
@@ -78,6 +92,8 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
         loungeId,
       });
       onJoin(tableId);
+    } catch (err) {
+      showInlineError(form, err);
     } finally {
       go.disabled = false;
     }
