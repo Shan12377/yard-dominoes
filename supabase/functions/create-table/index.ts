@@ -1,5 +1,5 @@
 // POST /create-table
-import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
+import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -8,6 +8,16 @@ Deno.serve(handled(async (req) => {
 
   const seatCount = Number(body.seatCount ?? 4);
   if (![2, 3, 4].includes(seatCount)) throw new HttpError(422, 'seat count must be 2, 3 or 4');
+
+  if (body.loungeId) {
+    const { data: lounge } = await db.from('lounges').select('min_tier').eq('id', body.loungeId).single();
+    if (!lounge) throw new HttpError(404, 'no such lounge');
+    const { data: profile } = await db.from('profiles').select('tier, tier_expires_at').eq('id', user.id).single();
+    const mine = effectiveTier(profile ?? { tier: 'guest', tier_expires_at: null });
+    if (TIER_RANK[mine] < TIER_RANK[lounge.min_tier]) {
+      throw new HttpError(403, `${lounge.min_tier} membership required to start a table here`);
+    }
+  }
 
   const { data: code } = await db.rpc('generate_join_code');
 
@@ -21,6 +31,7 @@ Deno.serve(handled(async (req) => {
     one_all_play_two: body.oneAllPlayTwo ?? true,
     use_boneyard: !!body.useBoneyard,
     is_private: !!body.isPrivate,
+    lounge_id: body.loungeId ?? null,
     created_by: user.id,
   }).select().single();
   if (error) throw new HttpError(500, error.message);

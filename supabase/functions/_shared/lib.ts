@@ -51,6 +51,15 @@ export class HttpError extends Error {
   }
 }
 
+export const TIER_RANK: Record<string, number> = { guest: 0, yardie: 1, vip: 2 };
+
+/** Mirrors the SQL effective_tier() function: expired paid tiers read as guest. */
+export function effectiveTier(profile: { tier: string; tier_expires_at: string | null }): string {
+  if (profile.tier === 'guest') return 'guest';
+  if (!profile.tier_expires_at || Date.parse(profile.tier_expires_at) > Date.now()) return profile.tier;
+  return 'guest';
+}
+
 export function handled(fn: (req: Request) => Promise<Response>) {
   return async (req: Request): Promise<Response> => {
     const pre = preflight(req);

@@ -1,5 +1,5 @@
 // POST /join-table  { joinCode }  or  { tableId, seatIndex }
-import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
+import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -12,6 +12,15 @@ Deno.serve(handled(async (req) => {
   const { data: table } = await query.single();
   if (!table) throw new HttpError(404, 'no table with that code');
   if (table.status !== 'waiting') throw new HttpError(409, 'that game has already started');
+
+  if (table.lounge_id) {
+    const { data: lounge } = await db.from('lounges').select('min_tier').eq('id', table.lounge_id).single();
+    const { data: profile } = await db.from('profiles').select('tier, tier_expires_at').eq('id', user.id).single();
+    const mine = effectiveTier(profile ?? { tier: 'guest', tier_expires_at: null });
+    if (lounge && TIER_RANK[mine] < TIER_RANK[lounge.min_tier]) {
+      throw new HttpError(403, `${lounge.min_tier} membership required to sit at a table here`);
+    }
+  }
 
   const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
   const existing = seats!.find((s: any) => s.user_id === user.id);

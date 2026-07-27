@@ -67,6 +67,7 @@ export interface CreateTableInput {
   oneAllPlayTwo?: boolean;
   isPrivate?: boolean;
   duppies?: string[];
+  loungeId?: string;
 }
 
 export const createTable = (input: CreateTableInput) =>
