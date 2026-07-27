@@ -76,6 +76,9 @@ export const createTable = (input: CreateTableInput) =>
 export const joinTable = (joinCode: string) =>
   call<{ tableId: string; seatIndex: number }>('join-table', { joinCode });
 
+export const passPose = (tableId: string) =>
+  call<{ ok: true }>('pass-pose', { tableId });
+
 export const startHand = (tableId: string, clientSeed?: string) =>
   call<{ handId: string; commitment: string; turn: number }>('start-hand', { tableId, clientSeed });
 
