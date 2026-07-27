@@ -17,7 +17,9 @@ re-deriving it from chat history.
 
 ## Build phases
 
-1. **Online play** — spec approved, implementation plan not yet written.
+1. **Online play** — spec approved, implementation plan written:
+   [`docs/superpowers/plans/2026-07-27-online-play.md`](superpowers/plans/2026-07-27-online-play.md)
+   (9 tasks). **Not yet built.**
 2. **Visual polish** — not started. Portrait-first (390×844), per doc #1's
    scope decision, not deferred to "later."
 3. **Voice** — not started. Confirmed **real live voice**, not voice notes.
