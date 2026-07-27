@@ -10,3 +10,5 @@ supabase/functions/_shared/engine/
 ios/
 android/
 CLAUDE.local.md
+.vercel
+.env*
