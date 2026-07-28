@@ -135,7 +135,7 @@ export function liveTableView(game: OnlineGame, rerender: () => void, onLeave: (
   const leave = document.createElement('button');
   leave.className = 'act ghost';
   leave.textContent = 'Leave';
-  leave.onclick = () => { game.leave(); onLeave(); };
+  leave.onclick = () => void (async () => { await game.leaveSeat(); onLeave(); })();
   top.appendChild(leave);
   head.appendChild(top);
   if (game.isSpectator) head.append(el('div', 'muted', 'Watching — spectators never see anyone\'s tiles'));

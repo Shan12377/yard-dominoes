@@ -33,6 +33,8 @@ verify_jwt = true
 verify_jwt = true
 [functions.pass-pose]
 verify_jwt = true
+[functions.leave-seat]
+verify_jwt = true
 [functions.review-hand]
 verify_jwt = true
 [functions.expire-turns]

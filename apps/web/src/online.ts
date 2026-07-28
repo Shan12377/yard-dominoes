@@ -88,6 +88,9 @@ export const joinTable = (joinCode: string) =>
 export const passPose = (tableId: string) =>
   call<{ ok: true }>('pass-pose', { tableId });
 
+export const leaveSeat = (tableId: string) =>
+  call<{ ok: true }>('leave-seat', { tableId });
+
 export const startHand = (tableId: string, clientSeed?: string) =>
   call<{ handId: string; commitment: string; turn: number }>('start-hand', { tableId, clientSeed });
 

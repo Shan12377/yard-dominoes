@@ -10,7 +10,7 @@
 
 import {
   supabase, startHand as apiStartHand, playMove as apiPlayMove, passPose as apiPassPose,
-  watchTable, ConflictError, type PublicHand, type TableSubscription,
+  leaveSeat as apiLeaveSeat, watchTable, ConflictError, type PublicHand, type TableSubscription,
 } from './online.ts';
 import { legalMoves, sideOf } from '@yard/engine';
 import type { GameMode, Move, TileId } from '@yard/engine';
@@ -239,5 +239,12 @@ export class OnlineGame {
   leave() {
     this.sub?.stop();
     document.removeEventListener('visibilitychange', this.visListener);
+  }
+
+  async leaveSeat(): Promise<void> {
+    if (!this.isSpectator) {
+      try { await apiLeaveSeat(this.table.id); } catch { /* seat may already be gone; proceed to teardown regardless */ }
+    }
+    this.leave();
   }
 }
