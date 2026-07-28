@@ -393,7 +393,8 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   align-content: start;
 }
 .tier-card.vip { border-color: var(--gold); }
-.tier-card .price { font-family: var(--display); font-size: 22px; color: var(--gold); }
+.tier-card.vip .price { color: var(--gold); }
+.tier-card .price { font-family: var(--display); font-size: 22px; color: var(--bone); }
 .tier-card ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
 .tier-card li { font-size: 13px; color: var(--bone-shade); }
 .offline-note {
