@@ -139,5 +139,5 @@ screen reader out loud.
 Portrait phone is the primary target, not an afterthought. The board wraps
 into rows and grows downward instead of scrolling sideways, turning corners
 the way a real table's board does once it runs out of room; the hand stays
-thumb-reachable at the bottom; nothing important
-sits in the top third. Test at 390×844 before anything wider.
+thumb-reachable at the bottom; nothing important sits in the top third. Test
+at 390×844 before anything wider.
