@@ -7,6 +7,7 @@
 
 import { handled, json, serviceClient, toState, persist } from '../_shared/lib.ts';
 import { legalMoves, applyMove } from '../_shared/engine/hand.ts';
+import { applyHandResult } from '../_shared/engine/set.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
 
 Deno.serve(handled(async () => {
@@ -31,6 +32,33 @@ Deno.serve(handled(async () => {
     await persist(db, row.id, table!.id, row.set_id, state,
       seats!.map((s: any) => s.user_id), table!.turn_seconds, (row as any).version);
     moved++;
+
+    // Mirror play-move's post-persist block: a forced timeout move can end a
+    // hand exactly as a human move can, and if it does, the set/table must
+    // advance the same way — otherwise an all-duppy table (reachable now that
+    // leave-seat converts human seats to duppies) never resolves its sets.
+    if (state.status !== 'active') {
+      const current = {
+        options: {
+          mode: table!.mode, format: table!.format, seatCount: table!.seat_count,
+          tournament: table!.tournament, oneAllPlayTwo: table!.one_all_play_two,
+          useBoneyard: table!.use_boneyard, target: 6,
+        },
+        scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,
+        poseMustBeDoubleSix: set!.pose_must_be_double_six, playoff: set!.playoff,
+        handsPlayed: set!.hands_played, winnerSide: set!.winner_side, sixLove: set!.six_love,
+      };
+      const next = applyHandResult(current as any, state.result!);
+      await db.from('sets').update({
+        scores: next.scores, hand_value: next.handValue, poser: next.poser,
+        pose_must_be_double_six: next.poseMustBeDoubleSix, playoff: next.playoff,
+        hands_played: next.handsPlayed, winner_side: next.winnerSide, six_love: next.sixLove,
+      }).eq('id', row.set_id);
+
+      if (next.winnerSide !== null) {
+        await db.from('tables').update({ status: 'finished' }).eq('id', table!.id);
+      }
+    }
   }
   return json({ ok: true, moved });
 }));
