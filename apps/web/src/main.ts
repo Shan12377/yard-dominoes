@@ -22,14 +22,18 @@ let loungeModule: LoungeModule | null = null;
 let loungeLoading = false;
 const LOUNGES_VISITED_KEY = 'yard:visited-lounges';
 
-async function ensureLoungeModule() {
+async function ensureLoungeModule(isBootCheck = false) {
   if (loungeModule || loungeLoading) return;
   loungeLoading = true;
   localStorage.setItem(LOUNGES_VISITED_KEY, '1');
   try {
     loungeModule = await import('./loungeview.ts');
     await loungeModule.loadLounges(render);
-    if (loungeModule.loungeState.onlineGame) view = 'lounges';
+    // Only the automatic boot-time rejoin check gets to redirect the view —
+    // an explicit tab click (Lounges or Membership) must land where the
+    // player clicked, never get silently overridden once the async load
+    // resolves and finds a live game.
+    if (isBootCheck && loungeModule.loungeState.onlineGame) view = 'lounges';
   } finally {
     loungeLoading = false;
     render();
@@ -605,5 +609,5 @@ watchInstallability(render);
 registerServiceWorker(render);
 render();
 if (localStorage.getItem(LOUNGES_VISITED_KEY)) {
-  void ensureLoungeModule();
+  void ensureLoungeModule(true);
 }
