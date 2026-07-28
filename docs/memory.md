@@ -54,7 +54,14 @@ re-deriving it from chat history.
      was verified live against a real Vercel preview deploy and the real
      Supabase project, with two genuinely separate anonymous sessions.
 2. **Visual polish** — not started. Portrait-first (390×844), per doc #1's
-   scope decision, not deferred to "later."
+   scope decision, not deferred to "later." **Confirmed item for this phase**
+   (flagged 2026-07-28 while reviewing the online table live): `renderBoard()`
+   in `apps/web/src/render.ts` already lays doubles crosswise ("the way they
+   sit on a real table" per its own comment) but draws the whole line on one
+   axis, scrolling horizontally forever instead of turning corners the way a
+   physical table's board does once it runs out of room. Fixing this means a
+   real 2D layout algorithm (track direction changes, corner tiles), not a
+   style tweak — affects local play too, since both share this function.
 3. **Voice** — not started. Confirmed **real live voice**, not voice notes.
    Requires a LiveKit or Daily account (real per-minute cost, needs your
    credentials) before any code gets written for it. `CLAUDE.md` updated
