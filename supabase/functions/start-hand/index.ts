@@ -39,6 +39,19 @@ Deno.serve(handled(async (req) => {
     set = data;
   }
 
+  // Idempotency: a double-tap (two partners both hitting "Deal next hand", or
+  // a double-tap on one device) must not create two active hands on the same
+  // set. If one is already active, hand the caller that hand instead of
+  // dealing a second one on top of it.
+  const { data: existingActive } = await db.from('hands')
+    .select('*').eq('set_id', set!.id).eq('status', 'active').maybeSingle();
+  if (existingActive) {
+    return json({
+      ok: true, handId: existingActive.id, commitment: existingActive.commitment,
+      turn: existingActive.turn,
+    });
+  }
+
   const { count } = await db.from('hands')
     .select('*', { count: 'exact', head: true }).eq('set_id', set!.id);
   const handNo = (count ?? 0) + 1;
@@ -62,13 +75,17 @@ Deno.serve(handled(async (req) => {
     poseMustBeDoubleSix: set!.pose_must_be_double_six || table.tournament,
   });
 
-  const { data: handRow } = await db.from('hands').insert({
+  const { data: handRow, error: handError } = await db.from('hands').insert({
     set_id: set!.id, hand_no: handNo, commitment, server_seed: serverSeed,
     client_seeds: clientSeeds, deal: state.hands, hands: state.hands,
     boneyard: state.boneyard, board: state.board, turn: state.turn,
     move_log: [], status: 'active', poser: state.poser,
     pose_must_be_double_six: state.poseMustBeDoubleSix,
   }).select().single();
+  // The unique partial index on (set_id) where status = 'active' is the
+  // database-level backstop against the same race the check above narrows
+  // but can't fully close (TOCTOU between that select and this insert).
+  if (handError) throw new HttpError(500, handError.message);
 
   let guard = 0;
   while (state.status === 'active' && seats![state.turn].duppy_level && guard++ < 40) {
