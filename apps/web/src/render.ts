@@ -93,14 +93,13 @@ function layoutPath(line: PlacedTile[], maxRun: number): Placement[] {
     runLength++;
 
     const turn = tile.crosswise || runLength >= maxRun;
-    const step = STEP[dir];
-    row += step.dr;
-    col += step.dc;
-
     if (turn) {
       dir = TURN_ORDER[(TURN_ORDER.indexOf(dir) + 1) % 4];
       runLength = 0;
     }
+    const step = STEP[dir];
+    row += step.dr;
+    col += step.dc;
   }
   return placements;
 }
