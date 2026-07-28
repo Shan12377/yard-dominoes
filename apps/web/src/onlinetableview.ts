@@ -174,13 +174,41 @@ export function liveTableView(game: OnlineGame, rerender: () => void, onLeave: (
   });
   frag.appendChild(seatsRow);
 
-  if (!game.isSpectator) frag.appendChild(myHandPanel(game, rerender));
+  if (!game.hand) {
+    frag.appendChild(startHandPanel(game));
+  } else {
+    if (!game.isSpectator) frag.appendChild(myHandPanel(game, rerender));
 
-  if (game.hand?.status !== 'active' && game.hand?.result) {
-    frag.appendChild(handResultPanel(game, rerender));
+    if (game.hand.status !== 'active' && game.hand.result) {
+      frag.appendChild(handResultPanel(game, rerender));
+    }
   }
 
   return frag;
+}
+
+function startHandPanel(game: OnlineGame): HTMLElement {
+  const panel = el('div', 'panel');
+  if (game.isSpectator) {
+    panel.append(el('p', 'muted', 'Waiting for the players to start the first hand.'));
+    return panel;
+  }
+  panel.append(el('p', 'muted', 'Everyone\'s seated. Ready when you are.'));
+  const go = document.createElement('button');
+  go.className = 'act';
+  go.textContent = 'Start hand';
+  go.onclick = () => void (async () => {
+    go.disabled = true;
+    try {
+      await game.dealNext(false);
+    } catch (err) {
+      showInlineError(panel, err);
+    } finally {
+      go.disabled = false;
+    }
+  })();
+  panel.appendChild(go);
+  return panel;
 }
 
 function countdown(expiresAt: string, rerender: () => void): HTMLElement {
