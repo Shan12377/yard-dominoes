@@ -83,15 +83,65 @@ re-deriving it from chat history.
      (happy path, simultaneous moves, disconnect/reconnect, portrait 390×844)
      was verified live against a real Vercel preview deploy and the real
      Supabase project, with two genuinely separate anonymous sessions.
-2. **Visual polish** — not started. Portrait-first (390×844), per doc #1's
-   scope decision, not deferred to "later." **Confirmed item for this phase**
-   (flagged 2026-07-28 while reviewing the online table live): `renderBoard()`
-   in `apps/web/src/render.ts` already lays doubles crosswise ("the way they
-   sit on a real table" per its own comment) but draws the whole line on one
-   axis, scrolling horizontally forever instead of turning corners the way a
-   physical table's board does once it runs out of room. Fixing this means a
-   real 2D layout algorithm (track direction changes, corner tiles), not a
-   style tweak — affects local play too, since both share this function.
+2. **Visual polish — core play screens, built and merged 2026-07-28.** Plan:
+   [`docs/superpowers/plans/2026-07-28-visual-polish-core.md`](superpowers/plans/2026-07-28-visual-polish-core.md)
+   (3 tasks, all complete). Scope was deliberately narrowed to the screens
+   players actually play on — local play, the online live table, lounges,
+   membership — with Academy lesson diagrams, avatars, and atmosphere images
+   explicitly deferred (avatars/atmosphere need an image-generation API key
+   not yet set up; Academy diagrams are their own large scope, left for last
+   per your instruction).
+   - **What shipped:** the app's palette/materials were inverted from what
+     `.claude/rules/design.md` actually specifies — table surface was brown
+     wood with green reserved for the score only, gold used broadly as
+     routine chrome (nav, badges, chat usernames, buttons everywhere).
+     Rebuilt to match the doc: green felt table surface, wood only framing
+     the edges, gold restricted to genuine highlights (lit score pips,
+     six-love, single primary actions, VIP indicators) — checked file-by-file
+     against every screen, not just spot-checked. Anton replaced Archivo
+     Black for display type; Bungee is now used in exactly two places (the
+     wordmark, the six-love banner), matching the design doc's "signage face,
+     used anywhere else it becomes noise" rule precisely. Added real
+     materials: felt weave texture, a visible wood-grain table border, tile
+     bottom-edge thickness.
+   - **The board now turns corners** instead of scrolling horizontally
+     forever — `renderBoard()` in `apps/web/src/render.ts` wraps into rows
+     (a boustrophedon layout, alternating direction each row) once a row
+     fills, the column count computed from viewport width in JS rather than
+     CSS media queries (elements are built detached from the document before
+     being appended, so `getComputedStyle` can't resolve an ancestor's custom
+     property at render time — this cost one real bug during the build, see
+     below). `Board.line`'s engine data shape is completely untouched; this
+     is presentation-only.
+   - **Real bugs found and fixed during the build, each confirmed by an
+     independent hand-trace, not just accepted on an implementer's word:**
+     (1) a partial (non-full) wrapped row packed to the left edge instead of
+     right-aligning under the previous row's endpoint — since a real hand's
+     tile count is rarely an exact multiple of the column count, this hit
+     the currently-in-progress row (the part of the board a player is
+     actually watching) on most renders, not as a rare edge case; fixed with
+     explicit `grid-column` placement on reversed rows. (2) at exactly
+     390×844 — the project's primary target width — the 5-item nav bar
+     overflowed the viewport by 19px with mid-word text wrapping; fixed with
+     `flex-wrap: wrap`, matching an idiom already used five other places in
+     the same stylesheet. (3) `button.act` (the primary-action button style)
+     was gold everywhere including three places that put multiple gold
+     buttons on one screen at once (a looped lounge list, membership tier
+     cards, the permanent chat send button) — this was the *plan* inverting
+     what the original design spec had already correctly specified (a
+     primary/gold vs. secondary/ghost split with named examples); fixed to
+     match the spec. (4) the fix for (3) then introduced its own regression —
+     wiring an unused `--gold-hi` token into `button.act:hover` collided with
+     the pre-existing `.ghost:hover` rule, making every secondary button's
+     hover state gold-on-near-gold, well under accessibility contrast
+     minimums, app-wide — caught by the final review's own re-review pass and
+     fixed with `:not(.ghost)` scoping.
+   - **Known, deliberately-left-as-is:** `.seat.partner` and `.grade.best`
+     use the felt-green family for a partner accent and a "best move" badge —
+     flagged during review as technically outside a too-strict reading of
+     "green is the table surface only," ruled acceptable since the actual
+     design principle is a proportion/balance rule, not a single-selector
+     lock, and these are small, non-decorative, legitimate uses.
 3. **Voice** — not started. Confirmed **real live voice**, not voice notes.
    Requires a LiveKit or Daily account (real per-minute cost, needs your
    credentials) before any code gets written for it. `CLAUDE.md` updated
