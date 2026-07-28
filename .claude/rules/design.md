@@ -43,11 +43,17 @@ substitutes for the actual surface materials (felt, wood, bone).
 --gold-hi:    #F4C430;
 --gold-deep:  #8F6600;
 
---bone:       #FFFBF0;  /* tile face. warm ivory, brighter than the room so tiles read as objects on it */
+--bone:       #FDF6E3;  /* tile face. Deliberately distinct from --sand-hi (#FFFBF0)
+                            — a tile that matches its panel disappears into it — and
+                            from the tile gradient's own hardcoded highlight stop
+                            (#FFFEFA), which needs its own lighter value or the
+                            gradient flattens to a single flat colour. */
 --bone-shade: #D9CCA8;  /* tile bottom edge — this is what gives it thickness */
 --pip:        #241608;
 
 --ink:        #241608;  /* text. warm near-black. NEVER a background, NEVER the room */
+--muted:      #786243;  /* secondary text. Must clear 4.5:1 on both --sand and
+                            --sand-hi (WCAG AA) — check before ever touching this. */
 --blood:      #C0392B;  /* bruk, and nothing else */
 ```
 
@@ -144,8 +150,14 @@ screen reader out loud.
 
 ## Responsive
 
-Portrait phone is the primary target, not an afterthought. The board wraps
-into rows and grows downward instead of scrolling sideways, turning corners
-the way a real table's board does once it runs out of room; the hand stays
-thumb-reachable at the bottom; nothing important sits in the top third. Test
-at 390×844 before anything wider.
+Portrait phone is the primary target, not an afterthought. The board turns at
+doubles, not at running out of room — a real domino line only bends where a
+double is laid crosswise, and the layout follows that: each row runs in one
+direction until a double (or a width safety cap) ends it, then drops one row
+and reverses direction, boustrophedon-style, the way text wraps. This is
+deliberately two-directional, not four — an earlier version let the path turn
+any of four ways and it spiralled into itself on most real hands, hiding
+tiles that landed in an already-used cell. The hand stays thumb-reachable at
+the bottom; nothing important sits in the top third. Test at 390×844 before
+anything wider — it has the tightest width, so turns happen soonest and are
+easiest to see.
