@@ -484,7 +484,6 @@ function tableView(g: LocalGame): DocumentFragment {
   renderBoard(line, g.hand?.board ?? null);
   felt.appendChild(line);
   frag.appendChild(felt);
-  requestAnimationFrame(() => { felt.scrollLeft = (felt.scrollWidth - felt.clientWidth) / 2; });
 
   frag.appendChild(seats(g));
   frag.appendChild(myHand(g));

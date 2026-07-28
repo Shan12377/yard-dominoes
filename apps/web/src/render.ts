@@ -1,4 +1,4 @@
-import { halves, isDouble } from '@yard/engine';
+import { halves } from '@yard/engine';
 import type { Board, TileId } from '@yard/engine';
 
 /** Pip positions on a 3x3 grid, per face value. */
@@ -40,14 +40,37 @@ export function tileEl(id: TileId, opts: { cross?: boolean } = {}): HTMLElement 
 }
 
 /**
- * Render the line. Doubles are laid crosswise, the way they sit on a real
- * table — it is not decoration, it is how players read the board at a glance.
+ * Real boards turn corners once they run out of table instead of scrolling
+ * sideways forever. `.line` is a CSS Grid with a column count this function
+ * sets directly (see the note on why it can't come from a CSS media query).
+ * `board.line` is already physical left-to-right order (see `Board.line`'s
+ * doc comment in packages/engine/src/types.ts) — a straight append would
+ * just make one row that keeps growing sideways, which is the problem this
+ * replaces. Every other row is reversed before appending, so DOM order still
+ * matches the grid's natural fill order (top-to-bottom, left-to-right) while
+ * the *visual* result reads as one continuous path that turns at the edge of
+ * the table instead of jumping back to the left edge each wrap.
  */
+function boardCols(): number {
+  const w = window.innerWidth;
+  if (w >= 900) return 12;
+  if (w >= 640) return 9;
+  return 6;
+}
+
 export function renderBoard(host: HTMLElement, board: Board | null) {
   host.innerHTML = '';
+  host.style.setProperty('--board-cols', String(boardCols()));
   if (!board) return;
-  for (const placed of board.line) {
-    host.appendChild(tileEl(placed.tile, { cross: isDouble(placed.tile) }));
+
+  const cols = boardCols();
+  for (let i = 0; i < board.line.length; i += cols) {
+    const row = board.line.slice(i, i + cols);
+    const rowIndex = i / cols;
+    const ordered = rowIndex % 2 === 0 ? row : row.slice().reverse();
+    for (const placed of ordered) {
+      host.appendChild(tileEl(placed.tile, { cross: placed.crosswise }));
+    }
   }
 }
 
