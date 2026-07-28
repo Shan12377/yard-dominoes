@@ -117,7 +117,7 @@ button.act {
   background: var(--gold); color: #241505; border: 0;
   padding: 11px 18px; border-radius: var(--r); cursor: pointer;
 }
-button.act:hover { background: var(--gold-hi); }
+button.act:hover:not(.ghost) { background: var(--gold-hi); }
 button.act:disabled { background: #4A4536; color: #8A8474; cursor: not-allowed; }
 button.ghost {
   background: transparent; color: var(--bone);
