@@ -178,23 +178,17 @@ label.field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
   padding: 14px 12px;
   min-height: 96px;
   max-height: min(64vh, 560px);
-  overflow-y: auto;
+  overflow: auto;
   display: flex; align-items: center;
   scrollbar-width: thin;
 }
 
-/* --board-cols is set inline by renderBoard() in render.ts, computed from
-   window.innerWidth at render time — not from a CSS media query. Board
-   elements are built while still detached from the document (every view in
-   this app constructs a fragment before appending it), and getComputedStyle
-   on a detached element cannot resolve an ancestor's custom property, so the
-   column count has to be pushed in from JS rather than read from CSS. The
-   `6` here is only a fallback for the (never-hit-in-practice) case where
-   something renders `.line` without going through renderBoard(). */
+/* renderBoard() in render.ts sets grid-template-columns, grid-template-rows,
+   and each tile's grid-column/grid-row directly as inline styles — the path
+   turns at doubles, not at a fixed column count, so the grid's shape is
+   different every render and can't be expressed as a static CSS rule. */
 .line {
   display: grid;
-  grid-template-columns: repeat(var(--board-cols, 6), auto);
-  grid-auto-flow: row;
   align-items: center; justify-items: center;
   gap: 8px 2px;
   margin: auto;
@@ -220,7 +214,8 @@ label.field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
   padding: 3px; flex: none; position: relative;
 }
 .tile .bar { background: rgba(36,22,8,0.35); }
-.tile.cross { transform: rotate(90deg); margin: 0 15px; }
+.tile.cross-h { transform: rotate(90deg); margin: 0 15px; }
+.tile.cross-v { transform: rotate(90deg); margin: 15px 0; }
 .tile .half {
   display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
   place-items: center; padding: 2px;

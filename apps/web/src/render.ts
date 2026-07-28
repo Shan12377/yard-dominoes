@@ -1,5 +1,5 @@
 import { halves } from '@yard/engine';
-import type { Board, TileId } from '@yard/engine';
+import type { Board, PlacedTile, TileId } from '@yard/engine';
 
 /** Pip positions on a 3x3 grid, per face value. */
 const LAYOUT: Record<number, number[]> = {
@@ -24,10 +24,10 @@ function face(value: number): HTMLElement {
   return half;
 }
 
-export function tileEl(id: TileId, opts: { cross?: boolean } = {}): HTMLElement {
+export function tileEl(id: TileId, opts: { cross?: 'h' | 'v' } = {}): HTMLElement {
   const [a, b] = halves(id);
   const el = document.createElement('div');
-  el.className = 'tile' + (opts.cross ? ' cross' : '');
+  el.className = 'tile' + (opts.cross ? ` cross-${opts.cross}` : '');
   el.dataset.tile = id;
   el.setAttribute('role', 'img');
   el.setAttribute('aria-label', `${a} ${b}`);
@@ -39,26 +39,6 @@ export function tileEl(id: TileId, opts: { cross?: boolean } = {}): HTMLElement 
   return el;
 }
 
-/**
- * Real boards turn corners once they run out of table instead of scrolling
- * sideways forever. `.line` is a CSS Grid with a column count this function
- * sets directly (see the note on why it can't come from a CSS media query).
- * `board.line` is already physical left-to-right order (see `Board.line`'s
- * doc comment in packages/engine/src/types.ts) — a straight append would
- * just make one row that keeps growing sideways, which is the problem this
- * replaces. Every other row is reversed before appending, so DOM order still
- * matches the grid's natural fill order (top-to-bottom, left-to-right) while
- * the *visual* result reads as one continuous path that turns at the edge of
- * the table instead of jumping back to the left edge each wrap. Plain grid
- * auto-flow is not enough on its own, though: it packs a row's items starting
- * at column 1 regardless of how many items are in that row, so a reversed row
- * that isn't completely full — which is most rows, since a hand's tile count
- * is essentially never an exact multiple of the column count — would pack to
- * the LEFT instead of right-aligning under the previous row's endpoint. Only
- * a reversed row gets an explicit `grid-column` per tile to force that
- * right-alignment; a natural (unreversed) row is already correct under plain
- * auto-flow, full or partial, because it starts at column 1 either way.
- */
 function boardCols(): number {
   const w = window.innerWidth;
   if (w >= 900) return 12;
@@ -66,28 +46,86 @@ function boardCols(): number {
   return 6;
 }
 
+type Dir = 'right' | 'down' | 'left' | 'up';
+
+/** Clockwise turn order — after a turn, whatever direction came next in this
+ * cycle becomes the new travel direction. The choice of clockwise vs.
+ * counter-clockwise is arbitrary; what matters is picking one and staying
+ * consistent, so the path never doubles back on a turn it already made. */
+const TURN_ORDER: Dir[] = ['right', 'down', 'left', 'up'];
+const STEP: Record<Dir, { dr: number; dc: number }> = {
+  right: { dr: 0, dc: 1 },
+  down: { dr: 1, dc: 0 },
+  left: { dr: 0, dc: -1 },
+  up: { dr: -1, dc: 0 },
+};
+
+interface Placement {
+  tile: PlacedTile;
+  row: number;
+  col: number;
+  /** The direction this tile's run was travelling in when it was placed —
+   * for a double, this is the INCOMING direction (the turn happens after
+   * placing it, not before), which is exactly what decides whether its
+   * crosswise overflow should be horizontal or vertical. */
+  dir: Dir;
+}
+
+/**
+ * A real domino line only turns at a double — the natural, meaningful
+ * turning point, laid crosswise on the table. Everything else continues
+ * straight in whatever direction the line is currently travelling.
+ * `maxRun` exists purely as a width safety net: if a genuinely long run of
+ * non-doubles happens with nothing forcing a turn, the board would otherwise
+ * grow arbitrarily wide off the visible table. Hitting the cap turns the
+ * path exactly like a double would, just without one actually being played.
+ *
+ * This produces one continuous bending path, never a fork — the engine's
+ * `Board` type has exactly two ends (no spinner variant), so a real branch
+ * would visually claim a rule this game doesn't have.
+ */
+function layoutPath(line: PlacedTile[], maxRun: number): Placement[] {
+  const placements: Placement[] = [];
+  let row = 0, col = 0, dir: Dir = 'right', runLength = 0;
+
+  for (const tile of line) {
+    placements.push({ tile, row, col, dir });
+    runLength++;
+
+    const turn = tile.crosswise || runLength >= maxRun;
+    const step = STEP[dir];
+    row += step.dr;
+    col += step.dc;
+
+    if (turn) {
+      dir = TURN_ORDER[(TURN_ORDER.indexOf(dir) + 1) % 4];
+      runLength = 0;
+    }
+  }
+  return placements;
+}
+
 export function renderBoard(host: HTMLElement, board: Board | null) {
   host.innerHTML = '';
-  const cols = boardCols();
-  host.style.setProperty('--board-cols', String(cols));
-  if (!board) return;
+  if (!board || board.line.length === 0) return;
 
-  for (let i = 0; i < board.line.length; i += cols) {
-    const row = board.line.slice(i, i + cols);
-    const rowIndex = i / cols;
-    const reversed = rowIndex % 2 === 1;
-    const ordered = reversed ? row.slice().reverse() : row;
-    // A reversed row's first play-order tile (last in `ordered`) is the one
-    // that connects to the previous row's endpoint, and it must land in the
-    // rightmost column regardless of how many tiles are in this row — plain
-    // auto-flow packs a partial row to the LEFT instead, breaking the
-    // connection for every row except one that happens to be exactly full.
-    const startCol = reversed ? cols - row.length + 1 : 1;
-    ordered.forEach((placed, k) => {
-      const node = tileEl(placed.tile, { cross: placed.crosswise });
-      if (reversed) node.style.gridColumn = String(startCol + k);
-      host.appendChild(node);
-    });
+  const placements = layoutPath(board.line, boardCols());
+  const rows = placements.map((p) => p.row);
+  const cols = placements.map((p) => p.col);
+  const minRow = Math.min(...rows), maxRow = Math.max(...rows);
+  const minCol = Math.min(...cols), maxCol = Math.max(...cols);
+
+  host.style.gridTemplateColumns = `repeat(${maxCol - minCol + 1}, auto)`;
+  host.style.gridTemplateRows = `repeat(${maxRow - minRow + 1}, auto)`;
+
+  for (const p of placements) {
+    const cross: 'h' | 'v' | undefined = p.tile.crosswise
+      ? (p.dir === 'up' || p.dir === 'down' ? 'v' : 'h')
+      : undefined;
+    const node = tileEl(p.tile.tile, { cross });
+    node.style.gridColumn = String(p.col - minCol + 1);
+    node.style.gridRow = String(p.row - minRow + 1);
+    host.appendChild(node);
   }
 }
 
