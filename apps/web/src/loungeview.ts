@@ -59,8 +59,13 @@ export async function loadLounges(rerender: () => void) {
         loungeState.onlineGame = await OnlineGame.open(active.tableId);
         // OnlineGame's state arrives over Realtime, not from a call this
         // module makes — without this, moves and seat changes update the
-        // model but nothing ever redraws the DOM to show them.
-        loungeState.onlineGame.on(() => rerender());
+        // model but nothing ever redraws the DOM to show them. It also emits
+        // 'error' events (e.g. a 409 from a failed dealNext) that otherwise
+        // have no listener anywhere and silently vanish.
+        loungeState.onlineGame.on((e) => {
+          if (e.type === 'error') loungeState.error = e.message;
+          rerender();
+        });
       }
     }
   } catch (err) {
@@ -131,8 +136,12 @@ function loungeList(rerender: () => void): DocumentFragment {
   frag.appendChild(head);
 
   frag.appendChild(joinByCodeField((tableId) => void (async () => {
+    loungeState.onlineGame?.leave();
     loungeState.onlineGame = await OnlineGame.open(tableId);
-    loungeState.onlineGame.on(() => rerender());
+    loungeState.onlineGame.on((e) => {
+      if (e.type === 'error') loungeState.error = e.message;
+      rerender();
+    });
     rerender();
   })()));
 
@@ -195,8 +204,12 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
 
   const tablesPanel = document.createElement('div');
   void openTablesPanel(lounge.id, (tableId) => void (async () => {
+    loungeState.onlineGame?.leave();
     loungeState.onlineGame = await OnlineGame.open(tableId);
-    loungeState.onlineGame.on(() => rerender());
+    loungeState.onlineGame.on((e) => {
+      if (e.type === 'error') loungeState.error = e.message;
+      rerender();
+    });
     rerender();
   })(), rerender).then((panel) => {
     tablesPanel.replaceWith(panel);
@@ -302,10 +315,15 @@ export function loungesView(rerender: () => void): DocumentFragment | HTMLElemen
     return frag;
   }
   if (loungeState.onlineGame) {
-    return liveTableView(loungeState.onlineGame, rerender, () => {
+    const frag = document.createDocumentFragment();
+    if (loungeState.error) {
+      frag.appendChild(el('div', 'banner', loungeState.error));
+    }
+    frag.appendChild(liveTableView(loungeState.onlineGame, rerender, () => {
       loungeState.onlineGame = null;
       rerender();
-    });
+    }));
+    return frag;
   }
   return loungeState.current ? room(loungeState.current, rerender) : loungeList(rerender);
 }
