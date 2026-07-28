@@ -70,6 +70,21 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   const duppy = document.createElement('select');
   duppy.innerHTML = DUPPY_LEVELS.map((d) => `<option value="${d}">${DUPPY_LABELS[d]}</option>`).join('');
 
+  // Partner is inherently a 4-seat, 2-vs-2 format — lock the seat count when
+  // it's selected so the form can never submit an invalid combination. The
+  // server enforces this too (the real gate); this is just so a partner
+  // table doesn't 422 on submit for no visible reason.
+  const syncSeatCount = () => {
+    if (mode.value === 'partner') {
+      seatCount.value = '4';
+      seatCount.disabled = true;
+    } else {
+      seatCount.disabled = false;
+    }
+  };
+  syncSeatCount();
+  mode.onchange = syncSeatCount;
+
   for (const [label, control] of [['Game', mode], ['Seats', seatCount], ['Fill empty seats with', duppy]] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
@@ -125,6 +140,7 @@ export function joinByCodeField(onJoin: (tableId: string) => void): HTMLElement 
 }
 
 let pendingTile: string | null = null;
+let countdownTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function liveTableView(game: OnlineGame, rerender: () => void, onLeave: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
@@ -215,7 +231,8 @@ function countdown(expiresAt: string, rerender: () => void): HTMLElement {
   const remaining = Math.max(0, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000));
   const bar = el('div', 'panel');
   bar.append(el('div', 'muted', remaining > 0 ? `${remaining}s to play` : 'time\'s up — a duppy will play for this seat'));
-  if (remaining > 0) setTimeout(rerender, 1000);
+  if (countdownTimer) clearTimeout(countdownTimer);
+  if (remaining > 0) countdownTimer = setTimeout(rerender, 1000);
   return bar;
 }
 
