@@ -171,7 +171,7 @@ function loungeList(rerender: () => void): DocumentFragment {
     const right = el('div');
     if (gate.ok) {
       const enter = document.createElement('button');
-      enter.className = 'act';
+      enter.className = 'act ghost';
       enter.textContent = 'Enter';
       enter.onclick = () => void openLounge(lounge, rerender);
       right.appendChild(enter);
@@ -256,7 +256,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
     });
   }
   const send = document.createElement('button');
-  send.className = 'act';
+  send.className = 'act ghost';
   send.textContent = 'Send';
   const submit = async () => {
     const body = input.value.trim();
@@ -358,7 +358,7 @@ export function membershipView(rerender: () => void): DocumentFragment {
       card.append(el('div', 'muted', 'Active'));
     } else {
       const buy = document.createElement('button');
-      buy.className = 'act';
+      buy.className = 'act ghost';
       buy.textContent = `Get ${TIER_LABEL[tier]}`;
       buy.onclick = async () => {
         buy.disabled = true;

@@ -68,10 +68,10 @@ function boardCols(): number {
 
 export function renderBoard(host: HTMLElement, board: Board | null) {
   host.innerHTML = '';
-  host.style.setProperty('--board-cols', String(boardCols()));
+  const cols = boardCols();
+  host.style.setProperty('--board-cols', String(cols));
   if (!board) return;
 
-  const cols = boardCols();
   for (let i = 0; i < board.line.length; i += cols) {
     const row = board.line.slice(i, i + cols);
     const rowIndex = i / cols;
