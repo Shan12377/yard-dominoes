@@ -32,7 +32,7 @@ Deno.serve(handled(async (req) => {
     .eq('table_id', tableId).eq('seat_index', seat.seat_index);
   if (seatError) throw new HttpError(500, seatError.message);
 
-  if (table.status !== 'waiting') {
+  if (table.status === 'playing') {
     const { data: profile } = await db.from('profiles').select('abandons').eq('id', user.id).single();
     const { error: profileError } = await db.from('profiles')
       .update({ abandons: (profile?.abandons ?? 0) + 1 }).eq('id', user.id);
