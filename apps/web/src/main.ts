@@ -20,13 +20,16 @@ const app = document.getElementById('app')!;
 type LoungeModule = typeof import('./loungeview.ts');
 let loungeModule: LoungeModule | null = null;
 let loungeLoading = false;
+const LOUNGES_VISITED_KEY = 'yard:visited-lounges';
 
 async function ensureLoungeModule() {
   if (loungeModule || loungeLoading) return;
   loungeLoading = true;
+  localStorage.setItem(LOUNGES_VISITED_KEY, '1');
   try {
     loungeModule = await import('./loungeview.ts');
     await loungeModule.loadLounges(render);
+    if (loungeModule.loungeState.onlineGame) view = 'lounges';
   } finally {
     loungeLoading = false;
     render();
@@ -601,3 +604,6 @@ function render() {
 watchInstallability(render);
 registerServiceWorker(render);
 render();
+if (localStorage.getItem(LOUNGES_VISITED_KEY)) {
+  void ensureLoungeModule();
+}
