@@ -11,7 +11,9 @@ import {
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
 } from './lounges.ts';
 import type { Lounge, LoungeMessage, PresenceEntry, Tier } from './lounges.ts';
-import { ensureSignedIn } from './online.ts';
+import { ensureSignedIn, findActiveSeat } from './online.ts';
+import { OnlineGame } from './onlinetable.ts';
+import { openTablesPanel, joinByCodeField, liveTableView } from './onlinetableview.ts';
 import { el } from './render.ts';
 
 interface LoungeState {
@@ -23,11 +25,12 @@ interface LoungeState {
   room: { leave: () => void } | null;
   error: string | null;
   loading: boolean;
+  onlineGame: OnlineGame | null;
 }
 
 export const loungeState: LoungeState = {
   lounges: [], me: null, current: null, roster: [], messages: [],
-  room: null, error: null, loading: false,
+  room: null, error: null, loading: false, onlineGame: null,
 };
 
 /**
@@ -49,6 +52,17 @@ export async function loadLounges(rerender: () => void) {
     loungeState.lounges = lounges;
     loungeState.me = me;
     loungeState.error = null;
+
+    if (!loungeState.onlineGame) {
+      const active = await findActiveSeat();
+      if (active) {
+        loungeState.onlineGame = await OnlineGame.open(active.tableId);
+        // OnlineGame's state arrives over Realtime, not from a call this
+        // module makes — without this, moves and seat changes update the
+        // model but nothing ever redraws the DOM to show them.
+        loungeState.onlineGame.on(() => rerender());
+      }
+    }
   } catch (err) {
     loungeState.error = err instanceof Error ? err.message : 'could not load lounges';
   } finally {
@@ -116,6 +130,12 @@ function loungeList(rerender: () => void): DocumentFragment {
   }
   frag.appendChild(head);
 
+  frag.appendChild(joinByCodeField((tableId) => void (async () => {
+    loungeState.onlineGame = await OnlineGame.open(tableId);
+    loungeState.onlineGame.on(() => rerender());
+    rerender();
+  })()));
+
   if (loungeState.error) {
     frag.appendChild(el('div', 'banner', loungeState.error));
   }
@@ -172,6 +192,16 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   head.appendChild(top);
   if (lounge.description) head.append(el('p', 'muted', lounge.description));
   frag.appendChild(head);
+
+  const tablesPanel = document.createElement('div');
+  void openTablesPanel(lounge.id, (tableId) => void (async () => {
+    loungeState.onlineGame = await OnlineGame.open(tableId);
+    loungeState.onlineGame.on(() => rerender());
+    rerender();
+  })(), rerender).then((panel) => {
+    tablesPanel.replaceWith(panel);
+  });
+  frag.appendChild(tablesPanel);
 
   const grid = el('div', 'room');
 
@@ -258,7 +288,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   return frag;
 }
 
-export function loungesView(rerender: () => void): DocumentFragment {
+export function loungesView(rerender: () => void): DocumentFragment | HTMLElement {
   if (!loungesAvailable) {
     const frag = document.createDocumentFragment();
     const panel = el('div', 'panel');
@@ -270,6 +300,12 @@ export function loungesView(rerender: () => void): DocumentFragment {
       'against duppies works without any of that.'));
     frag.appendChild(panel);
     return frag;
+  }
+  if (loungeState.onlineGame) {
+    return liveTableView(loungeState.onlineGame, rerender, () => {
+      loungeState.onlineGame = null;
+      rerender();
+    });
   }
   return loungeState.current ? room(loungeState.current, rerender) : loungeList(rerender);
 }
