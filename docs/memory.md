@@ -17,9 +17,42 @@ re-deriving it from chat history.
 
 ## Build phases
 
-1. **Online play** — spec approved, implementation plan written:
+1. **Online play** — built, reviewed, and verified live. Plan:
    [`docs/superpowers/plans/2026-07-27-online-play.md`](superpowers/plans/2026-07-27-online-play.md)
-   (9 tasks). **Not yet built.**
+   (9 tasks, all complete, plus 3 fixes found and inserted mid-build — see
+   below). Built on branch `worktree-online-play` via subagent-driven
+   development (fresh implementer + independent reviewer per task, all task
+   reports and review packages in `.superpowers/sdd/2026-07-27-online-play/`
+   inside that worktree — gitignored, not in the commit history). **Not yet
+   merged to `main`** — pending the final whole-branch review before it goes
+   live. What shipped: table tier-gating (create/join, server-enforced),
+   pass-the-pose as a real server path, optimistic-concurrency conflict
+   handling, an open-tables lounge panel + join-by-code, the full live table
+   (board, hand, scores, pass-pose UI), rejoin after reload/disconnect
+   (including the boot-time trigger, not just the logic), and leaving a seat
+   mid-game (converts to a duppy, records an abandon, frees a `waiting`
+   seat). Rankings/leaderboard UI deliberately **not** included — doc #1
+   said build that immediately after online play v1 ships; still an open
+   thread below.
+   - **3 real bugs found and fixed mid-build, not part of the original 9
+     tasks:** (1) `tables`/`seats` RLS policies referenced each other in a
+     circle — Postgres refused every client-side read of either table with
+     `42P17`, silently breaking Task 3's rejoin lookup before anyone noticed;
+     fixed with a `security definer` helper (`is_seated_at`), then hardened
+     further after a reviewer caught it was RPC-callable as a membership
+     oracle on private tables. (2) No UI button existed anywhere to start a
+     table's first hand — the whole online flow was a dead end past "join a
+     table." (3) The rejoin logic from Task 7 worked once triggered but
+     nothing ever triggered it on page load — fixed with a self-controlled
+     `localStorage` marker so it doesn't defeat the app's lazy-loading
+     (offline players still never touch the Supabase bundle).
+   - **One scenario genuinely unverified:** real iPhone Safari backgrounding
+     (the `visibilitychange`-triggers-resubscribe path). No agent has a
+     physical device — this needs a human test on a real iPhone before
+     trusting it fully. Everything else in the spec's five-scenario list
+     (happy path, simultaneous moves, disconnect/reconnect, portrait 390×844)
+     was verified live against a real Vercel preview deploy and the real
+     Supabase project, with two genuinely separate anonymous sessions.
 2. **Visual polish** — not started. Portrait-first (390×844), per doc #1's
    scope decision, not deferred to "later."
 3. **Voice** — not started. Confirmed **real live voice**, not voice notes.
@@ -75,3 +108,23 @@ Everything below is live and verified, not just written:
   the providers aren't confirmed configured in Supabase Auth yet.
 - Username customization — DB allows a user to update their own username
   (RLS policy already permits it), no UI to do so.
+- **`OnlineGame`'s emitted `'error'` events have no listener anywhere in the
+  UI** — a failed move or a failed "start hand" (e.g. table not full yet)
+  currently just silently re-renders with no visible feedback. Needs a
+  future task touching `loungeview.ts`'s `OnlineGame.on()` wiring.
+- **No UI path to spectate a table before its first hand starts** —
+  `openTablesPanel`'s "Watch" option only appears once `status !== 'waiting'`,
+  by which point a hand already exists.
+- **`create-table`'s `seats` insert silently swallows constraint-violation
+  errors** if the `duppies` array doesn't cover every non-creator seat — hit
+  repeatedly during the online-play build's own testing (never in the real
+  UI, which always supplies a full `duppies` array, but a real risk for
+  anyone calling the API directly). Worth a real fix — check the insert's
+  error and surface it — before it bites something else.
+- **`expire-turns` doesn't update `sets`/`tables.status` when the hand it
+  force-plays happens to end a set** (unlike `play-move`, which does). More
+  likely to surface now that `leave-seat` creates duppy'd seats that finish
+  hands unattended.
+- **`leave-seat`'s `abandons` counter is read-then-write, not atomic** — a
+  double-tap could under-count. Low real-world risk, worth an `update ...
+  set abandons = abandons + 1` if ever revisited.

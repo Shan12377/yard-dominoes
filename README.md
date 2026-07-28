@@ -195,6 +195,5 @@ lounge chat even with a patched bundle.
 ## Still open
 
 - Drill UI (kinds are declared in `academy.ts`, screens aren't written)
-- Online lobby views (`online.ts` has the calls; the table view is local-only)
 - French mode — deliberately unspecified until a Jamaican consultant defines it
 - Belts 4–5 want review by a strong player before shipping
