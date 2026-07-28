@@ -49,7 +49,15 @@ export function tileEl(id: TileId, opts: { cross?: boolean } = {}): HTMLElement 
  * replaces. Every other row is reversed before appending, so DOM order still
  * matches the grid's natural fill order (top-to-bottom, left-to-right) while
  * the *visual* result reads as one continuous path that turns at the edge of
- * the table instead of jumping back to the left edge each wrap.
+ * the table instead of jumping back to the left edge each wrap. Plain grid
+ * auto-flow is not enough on its own, though: it packs a row's items starting
+ * at column 1 regardless of how many items are in that row, so a reversed row
+ * that isn't completely full — which is most rows, since a hand's tile count
+ * is essentially never an exact multiple of the column count — would pack to
+ * the LEFT instead of right-aligning under the previous row's endpoint. Only
+ * a reversed row gets an explicit `grid-column` per tile to force that
+ * right-alignment; a natural (unreversed) row is already correct under plain
+ * auto-flow, full or partial, because it starts at column 1 either way.
  */
 function boardCols(): number {
   const w = window.innerWidth;
@@ -67,10 +75,19 @@ export function renderBoard(host: HTMLElement, board: Board | null) {
   for (let i = 0; i < board.line.length; i += cols) {
     const row = board.line.slice(i, i + cols);
     const rowIndex = i / cols;
-    const ordered = rowIndex % 2 === 0 ? row : row.slice().reverse();
-    for (const placed of ordered) {
-      host.appendChild(tileEl(placed.tile, { cross: placed.crosswise }));
-    }
+    const reversed = rowIndex % 2 === 1;
+    const ordered = reversed ? row.slice().reverse() : row;
+    // A reversed row's first play-order tile (last in `ordered`) is the one
+    // that connects to the previous row's endpoint, and it must land in the
+    // rightmost column regardless of how many tiles are in this row — plain
+    // auto-flow packs a partial row to the LEFT instead, breaking the
+    // connection for every row except one that happens to be exactly full.
+    const startCol = reversed ? cols - row.length + 1 : 1;
+    ordered.forEach((placed, k) => {
+      const node = tileEl(placed.tile, { cross: placed.crosswise });
+      if (reversed) node.style.gridColumn = String(startCol + k);
+      host.appendChild(node);
+    });
   }
 }
 
