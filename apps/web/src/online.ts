@@ -129,7 +129,7 @@ export function watchTable(
   tableId: string,
   handlers: {
     onPublic?: (hand: PublicHand) => void;
-    onMyTiles?: (tiles: TileId[]) => void;
+    onMyTiles?: (handId: string, tiles: TileId[]) => void;
     onSet?: (set: Record<string, unknown>) => void;
     onSeats?: () => void;
   },
@@ -141,7 +141,7 @@ export function watchTable(
       (payload) => handlers.onPublic?.(payload.new as PublicHand))
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'seat_hands' },
-      (payload) => handlers.onMyTiles?.((payload.new as any).tiles as TileId[]))
+      (payload) => handlers.onMyTiles?.((payload.new as any).hand_id as string, (payload.new as any).tiles as TileId[]))
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'sets', filter: `table_id=eq.${tableId}` },
       (payload) => handlers.onSet?.(payload.new as Record<string, unknown>))

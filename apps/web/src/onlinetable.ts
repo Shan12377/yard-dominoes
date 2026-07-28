@@ -153,7 +153,8 @@ export class OnlineGame {
         this.hand = hand;
         this.emit({ type: 'state' });
       },
-      onMyTiles: (tiles) => {
+      onMyTiles: (handId, tiles) => {
+        if (handId !== this.hand?.hand_id) return;
         this.myTiles = tiles;
         this.emit({ type: 'state' });
       },
