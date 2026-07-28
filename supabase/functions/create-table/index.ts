@@ -8,6 +8,13 @@ Deno.serve(handled(async (req) => {
 
   const seatCount = Number(body.seatCount ?? 4);
   if (![2, 3, 4].includes(seatCount)) throw new HttpError(422, 'seat count must be 2, 3 or 4');
+  // Partner is inherently a 4-seat, 2-vs-2 format — sideOf() would otherwise
+  // split 3 seats into a nonsensical 2-vs-1, and 2 seats make
+  // passPoseToPartner's (poser + 2) % 2 a no-op. The client should already
+  // lock this in the form; this is the real gate.
+  if ((body.mode ?? 'partner') === 'partner' && seatCount !== 4) {
+    throw new HttpError(422, 'partner mode needs exactly 4 seats');
+  }
 
   if (body.loungeId) {
     const { data: lounge } = await db.from('lounges').select('min_tier').eq('id', body.loungeId).single();
@@ -47,7 +54,11 @@ Deno.serve(handled(async (req) => {
       user_id: null, duppy_level: duppies[i - 1] ?? null,
     });
   }
-  await db.from('seats').insert(seats);
+  const { error: seatsError } = await db.from('seats').insert(seats);
+  if (seatsError) {
+    await db.from('tables').delete().eq('id', table.id);
+    throw new HttpError(500, seatsError.message);
+  }
 
   return json({ ok: true, tableId: table.id, joinCode: table.join_code });
 }));
