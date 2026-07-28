@@ -83,65 +83,90 @@ re-deriving it from chat history.
      (happy path, simultaneous moves, disconnect/reconnect, portrait 390×844)
      was verified live against a real Vercel preview deploy and the real
      Supabase project, with two genuinely separate anonymous sessions.
-2. **Visual polish — core play screens, built and merged 2026-07-28.** Plan:
-   [`docs/superpowers/plans/2026-07-28-visual-polish-core.md`](superpowers/plans/2026-07-28-visual-polish-core.md)
-   (3 tasks, all complete). Scope was deliberately narrowed to the screens
-   players actually play on — local play, the online live table, lounges,
-   membership — with Academy lesson diagrams, avatars, and atmosphere images
-   explicitly deferred (avatars/atmosphere need an image-generation API key
-   not yet set up; Academy diagrams are their own large scope, left for last
-   per your instruction).
-   - **What shipped:** the app's palette/materials were inverted from what
-     `.claude/rules/design.md` actually specifies — table surface was brown
-     wood with green reserved for the score only, gold used broadly as
-     routine chrome (nav, badges, chat usernames, buttons everywhere).
-     Rebuilt to match the doc: green felt table surface, wood only framing
-     the edges, gold restricted to genuine highlights (lit score pips,
-     six-love, single primary actions, VIP indicators) — checked file-by-file
-     against every screen, not just spot-checked. Anton replaced Archivo
-     Black for display type; Bungee is now used in exactly two places (the
-     wordmark, the six-love banner), matching the design doc's "signage face,
-     used anywhere else it becomes noise" rule precisely. Added real
-     materials: felt weave texture, a visible wood-grain table border, tile
-     bottom-edge thickness.
-   - **The board now turns corners** instead of scrolling horizontally
-     forever — `renderBoard()` in `apps/web/src/render.ts` wraps into rows
-     (a boustrophedon layout, alternating direction each row) once a row
-     fills, the column count computed from viewport width in JS rather than
-     CSS media queries (elements are built detached from the document before
-     being appended, so `getComputedStyle` can't resolve an ancestor's custom
-     property at render time — this cost one real bug during the build, see
-     below). `Board.line`'s engine data shape is completely untouched; this
-     is presentation-only.
-   - **Real bugs found and fixed during the build, each confirmed by an
-     independent hand-trace, not just accepted on an implementer's word:**
-     (1) a partial (non-full) wrapped row packed to the left edge instead of
-     right-aligning under the previous row's endpoint — since a real hand's
-     tile count is rarely an exact multiple of the column count, this hit
-     the currently-in-progress row (the part of the board a player is
-     actually watching) on most renders, not as a rare edge case; fixed with
-     explicit `grid-column` placement on reversed rows. (2) at exactly
-     390×844 — the project's primary target width — the 5-item nav bar
-     overflowed the viewport by 19px with mid-word text wrapping; fixed with
-     `flex-wrap: wrap`, matching an idiom already used five other places in
-     the same stylesheet. (3) `button.act` (the primary-action button style)
-     was gold everywhere including three places that put multiple gold
-     buttons on one screen at once (a looped lounge list, membership tier
-     cards, the permanent chat send button) — this was the *plan* inverting
-     what the original design spec had already correctly specified (a
-     primary/gold vs. secondary/ghost split with named examples); fixed to
-     match the spec. (4) the fix for (3) then introduced its own regression —
-     wiring an unused `--gold-hi` token into `button.act:hover` collided with
-     the pre-existing `.ghost:hover` rule, making every secondary button's
-     hover state gold-on-near-gold, well under accessibility contrast
-     minimums, app-wide — caught by the final review's own re-review pass and
-     fixed with `:not(.ghost)` scoping.
+2. **Visual polish — core play screens. Two shipped generations, the second
+   replacing the first same day, both merged 2026-07-28.**
+
+   **Generation 1 (superseded, do not resurrect):**
+   [`docs/superpowers/plans/2026-07-28-visual-polish-core.md`](superpowers/plans/2026-07-27-visual-polish-core.md)
+   built a dark "black room" theme — brown-wood table, gold as routine chrome
+   — correcting the app's palette to actually match `.claude/rules/design.md`
+   as it read *at the time*. It also gave the board a "wrap every N tiles"
+   corner-turning algorithm to stop it scrolling horizontally forever. You
+   rejected both after seeing them live: "never do a website black," and
+   separately, a reference photo of real domino play showing the board
+   should turn specifically at doubles, not at an arbitrary tile count.
+   `design.md` itself has since been rewritten — the "black is the room"
+   principle it used to state no longer exists.
+
+   **Generation 2 (current, live):** research into actual Jamaican/Caribbean
+   visual language (flag colors, dancehall poster culture, Caribbean
+   branding — see Sources in that conversation) plus a 3-direction mockup you
+   reviewed picked **"Sunday Yard"**: sun-bleached cream room at midday, flag
+   green and gold at full strength (not rationed to a dark-theme accent),
+   black used only as ink. Plans:
+   [`docs/superpowers/plans/2026-07-28-sunday-yard-palette.md`](superpowers/plans/2026-07-28-sunday-yard-palette.md)
+   and
+   [`docs/superpowers/plans/2026-07-28-board-turns-at-doubles.md`](superpowers/plans/2026-07-28-board-turns-at-doubles.md).
+   `.claude/rules/design.md` is up to date with this generation — trust it,
+   not any earlier description of a dark theme.
+   - **Board layout, current algorithm:** `renderBoard()`/`layoutPath()` in
+     `apps/web/src/render.ts` is a strict 2-direction boustrophedon — a row
+     travels entirely right or left, a double (or a width safety cap) ends
+     the row, drops exactly one row, and reverses direction, the way text
+     wraps. `row` only ever increases and `col` only ever moves one way
+     within a row, which makes two tiles ever landing on the same cell
+     *structurally impossible*, not just unlikely — this was proven by
+     construction during review, not only tested. `Board.line`'s engine data
+     shape is completely untouched; this is presentation-only. The column
+     count is computed from `window.innerWidth` in JS, not CSS media
+     queries, because boards are built detached from the document before
+     being appended, and `getComputedStyle` can't resolve an ancestor's
+     custom property on a detached element.
+   - **The bug history here is worth remembering, because it's a genuinely
+     hard failure mode to catch: a 4-direction clockwise version of this
+     same algorithm (turn right→down→left→up→right, cycling) shipped first,
+     passed its own task review, then passed a scoped re-review of a
+     separate off-by-one fix — and was still fundamentally broken.** A path
+     that always turns the same rotational way is a spiral, and spirals
+     self-intersect unless segment lengths strictly increase, which real
+     domino hands never guarantee. The final whole-branch review caught it
+     by simulating 600 real hands through the actual engine and finding
+     overlapping tiles (one hiding behind another) on **~70% of hands at the
+     narrowest breakpoint** — invisible to both per-task reviews because
+     every *individual* step of the algorithm was correct; the defect only
+     exists in the shape of the whole path. Lesson for next time a
+     path/sequence algorithm ships: a manual walkthrough of "a few doubles"
+     is not sufficient verification — the failure only showed up deep into a
+     full hand (median first overlap at tile 16 of ~23). The switch to a
+     2-direction boustrophedon fixes this by construction, not by patching
+     around the spiral.
+   - **Other real bugs found and fixed, each confirmed by independent
+     hand-trace or live measurement, not accepted on an implementer's word:**
+     a partial wrapped row packing left instead of right-aligning under the
+     previous row (hit most renders, not an edge case); the 390×844 nav bar
+     overflowing the viewport by 19px; `button.act` (primary-action style)
+     being gold everywhere including three places that stacked multiple gold
+     buttons on one screen — the *plan* had inverted a primary/gold vs.
+     secondary/ghost split the original design spec already specified
+     correctly; a hover-state fix for that then collided with an unrelated
+     rule and made every secondary button's hover gold-on-near-gold, caught
+     by its own re-review; `--muted` (#8A7355) failing WCAG AA contrast
+     (4.07:1, needs 4.5) with real reading copy sitting on it — darkened to
+     `#786243`; `--bone` (the tile face color) accidentally set identical to
+     the tile's own gradient highlight stop, flattening tiles to a flat fill
+     with zero visible light direction — a real violation of `design.md`'s
+     own stated material principles, on the app's hero object.
+   - **`design.md` itself had two real bugs**, found and fixed alongside the
+     code: its documented `--bone` value was identical to `--sand-hi`
+     (panels), which would make tiles indistinguishable from the cards they
+     sit near if the CSS had actually matched the doc; and `--muted` was
+     used throughout the spec's own reasoning but never defined in the
+     palette block at all. Both fixed in the doc, not just the CSS.
    - **Known, deliberately-left-as-is:** `.seat.partner` and `.grade.best`
      use the felt-green family for a partner accent and a "best move" badge —
-     flagged during review as technically outside a too-strict reading of
-     "green is the table surface only," ruled acceptable since the actual
-     design principle is a proportion/balance rule, not a single-selector
-     lock, and these are small, non-decorative, legitimate uses.
+     technically outside a too-strict reading of "green is the table surface
+     only," ruled acceptable since the actual design principle is a
+     proportion/balance rule, not a single-selector lock.
 3. **Voice** — not started. Confirmed **real live voice**, not voice notes.
    Requires a LiveKit or Daily account (real per-minute cost, needs your
    credentials) before any code gets written for it. `CLAUDE.md` updated
