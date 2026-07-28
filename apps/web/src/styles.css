@@ -214,8 +214,7 @@ label.field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
   padding: 3px; flex: none; position: relative;
 }
 .tile .bar { background: rgba(36,22,8,0.35); }
-.tile.cross-h { transform: rotate(90deg); margin: 0 15px; }
-.tile.cross-v { transform: rotate(90deg); margin: 15px 0; }
+.tile.cross { transform: rotate(90deg); margin: 0 15px; }
 .tile .half {
   display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
   place-items: center; padding: 2px;
