@@ -1,48 +1,53 @@
----
-paths:
-  - "apps/web/src/**"
-  - "apps/web/public/**"
-  - "apps/web/index.html"
----
-
 # Design rules
 
 The goal is not "a domino app that works." It is work that makes people ask who
 designed it. Every decision below serves that.
 
+## Direction: Sunday Yard
+
+Midday, not midnight. A concrete yard at noon — sun-bleached cream, not a dark
+room under one bulb. This replaced an earlier night-room direction after
+research into the actual visual language (the flag, dancehall/sound-system
+culture, Caribbean branding broadly) showed it skews sun-drenched and loud,
+not dim and moody. A dark felt table under a single bulb read as a high-end
+poker lounge — competent, but not actually Jamaican.
+
 ## The trap to avoid
 
-Flag colours slapped on flat UI is the obvious move and it looks cheap. JamDom
-already does green-and-gold-on-grey and it reads as 2009. Jamaican identity here
-comes from **materials and light**, not from painting things in flag colours:
-a felt table under a bulb, bone tiles with real weight, gold that behaves like
-metal. The palette is Jamaican; the execution is expensive-looking.
+Flag colours slapped on flat UI with no craft behind them is the obvious move
+and it looks cheap — JamDom already does green-and-gold-on-grey and it reads
+as 2009. The fix is not to avoid the flag colours; it's to give them the same
+material weight this app already put into the table and tiles: real warmth,
+real texture, real thickness. The palette is Jamaican and unapologetically so;
+the execution is what has to be expensive-looking.
 
-Rule of thumb: **green is a surface, gold is a highlight, black is the room.**
-Gold is never a background. If more than roughly a tenth of the screen is gold,
-it has stopped meaning anything.
+Rule of thumb: **cream is the room, green is a surface, gold is a bold
+accent, black is ink and nothing else.** Gold is used generously here —
+score, primary actions, wins — but it is never the room itself, and it never
+substitutes for the actual surface materials (felt, wood, bone).
 
 ## Palette
 
 ```css
---night:      #0A0D0A;  /* room. black with a green cast, never pure #000 */
---char:       #14180F;
+--sand:       #FAF3E1;  /* the room. sun-bleached cream, never white, never dark */
+--sand-hi:    #FFFBF0;  /* panels/cards sitting slightly above the room */
 
---felt:       #0A5C2E;  /* the table. deeper and richer than flag green */
---felt-hi:    #0F7A3D;
---felt-lo:    #063F1F;
+--forest:     #146B3A;  /* the table. flag green, full strength, not a hint of it */
+--forest-hi:  #1C8449;
+--forest-lo:  #0E4F2A;
 
---wood:       #4A2A18;  /* table edge framing the felt */
---wood-hi:    #6B3E24;
+--wood:       #5A3A1E;  /* table edge framing the felt */
+--wood-hi:    #7A5230;
 
---gold:       #FFC72C;  /* flag gold. score, wins, the one accent */
---gold-hi:    #FFE082;
---gold-deep:  #9A6E14;
+--gold:       #E0A400;  /* flag gold, deepened to hold contrast on cream */
+--gold-hi:    #F4C430;
+--gold-deep:  #8F6600;
 
---bone:       #F8F4E9;  /* tile face. warm ivory, never white */
---bone-shade: #DDD5C2;  /* tile bottom edge — this is what gives it thickness */
---pip:        #12100D;
+--bone:       #FFFBF0;  /* tile face. warm ivory, brighter than the room so tiles read as objects on it */
+--bone-shade: #D9CCA8;  /* tile bottom edge — this is what gives it thickness */
+--pip:        #241608;
 
+--ink:        #241608;  /* text. warm near-black. NEVER a background, NEVER the room */
 --blood:      #C0392B;  /* bruk, and nothing else */
 ```
 
@@ -64,13 +69,16 @@ Flat rectangles are what makes an app look amateur. Four things carry this
 design:
 
 1. **The felt has texture.** A woven diagonal pattern at very low opacity, plus
-   a vignette so the centre sits under the bulb and the edges fall away.
+   a vignette so the centre sits brightest — direct midday sun, not a bulb —
+   and the edges fall away slightly.
 2. **Tiles have thickness.** A 3–4px `--bone-shade` bottom edge and a tight
    dark shadow. They must read as objects lying on a surface, not as divs.
 3. **Wood frames the felt.** A grained border around the table, which is what
    makes the green read as a domino table rather than a CSS background.
-4. **Light comes from above.** One warm source. Gradients run top-light to
-   bottom-dark, consistently, everywhere.
+4. **Light comes from above.** One bright, warm, direct source — noon sun, not
+   a bulb. Gradients run top-light to bottom-dark, consistently, everywhere,
+   including on the cream room itself (a very slight vignette keeps the
+   content area from reading as a flat fill).
 
 ## Motion
 
@@ -95,8 +103,8 @@ Five, and they map to the five duppy tiers — this is deliberate, not decorativ
 | Don | Man in his 50s, hat, unreadable, been playing forty years |
 | General | Elder woman, grey locs, the one nobody wants to sit across from |
 
-Warm evening light, shallow depth of field, shot as portraits at a domino table
-— not studio headshots, not smiling stock photos. Square, 512px, generated once
+Midday light, shallow depth of field, shot as portraits at a domino table —
+not studio headshots, not smiling stock photos. Square, 512px, generated once
 and committed to `public/avatars/`.
 
 Never use a real person's likeness. Human players upload their own photo.
@@ -120,7 +128,7 @@ Write these as a `packages/engine`-driven script that emits SVG into
 `apps/web/public/art/boards/`.
 
 **2. Atmosphere — generated once, committed.**
-Only for cultural framing: the yard, the table under a bulb, hands mid-slam,
+Only for cultural framing: the yard at midday, the table, hands mid-slam,
 a domino set on wood. Roughly six images, not thirty-four.
 
 **Never call an image API at runtime.** Generation happens in a local script
