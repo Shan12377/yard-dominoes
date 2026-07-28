@@ -89,7 +89,7 @@ p { line-height: 1.55; }
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand h1 { font-family: var(--signage); font-size: 24px; }
 
-.nav { display: flex; gap: 4px; }
+.nav { display: flex; flex-wrap: wrap; gap: 4px; }
 .nav button {
   font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em;
   text-transform: uppercase; background: none; border: 0;
