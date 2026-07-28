@@ -17,16 +17,20 @@ re-deriving it from chat history.
 
 ## Build phases
 
-1. **Online play** — built, reviewed, and verified live. Plan:
+1. **Online play** — built, reviewed, verified live, and merged to `main`
+   (2026-07-28). Plan:
    [`docs/superpowers/plans/2026-07-27-online-play.md`](superpowers/plans/2026-07-27-online-play.md)
-   (9 tasks, all complete, plus 3 fixes found and inserted mid-build — see
-   below). Built on branch `worktree-online-play` via subagent-driven
-   development (fresh implementer + independent reviewer per task, all task
-   reports and review packages in `.superpowers/sdd/2026-07-27-online-play/`
-   inside that worktree — gitignored, not in the commit history). **Not yet
-   merged to `main`** — pending the final whole-branch review before it goes
-   live. What shipped: table tier-gating (create/join, server-enforced),
-   pass-the-pose as a real server path, optimistic-concurrency conflict
+   (9 tasks, all complete, plus 3 fixes found and inserted mid-build, plus a
+   9-finding final whole-branch review fix wave — see below). Built via
+   subagent-driven development (fresh implementer + independent reviewer per
+   task; task reports and review packages were in
+   `.superpowers/sdd/2026-07-27-online-play/` on the now-merged
+   `worktree-online-play` branch — gitignored, not in the commit history, so
+   that detail lives only here now). The Supabase backend (migrations,
+   Edge Functions) has been live in production throughout the build — only
+   the frontend deploy was pending merge. What shipped: table tier-gating
+   (create/join, server-enforced), pass-the-pose as a real server path,
+   optimistic-concurrency conflict
    handling, an open-tables lounge panel + join-by-code, the full live table
    (board, hand, scores, pass-pose UI), rejoin after reload/disconnect
    (including the boot-time trigger, not just the logic), and leaving a seat
@@ -46,6 +50,32 @@ re-deriving it from chat history.
      nothing ever triggered it on page load — fixed with a self-controlled
      `localStorage` marker so it doesn't defeat the app's lazy-loading
      (offline players still never touch the Supabase bundle).
+   - **Final whole-branch review found 9 more findings** (2 Critical, 7
+     Important) that only showed up once every task was viewed together —
+     each individually-reviewed task was correct on its own. Worth knowing
+     the shape of these for future features: **leaving a table after
+     finishing a set falsely recorded an abandonment** (the status check used
+     `!== 'waiting'` instead of `=== 'playing'`); **nothing stopped two
+     players both tapping "Deal next hand" from creating two active hands on
+     one set** (fixed with an idempotency check plus a DB-level partial
+     unique index as backstop); an unfiltered realtime subscription could let
+     a stale hand's tiles overwrite the current one on screen;
+     `expire-turns` never resolved `sets`/`tables.status` when its forced
+     move happened to end a set, so an unattended finish silently discarded
+     the result; `OnlineGame`'s error events had no listener anywhere, so a
+     failed action just did nothing visible; `create-table` swallowed its
+     seats-insert error, capable of leaving a permanently broken zero-seat
+     table in a lounge list; Partner mode allowed 2 or 3 seats (nonsensical —
+     it's inherently a 4-seat format) with no validation; a countdown timer
+     leaked and compounded over a long hand; and opening a table could leak a
+     Realtime connection on a double-tap. All 9 were fixed and re-verified
+     live except one: **a narrow true-concurrency race in the double-open fix
+     is parked, not closed** — requires literally-simultaneous taps (not just
+     a quick double-tap, which is handled), and the consequence is an
+     orphaned Realtime connection, not corrupted game state or anything
+     visible to the player. Worth a fast follow-up fix (a synchronous
+     in-flight guard, mirroring `main.ts`'s existing `ensureLoungeModule()`
+     pattern) but didn't block this merge.
    - **One scenario genuinely unverified:** real iPhone Safari backgrounding
      (the `visibilitychange`-triggers-resubscribe path). No agent has a
      physical device — this needs a human test on a real iPhone before
@@ -96,6 +126,14 @@ Everything below is live and verified, not just written:
   built for others. This is what kicked off the current build phase.
 
 ## Open threads not yet in a phase
+
+- **`OnlineGame` double-open race** (`apps/web/src/loungeview.ts`): two truly
+  simultaneous table-join taps can leak a Realtime channel + `visibilitychange`
+  listener — the shipped guard closes the common quick-double-tap case but not
+  a genuine concurrent race. Low severity (resource leak, not data corruption,
+  nothing visible breaks), fix is well-understood (a synchronous in-flight
+  guard, same pattern as `main.ts`'s `ensureLoungeModule()`/`loungeLoading`),
+  parked during the online-play final review rather than blocking merge.
 
 - **Billing webhook gaps** (`billing.md`, doc #2): only `checkout.session.completed`
   and `customer.subscription.deleted` are wired. Missing: `invoice.paid` (the
