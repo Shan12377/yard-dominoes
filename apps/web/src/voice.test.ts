@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { canSpeak, diffRoster, isPolite, MAX_VOICE_PEERS } from './voice.ts';
+import { canSpeak, diffRoster, isPolite, MAX_VOICE_PEERS, newestPresence } from './voice.ts';
 
 test('exactly one peer in every pair is polite', () => {
   const ids = ['a', 'b', 'zz', '0', 'f47ac10b', 'f47ac10c'];
@@ -77,4 +77,37 @@ test('someone who leaves voice is dropped even while still in the lounge', () =>
   const d = diffRoster(['a', 'b'], ['a'], 'me');
   assert.deepEqual(d.added, []);
   assert.deepEqual(d.removed, ['b']);
+});
+
+test('presence reads the newest meta, not the one from before the mic went on', () => {
+  // Realtime appends a meta per track() rather than replacing, so a person who
+  // joined the room and THEN joined voice has two entries. Reading the first
+  // reports voice:false forever, which silently disables the whole mesh —
+  // every peer shows "Listening" and nobody is ever dialled. This exact bug
+  // shipped, and only two real clients surfaced it.
+  const state = {
+    ada: [
+      { user_id: 'ada', voice: false },
+      { user_id: 'ada', voice: true },
+    ],
+    ken: [{ user_id: 'ken', voice: false }],
+  };
+
+  const roster = newestPresence(state);
+  assert.deepEqual(roster, [
+    { user_id: 'ada', voice: true },
+    { user_id: 'ken', voice: false },
+  ]);
+
+  // The payoff: the person who picked up the mic is dialled.
+  assert.deepEqual(
+    diffRoster([], roster.filter((p) => p.voice).map((p) => p.user_id), 'me'),
+    { added: ['ada'], removed: [], full: false });
+});
+
+test('presence tolerates a key with no metas', () => {
+  // A person mid-disconnect can leave an empty array behind; mapping it blind
+  // puts `undefined` in the roster and every read of it throws inside render.
+  assert.deepEqual(newestPresence({ gone: [], here: [{ user_id: 'here' }] }),
+    [{ user_id: 'here' }]);
 });

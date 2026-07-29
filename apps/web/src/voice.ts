@@ -69,6 +69,25 @@ export function isPolite(myId: string, peerId: string): boolean {
 export const MAX_VOICE_PEERS = 6;
 
 /**
+ * The current state of each person in a presence channel.
+ *
+ * Realtime keys presence to an ARRAY of metas per person, and calling
+ * `track()` again appends rather than replaces — so `entries[0]` is frozen at
+ * the moment they joined the room, before anyone picked up a microphone.
+ * Reading the first entry meant `voice` was false for everyone forever, so
+ * `diffRoster` below never had a peer to dial: both sides showed "Listening"
+ * and heard nothing, with no error anywhere. Always take the newest meta.
+ *
+ * This lives beside `diffRoster` because it is the step immediately before it,
+ * and getting it wrong disables the entire mesh silently.
+ */
+export function newestPresence<T>(state: Record<string, T[]>): T[] {
+  return Object.values(state)
+    .filter((entries) => entries.length > 0)
+    .map((entries) => entries[entries.length - 1]);
+}
+
+/**
  * Who joined and who left, so connections are opened and torn down exactly
  * once. `roster` must be only the people actually on voice: being in the
  * lounge is not being on the mic, and dialling a reader opens a connection

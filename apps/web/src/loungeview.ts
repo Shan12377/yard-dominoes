@@ -97,27 +97,7 @@ export async function loadLounges(rerender: () => void) {
 
     if (!loungeState.onlineGame) {
       const active = await findActiveSeat();
-      if (active) {
-        loungeState.onlineGame = await OnlineGame.open(active.tableId);
-        // Reloading straight onto a seat skips the lounge, so the channel that
-        // carries voice and reactions was never joined and the mic sat on
-        // "Connecting…" forever. Enter the table's own lounge so the social
-        // layer works whether you walked in or landed here. Best-effort: a
-        // lounge we cannot enter must not stop the table from rendering.
-        const home = lounges.find((l) => l.id === loungeState.onlineGame?.table.loungeId);
-        if (home && !loungeState.room) {
-          try { await openLounge(home, rerender); } catch { /* table still plays */ }
-        }
-        // OnlineGame's state arrives over Realtime, not from a call this
-        // module makes — without this, moves and seat changes update the
-        // model but nothing ever redraws the DOM to show them. It also emits
-        // 'error' events (e.g. a 409 from a failed dealNext) that otherwise
-        // have no listener anywhere and silently vanish.
-        loungeState.onlineGame.on((e) => {
-          if (e.type === 'error') loungeState.error = e.message;
-          rerender();
-        });
-      }
+      if (active) await attachTable(active.tableId, rerender);
     }
   } catch (err) {
     loungeState.error = err instanceof Error ? err.message : 'could not load lounges';
@@ -185,6 +165,40 @@ async function openLounge(lounge: Lounge, rerender: () => void) {
       const { from, id } = (payload ?? {}) as { from?: string; id?: string };
       if (typeof from === 'string' && typeof id === 'string') showReaction(from, id, rerender);
     });
+  rerender();
+}
+
+/**
+ * Open a table, and make sure the social layer actually works once you are on
+ * it.
+ *
+ * There are three ways onto a seat — reloading straight onto one, joining by
+ * code from the lounge list, and sitting down from inside a lounge — and only
+ * the last had already joined the Realtime channel that voice and reactions
+ * ride on. On the other two the mic sat on "Connecting…" forever and every
+ * reaction was dropped, because nothing was ever subscribed. Two real clients
+ * caught this; it is invisible from one. Entering the table's own lounge here
+ * is what makes the table social on all three paths.
+ */
+async function attachTable(tableId: string, rerender: () => void) {
+  loungeState.onlineGame?.leave();
+  const game = await OnlineGame.open(tableId);
+  loungeState.onlineGame = game;
+  // State arrives over Realtime, not from a call this module makes — without
+  // this, moves and seat changes update the model but nothing redraws. It also
+  // carries 'error' events that otherwise have no listener and vanish.
+  game.on((e) => {
+    if (e.type === 'error') loungeState.error = e.message;
+    rerender();
+  });
+
+  // Already in the right lounge: leave it alone. openLounge() tears the room
+  // down first, which would drop a live microphone for someone who sat down
+  // from inside the very lounge they are talking in.
+  const home = loungeState.lounges.find((l) => l.id === game.table.loungeId);
+  if (home && loungeState.current?.id !== home.id) {
+    try { await openLounge(home, rerender); } catch { /* the table still plays */ }
+  }
   rerender();
 }
 
@@ -343,15 +357,7 @@ function loungeList(rerender: () => void): DocumentFragment {
   }
   frag.appendChild(head);
 
-  frag.appendChild(joinByCodeField((tableId) => void (async () => {
-    loungeState.onlineGame?.leave();
-    loungeState.onlineGame = await OnlineGame.open(tableId);
-    loungeState.onlineGame.on((e) => {
-      if (e.type === 'error') loungeState.error = e.message;
-      rerender();
-    });
-    rerender();
-  })()));
+  frag.appendChild(joinByCodeField((tableId) => void attachTable(tableId, rerender)));
 
   if (loungeState.error) {
     frag.appendChild(el('div', 'banner', loungeState.error));
@@ -411,15 +417,8 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   frag.appendChild(head);
 
   const tablesPanel = document.createElement('div');
-  void openTablesPanel(lounge.id, (tableId) => void (async () => {
-    loungeState.onlineGame?.leave();
-    loungeState.onlineGame = await OnlineGame.open(tableId);
-    loungeState.onlineGame.on((e) => {
-      if (e.type === 'error') loungeState.error = e.message;
-      rerender();
-    });
-    rerender();
-  })(), rerender).then((panel) => {
+  void openTablesPanel(lounge.id, (tableId) => void attachTable(tableId, rerender),
+    rerender).then((panel) => {
     tablesPanel.replaceWith(panel);
   });
   frag.appendChild(tablesPanel);

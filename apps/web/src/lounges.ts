@@ -16,6 +16,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { GameMode } from '@yard/engine';
 import { supabase, online } from './online.ts';
+import { newestPresence } from './voice.ts';
 
 export type Tier = 'guest' | 'yardie' | 'vip';
 
@@ -226,9 +227,10 @@ export function enterLounge(
 
   channel
     .on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState<PresenceEntry>();
-      const roster = Object.values(state).map((entries) => entries[0]);
-      handlers.onPresence?.(roster);
+      // newestPresence, never entries[0] — see the note on it in voice.ts.
+      // The oldest meta predates anyone picking up a microphone, so reading it
+      // left `voice` false for everyone and the mesh dialled nobody.
+      handlers.onPresence?.(newestPresence(channel.presenceState<PresenceEntry>()));
     })
     .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'lounge_messages', filter: `lounge_id=eq.${lounge.id}` },
