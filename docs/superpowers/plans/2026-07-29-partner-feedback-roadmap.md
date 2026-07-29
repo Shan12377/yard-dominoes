@@ -252,7 +252,21 @@ two players. The panel has never been seen with a name in it.
 Many players will not use a microphone. The partner's rule is sharp and worth
 implementing exactly:
 
-- [ ] Typed chat at the table.
+- [x] **Quick chat done** — the partner's eight buttons (ME, YOU, ANY, BLESS,
+      GG, DWL, KMT, BRB) at the table, in `lounges.ts` as `QUICK_CHAT`. They
+      ride the **same broadcast and the same on-screen slot as reactions**, so
+      one person is only ever saying one thing at a time and there is no second
+      timer or second event to keep in step. A quick-chat id renders as words,
+      a reaction id as a picture; `knownSignal()` gates both, so a peer
+      broadcasting an invented id still renders nothing.
+      **They are public on purpose, and that IS the anti-cheat for this half:**
+      ME/YOU/ANY are real signals in partner play, and a private channel
+      carrying them is how a hand gets thrown. Broadcast, they are what they
+      are across a real table — everyone hears it, including the people it
+      would hurt.
+      Verified live at a real table: clicking GG put a green GG chip on my own
+      seat and it cleared itself. **Not verified from a second client.**
+- [ ] Free-text typed chat at the table (this is only the canned half).
 - [ ] **VIP can send private messages.**
 - [ ] **Nobody seated in a live hand may send or receive a private message.**
       That is the anti-cheat: private channels between seated players are how

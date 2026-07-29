@@ -220,11 +220,52 @@ export const REACTIONS = [
   { id: 'cho-man', label: 'Cho man' },
 ] as const;
 
+/**
+ * Quick chat — the eight things people actually say at a domino table, as
+ * buttons. The business partner named these off the top of his head watching
+ * the rival app, and they are the cheapest culture in the product: eleven
+ * characters of patois carry more of a yard than a paragraph of interface copy.
+ *
+ * They ride the SAME broadcast and the SAME on-screen slot as reactions, which
+ * is not just less code — it means one person can only be saying one thing at
+ * a time, so nobody can stack a reaction and a line on top of each other.
+ *
+ * **These are public by design, and that is the anti-cheat.** "ME", "YOU" and
+ * "ANY" are real signals in partner play, and a private channel carrying them
+ * between two seated players is exactly how a hand gets thrown. Broadcast to
+ * the whole table, they are what they are across a real table: everyone hears
+ * it, including the people it would hurt. See the private-message rule in
+ * docs/superpowers/plans — nobody seated in a live hand may send or receive a
+ * private message, and that rule has to be enforced on the server, not here.
+ */
+export const QUICK_CHAT = [
+  { id: 'me', label: 'ME' },
+  { id: 'you', label: 'YOU' },
+  { id: 'any', label: 'ANY' },
+  { id: 'bless', label: 'BLESS' },
+  { id: 'gg', label: 'GG' },
+  { id: 'dwl', label: 'DWL' },
+  { id: 'kmt', label: 'KMT' },
+  { id: 'brb', label: 'BRB' },
+] as const;
+
 export const REACTION_EVENT = 'reaction';
 
 /** The label for a reaction id, or '' for one a peer invented. */
 export function reactionLabel(id: string): string {
   return REACTIONS.find((r) => r.id === id)?.label ?? '';
+}
+
+/** The words for a quick-chat id, or '' if it is not one. Callers use the
+ *  empty string to tell the two kinds of signal apart when rendering. */
+export function quickChatLabel(id: string): string {
+  return QUICK_CHAT.find((q) => q.id === id)?.label ?? '';
+}
+
+/** True for anything we are willing to render. A peer can broadcast whatever
+ *  it likes; only these ids ever reach the screen. */
+export function knownSignal(id: string): boolean {
+  return reactionLabel(id) !== '' || quickChatLabel(id) !== '';
 }
 
 export function enterLounge(

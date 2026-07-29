@@ -5,7 +5,7 @@
 // reads it and calls back into it.
 
 import { OnlineGame } from './onlinetable.ts';
-import { listLoungeTables, reactionLabel, type OpenTable } from './lounges.ts';
+import { listLoungeTables, reactionLabel, quickChatLabel, type OpenTable } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
@@ -168,6 +168,7 @@ export interface TableSocial {
   reactions: Map<string, string>;
   voicePanel: HTMLElement | null;
   reactionBar: HTMLElement | null;
+  quickChatBar?: HTMLElement | null;
   /** Everyone with this table open, seated players included. */
   watching?: { user_id: string; username: string }[];
 }
@@ -185,8 +186,15 @@ function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSo
     card.appendChild(wave);
   }
 
+  // Reactions and quick chat share this one slot, so a person is only ever
+  // saying one thing at a time. A quick-chat id has words and no picture.
   const thrown = social.reactions.get(userId);
   if (!thrown) return;
+  const said = quickChatLabel(thrown);
+  if (said) {
+    card.appendChild(el('span', 'said', said));
+    return;
+  }
   const img = document.createElement('img');
   img.className = 'thrown';
   img.src = `${import.meta.env.BASE_URL}reactions/${thrown}.webp`;
@@ -267,8 +275,10 @@ export function liveTableView(
   const crowd = watchersPanel(game, social);
   if (crowd) frag.appendChild(crowd);
 
-  // Reactions sit last, beside the hand — thumb reach, and free for guests.
-  // Spectators get them too: heckling from the side of the yard is the point.
+  // Reactions and quick chat sit last, beside the hand — thumb reach, and free
+  // for guests. Spectators get them too: heckling from the side of the yard is
+  // the point. Words above pictures, because words are what get used mid-hand.
+  if (social?.quickChatBar) frag.appendChild(social.quickChatBar);
   if (social?.reactionBar) frag.appendChild(social.reactionBar);
 
   return frag;

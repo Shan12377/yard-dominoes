@@ -474,6 +474,32 @@ label.field > span {
   box-shadow: 0 0 0 2px var(--sand), 0 0 0 4px var(--gold);
 }
 .felt-pick button:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; }
+/* Quick chat. Short words, wide targets, wrapping to as many rows as the
+   phone needs — these get hit mid-hand with a thumb, often in a hurry. */
+.quick-chat { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.quick-chat .quick {
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.06em;
+  min-height: 34px; padding: 6px 12px; cursor: pointer;
+  color: var(--ink); background: var(--sand-hi);
+  border: 1px solid rgba(90, 58, 30, 0.28);
+  border-bottom-color: rgba(90, 58, 30, 0.42);
+  border-radius: 99px;
+}
+.quick-chat .quick:hover:not(:disabled) { border-color: var(--gold-deep); color: var(--gold-deep); }
+.quick-chat .quick:disabled { opacity: 0.45; cursor: not-allowed; }
+.quick-chat .quick:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+
+/* What a seat just said. Shares its slot with a thrown reaction, so nobody is
+   ever showing a picture and a word at the same time. */
+.seat .said {
+  display: inline-block; margin-top: 6px;
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 9px; border-radius: 99px;
+  background: var(--forest); color: #EAF7EF;
+}
+
 /* The crowd around the table. Names, not seats — these people are standing. */
 .watchers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .watcher {

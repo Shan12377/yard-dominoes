@@ -9,7 +9,7 @@
 import {
   listLounges, myProfile, canEnter, recentMessages, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
-  REACTIONS, REACTION_EVENT, reactionLabel,
+  REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
 } from './lounges.ts';
 import type { Lounge, LoungeMessage, LoungeRoom, PresenceEntry, Tier } from './lounges.ts';
 import { ensureSignedIn, findActiveSeat } from './online.ts';
@@ -62,7 +62,7 @@ export const loungeState: LoungeState = {
 const reactionTimers = new Map<string, number>();
 
 function showReaction(userId: string, id: string, rerender: () => void) {
-  if (!REACTIONS.some((r) => r.id === id)) return; // never render what a peer invents
+  if (!knownSignal(id)) return; // never render what a peer invents
   clearTimeout(reactionTimers.get(userId));
   loungeState.reactions = new Map(loungeState.reactions).set(userId, id);
   reactionTimers.set(userId, window.setTimeout(() => {
@@ -229,13 +229,42 @@ function reactionBar(rerender: () => void): HTMLElement {
     img.height = 44;
     b.appendChild(img);
     b.append(el('span', undefined, r.label));
-    b.onclick = () => {
-      if (!me || !loungeState.room) return;
-      showReaction(me.id, r.id, rerender);
-      void loungeState.room.channel.send({
-        type: 'broadcast', event: REACTION_EVENT, payload: { from: me.id, id: r.id },
-      });
-    };
+    b.onclick = () => sendSignal(r.id, rerender);
+    bar.appendChild(b);
+  }
+  return bar;
+}
+
+/**
+ * Show it locally and tell the room. Local first, deliberately: the broadcast
+ * does not echo back to the sender, so waiting for the network would leave
+ * your own button feeling dead.
+ */
+function sendSignal(id: string, rerender: () => void) {
+  const me = loungeState.me;
+  if (!me || !loungeState.room) return;
+  showReaction(me.id, id, rerender);
+  void loungeState.room.channel.send({
+    type: 'broadcast', event: REACTION_EVENT, payload: { from: me.id, id },
+  });
+}
+
+/**
+ * The eight words, as buttons. Text rather than pictures because these are
+ * things people SAY — and because a player on a phone mid-hand can hit a short
+ * word faster than they can recognise an icon.
+ */
+function quickChatBar(rerender: () => void): HTMLElement {
+  const bar = el('div', 'quick-chat');
+  const ready = loungeState.me !== null && loungeState.room !== null;
+  for (const q of QUICK_CHAT) {
+    const b = document.createElement('button');
+    b.className = 'quick';
+    b.disabled = !ready;
+    b.textContent = q.label;
+    b.title = ready ? `Say ${q.label}` : 'Connecting to the room…';
+    b.setAttribute('aria-label', `Say ${q.label}`);
+    b.onclick = () => sendSignal(q.id, rerender);
     bar.appendChild(b);
   }
   return bar;
@@ -561,6 +590,7 @@ export function loungesView(rerender: () => void): DocumentFragment | HTMLElemen
       reactions: loungeState.reactions,
       voicePanel: voicePanel(rerender),
       reactionBar: reactionBar(rerender),
+      quickChatBar: quickChatBar(rerender),
       watching: loungeState.roster.filter(
         (p) => p.table === loungeState.onlineGame!.table.id,
       ),
