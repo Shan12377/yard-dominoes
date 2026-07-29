@@ -144,14 +144,46 @@ export class OnlineGame {
     return game;
   }
 
+  /**
+   * Names, cached across re-seats. `seats` rows carry a user id and nothing
+   * else, so without this every human at every online table renders as "Seat
+   * 0" — which is what shipped, because the field existed and the view read
+   * it and nothing ever wrote it.
+   */
+  private names = new Map<string, string>();
+
   private applySeats(rows: any[]) {
     this.seats = rows.map((s) => ({
-      seatIndex: s.seat_index, userId: s.user_id, username: null, duppyLevel: s.duppy_level,
+      seatIndex: s.seat_index,
+      userId: s.user_id,
+      username: s.user_id ? this.names.get(s.user_id) ?? null : null,
+      duppyLevel: s.duppy_level,
       timeBank: s.time_bank ?? 0,
     }));
     this.mySeat = this.myUserId
       ? this.seats.find((s) => s.userId === this.myUserId)?.seatIndex ?? null
       : null;
+    void this.loadNames();
+  }
+
+  /**
+   * Fill in whoever we do not know yet, then redraw. Fire-and-forget on
+   * purpose: a name is decoration on a hand that is already playable, so a
+   * failed lookup leaves "Seat 2" rather than blocking the table.
+   */
+  private async loadNames() {
+    const missing = [...new Set(
+      this.seats.filter((s) => s.userId && !this.names.has(s.userId)).map((s) => s.userId!),
+    )];
+    if (missing.length === 0) return;
+    const { data } = await db().from('profiles').select('id, username').in('id', missing);
+    if (!data?.length) return;
+    for (const row of data) this.names.set(row.id as string, row.username as string);
+    this.seats = this.seats.map((s) => ({
+      ...s,
+      username: s.userId ? this.names.get(s.userId) ?? s.username : null,
+    }));
+    this.emit({ type: 'state' });
   }
 
   private subscribe() {
