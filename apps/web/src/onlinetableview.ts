@@ -8,8 +8,8 @@ import { OnlineGame } from './onlinetable.ts';
 import { listLoungeTables, reactionLabel, type OpenTable } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
-import { DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
-import type { GameMode } from '@yard/engine';
+import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
+import type { ClockName, GameMode } from '@yard/engine';
 
 /** Surface a failed request inline, next to whatever control triggered it —
  * same `.banner` treatment loungeview.ts uses for its room-level error, just
@@ -69,6 +69,11 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   seatCount.innerHTML = `<option value="4">4 players</option><option value="3">3 players</option><option value="2">2 players</option>`;
   const duppy = document.createElement('select');
   duppy.innerHTML = DUPPY_LEVELS.map((d) => `<option value="${d}">${DUPPY_LABELS[d]}</option>`).join('');
+  // Without this the clock feature exists but nobody can reach it: every table
+  // would take the database default and no speed room could ever be started.
+  const clock = document.createElement('select');
+  clock.innerHTML = CLOCK_NAMES.map((c) => `<option value="${c}">${CLOCK_LABELS[c]}</option>`).join('');
+  clock.value = 'yard';
 
   // Partner is inherently a 4-seat, 2-vs-2 format — lock the seat count when
   // it's selected so the form can never submit an invalid combination. The
@@ -85,7 +90,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   syncSeatCount();
   mode.onchange = syncSeatCount;
 
-  for (const [label, control] of [['Game', mode], ['Seats', seatCount], ['Fill empty seats with', duppy]] as const) {
+  for (const [label, control] of [['Game', mode], ['Seats', seatCount], ['Clock', clock], ['Fill empty seats with', duppy]] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
     form.appendChild(field);
@@ -104,6 +109,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
         format: mode.value === 'cutthroat' ? 'firstToSix' : 'sixlove',
         seatCount: seats as 2 | 3 | 4,
         duppies: fill,
+        clock: clock.value as ClockName,
         loungeId,
       });
       onJoin(tableId);
@@ -230,7 +236,7 @@ export function liveTableView(
   frag.appendChild(felt);
 
   if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
-    frag.appendChild(countdown(game.hand.turn_expires_at, rerender));
+    frag.appendChild(countdown(game, game.hand.turn_expires_at, rerender));
   }
 
   const seatsRow = el('div', 'seats');
@@ -287,13 +293,47 @@ function startHandPanel(game: OnlineGame): HTMLElement {
   return panel;
 }
 
-function countdown(expiresAt: string, rerender: () => void): HTMLElement {
-  const remaining = Math.max(0, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000));
-  const bar = el('div', 'panel');
-  bar.append(el('div', 'muted', remaining > 0 ? `${remaining}s to play` : 'time\'s up — a duppy will play for this seat'));
+/**
+ * The turn clock. Time is a budget here, not a flat allowance: a seat is given
+ * a base every turn and keeps what it does not spend, so the number counting
+ * down is often larger than the base and the player deserves to know why.
+ *
+ * The remaining seconds come from the server's deadline, never from a local
+ * count — a client whose tab was asleep would otherwise show time it no longer
+ * has.
+ */
+function countdown(game: OnlineGame, expiresAt: string, rerender: () => void): HTMLElement {
+  const left = (Date.parse(expiresAt) - Date.now()) / 1000;
+  const remaining = Math.max(0, Math.floor(left));
+  const turn = game.hand?.turn ?? null;
+  const bank = turn === null ? 0 : Math.round(game.seats[turn]?.timeBank ?? 0);
+  const base = game.table?.turnSeconds ?? 0;
+  const allowed = Math.max(base + bank, 1);
+
+  const wrap = el('div', 'panel clock');
+  const head = el('div', 'clock-head');
+  head.append(el('span', 'clock-left', remaining > 0 ? `${remaining}s` : 'Time'));
+  head.append(el('span', 'muted', remaining > 0
+    ? (game.isMyTurn() ? 'to play' : 'for this seat')
+    : 'up — a duppy plays this seat'));
+  // Only worth explaining when the bank is actually doing something.
+  if (bank > 0 && remaining > 0) {
+    head.append(el('span', 'clock-bank', `${base}s + ${bank}s banked`));
+  }
+  wrap.appendChild(head);
+
+  const track = el('div', 'clock-track');
+  const fill = el('div', 'clock-fill');
+  fill.style.width = `${Math.min(100, (remaining / allowed) * 100)}%`;
+  // Urgency is earned by the last few seconds, not by a colour that shouts
+  // through the whole turn.
+  if (remaining <= 5) fill.classList.add('urgent');
+  track.appendChild(fill);
+  wrap.appendChild(track);
+
   if (countdownTimer) clearTimeout(countdownTimer);
   if (remaining > 0) countdownTimer = setTimeout(rerender, 1000);
-  return bar;
+  return wrap;
 }
 
 function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {

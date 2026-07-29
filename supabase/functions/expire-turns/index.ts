@@ -9,6 +9,7 @@ import { handled, json, serviceClient, toState, persist } from '../_shared/lib.t
 import { legalMoves, applyMove } from '../_shared/engine/hand.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
+import { allowance } from '../_shared/engine/clock.ts';
 
 Deno.serve(handled(async () => {
   const db = serviceClient();
@@ -23,6 +24,15 @@ Deno.serve(handled(async () => {
 
     let state = toState(row as any, table!.seat_count, table!.mode);
     if (legalMoves(state).length === 0) continue;
+
+    const clock = { base: table!.turn_seconds, cap: table!.turn_cap_seconds };
+    const banks: number[] = seats!.map((s: any) => s.time_bank ?? 0);
+    // The seat that ran out has spent everything it had — base and bank both.
+    // It is emptied rather than left alone, or a player could bank time all
+    // game and then sit out every turn on the same hoard.
+    const timedOut = state.turn;
+    banks[timedOut] = 0;
+
     state = applyMove(state, duppyMove(state, 'yard'));
 
     let guard = 0;
@@ -30,7 +40,10 @@ Deno.serve(handled(async () => {
       state = applyMove(state, duppyMove(state, seats![state.turn].duppy_level));
     }
     await persist(db, row.id, table!.id, row.set_id, state,
-      seats!.map((s: any) => s.user_id), table!.turn_seconds, (row as any).version);
+      seats!.map((s: any) => s.user_id),
+      allowance(clock, banks[state.turn] ?? 0), (row as any).version);
+    await db.from('seats').update({ time_bank: 0 })
+      .eq('table_id', table!.id).eq('seat_index', timedOut);
     moved++;
 
     // Mirror play-move's post-persist block: a forced timeout move can end a

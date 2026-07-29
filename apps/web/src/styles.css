@@ -741,3 +741,24 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 .age-gate input:focus-visible { outline: 2px solid var(--forest); outline-offset: 1px; }
 .age-error { color: var(--blood); font-size: 13px; margin-top: 8px; }
+
+/* ------------------------------------------------------------- turn clock */
+/* Time is a budget, not a flat allowance — the bar shows what is left of the
+   base plus whatever this seat banked by playing quickly earlier. */
+.clock { padding: 12px 14px; }
+.clock-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.clock-left { font-family: var(--display); font-size: 22px; line-height: 1; color: var(--ink); }
+.clock-bank {
+  margin-left: auto; font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.04em; color: var(--forest);
+}
+.clock-track {
+  margin-top: 8px; height: 6px; border-radius: 99px;
+  background: rgba(36, 22, 8, 0.12); overflow: hidden;
+}
+.clock-fill {
+  height: 100%; border-radius: 99px; background: var(--forest);
+  transition: width 900ms linear;
+}
+.clock-fill.urgent { background: var(--blood); }
+@media (prefers-reduced-motion: reduce) { .clock-fill { transition: none; } }

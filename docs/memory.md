@@ -359,6 +359,52 @@ re-deriving it from chat history.
    never squeezes below `MIN_WIDTH_UNITS`. The hero pins `unit: 15` so the front
    door keeps the size it was designed at.
 
+7. **Banked turn time — built 2026-07-29, NOT yet verified live.** The best
+   idea from the business partner's JamDom walkthrough. A flat clock punishes
+   the fast player twice: moving quickly earns them nothing, and on the one
+   hand that actually needs reading they hit the same wall as somebody who has
+   dawdled all game. So unused time is now kept.
+
+   Every turn grants a base; whatever is unspent accumulates in a bank the seat
+   draws on later; no single turn may exceed a cap however full the bank; the
+   bank empties when a hand is dealt, so nobody reaches the deciding hand of a
+   set holding a hoard. Rules are pure in `packages/engine/src/clock.ts` with
+   11 tests, including the partner's own scenario and a nonsense table row.
+
+   - `0013_banked_turn_time.sql` adds `tables.turn_cap_seconds` and
+     `seats.time_bank`. The bank sits on `seats`, not `hands`, because a new
+     column on `hands` would mean changing the `commit_move` signature — and
+     that function is granted to service_role **by exact signature** in 0007.
+   - `turn_seconds` keeps its name and meaning: it was already the per-turn
+     allowance and is now the base of one, so existing tables behave as before.
+   - `play-move` charges the turn and banks the remainder, but only **after**
+     `commit_move` has held — a move that loses the conditional write must not
+     spend a bank on a turn that never happened.
+   - `expire-turns` empties the timed-out seat's bank. Without that, a player
+     could bank all game and then sit out every turn on the same hoard.
+   - Clocks are chosen **by name** (`speed` / `yard` / `relaxed`), never by
+     seconds, so a patched client cannot start a table with a turn long enough
+     to hold the room hostage. `create-table` resolves the name server-side.
+   - The table form gained a Clock control. Without it the feature would have
+     been unreachable: every table would take the database default and no speed
+     room could ever be started.
+
+   **Deploy order is not optional here.** `create-table` now inserts
+   `turn_cap_seconds`, so deploying the functions before applying `0013` breaks
+   table creation outright. Apply the migration first, then deploy. The client
+   is defensive either way (`turn_cap_seconds ?? turn_seconds`, `time_bank ?? 0`),
+   and `clock.ts`'s `sane()` tolerates a missing cap — but the insert does not.
+
+   **Unverified, and needs a real table:** the whole online path. The rules and
+   the fit are unit-tested, the Clock control is confirmed rendering, and it all
+   typechecks and builds — but no hand has been played on a banked clock, because
+   that needs the migration applied, the functions deployed, and two clients.
+   Do not claim this works until someone has watched a bank actually accumulate.
+
+   Local play against duppies still has no clock at all. That is deliberate for
+   now — the partner's ask was about online speed tables — but it means the
+   practice mode does not train the thing the speed rooms test.
+
 ## Done — infrastructure (2026-07-27 session)
 
 Everything below is live and verified, not just written:

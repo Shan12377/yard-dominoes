@@ -24,6 +24,8 @@ export interface TableInfo {
   tournament: boolean;
   status: 'waiting' | 'playing' | 'finished';
   turnSeconds: number;
+  /** Ceiling on a single turn, bank included. */
+  turnCapSeconds: number;
   joinCode: string;
 }
 
@@ -32,6 +34,8 @@ export interface SeatInfo {
   userId: string | null;
   username: string | null;
   duppyLevel: string | null;
+  /** Unspent seconds this seat carries into its next turn. Server-owned. */
+  timeBank: number;
 }
 
 export type OnlineEvent = { type: 'state' } | { type: 'error'; message: string };
@@ -108,7 +112,8 @@ export class OnlineGame {
     const t = tableRes.data;
     const game = new OnlineGame({
       id: t.id, loungeId: t.lounge_id, mode: t.mode, format: t.format, seatCount: t.seat_count,
-      tournament: t.tournament, status: t.status, turnSeconds: t.turn_seconds, joinCode: t.join_code,
+      tournament: t.tournament, status: t.status, turnSeconds: t.turn_seconds,
+      turnCapSeconds: t.turn_cap_seconds ?? t.turn_seconds, joinCode: t.join_code,
     });
 
     const { data: auth } = await conn.auth.getUser();
@@ -141,6 +146,7 @@ export class OnlineGame {
   private applySeats(rows: any[]) {
     this.seats = rows.map((s) => ({
       seatIndex: s.seat_index, userId: s.user_id, username: null, duppyLevel: s.duppy_level,
+      timeBank: s.time_bank ?? 0,
     }));
     this.mySeat = this.myUserId
       ? this.seats.find((s) => s.userId === this.myUserId)?.seatIndex ?? null

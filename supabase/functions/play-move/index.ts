@@ -9,6 +9,8 @@ import { isLegal, applyMove } from '../_shared/engine/hand.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
 import type { Move } from '../_shared/engine/types.ts';
+import { afterTurn, allowance, usedBy } from '../_shared/engine/clock.ts';
+import type { Clock } from '../_shared/engine/clock.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -33,13 +35,18 @@ Deno.serve(handled(async (req) => {
   let state = toState(row, table!.seat_count, table!.mode);
   if (!isLegal(state, move)) throw new HttpError(422, 'illegal move');
 
-  // Speed stat, JamDom-style: elapsed = time since this turn started, which is
-  // (expiry - turn_seconds) ago. Recorded per profile; averages are computed.
+  const clock: Clock = { base: table!.turn_seconds, cap: table!.turn_cap_seconds };
+  const banks: number[] = seats!.map((s: any) => s.time_bank ?? 0);
+
+  // What this turn cost. The turn began one full allowance before its expiry —
+  // which is the banked allowance, not the flat base, or a seat spending banked
+  // time would look to the speed stat like it had only just started.
   const expiresAt = (row as any).turn_expires_at ? Date.parse((row as any).turn_expires_at) : null;
+  let spent: number | null = null;
   if (expiresAt) {
-    const startedAt = expiresAt - table!.turn_seconds * 1000;
-    const elapsed = Math.max(0, Math.min(Date.now() - startedAt, table!.turn_seconds * 1000));
-    await db.rpc('record_move_speed', { p_user: user.id, p_ms: Math.round(elapsed) });
+    const startedAt = expiresAt - allowance(clock, banks[mySeat]) * 1000;
+    spent = usedBy(clock, banks[mySeat], startedAt, Date.now());
+    await db.rpc('record_move_speed', { p_user: user.id, p_ms: Math.round(spent * 1000) });
   }
 
   state = applyMove(state, move);
@@ -50,11 +57,23 @@ Deno.serve(handled(async (req) => {
     state = applyMove(state, duppyMove(state, seats![state.turn].duppy_level));
   }
 
+  // Whatever this seat did not spend is kept for a hand that needs reading.
+  if (spent !== null) banks[mySeat] = afterTurn(clock, banks[mySeat], spent);
+
   try {
-    await persist(db, row.id, table!.id, row.set_id, state, seatUsers, table!.turn_seconds, row.version);
+    // The deadline belongs to whoever holds the turn now, on their own budget.
+    await persist(db, row.id, table!.id, row.set_id, state, seatUsers,
+      allowance(clock, banks[state.turn] ?? 0), row.version);
   } catch (err) {
     if (err instanceof Conflict) throw new HttpError(409, 'someone else moved first — reloading');
     throw err;
+  }
+
+  // Only after the conditional write has held: a move that lost the race must
+  // not leave the mover's bank spent on a turn that never happened.
+  if (spent !== null) {
+    await db.from('seats').update({ time_bank: Math.round(banks[mySeat]) })
+      .eq('table_id', table!.id).eq('seat_index', mySeat);
   }
 
   if (state.status !== 'active') {

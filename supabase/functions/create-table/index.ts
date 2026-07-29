@@ -1,5 +1,6 @@
 // POST /create-table
 import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
+import { clockByName } from '../_shared/engine/clock.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -34,6 +35,10 @@ Deno.serve(handled(async (req) => {
     // Cut throat six love runs to a median of ~196 hands. Never default to it.
     format: body.format ?? (body.mode === 'cutthroat' ? 'firstToSix' : 'sixlove'),
     seat_count: seatCount,
+    // The client sends a name, never seconds — otherwise a patched client
+    // could start a table with a turn long enough to hold the room hostage.
+    turn_seconds: clockByName(body.clock).base,
+    turn_cap_seconds: clockByName(body.clock).cap,
     tournament: !!body.tournament,
     one_all_play_two: body.oneAllPlayTwo ?? true,
     use_boneyard: !!body.useBoneyard,

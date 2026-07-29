@@ -92,7 +92,12 @@ Deno.serve(handled(async (req) => {
     state = applyMove(state, duppyMove(state, seats![state.turn].duppy_level));
   }
 
-  await persist(db, handRow!.id, tableId, set!.id, state, seatUsers, table.turn_seconds, 0);
+  // Everyone starts a hand level. Banking time across hands would let one
+  // early rout buy an unanswerable advantage in the hand that decides the set.
+  await db.from('seats').update({ time_bank: 0 }).eq('table_id', tableId);
+
+  await persist(db, handRow!.id, tableId, set!.id, state, seatUsers,
+    table.turn_seconds, 0);
   await db.from('tables').update({ status: 'playing' }).eq('id', tableId);
 
   return json({ ok: true, handId: handRow!.id, commitment, turn: state.turn });

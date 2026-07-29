@@ -100,7 +100,8 @@ export function rowsOf(placements: TilePlacement[]): number {
 
 /**
  * The largest tiles this line fits in at. Pure, so it can be tested without
- * a browser — `fitBoard` only supplies the measurements.
+ * a browser — `feltBox()` is the only part that reads the window, and
+ * `renderBoard` hands its result in.
  *
  * Bigger tiles mean fewer units across, which means more rows, which needs
  * more height — so the size cannot be solved directly and is searched for
