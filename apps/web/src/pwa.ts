@@ -115,17 +115,36 @@ export function registerServiceWorker(onUpdateReady: () => void) {
     });
   });
 
+  // `controllerchange` does not mean "a new version replaced the old one" —
+  // it means "the controller changed", and `clients.claim()` in sw.js's own
+  // `activate` handler fires it on the worker's very first activation too,
+  // for every first-time visitor, not only on a real update. That is not a
+  // corner case: it fired on every fresh session, about 400ms after load,
+  // and reloaded the page out from under whatever the visitor had just
+  // done — an in-flight sign-in, a tap that landed on markup a moment
+  // before everything under it vanished. It read as "the nav is broken"
+  // because the reload silently erased a click's effect before the next
+  // render could ever be seen.
+  //
+  // The only controllerchange that should trigger a reload is the one this
+  // page caused on purpose, by calling applyUpdate() — never one that just
+  // happens to arrive because a worker claimed control for the first time.
+  // `updateApplied` is that gate.
   let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloading) return;
+    if (!updateApplied || reloading) return;
     reloading = true;
     window.location.reload();
   });
 }
 
+let updateApplied = false;
+
 /** Apply a pending update. Only call between hands. */
 export function applyUpdate() {
-  waitingWorker?.postMessage('SKIP_WAITING');
+  if (!waitingWorker) return;
+  updateApplied = true;
+  waitingWorker.postMessage('SKIP_WAITING');
   waitingWorker = null;
 }
 

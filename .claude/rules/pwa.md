@@ -25,8 +25,18 @@ a nice-to-have.
 Bump `VERSION` when shipping; `activate` deletes every cache not prefixed with
 it. Forgetting to bump means players run stale assets indefinitely.
 
-A `controllerchange` listener reloads once, guarded by a flag — remove the
-guard and you get a reload loop.
+A `controllerchange` listener reloads, but only when `applyUpdate()` caused it
+— gated by `updateApplied` in `pwa.ts`, not just a `reloading` re-entrancy
+flag. `clients.claim()` in `sw.js`'s own `activate` fires `controllerchange`
+on the worker's very first activation too, for every first-time visitor, not
+only on a real update — a `reloading`-only guard still reloads that visitor's
+page out from under them about 400ms after load, before they have done
+anything. This was live in production for a real session before being caught:
+it looked exactly like "the nav is broken," because the auto-reload erased
+whatever a click had just done before the next render was ever seen. Verify
+the fix by loading a fresh, never-visited session and confirming no
+`framenavigated` event fires in the seconds after load — not just that the
+page eventually looks right.
 
 ## The two platforms are not the same
 
