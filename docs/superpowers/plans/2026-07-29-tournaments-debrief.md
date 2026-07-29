@@ -1,0 +1,304 @@
+# Tournaments — debrief
+
+**Status:** not started. This is the scoping document, written before any code.
+**Source of requirements:** Wave 2.3 of
+[the partner feedback roadmap](./2026-07-29-partner-feedback-roadmap.md).
+**Next migration number:** `0015`.
+
+Per the partner, this is *the* reason people buy VIP — a stronger pitch than
+the microphone. Treat the queue rule as the paid promise it is.
+
+---
+
+## 0. Read this before you write a line
+
+### `tables.tournament` is NOT a tournament
+
+`tables.tournament` has existed since `0001` and it is a **rules flag**. It
+means *the double-six must actually be led, not merely declared* — it feeds
+`poseMustBeDoubleSix` in `packages/engine/src/set.ts:23` and is surfaced in the
+UI as "Tournament — must lead the six" (`main.ts:544`). It is a property of how
+a single table plays.
+
+A tournament **event** — a Sunday, a sign-up list, two rounds and a final — is
+an entirely different thing that does not exist anywhere in this codebase.
+
+Do not overload the column. Do not name your new boolean `tournament`. A
+tournament event will almost certainly *set* `tables.tournament = true` on the
+tables it creates, and that is the whole of the relationship between them.
+
+### There is no admin and no host role in this app
+
+Grep confirms it: no `is_admin`, no `is_host`, no role column, nothing. Every
+privileged write in this codebase goes through a service-role Edge Function.
+You are adding the first notion of a privileged human, so get the shape right
+the first time — see §4.
+
+### `0012` protects you for free, but only if you leave it alone
+
+`0012` revoked blanket UPDATE on `profiles` and re-granted it column by column;
+`0014` extended the list to five columns. **A new column on `profiles` is not
+writable by `authenticated` unless you name it in a grant.** So `is_host` is
+safe by default.
+
+The failure mode is a reflex `grant update (...)` that adds it "to be
+consistent". `is_host` must never appear in that list, for exactly the reason
+`tier` never does. After your migration runs, re-check:
+
+```sql
+select column_name from information_schema.column_privileges
+where table_name = 'profiles' and grantee = 'authenticated'
+  and privilege_type = 'UPDATE';
+```
+
+Expect the same five: `username, flag, bio, origin, gender`.
+
+---
+
+## 1. Ship a tournament you run by hand
+
+The instinct here is a bracket generator, auto-advance from `sets.winner_side`,
+seeding by rating, and a state machine. Resist all of it until one real Sunday
+has been played.
+
+Sundays, two rounds plus a final, small numbers, and a trusted human host who
+already knows who won. What that human cannot do without software is:
+
+1. take sign-ups before the event
+2. order the queue so VIPs actually jump
+3. see the ordered list, and see where the cut line falls
+4. tell everybody at once that round two starts in five minutes
+
+That is the whole of v1. Everything else is a human clicking. Auto-advance is
+cheap to add *later* because the results are already in `sets` — and by then
+you will know which of your bracket assumptions were wrong.
+
+---
+
+## 2. Schema (`0015_tournaments.sql`)
+
+### `tournaments`
+
+The event. Reads mostly like a `tables` row's calendar entry.
+
+| column | notes |
+|---|---|
+| `id` | uuid pk |
+| `lounge_id` | fk `lounges`. See §3 — this is a seed row, not new code |
+| `name` | e.g. "Sunday Six Love" |
+| `mode`, `format`, `seat_count` | passed straight to `create-table` later |
+| `starts_at` | timestamptz. The countdown reads this |
+| `signups_open_at` | nullable; null = open as soon as announced |
+| `table_count` | how many tables the host is running. `table_count * seat_count` is the **cut line** |
+| `status` | `announced` / `signups_open` / `seating` / `running` / `finished` / `cancelled` |
+| `notice` | text, nullable. The intercom — see §5 |
+| `host_id` | fk `profiles` |
+
+RLS: readable by everyone. No client write policy at all.
+
+### `tournament_signups`
+
+| column | notes |
+|---|---|
+| `tournament_id`, `user_id` | composite pk — one signup per person, enforced by the key |
+| `signed_up_at` | `default now()`, **server-set** |
+| `tier_at_signup` | snapshot, for dispute resolution only. **Never used for ordering** — see §6 |
+| `status` | `signed_up` / `seated` / `substitute` / `out` / `disqualified` |
+| `round` | smallint, nullable |
+
+RLS: readable by everyone — the queue is public on purpose, because *seeing
+three VIPs ahead of you* is the sales pitch. No client INSERT policy; sign-up
+goes through an Edge Function so the open/closed check and the timestamp both
+live server-side, consistent with every other write in this app.
+
+A player may withdraw themselves. That is the only client-initiated change, and
+even it is easier to route through the same function than to write a DELETE
+policy you then have to reason about.
+
+---
+
+## 3. The tournament lounge is a seed row
+
+`lounges` already has `slug`, `name`, `description`, `mode`, `min_tier`,
+`capacity`, `sort_order`, and `0002` seeds five of them. A tournament lounge is
+one more `insert`. It needs no new table, no new view, no new presence channel —
+the lounge channel is already open, already synced, and already carries voice,
+reactions, quick chat, and the `table` presence field.
+
+`min_tier` stays `guest`. The tournament is not a paid room; the *queue* is
+where VIP pays off. Locking guests out of the lounge would delete the audience
+that watches VIPs jump the line, which is the mechanism that sells VIP.
+
+---
+
+## 4. The host role, scoped so it cannot grow
+
+Requirement: trusted people can run tournaments **without any access to coins or
+billing**.
+
+Do this with `profiles.is_host boolean not null default false` and **no new
+grants, no new RLS policies, and no new Postgres role.** Every host action is an
+Edge Function that checks `is_host` server-side and touches only `tournaments`
+and `tournament_signups`. A host therefore holds exactly zero database
+privileges they did not already have as an ordinary player.
+
+That is the narrow scoping the requirement asks for, and it is narrow by
+construction rather than by discipline. A Postgres role, by contrast, is a thing
+someone widens later with one `grant`.
+
+`is_host` is set by you in SQL. There is no UI for making hosts, and there
+should not be one until there is a reason.
+
+**Host ≠ admin.** The host runs the Sunday. Recommended split for the penalty
+requirement:
+
+- **Host** may set `status = 'disqualified'` on a signup in *their own*
+  tournament. That strips the player's runs in that event.
+- **Ratings in `profiles.rating_partner` / `rating_cutthroat` are not touched.**
+
+"Strip a player's runs" is ambiguous between those two and the difference is
+large — one is a Sunday result, the other is a permanent record. **Ask Dr.
+Hunter which she meant before building the second one.** Defaulting to the
+smaller blast radius is correct while the question is open.
+
+---
+
+## 5. The intercom is one text column
+
+Requirement: admin can broadcast to the tournament.
+
+`tournaments.notice text` — the host writes it, everyone in the lounge sees it
+as a banner. That covers "Round 2 starts in 5 minutes", which is what an
+intercom is actually used for.
+
+Do not build a message table, a second Realtime channel, or an announcement
+history. If they later want scrollback, `lounge_messages` already exists as the
+shape to copy — but a history of five messages that all said "five minutes" is
+not worth a table today.
+
+**Do not implement this as a Realtime broadcast event.** Broadcast is
+peer-to-peer, so a patched client can claim to be the host and put words in her
+mouth. A column written by a host-checked Edge Function and read by everyone
+cannot be forged. This is the same reasoning that keeps every game write on the
+server.
+
+---
+
+## 6. The queue rule — the part that must be exactly right
+
+> A VIP who signs up at 4:30 gets a seat ahead of a regular who signed up at
+> 9am.
+
+```
+order by tier_rank(effective_tier(p)) desc,
+         signed_up_at asc,
+         user_id asc          -- ties must be deterministic
+```
+
+Three things about this, each of which is a bug if you get it wrong:
+
+**Use tier at seating time, not `tier_at_signup`.** Someone who signs up as a
+guest at 9am and buys VIP at 4:30 *does* jump — that is precisely the moment the
+upgrade sells itself, and it is the behaviour the partner described. Store
+`tier_at_signup` anyway, but only so you can answer "why was I bumped" three
+weeks later. Never order by it.
+
+**Use `effective_tier()`, not `profiles.tier`.** It already exists
+(`0002_lounges_tiers.sql:26`) and it is what makes an expired membership stop
+counting. `join-table` and `create-table` both use it via
+`_shared/lib.ts`. A raw `tier` read here would let a lapsed VIP jump the queue,
+and it would be the *only* place in the app that does.
+
+**One implementation of the ordering, not two.** The player's "you are #14, with
+3 VIPs ahead of you" and the host's seating pass must be the same ordering or
+they will disagree on the one day it matters. Put it in one SQL view or one
+function and have both read it.
+
+Everyone past `table_count * seat_count` is the **substitutes line**. That is
+already a promised VIP benefit — `lounges.ts:59` sells "Front of the tournament
+substitutes line" today — and the same ordering delivers it for free. It is one
+ordered list with a cut line drawn across it, not two lists.
+
+### Test this one properly
+
+The ordering is the paid promise and it is the thing players will argue about.
+Extract it as a pure function and unit-test it, exactly the way
+`apps/web/src/name-cache.ts` holds the pure decision behind the name cache with
+`name-cache.test.ts` beside it.
+
+Cases that must be in the test:
+
+- VIP signed up last still seats ahead of every guest
+- expired VIP does **not** jump (this is the `effective_tier` case)
+- two VIPs, identical `signed_up_at` → stable, repeatable order
+- the cut line lands in the right place, and #N+1 is a substitute not a reject
+- yardie sits between vip and guest
+
+---
+
+## 7. Sign-up flow and the banner
+
+- The banner queries the next `tournaments` row with `starts_at` in the future
+  and `status` in (`announced`, `signups_open`). No new backend.
+- Countdown from `starts_at`, client-side.
+- **The banner must not flash.** More than three flashes per second is a
+  seizure risk and fails WCAG 2.3.1. Use a slow pulse, and honour
+  `prefers-reduced-motion` by rendering it static. "Flashing banner" in the
+  requirements means *make it impossible to miss*, and a bold static banner
+  achieves that without the hazard.
+- After sign-up the banner becomes the queue position, because that is the
+  screen that sells VIP: **"You are #14. Three VIPs are ahead of you."**
+
+### Do not build a recurrence scheduler
+
+Sundays are the regular slot, but the host creating each week's row is thirty
+seconds of work and zero code. `pg_cron` is already available if this ever
+becomes tedious (see `0005_expire_turns_cron.sql`), so the door is open. It is
+not open yet.
+
+---
+
+## 8. Seating
+
+When the host starts the event, for each table up to `table_count`: call the
+existing `create-table` with `tournament: true`, `lounge_id` = the tournament
+lounge, then fill seats from the ordered queue.
+
+Note that `create-table` currently seats **the caller** at seat 0
+(`create-table/index.ts:58`) and `join-table` requires the *joining user's* auth
+(`join-table/index.ts:6`). Neither can seat a third party. So one of:
+
+- the host creates the table and players are told to sit (each calls
+  `join-table` themselves — lazier, and it naturally proves they are present,
+  which is a real problem at 9am on a Sunday); or
+- a new host-only Edge Function that writes `seats` rows under the service role.
+
+**Start with the first.** "Your table is ready, go sit" is one line of UI, and a
+player who does not turn up to claim their seat is exactly who the substitutes
+line exists for. Auto-seating an absent player is worse than not seating them.
+
+---
+
+## 9. Definition of done for v1
+
+- [ ] `0015_tournaments.sql`, and the `profiles` UPDATE grant still lists five columns
+- [ ] Tournament lounge seeded
+- [ ] `tournament-signup` Edge Function (sign up / withdraw), server-set timestamp
+- [ ] Host functions: create event, set notice, open/close signups, start, disqualify — each checking `is_host`
+- [ ] One ordering implementation, read by both the queue display and seating
+- [ ] Pure `seatingOrder()` + unit tests covering the five cases in §6
+- [ ] Banner + countdown, no flashing, `prefers-reduced-motion` honoured
+- [ ] Queue position visible to the player, VIPs-ahead-of-you count included
+- [ ] Verified with two real isolated clients, not two tabs — two tabs share a
+      Supabase session. Both spectator and quick-chat verification in Wave 1
+      needed this and it caught things a single client did not.
+
+## 10. Open questions for Dr. Hunter
+
+1. Does "strip a player's runs" mean the tournament result only, or rating
+   points too? (§4 — defaulting to the smaller one.)
+2. Can a host disqualify, or admin only?
+3. Is there an entry cost? Nothing above assumes one, and coins do not exist
+   yet (Wave 3).
+4. Does a guest with no membership get a seat at all if VIPs and yardies fill
+   the tables, or is the substitutes line the honest answer?
