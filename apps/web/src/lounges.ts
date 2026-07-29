@@ -187,6 +187,31 @@ export interface LoungeRoom {
  * Enter a lounge: join channel presence (who's here, live) and subscribe to
  * chat inserts. `onPresence` fires with the full roster on every change.
  */
+/**
+ * Table talk for people who cannot or will not talk — free for guests, because
+ * a silent table is the incumbent's table.
+ *
+ * These live here rather than in a view module because both the lounge roster
+ * and the four-seat table render them, and a view importing another view is a
+ * circular import. Art comes from `docs/art-direction.md`; the words live in
+ * code rather than baked into the pictures so they stay readable at any size.
+ */
+export const REACTIONS = [
+  { id: 'tek-dat', label: 'Tek dat' },
+  { id: 'mi-pass', label: 'Mi pass' },
+  { id: 'yah-suh', label: 'Yah suh' },
+  { id: 'six-love', label: 'Six love' },
+  { id: 'hold-dat', label: 'Hold dat' },
+  { id: 'cho-man', label: 'Cho man' },
+] as const;
+
+export const REACTION_EVENT = 'reaction';
+
+/** The label for a reaction id, or '' for one a peer invented. */
+export function reactionLabel(id: string): string {
+  return REACTIONS.find((r) => r.id === id)?.label ?? '';
+}
+
 export function enterLounge(
   lounge: Lounge,
   me: PresenceEntry,

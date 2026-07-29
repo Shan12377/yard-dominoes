@@ -5,7 +5,7 @@
 // reads it and calls back into it.
 
 import { OnlineGame } from './onlinetable.ts';
-import { listLoungeTables, type OpenTable } from './lounges.ts';
+import { listLoungeTables, reactionLabel, type OpenTable } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
@@ -142,7 +142,58 @@ export function joinByCodeField(onJoin: (tableId: string) => void): HTMLElement 
 let pendingTile: string | null = null;
 let countdownTimer: ReturnType<typeof setTimeout> | null = null;
 
-export function liveTableView(game: OnlineGame, rerender: () => void, onLeave: () => void): DocumentFragment {
+/**
+ * The social layer, handed in by whoever owns the Realtime channel it rides on.
+ *
+ * The table is rendered inside the lounge view, and the lounge channel stays
+ * joined while you play — so voice and reactions are already connected here,
+ * they just were not drawn. This module takes the state and the two prebuilt
+ * controls rather than reaching for them: a view importing another view is a
+ * circular import, and the channel is not this module's to own.
+ *
+ * Optional throughout. A table opened without a lounge channel (reloading
+ * straight onto a seat) still plays dominoes — voice is additive and must
+ * never take the table down with it.
+ */
+export interface TableSocial {
+  /** User ids talking right now, so a seat shows who is speaking. */
+  speaking: Set<string>;
+  /** The reaction each person last threw, by user id. */
+  reactions: Map<string, string>;
+  voicePanel: HTMLElement | null;
+  reactionBar: HTMLElement | null;
+}
+
+/** Speaking ring and thrown reaction on a seat, keyed by the player's user id.
+ * Duppy seats have no user id and are skipped — a bot never talks. */
+function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSocial): void {
+  if (!userId || !social) return;
+
+  if (social.speaking.has(userId)) {
+    card.classList.add('speaking');
+    const wave = el('span', 'wave');
+    wave.setAttribute('aria-label', 'speaking');
+    for (let i = 0; i < 3; i++) wave.appendChild(document.createElement('i'));
+    card.appendChild(wave);
+  }
+
+  const thrown = social.reactions.get(userId);
+  if (!thrown) return;
+  const img = document.createElement('img');
+  img.className = 'thrown';
+  img.src = `${import.meta.env.BASE_URL}reactions/${thrown}.webp`;
+  img.alt = reactionLabel(thrown);
+  img.width = 28;
+  img.height = 28;
+  card.appendChild(img);
+}
+
+export function liveTableView(
+  game: OnlineGame,
+  rerender: () => void,
+  onLeave: () => void,
+  social?: TableSocial,
+): DocumentFragment {
   const frag = document.createDocumentFragment();
 
   const head = el('div', 'panel');
@@ -156,6 +207,10 @@ export function liveTableView(game: OnlineGame, rerender: () => void, onLeave: (
   head.appendChild(top);
   if (game.isSpectator) head.append(el('div', 'muted', 'Watching — spectators never see anyone\'s tiles'));
   frag.appendChild(head);
+
+  // Voice sits at the top, where a persistent control belongs — it is a state
+  // you are in, not an action you take mid-hand.
+  if (social?.voicePanel) frag.appendChild(social.voicePanel);
 
   const board = el('div', 'scoreboard');
   if (game.table.mode === 'partner') {
@@ -186,6 +241,7 @@ export function liveTableView(game: OnlineGame, rerender: () => void, onLeave: (
     const count = game.hand?.hand_sizes[s.seatIndex] ?? 0;
     card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
     if (s.seatIndex !== game.mySeat) card.append(backsEl(count));
+    decorateSeat(card, s.userId, social);
     seatsRow.appendChild(card);
   });
   frag.appendChild(seatsRow);
@@ -199,6 +255,10 @@ export function liveTableView(game: OnlineGame, rerender: () => void, onLeave: (
       frag.appendChild(handResultPanel(game, rerender));
     }
   }
+
+  // Reactions sit last, beside the hand — thumb reach, and free for guests.
+  // Spectators get them too: heckling from the side of the yard is the point.
+  if (social?.reactionBar) frag.appendChild(social.reactionBar);
 
   return frag;
 }

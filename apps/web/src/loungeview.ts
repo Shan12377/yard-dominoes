@@ -9,6 +9,7 @@
 import {
   listLounges, myProfile, canEnter, recentMessages, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
+  REACTIONS, REACTION_EVENT, reactionLabel,
 } from './lounges.ts';
 import type { Lounge, LoungeMessage, LoungeRoom, PresenceEntry, Tier } from './lounges.ts';
 import { ensureSignedIn, findActiveSeat } from './online.ts';
@@ -26,16 +27,8 @@ import type { VoiceRoom } from './voice.ts';
  * Art comes from `docs/art-direction.md`; the words live here rather than
  * baked into the pictures, so they stay readable at any size.
  */
-const REACTIONS = [
-  { id: 'tek-dat', label: 'Tek dat' },
-  { id: 'mi-pass', label: 'Mi pass' },
-  { id: 'yah-suh', label: 'Yah suh' },
-  { id: 'six-love', label: 'Six love' },
-  { id: 'hold-dat', label: 'Hold dat' },
-  { id: 'cho-man', label: 'Cho man' },
-] as const;
-
-const REACTION_EVENT = 'reaction';
+/* REACTIONS and REACTION_EVENT now live in lounges.ts — the four-seat table
+   renders them too, and a view importing another view is a circular import. */
 /** Long enough to read across the table, short enough not to become wallpaper. */
 const REACTION_MS = 4000;
 
@@ -106,6 +99,15 @@ export async function loadLounges(rerender: () => void) {
       const active = await findActiveSeat();
       if (active) {
         loungeState.onlineGame = await OnlineGame.open(active.tableId);
+        // Reloading straight onto a seat skips the lounge, so the channel that
+        // carries voice and reactions was never joined and the mic sat on
+        // "Connecting…" forever. Enter the table's own lounge so the social
+        // layer works whether you walked in or landed here. Best-effort: a
+        // lounge we cannot enter must not stop the table from rendering.
+        const home = lounges.find((l) => l.id === loungeState.onlineGame?.table.loungeId);
+        if (home && !loungeState.room) {
+          try { await openLounge(home, rerender); } catch { /* table still plays */ }
+        }
         // OnlineGame's state arrives over Realtime, not from a call this
         // module makes — without this, moves and seat changes update the
         // model but nothing ever redraws the DOM to show them. It also emits
@@ -193,10 +195,15 @@ async function openLounge(lounge: Lounge, rerender: () => void) {
 function reactionBar(rerender: () => void): HTMLElement {
   const bar = el('div', 'reactions');
   const me = loungeState.me;
+  // The room is joined asynchronously and, at a table reached by reload, may
+  // never be joined at all. A button that silently does nothing is the failure
+  // mode voice.md calls out by name — disable it and say why instead.
+  const ready = me !== null && loungeState.room !== null;
   for (const r of REACTIONS) {
     const b = document.createElement('button');
     b.className = 'reaction';
-    b.title = r.label;
+    b.disabled = !ready;
+    b.title = ready ? r.label : 'Connecting to the room…';
     b.setAttribute('aria-label', `Send ${r.label}`);
     const img = document.createElement('img');
     img.src = `${import.meta.env.BASE_URL}reactions/${r.id}.webp`;
@@ -502,7 +509,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
     }
     const thrown = loungeState.reactions.get(person.user_id);
     if (thrown) {
-      const label = REACTIONS.find((r) => r.id === thrown)?.label ?? '';
+      const label = reactionLabel(thrown);
       const img = document.createElement('img');
       img.className = 'thrown';
       img.src = `${import.meta.env.BASE_URL}reactions/${thrown}.webp`;
@@ -538,9 +545,18 @@ export function loungesView(rerender: () => void): DocumentFragment | HTMLElemen
     if (loungeState.error) {
       frag.appendChild(el('div', 'banner', loungeState.error));
     }
+    // Voice and reactions belong at the table more than anywhere — this is
+    // where the four of you actually are. They ride the lounge channel, which
+    // stays joined while you play, so this is a rendering change, not a second
+    // connection.
     frag.appendChild(liveTableView(loungeState.onlineGame, rerender, () => {
       loungeState.onlineGame = null;
       rerender();
+    }, {
+      speaking: loungeState.speaking,
+      reactions: loungeState.reactions,
+      voicePanel: voicePanel(rerender),
+      reactionBar: reactionBar(rerender),
     }));
     return frag;
   }
