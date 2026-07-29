@@ -168,6 +168,8 @@ export interface TableSocial {
   reactions: Map<string, string>;
   voicePanel: HTMLElement | null;
   reactionBar: HTMLElement | null;
+  /** Everyone with this table open, seated players included. */
+  watching?: { user_id: string; username: string }[];
 }
 
 /** Speaking ring and thrown reaction on a seat, keyed by the player's user id.
@@ -262,11 +264,40 @@ export function liveTableView(
     }
   }
 
+  const crowd = watchersPanel(game, social);
+  if (crowd) frag.appendChild(crowd);
+
   // Reactions sit last, beside the hand — thumb reach, and free for guests.
   // Spectators get them too: heckling from the side of the yard is the point.
   if (social?.reactionBar) frag.appendChild(social.reactionBar);
 
   return frag;
+}
+
+/**
+ * Who is leaning on the table watching. Seated players are filtered out —
+ * they are already on screen as seats, and listing them twice makes a
+ * four-hander look like it has an audience of four.
+ *
+ * Returns null rather than an empty panel when nobody is watching: a standing
+ * "Nobody is watching" is a worse thing to read every hand than no panel.
+ */
+function watchersPanel(game: OnlineGame, social?: TableSocial): HTMLElement | null {
+  if (!social?.watching) return null;
+  const seated = new Set(game.seats.map((s) => s.userId).filter(Boolean));
+  const crowd = social.watching.filter((p) => !seated.has(p.user_id));
+  if (crowd.length === 0) return null;
+
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', `Watching — ${crowd.length}`));
+  const list = el('div', 'watchers');
+  for (const p of crowd) {
+    const who = el('span', 'watcher', p.username);
+    if (social.speaking.has(p.user_id)) who.classList.add('speaking');
+    list.appendChild(who);
+  }
+  panel.appendChild(list);
+  return panel;
 }
 
 function startHandPanel(game: OnlineGame): HTMLElement {

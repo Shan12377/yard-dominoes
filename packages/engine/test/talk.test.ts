@@ -5,7 +5,7 @@ import type { TalkTrigger } from '../src/index.ts';
 
 const TRIGGERS: TalkTrigger[] = [
   'pose', 'slam', 'theyPass', 'iPass', 'lastTile',
-  'win', 'winCount', 'lose', 'sixLove', 'sixLoveAgainst', 'bruk',
+  'win', 'winCount', 'lose', 'sixLove', 'sixLoveAgainst', 'bruk', 'waiting',
 ];
 
 test('every duppy has something to say at every trigger', () => {

@@ -183,7 +183,10 @@ The front door currently speaks only to yard play. The partner wants both
 represented, because the audience is split between Jamaica and the diaspora —
 and the UK/US Jamaican community is a large part of the paying base.
 
-- [ ] Front page copy and art should speak to both, not only to Jamaica.
+- [x] **Copy done.** The hero eyebrow now reads "Jamaican dominoes — yard and
+      foreign", and the body says "Yard rules from wherever you're playing".
+      Art still speaks only to the island; the band and the reaction set are
+      unchanged.
 - [ ] **Profile badge: Yardie vs Foreign.** The partner raised this himself and
       it is culturally specific in a way no rival has. Self-declared, shown on
       the seat and the profile.
@@ -193,20 +196,52 @@ and the UK/US Jamaican community is a large part of the paying base.
       option, not a fallback — many players want presence without a photo. The
       art template applies.
 
+**These three were deliberately NOT started**, and the reason matters: **there
+is no profile editor in this app at all.** `profiles` has had a `flag` column
+(territory code) since `0001` and nothing has ever written to it. So the badge
+is not a badge — it is the first profile-editing surface, plus a migration
+adding the columns, plus a **column grant in the `0012` style** (a blanket
+`grant update on profiles` would reopen the free-VIP hole that migration was
+written to close). Scope it as its own piece of work, not as a chip on a seat.
+Avatars additionally need artwork under `docs/art-direction.md`.
+
 ### 1.4 Duppy impatience lines
 
-- [ ] Add to `packages/engine/src/talk.ts`: *"Why yuh nuh play?"*, *"Duppy,
-      stop hold di game."* These fire when a seat is slow, so they need a new
-      trigger keyed off the turn clock, not off a move.
-- [ ] Keep `TALK_CHANCE` discipline — a nagging duppy every turn is worse than
-      none. `don` should almost never nag.
+- [x] **Done.** New `waiting` trigger in `talk.ts` with per-level lines,
+      including both of the partner's. It is the only trigger fired by the
+      ABSENCE of a move, so it needs a timer at the callsite — `nagLater()` in
+      `main.ts`, not a game event.
+- [x] **Done.** Runs through the same `TALK_CHANCE`, so `don` (0.2) almost
+      never nags and `pickney` (0.9) almost always does. Capped at **two**
+      lines per turn and one seat speaks, not the whole table at once: first at
+      14s, again at 30s, then silence. Stops on any event and on leaving the
+      Play tab — a duppy calling you slow from a screen you have left is a bug.
+- Note: local play still has **no turn clock** (open decision 3), which is
+      exactly why this is worth having — the nag is the only time pressure a
+      solo player ever feels.
+
+Verified live: sat idle on my own turn against a `ranker` and got "Duppy, stop
+hold di game." on screen.
 
 ### 1.5 Spectator list
 
-- [ ] A panel showing who is watching, and a notice when someone joins the
-      table. `isSpectator` already exists in `onlinetableview.ts` and the
-      presence data is already in the lounge channel — this is a panel, not a
-      system.
+- [x] **Done.** A "Watching — N" panel of names above the reaction bar.
+      Speakers are highlighted, using the same `speaking` set the seats use.
+- **How it knows.** `PresenceEntry` gained a `table` field, announced on the
+      lounge channel when a table opens and cleared when it closes — no second
+      channel, because the lounge one is already open, already synced, and
+      already carries voice and reactions. Watch for one thing: `channel.track`
+      REPLACES the whole entry rather than merging, so `enterLounge` now keeps
+      a single running copy (`announce()`), or picking up the mic silently
+      clears which table you are watching and vice versa.
+- Seated players are filtered out (they are on screen as seats already), and
+      the panel returns null rather than rendering "Nobody is watching".
+- [ ] **NOT done: a notice when someone joins.** Needs a diff of the previous
+      roster and somewhere to put a transient message.
+
+**NOT verified.** This needs two real clients in the same lounge and only one
+was available — two tabs in one browser share a Supabase session and are not
+two players. The panel has never been seen with a name in it.
 
 ---
 

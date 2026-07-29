@@ -39,7 +39,13 @@ export type TalkTrigger =
   /** Its side conceded six love. */
   | 'sixLoveAgainst'
   /** A score was bruk back to nothing. */
-  | 'bruk';
+  | 'bruk'
+  /**
+   * Nobody has played for a while and the duppy has noticed. Unlike every
+   * other trigger here this one fires from the absence of a move rather than
+   * from a move, so it needs a timer at the callsite, not a game event.
+   */
+  | 'waiting';
 
 type Lines = Partial<Record<TalkTrigger, string[]>>;
 
@@ -60,6 +66,7 @@ const BASE: Lines = {
   sixLove: ['SIX LOVE!', 'Six love, man!'],
   sixLoveAgainst: ['Lawd.', 'Alright. Mi deserve dat.'],
   bruk: ['All a dat gone.', 'Back to zero.'],
+  waiting: ['Why yuh nuh play?', 'Play nuh, man.', 'Yuh a sleep?'],
 };
 
 /**
@@ -74,6 +81,7 @@ const BY_LEVEL: Record<DuppyLevel, Lines> = {
     iPass: ['Aww.', 'Mi nuh have none.', 'Dat nuh fair.'],
     lastTile: ['One more! One more!', 'Mi a go win!'],
     win: ['Mi win! Mi win!', 'Yes man!'],
+    waiting: ['Play nuh! Mi a wait!', 'Yuh a sleep?', 'Hurry up nuh man!'],
     lose: ['Aww, man.', 'Nex time.', 'Mi did close!'],
   },
   yard: {
@@ -81,6 +89,7 @@ const BY_LEVEL: Record<DuppyLevel, Lines> = {
     theyPass: ['Mm hmm.', 'So yuh nuh have none.'],
     win: ['Dat done.', 'Easy nuh.'],
     lose: ['Yuh play good.', 'Awright, run it back.'],
+    waiting: ['Why yuh nuh play?', 'Play nuh, man.'],
   },
   ranker: {
     slam: ['Mi did a wait pon dat.', 'Tek dat.'],
@@ -89,6 +98,7 @@ const BY_LEVEL: Record<DuppyLevel, Lines> = {
     lastTile: ['Watch mi now.', 'One left.'],
     win: ['Tell dem.', 'Dat done.'],
     winCount: ['Mi did a count.', 'Count it.'],
+    waiting: ['Time a run.', 'Duppy, stop hold di game.'],
   },
   don: {
     pose: ['Sit down.'],
@@ -100,6 +110,9 @@ const BY_LEVEL: Record<DuppyLevel, Lines> = {
     winCount: ['Count it.'],
     lose: ['Mm. Again.'],
     sixLove: ['Six love.'],
+    // The don nags in one syllable, and TALK_CHANCE means it almost never
+    // gets to. A silent opponent that suddenly speaks is the point of it.
+    waiting: ['Mm.'],
   },
   general: {
     pose: ['Mek we see what yuh have.'],
@@ -110,6 +123,7 @@ const BY_LEVEL: Record<DuppyLevel, Lines> = {
     win: ['Dat was over from long time.', 'Game.'],
     winCount: ['Mi count dat six move back.'],
     lose: ['Well played. Truly.', 'Yuh read mi. Respect.'],
+    waiting: ['Tek yuh time. Nuh rush.'],
   },
 };
 

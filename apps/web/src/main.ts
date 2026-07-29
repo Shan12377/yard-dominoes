@@ -186,6 +186,9 @@ function chrome(): HTMLElement {
     b.setAttribute('aria-current', String(view === id));
     b.onclick = () => {
       if (view === 'lounges' && id !== 'lounges') loungeModule?.leaveCurrentLounge();
+      // A duppy calling you slow from a screen you have left is a bug, not
+      // atmosphere. The timer restarts from the next event when you come back.
+      if (id !== 'play') stopNagging();
       view = id as View;
       if (id === 'lounges' || id === 'membership') void ensureLoungeModule();
       render();
@@ -237,6 +240,43 @@ function say(seat: number, trigger: TalkTrigger, level: DuppyLevel, always = fal
   const next = new Map(talk);
   if (line) next.set(seat, line); else next.delete(seat);
   talk = next;
+}
+
+/**
+ * How long the table will sit quietly before somebody says something. Long
+ * enough that reading the board is not nagged at — a beginner counting what is
+ * still out there needs those first seconds — and capped at two lines, because
+ * a duppy that keeps going stops being a yard and becomes an alarm clock.
+ */
+const NAG_AFTER_MS = 14_000;
+const NAG_AGAIN_MS = 16_000;
+const NAG_LIMIT = 2;
+
+let nagTimer = 0;
+
+function stopNagging() {
+  clearTimeout(nagTimer);
+  nagTimer = 0;
+}
+
+/**
+ * Every other line here is triggered by a move. This one is triggered by the
+ * absence of one, so it needs its own timer — and local play has no turn clock
+ * at all, which is exactly why it is worth having: it is the only pressure a
+ * solo player ever feels.
+ */
+function nagLater(g: LocalGame, level: DuppyLevel, sent = 0) {
+  stopNagging();
+  if (!g.isMyTurn() || sent >= NAG_LIMIT) return;
+  nagTimer = window.setTimeout(() => {
+    if (!g.isMyTurn()) return;
+    const others: number[] = [];
+    for (let s = 0; s < g.options.seatCount; s++) if (s !== g.mySeat) others.push(s);
+    // One seat speaks, not the whole table rounding on you at once.
+    say(others[Math.floor(Math.random() * others.length)], 'waiting', level);
+    render();
+    nagLater(g, level, sent + 1);
+  }, sent === 0 ? NAG_AFTER_MS : NAG_AGAIN_MS);
 }
 
 async function startGame(opts: {
@@ -298,6 +338,11 @@ async function startGame(opts: {
         say(s, trigger, level, true);
       }
     }
+
+    // Restart the wait on every event: the turn either just became mine (start
+    // counting) or just stopped being mine (stop). A hand that ended stops it
+    // too, since isMyTurn() is false once the status leaves 'active'.
+    nagLater(g, level);
     render();
   });
 
@@ -314,11 +359,16 @@ function hero(): HTMLElement {
   const felt = el('div', 'table-felt hero');
 
   const copy = el('div', 'hero-copy');
-  copy.append(el('div', 'eyebrow', 'Jamaican dominoes — the real way'));
+  // "Yard and foreign" is deliberate and the partner asked for it: most of the
+  // people who will pay for this are Jamaicans in London, New York and Toronto,
+  // and a front door that speaks only to the island tells them it is not for
+  // them. Same rules, same table, wherever the player is sitting.
+  copy.append(el('div', 'eyebrow', 'Jamaican dominoes — yard and foreign'));
   copy.append(el('h2', undefined, 'Slam dem down.'));
   copy.append(el('p', undefined,
     'Doubles lie crosswise, the line snakes round the table, and six love ' +
-    'bruks the score back to nothing. Yard rules, a deal you can verify, free.'));
+    'bruks the score back to nothing. Yard rules from wherever you\'re ' +
+    'playing — a deal you can verify, free.'));
   copy.append(el('p', 'hero-claim',
     'And when the hand is done, it shows you the move you missed.'));
 
@@ -718,6 +768,7 @@ function handResult(g: LocalGame): HTMLElement | null {
     again.textContent = 'New set';
     again.onclick = () => {
       game = null; review = null; reviewOpen = false;
+      stopNagging();
       talk = new Map(); shareLink = null; render();
     };
     row.appendChild(again);

@@ -91,6 +91,18 @@ export interface PresenceEntry {
    * peer connection to every reader in the room.
    */
   voice?: boolean;
+  /**
+   * The table this person currently has open, or absent for anyone sitting in
+   * the lounge itself. A yard game has an audience — people lean on the table
+   * and watch, and knowing they are there is most of what makes it feel like a
+   * yard rather than a solitaire screen.
+   *
+   * It rides on lounge presence rather than a second per-table channel: the
+   * lounge channel is already open, already synced, and already the thing the
+   * voice mesh and reactions run on. A table-scoped channel would be a whole
+   * subscription lifecycle to get wrong for a list of names.
+   */
+  table?: string | null;
 }
 
 function db() {
@@ -181,6 +193,8 @@ export interface LoungeRoom {
   channel: RealtimeChannel;
   /** Re-announce yourself, e.g. when you pick up or put down the mic. */
   setVoice: (voice: boolean) => void;
+  /** The table you are watching, or null back in the lounge. */
+  setTable: (tableId: string | null) => void;
   leave: () => void;
 }
 
@@ -225,6 +239,16 @@ export function enterLounge(
     config: { presence: { key: me.user_id } },
   });
 
+  // `track` replaces the whole entry rather than merging, so the announcement
+  // has to be built from one running copy. Spreading the original `me` in each
+  // setter instead means picking up the mic silently clears which table you
+  // are watching, and vice versa — whichever fired last wins.
+  let mine: PresenceEntry = { ...me };
+  const announce = (patch: Partial<PresenceEntry>) => {
+    mine = { ...mine, ...patch };
+    void channel.track(mine);
+  };
+
   channel
     .on('presence', { event: 'sync' }, () => {
       // newestPresence, never entries[0] — see the note on it in voice.ts.
@@ -237,7 +261,7 @@ export function enterLounge(
       (payload) => handlers.onMessage?.(payload.new as LoungeMessage))
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await channel.track(me);
+        await channel.track(mine);
         // Durable last-seen for bredrins lists.
         await db().from('lounge_visits').upsert({
           lounge_id: lounge.id, user_id: me.user_id, last_seen: new Date().toISOString(),
@@ -247,7 +271,8 @@ export function enterLounge(
 
   return {
     channel,
-    setVoice: (voice: boolean) => { void channel.track({ ...me, voice }); },
+    setVoice: (voice: boolean) => announce({ voice }),
+    setTable: (table: string | null) => announce({ table }),
     leave: () => { void db().removeChannel(channel); },
   };
 }

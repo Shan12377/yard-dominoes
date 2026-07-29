@@ -199,6 +199,9 @@ async function attachTable(tableId: string, rerender: () => void) {
   if (home && loungeState.current?.id !== home.id) {
     try { await openLounge(home, rerender); } catch { /* the table still plays */ }
   }
+  // Announce which table this is, so everyone else's watcher list picks you up.
+  // After openLounge, because that tears the old room down and builds a new one.
+  loungeState.room?.setTable(tableId);
   rerender();
 }
 
@@ -550,12 +553,17 @@ export function loungesView(rerender: () => void): DocumentFragment | HTMLElemen
     // connection.
     frag.appendChild(liveTableView(loungeState.onlineGame, rerender, () => {
       loungeState.onlineGame = null;
+      // Back to the lounge — stop appearing in this table's watcher list.
+      loungeState.room?.setTable(null);
       rerender();
     }, {
       speaking: loungeState.speaking,
       reactions: loungeState.reactions,
       voicePanel: voicePanel(rerender),
       reactionBar: reactionBar(rerender),
+      watching: loungeState.roster.filter(
+        (p) => p.table === loungeState.onlineGame!.table.id,
+      ),
     }));
     return frag;
   }
