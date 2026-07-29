@@ -183,16 +183,22 @@ label.field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
   scrollbar-width: thin;
 }
 
-/* renderBoard() in render.ts sets grid-template-columns, grid-template-rows,
-   and each tile's grid-column/grid-row directly as inline styles — the path
-   turns at doubles, not at a fixed column count, so the grid's shape is
-   different every render and can't be expressed as a static CSS rule. */
+/* renderBoard() in render.ts sets grid-template-columns/rows and each tile's
+   grid-column/grid-row as inline styles — the line snakes around the felt
+   like a real table, so the grid's shape is different every render. Cells are
+   half-tile squares; tiles span 4x2 or 2x4 of them and touch with no gap,
+   exactly like bone on board. */
 .line {
   display: grid;
-  align-items: center; justify-items: center;
-  gap: 8px 2px;
+  gap: 0;
   margin: auto;
-  padding: 8px;
+  padding: 10px;
+}
+.line .tile {
+  width: 100%; height: 100%;
+  box-shadow:
+    inset 0 0 0 1px rgba(90, 58, 30, 0.25),
+    0 2px 5px rgba(0, 0, 0, 0.4);
 }
 .line:empty { display: flex; }
 .line:empty::after {
@@ -214,7 +220,8 @@ label.field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
   padding: 3px; flex: none; position: relative;
 }
 .tile .bar { background: rgba(36,22,8,0.35); }
-.tile.cross { transform: rotate(90deg); margin: 0 15px; }
+/* A tile lying along the line: halves side by side instead of stacked. */
+.tile.h { grid-template-rows: 1fr; grid-template-columns: 1fr 1px 1fr; }
 .tile .half {
   display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
   place-items: center; padding: 2px;
@@ -258,6 +265,20 @@ label.field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
 }
 .passed { color: var(--blood); font-family: var(--mono); font-size: 11px; }
 
+/* What the duppy just said. Patois, in its own voice, not a system message —
+   so it reads as a person at the table rather than a notification. */
+.talk {
+  margin-top: 7px; padding: 6px 9px;
+  background: var(--sand); border-radius: 3px 9px 9px 9px;
+  border: 1px solid rgba(36, 22, 8, 0.12);
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  animation: said 200ms ease both;
+}
+@keyframes said {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* -------------------------------------------------------------- the coach */
 .grade { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
   text-transform: uppercase; padding: 2px 7px; border-radius: 3px; }
@@ -280,6 +301,33 @@ label.field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
 .critical { border-left: 3px solid var(--gold); padding-left: 10px; }
 
 .accuracy { font-family: var(--display); font-size: 40px; color: var(--gold-deep); line-height: 1; }
+
+/* The verdict. Every hand gets one, because no rival can produce it — it
+   needs a solver, not a rules engine. */
+.coach-summary { border-color: rgba(224, 164, 0, 0.5); }
+.coach-summary h2 { max-width: 22ch; }
+.coach-summary .act { margin-top: 12px; }
+.turning-point {
+  margin-top: 12px; padding: 12px 14px;
+  background: rgba(224, 164, 0, 0.10);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--r) var(--r) 0;
+  display: grid; gap: 6px;
+}
+.turning-point .note { font-size: 13.5px; line-height: 1.5; }
+
+/* ----------------------------------------------------------- shared hands */
+.share-box { display: grid; gap: 7px; margin-top: 14px; }
+.share-box input {
+  width: 100%; font-family: var(--mono); font-size: 12px;
+  background: var(--sand); color: var(--muted);
+}
+.share-box .muted { font-size: 12px; }
+.sound-bar { display: flex; justify-content: flex-end; margin: 8px 0 2px; }
+.replay-caption {
+  font-family: var(--body); font-weight: 800; font-size: 16px;
+  margin-bottom: 4px;
+}
 
 /* -------------------------------------------------------------- fairness */
 .verify {
@@ -324,6 +372,43 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 @keyframes flare {
   from { transform: scale(0.94); opacity: 0; }
   to { transform: none; opacity: 1; }
+}
+
+/* ------------------------------------------------------------------- hero
+   The front door is the table itself: headline chalked over the felt, and a
+   real line — crosswise doubles, an elbow turn — slamming down tile by tile
+   before anyone touches a thing. */
+.table-felt.hero {
+  flex-direction: column; align-items: stretch; gap: 14px;
+  padding: 24px 18px 28px;
+  max-height: none; overflow: visible;
+  margin-bottom: 16px;
+}
+.hero-copy { display: grid; gap: 10px; justify-items: start; max-width: 520px; }
+.hero-copy .eyebrow { color: rgba(255, 251, 240, 0.72); }
+.hero-copy h2 {
+  font-family: var(--signage);
+  font-size: clamp(27px, 6vw, 46px);
+  line-height: 1.05;
+  color: var(--gold-hi);
+  text-shadow: 0 2px 0 rgba(14, 79, 42, 0.95);
+}
+.hero-copy p {
+  margin: 0; font-size: 15px; max-width: 46ch;
+  color: rgba(255, 251, 240, 0.9);
+}
+.hero-claim {
+  font-weight: 700; color: var(--gold-hi) !important;
+  border-left: 2px solid var(--gold); padding-left: 10px;
+}
+.hero-copy .row { margin-top: 4px; }
+.hero-copy button.ghost { color: #FFFBF0; border-color: rgba(255, 251, 240, 0.45); }
+.hero-copy button.ghost:hover { border-color: var(--gold-hi); color: var(--gold-hi); }
+
+.line.demo { pointer-events: none; }
+.line.demo .tile {
+  animation: slam 340ms cubic-bezier(0.2, 0.9, 0.2, 1.2) backwards;
+  animation-delay: calc(var(--i) * 150ms);
 }
 
 @media (max-width: 560px) {
@@ -381,6 +466,35 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .badge.yardie { border-color: rgba(36, 22, 8, 0.22); color: var(--muted); }
 .badge.vip { border-color: var(--gold); color: var(--gold-deep); }
 
+/* ------------------------------------------------------------------ voice
+   Hearing the yard is free; talking is the membership. A guest watches the
+   room light up as people speak — that is the pitch. */
+.voice-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(36, 22, 8, 0.10);
+  font-size: 13px;
+}
+.voice-bar .muted { font-size: 12.5px; }
+.mic-state {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--forest);
+}
+.roster .person.speaking { color: var(--forest); font-weight: 700; }
+.roster .person.speaking .dot { background: var(--forest); box-shadow: 0 0 8px var(--forest-hi); }
+.wave { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; margin-left: 2px; }
+.wave i {
+  width: 2px; background: var(--forest); border-radius: 1px;
+  animation: talk 620ms ease-in-out infinite;
+}
+.wave i:nth-child(1) { height: 5px; animation-delay: -320ms; }
+.wave i:nth-child(2) { height: 11px; animation-delay: -160ms; }
+.wave i:nth-child(3) { height: 7px; }
+@keyframes talk {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
 /* ------------------------------------------------------------------ tiers */
 .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .tier-card {
@@ -424,4 +538,36 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   border: 1px solid rgba(36, 22, 8, 0.22); border-radius: var(--r);
   padding: 10px 14px; margin-bottom: 14px; font-size: 13.5px;
+}
+
+/* The leak: the mistake you keep making, not the one you just made. */
+.leak {
+  margin-top: 14px; padding: 12px 14px;
+  border: 1px solid rgba(192, 57, 43, 0.35);
+  border-left: 3px solid var(--blood);
+  border-radius: 0 var(--r) var(--r) 0;
+  background: rgba(192, 57, 43, 0.06);
+  display: grid; gap: 6px;
+}
+.leak .note { font-size: 13.5px; line-height: 1.5; }
+
+/* Reactions — table talk for people who cannot or will not talk. */
+.reactions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.reaction {
+  display: grid; justify-items: center; gap: 3px;
+  background: none; border: 1px solid rgba(36, 22, 8, 0.14);
+  border-radius: var(--r); padding: 6px 8px; cursor: pointer;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
+  color: var(--muted); transition: border-color 120ms ease, transform 120ms ease;
+}
+.reaction:hover { border-color: var(--gold); color: var(--ink); }
+.reaction:active { transform: scale(0.94); }
+.reaction img { display: block; border-radius: 4px; }
+.roster .person .thrown {
+  border-radius: 4px; margin-left: auto;
+  animation: thrown 260ms cubic-bezier(0.2, 0.9, 0.2, 1.3) both;
+}
+@keyframes thrown {
+  from { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }

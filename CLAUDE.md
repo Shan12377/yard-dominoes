@@ -83,11 +83,45 @@ Do not relitigate these without asking.
   not a service worker update.
 - **No auto-play.** A tile fitting both ends prompts for which end.
 - **Timed-out seats play a legal move, they do not forfeit.**
-- **Voice is planned, not shipped.** Real live voice (not voice notes) is
-  approved as a dedicated build phase after online play and the design pass —
-  see `docs/memory.md`. It's gated on setting up a LiveKit or Daily account
-  first: real per-minute cost, needs your credentials, no code gets written
-  for it before that account exists.
+- **Voice is a peer-to-peer mesh, never an SFU.** Live table voice ships in
+  `apps/web/src/voice.ts`: each of the four seats sends audio straight to the
+  other three, signalling over the Realtime channel the lounge already holds.
+  No media server, no vendor, no per-minute bill. LiveKit and Daily were
+  rejected — an SFU only earns its cost above roughly twenty in a room, and
+  pricing a four-hander against one is what made voice look unaffordable.
+  STUN is free; TURN relays only the minority of peers behind strict NAT and
+  sits well inside Cloudflare's free tier. Do not reintroduce a media vendor.
+- **Hearing the yard is free; talking is the membership.** Guests join
+  listen-only and are never asked for a microphone, so a newcomer's first
+  experience is the room rather than a permission dialog. The gate is
+  `canSpeak()` in `voice.ts`, and it is currently client-side: a patched
+  client could still transmit. The fix when it matters is Realtime
+  Authorization — an RLS policy on `realtime.messages` for the `voice-signal`
+  event — not a bigger check in the client.
+- **Voice is additive and must never break the room.** It is the feature the
+  incumbent's players complain about most, so it is the one ours is judged on
+  hardest. A voice failure degrades to "no audio" with a plain explanation —
+  it never takes down the lounge, the chat, or a live hand. Assume the
+  microphone gets refused, two peers offer at once, ICE drops when a phone
+  moves off wifi, and iOS suspends the whole channel in the background: those
+  are normal conditions, not exceptions. Mute must actually stop transmitting
+  and leaving must stop every track — a mute that only mutes the UI, or a
+  recording light left on after leaving, loses trust permanently.
+  `.claude/rules/voice.md` has the full failure list and loads when you open
+  the file. Two tabs in one browser share a session and are not two players;
+  verify with two real clients.
+
+## Art
+
+**Every image uses the template in `docs/art-direction.md`. Read it before
+making or accepting any artwork.** The character is a domino tile with
+pip-hole eyes, not a smiley with a flag behind it; flat vector, front-on,
+solid forest-green background, no text baked into the picture, 128px WebP.
+Never generate one image against a new rule while the rest of a set sits on
+the old one — regenerate the whole set or change nothing.
+
+Illustrations with people in them must show women playing and winning, not
+spectating. It will not happen unless it is asked for every time.
 
 ## Competitive position
 

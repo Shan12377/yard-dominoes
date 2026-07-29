@@ -10,11 +10,36 @@ import {
   listLounges, myProfile, canEnter, recentMessages, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
 } from './lounges.ts';
-import type { Lounge, LoungeMessage, PresenceEntry, Tier } from './lounges.ts';
+import type { Lounge, LoungeMessage, LoungeRoom, PresenceEntry, Tier } from './lounges.ts';
 import { ensureSignedIn, findActiveSeat } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
 import { openTablesPanel, joinByCodeField, liveTableView } from './onlinetableview.ts';
 import { el } from './render.ts';
+import { canSpeak, joinVoice } from './voice.ts';
+import type { VoiceRoom } from './voice.ts';
+
+/**
+ * Reactions: table talk for people who cannot or will not talk. Free for
+ * everyone, including guests — the thing membership sells is the microphone,
+ * not the right to be part of the room.
+ *
+ * Art comes from `docs/art-direction.md`; the words live here rather than
+ * baked into the pictures, so they stay readable at any size.
+ */
+const REACTIONS = [
+  { id: 'tek-dat', label: 'Tek dat' },
+  { id: 'mi-pass', label: 'Mi pass' },
+  { id: 'yah-suh', label: 'Yah suh' },
+  { id: 'six-love', label: 'Six love' },
+  { id: 'hold-dat', label: 'Hold dat' },
+  { id: 'cho-man', label: 'Cho man' },
+] as const;
+
+const REACTION_EVENT = 'reaction';
+/** Long enough to read across the table, short enough not to become wallpaper. */
+const REACTION_MS = 4000;
+
+type LiveVoice = VoiceRoom & { syncRoster: (ids: string[]) => void };
 
 interface LoungeState {
   lounges: Lounge[];
@@ -22,16 +47,40 @@ interface LoungeState {
   current: Lounge | null;
   roster: PresenceEntry[];
   messages: LoungeMessage[];
-  room: { leave: () => void } | null;
+  room: LoungeRoom | null;
   error: string | null;
   loading: boolean;
   onlineGame: OnlineGame | null;
+  voice: LiveVoice | null;
+  /** Joining is async; this keeps the button from being tapped twice. */
+  voiceJoining: boolean;
+  speaking: Set<string>;
+  /** The reaction each person last threw, by user id. */
+  reactions: Map<string, string>;
 }
 
 export const loungeState: LoungeState = {
   lounges: [], me: null, current: null, roster: [], messages: [],
   room: null, error: null, loading: false, onlineGame: null,
+  voice: null, voiceJoining: false, speaking: new Set(), reactions: new Map(),
 };
+
+/** Timers clearing each reaction, so one person spamming cannot pile them up. */
+const reactionTimers = new Map<string, number>();
+
+function showReaction(userId: string, id: string, rerender: () => void) {
+  if (!REACTIONS.some((r) => r.id === id)) return; // never render what a peer invents
+  clearTimeout(reactionTimers.get(userId));
+  loungeState.reactions = new Map(loungeState.reactions).set(userId, id);
+  reactionTimers.set(userId, window.setTimeout(() => {
+    const next = new Map(loungeState.reactions);
+    next.delete(userId);
+    loungeState.reactions = next;
+    reactionTimers.delete(userId);
+    rerender();
+  }, REACTION_MS));
+  rerender();
+}
 
 /**
  * The whole view re-renders when a message arrives, which destroys the input
@@ -79,6 +128,18 @@ export async function loadLounges(rerender: () => void) {
 export function leaveCurrentLounge() {
   draft = '';
   draftCaret = 0;
+  // Voice holds the microphone and open peer connections, so it must be torn
+  // down before the channel it signals over goes away.
+  if (loungeState.voice) {
+    loungeState.voice.leave();
+    loungeState.voice = null;
+    loungeState.room?.setVoice(false);
+  }
+  loungeState.voiceJoining = false;
+  loungeState.speaking = new Set();
+  for (const t of reactionTimers.values()) clearTimeout(t);
+  reactionTimers.clear();
+  loungeState.reactions = new Map();
   loungeState.room?.leave();
   loungeState.room = null;
   loungeState.current = null;
@@ -104,11 +165,151 @@ async function openLounge(lounge: Lounge, rerender: () => void) {
     lounge,
     { user_id: me.id, username: me.username, tier: me.tier },
     {
-      onPresence: (roster) => { loungeState.roster = roster; rerender(); },
+      onPresence: (roster) => {
+        loungeState.roster = roster;
+        // The mesh follows the mic, not the room: only people who actually
+        // joined voice get dialled. Safe on every sync — it diffs.
+        loungeState.voice?.syncRoster(
+          roster.filter((p) => p.voice).map((p) => p.user_id));
+        rerender();
+      },
       onMessage: (msg) => { loungeState.messages = [...loungeState.messages, msg]; rerender(); },
     },
   );
+
+  loungeState.room.channel.on(
+    'broadcast', { event: REACTION_EVENT },
+    ({ payload }) => {
+      const { from, id } = (payload ?? {}) as { from?: string; id?: string };
+      if (typeof from === 'string' && typeof id === 'string') showReaction(from, id, rerender);
+    });
   rerender();
+}
+
+/**
+ * Throw a reaction to the room. Everyone sees it beside your name, including
+ * you — silently dropping your own is confusing when nobody replies.
+ */
+function reactionBar(rerender: () => void): HTMLElement {
+  const bar = el('div', 'reactions');
+  const me = loungeState.me;
+  for (const r of REACTIONS) {
+    const b = document.createElement('button');
+    b.className = 'reaction';
+    b.title = r.label;
+    b.setAttribute('aria-label', `Send ${r.label}`);
+    const img = document.createElement('img');
+    img.src = `${import.meta.env.BASE_URL}reactions/${r.id}.webp`;
+    img.alt = '';
+    img.width = 44;
+    img.height = 44;
+    b.appendChild(img);
+    b.append(el('span', undefined, r.label));
+    b.onclick = () => {
+      if (!me || !loungeState.room) return;
+      showReaction(me.id, r.id, rerender);
+      void loungeState.room.channel.send({
+        type: 'broadcast', event: REACTION_EVENT, payload: { from: me.id, id: r.id },
+      });
+    };
+    bar.appendChild(b);
+  }
+  return bar;
+}
+
+/**
+ * Join table voice. Requires a tap: browsers only hand over a microphone (and
+ * only start audio playback) in response to a real gesture.
+ */
+async function startVoice(rerender: () => void) {
+  const { me, room } = loungeState;
+  if (!me || !room || loungeState.voice || loungeState.voiceJoining) return;
+
+  loungeState.voiceJoining = true;
+  rerender();
+  try {
+    const voice = await joinVoice(room.channel, me.id, {
+      speak: canSpeak(me.tier),
+      onSpeaking: ({ id, speaking }) => {
+        const next = new Set(loungeState.speaking);
+        if (speaking) next.add(id); else next.delete(id);
+        loungeState.speaking = next;
+        rerender();
+      },
+      onError: (message) => { loungeState.error = message; rerender(); },
+    });
+    loungeState.voice = voice;
+    if (voice) {
+      // Announce the mic before dialling, so peers already on voice hear that
+      // we arrived and dial back on the same presence sync.
+      room.setVoice(true);
+      voice.syncRoster(loungeState.roster.filter((p) => p.voice).map((p) => p.user_id));
+    }
+  } catch (err) {
+    loungeState.error = err instanceof Error ? err.message : 'voice could not start';
+  } finally {
+    loungeState.voiceJoining = false;
+    rerender();
+  }
+}
+
+/**
+ * Hearing the yard is free; talking is the membership. A guest sees the room
+ * light up as people speak, which is a better argument for upgrading than any
+ * copy we could write.
+ */
+function voicePanel(rerender: () => void): HTMLElement {
+  const me = loungeState.me;
+  const panel = el('div', 'voice-bar');
+  const tier: Tier = me?.tier ?? 'guest';
+  const voice = loungeState.voice;
+
+  if (!voice) {
+    // The room is joined asynchronously, so this panel can render before the
+    // channel exists. Say so rather than offering a button that does nothing.
+    const ready = loungeState.room !== null;
+    const join = document.createElement('button');
+    join.className = 'act ghost';
+    join.textContent = !ready
+      ? 'Connecting…'
+      : loungeState.voiceJoining
+        ? 'Opening the mic…'
+        : canSpeak(tier) ? 'Join the talk' : 'Listen in';
+    join.disabled = !ready || loungeState.voiceJoining;
+    join.onclick = () => void startVoice(rerender);
+    panel.append(join);
+    panel.append(el('span', 'muted', canSpeak(tier)
+      ? 'Talk to the table, like you were there.'
+      : 'Free to listen. Yardie to talk.'));
+    return panel;
+  }
+
+  if (voice.listenOnly()) {
+    panel.append(el('span', 'mic-state', 'Listening'));
+    panel.append(el('span', 'muted', canSpeak(tier)
+      ? 'No microphone. You can still hear the table.'
+      : 'Yardie members talk at the table.'));
+  } else {
+    const mute = document.createElement('button');
+    mute.className = 'act ghost';
+    mute.textContent = voice.muted() ? 'Unmute' : 'Mute';
+    mute.setAttribute('aria-pressed', String(voice.muted()));
+    mute.onclick = () => { voice.setMuted(!voice.muted()); rerender(); };
+    panel.append(mute);
+  }
+
+  const leave = document.createElement('button');
+  leave.className = 'dismiss';
+  leave.textContent = 'Leave voice';
+  leave.onclick = () => {
+    voice.leave();
+    loungeState.voice = null;
+    loungeState.speaking = new Set();
+    loungeState.room?.setVoice(false);
+    rerender();
+  };
+  panel.append(leave);
+  return panel;
 }
 
 function tierBadge(tier: Tier): HTMLElement {
@@ -276,9 +477,8 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   form.append(input, send);
   chatPanel.appendChild(form);
 
-  // Voice is scaffolded, not faked. See CLAUDE.md.
-  chatPanel.append(el('p', 'muted',
-    'Voice comes next — text for now, so nobody pays for a microphone nobody is using yet.'));
+  chatPanel.appendChild(voicePanel(rerender));
+  chatPanel.appendChild(reactionBar(rerender));
 
   // --- roster -------------------------------------------------------------
   const rosterPanel = el('div', 'panel');
@@ -289,9 +489,28 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   }
   for (const person of loungeState.roster) {
     const line = el('div', 'person');
+    const speaking = loungeState.speaking.has(person.user_id);
+    if (speaking) line.classList.add('speaking');
     line.append(el('span', 'dot'));
     line.append(el('span', undefined, person.username));
     if (person.tier !== 'guest') line.append(tierBadge(person.tier));
+    if (speaking) {
+      const wave = el('span', 'wave');
+      wave.setAttribute('aria-label', 'speaking');
+      for (let i = 0; i < 3; i++) wave.appendChild(document.createElement('i'));
+      line.appendChild(wave);
+    }
+    const thrown = loungeState.reactions.get(person.user_id);
+    if (thrown) {
+      const label = REACTIONS.find((r) => r.id === thrown)?.label ?? '';
+      const img = document.createElement('img');
+      img.className = 'thrown';
+      img.src = `${import.meta.env.BASE_URL}reactions/${thrown}.webp`;
+      img.alt = label;
+      img.width = 28;
+      img.height = 28;
+      line.appendChild(img);
+    }
     roster.appendChild(line);
   }
   rosterPanel.appendChild(roster);

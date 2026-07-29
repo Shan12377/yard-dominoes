@@ -1,7 +1,9 @@
 import { halves } from '@yard/engine';
-import type { Board, PlacedTile, TileId } from '@yard/engine';
+import type { Board, Pip, TileId } from '@yard/engine';
+import { layoutLine, orientLine } from './layout.ts';
+import type { TilePlacement } from './layout.ts';
 
-/** Pip positions on a 3x3 grid, per face value. */
+/** Pip positions on a 3x3 grid, per face value, for a vertical half. */
 const LAYOUT: Record<number, number[]> = {
   0: [],
   1: [4],
@@ -12,10 +14,13 @@ const LAYOUT: Record<number, number[]> = {
   6: [0, 2, 3, 5, 6, 8],
 };
 
-function face(value: number): HTMLElement {
+/** Same pip pattern rotated a quarter turn, for halves lying sideways. */
+const rot90 = (i: number) => (i % 3) * 3 + (2 - Math.floor(i / 3));
+
+function face(value: number, sideways = false): HTMLElement {
   const half = document.createElement('div');
   half.className = 'half';
-  const cells = LAYOUT[value] ?? [];
+  const cells = (LAYOUT[value] ?? []).map((i) => (sideways ? rot90(i) : i));
   for (let i = 0; i < 9; i++) {
     const cell = document.createElement('span');
     if (cells.includes(i)) cell.appendChild(document.createElement('b'));
@@ -24,10 +29,11 @@ function face(value: number): HTMLElement {
   return half;
 }
 
-export function tileEl(id: TileId, opts: { cross?: boolean } = {}): HTMLElement {
+/** A vertical tile for the hand rack. Board tiles are built by renderBoard. */
+export function tileEl(id: TileId): HTMLElement {
   const [a, b] = halves(id);
   const el = document.createElement('div');
-  el.className = 'tile' + (opts.cross ? ' cross' : '');
+  el.className = 'tile';
   el.dataset.tile = id;
   el.setAttribute('role', 'img');
   el.setAttribute('aria-label', `${a} ${b}`);
@@ -39,74 +45,37 @@ export function tileEl(id: TileId, opts: { cross?: boolean } = {}): HTMLElement 
   return el;
 }
 
-type Dir = 'right' | 'left';
+function boardTile(p: TilePlacement): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'tile ' + (p.orient === 'h' ? 'h' : 'v');
+  el.dataset.tile = p.placed.tile;
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', `${p.faces[0]} ${p.faces[1]}`);
+  el.appendChild(face(p.faces[0], p.orient === 'h'));
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  el.appendChild(bar);
+  el.appendChild(face(p.faces[1], p.orient === 'h'));
+  return el;
+}
 
-interface Placement {
-  tile: PlacedTile;
-  row: number;
-  col: number;
-  dir: Dir;
+/** One layout unit is half a tile's short side doubled — see layout.ts. */
+function unitPx(): number {
+  return window.innerWidth < 640 ? 13 : 15;
+}
+
+function boardUnits(u: number): number {
+  // App column is capped at 940px; subtract app padding, felt border+padding.
+  const avail = Math.min(window.innerWidth, 940) - 32 - 36 - 20;
+  return Math.floor(avail / u);
 }
 
 /**
- * A real domino line only turns at a double — the natural, meaningful
- * turning point, laid crosswise on the table. Everything else continues
- * straight in whatever direction the current row is travelling.
- *
- * The path is a strict boustrophedon (the way text wraps, or an ox plows a
- * field): each row travels entirely in one direction, a turn drops to a new
- * row and reverses that direction, and `row` only ever increases. This is
- * what guarantees the path can never self-intersect — every row is a
- * disjoint horizontal band, and within a row, column only ever moves one
- * way, so no two tiles can ever land on the same cell. An earlier version
- * of this function let the path turn in all four compass directions
- * (right/down/left/up in a cycle), which reads as more literally "the path
- * turns a corner" — but a walk that can turn any of four ways coils into a
- * spiral whenever segment lengths (the gaps between doubles) aren't
- * strictly increasing, which real hands essentially never guarantee, and
- * the spiral closes on itself: two tiles land in the same cell and one
- * hides behind the other. Confirmed against 600 simulated real hands: the
- * four-direction version overlapped on roughly 70% of hands at the
- * narrowest breakpoint. This two-direction version cannot overlap by
- * construction.
- *
- * `maxRun` exists purely as a width safety net: if a genuinely long run of
- * non-doubles happens with nothing forcing a turn, the row would otherwise
- * grow arbitrarily wide off the visible table. Hitting the cap turns the
- * path exactly like a double would, just without one actually being played.
- *
- * This produces one continuous bending path, never a fork — the engine's
- * `Board` type has exactly two ends (no spinner variant), so a real branch
- * would visually claim a rule this game doesn't have.
+ * Draw the line the way it sits on a real Jamaican table: tiles end to end
+ * with touching halves matching, doubles crosswise in the line, and the line
+ * snaking 90° at the table edge. Layout math lives in layout.ts.
  */
-function layoutPath(line: PlacedTile[], maxRun: number): Placement[] {
-  const placements: Placement[] = [];
-  let row = 0, col = 0, dir: Dir = 'right', runLength = 0;
-
-  for (const tile of line) {
-    placements.push({ tile, row, col, dir });
-    runLength++;
-
-    const turn = tile.crosswise || runLength >= maxRun;
-    if (turn) {
-      row += 1;
-      dir = dir === 'right' ? 'left' : 'right';
-      runLength = 0;
-    } else {
-      col += dir === 'right' ? 1 : -1;
-    }
-  }
-  return placements;
-}
-
-function boardCols(): number {
-  const w = window.innerWidth;
-  if (w >= 900) return 12;
-  if (w >= 640) return 9;
-  return 6;
-}
-
-export function renderBoard(host: HTMLElement, board: Board | null) {
+export function renderBoard(host: HTMLElement, board: Board | null, maxUnits?: number) {
   host.innerHTML = '';
   if (!board || board.line.length === 0) {
     host.style.gridTemplateColumns = '';
@@ -114,21 +83,24 @@ export function renderBoard(host: HTMLElement, board: Board | null) {
     return;
   }
 
-  const placements = layoutPath(board.line, boardCols());
-  const rows = placements.map((p) => p.row);
-  const cols = placements.map((p) => p.col);
-  const minRow = Math.min(...rows), maxRow = Math.max(...rows);
-  const minCol = Math.min(...cols), maxCol = Math.max(...cols);
+  const u = unitPx();
+  const units = Math.min(boardUnits(u), maxUnits ?? Infinity);
+  const placements = layoutLine(orientLine(board), units);
 
-  host.style.gridTemplateColumns = `repeat(${maxCol - minCol + 1}, auto)`;
-  host.style.gridTemplateRows = `repeat(${maxRow - minRow + 1}, auto)`;
+  const maxCol = Math.max(...placements.map((p) => p.col + p.colSpan));
+  const minRow = Math.min(...placements.map((p) => p.row));
+  const maxRow = Math.max(...placements.map((p) => p.row + p.rowSpan));
 
-  for (const p of placements) {
-    const node = tileEl(p.tile.tile, { cross: p.tile.crosswise });
-    node.style.gridColumn = String(p.col - minCol + 1);
-    node.style.gridRow = String(p.row - minRow + 1);
+  host.style.gridTemplateColumns = `repeat(${maxCol}, ${u}px)`;
+  host.style.gridTemplateRows = `repeat(${maxRow - minRow}, ${u}px)`;
+
+  placements.forEach((p, i) => {
+    const node = boardTile(p);
+    node.style.gridColumn = `${p.col + 1} / span ${p.colSpan}`;
+    node.style.gridRow = `${p.row - minRow + 1} / span ${p.rowSpan}`;
+    node.style.setProperty('--i', String(i));
     host.appendChild(node);
-  }
+  });
 }
 
 export function backsEl(count: number): HTMLElement {

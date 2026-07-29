@@ -1,13 +1,20 @@
-import { BELTS, lessonByRef, knownVoids, GRADE_LABEL } from '@yard/engine';
-import type { DuppyLevel, GameMode, HandReview, Move, SetFormat } from '@yard/engine';
+import {
+  BELTS, lessonByRef, knownVoids, GRADE_LABEL, duppyLine, halves, TALK_CHANCE,
+  EMPTY_LEAKS, recordHand, standoutLeak, describeLeak,
+} from '@yard/engine';
+import type { LeakStore, TalkTrigger } from '@yard/engine';
+import type { Board, DuppyLevel, GameMode, HandReview, Move, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
 import { tileEl, renderBoard, backsEl, scoreTrack, el } from './render.ts';
+import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
+import type { ReplayHand } from './replay.ts';
+import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
 import {
   platform, promptInstall, watchInstallability, registerServiceWorker,
   applyUpdate, updatePending, IOS_STEPS,
 } from './pwa.ts';
 
-type View = 'play' | 'lounges' | 'academy' | 'membership' | 'fair';
+type View = 'play' | 'lounges' | 'academy' | 'membership' | 'fair' | 'replay';
 
 const app = document.getElementById('app')!;
 
@@ -42,10 +49,43 @@ async function ensureLoungeModule(isBootCheck = false) {
 let view: View = 'play';
 let game: LocalGame | null = null;
 let review: HandReview | null = null;
+/** The coach is running. It solves positions, so it is not instant. */
+let reviewPending = false;
+/** The full move-by-move breakdown, opened from the summary. */
+let reviewOpen = false;
 let openBelt: string | null = null;
 let openLesson: string | null = null;
 let verifyState: { ok: boolean; reason?: string } | null = null;
 let installDismissed = false;
+/** The link for the hand just played, once it has been asked for. */
+let shareLink: { url: string; copied: boolean } | null = null;
+
+/**
+ * What this player keeps getting wrong, across every hand they have played.
+ * On device for now — it moves to the account when there is one, which is
+ * why the folding logic lives in the engine and only storage lives here.
+ */
+const LEAKS_KEY = 'yard:leaks';
+
+function loadLeaks(): LeakStore {
+  try {
+    const raw = localStorage.getItem(LEAKS_KEY);
+    if (!raw) return EMPTY_LEAKS;
+    const parsed = JSON.parse(raw) as LeakStore;
+    // Storage is editable and survives upgrades, so never trust its shape.
+    if (typeof parsed?.hands !== 'number' || !Array.isArray(parsed?.entries)) return EMPTY_LEAKS;
+    return parsed;
+  } catch {
+    return EMPTY_LEAKS;
+  }
+}
+
+let leaks: LeakStore = loadLeaks();
+
+function saveLeaks(next: LeakStore) {
+  leaks = next;
+  try { localStorage.setItem(LEAKS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+}
 
 /**
  * Install card. Shown above the lobby, never over a live hand.
@@ -149,6 +189,257 @@ function chrome(): HTMLElement {
   return bar;
 }
 
+// ------------------------------------------------------------------ hero --
+/**
+ * A scripted line for the front door: pip-matched junctions, three crosswise
+ * doubles, and enough length to snake a corner at hero width — the board
+ * demonstrating itself before anyone taps a thing.
+ */
+const DEMO_BOARD: Board = {
+  line: [
+    { tile: '2-4', crosswise: false },
+    { tile: '4-5', crosswise: false },
+    { tile: '5-5', crosswise: true },
+    { tile: '5-6', crosswise: false },
+    { tile: '6-6', crosswise: true },
+    { tile: '3-6', crosswise: false },
+    { tile: '3-3', crosswise: true },
+    { tile: '1-3', crosswise: false },
+    { tile: '1-4', crosswise: false },
+    { tile: '0-4', crosswise: false },
+  ],
+  leftEnd: 2,
+  rightEnd: 0,
+};
+
+/**
+ * What each duppy just said, by seat. A yard is loud, and a domino game in
+ * silence is not the game — the incumbent's tables are silent. Lines live in
+ * the engine (`talk.ts`) and are keyed to the duppy's level, so how an
+ * opponent speaks tells you what you are up against.
+ */
+let talk = new Map<number, string>();
+
+function say(seat: number, trigger: TalkTrigger, level: DuppyLevel, always = false) {
+  const roll = Math.random();
+  // A seat with a recorded voice says the recorded words, so the caption on
+  // screen is exactly what is heard — and stays right with the sound off.
+  const spoken = hasVoice(seat) ? lineFor(seat, trigger, roll) : null;
+  if (spoken) speak(seat, trigger, roll);
+  const line = spoken ?? duppyLine(level, trigger, roll, always ? 1 : TALK_CHANCE[level]);
+  const next = new Map(talk);
+  if (line) next.set(seat, line); else next.delete(seat);
+  talk = next;
+}
+
+async function startGame(opts: {
+  mode: GameMode; format: SetFormat; duppy: DuppyLevel; tournament: boolean;
+}) {
+  const g = new LocalGame({ ...opts, seatCount: 4, oneAllPlayTwo: true });
+  game = g;
+  talk = new Map();
+
+  g.on((e) => {
+    const level = opts.duppy;
+    if (e.type === 'passed' && e.seat !== g.mySeat) {
+      say(e.seat, 'iPass', level);
+    } else if (e.type === 'passed' && e.seat === g.mySeat) {
+      // Your pass is the loudest thing you do — it proves what you don't
+      // hold. Every duppy at the table gets to notice.
+      for (let s = 0; s < g.options.seatCount; s++) {
+        if (s !== g.mySeat) say(s, 'theyPass', level);
+      }
+    } else if (e.type === 'played' && e.seat !== g.mySeat) {
+      // A line hangs in the air until that seat says something else, the way
+      // it does at a real table. Clearing it on the next ordinary play meant
+      // nobody ever saw one.
+      const [a, b] = halves(e.tile);
+      const left = g.hand?.hands[e.seat].length ?? 0;
+      if (left === 1) say(e.seat, 'lastTile', level, true);
+      else if (a === b) say(e.seat, 'slam', level);
+    } else if (e.type === 'handOver') {
+      // The coach is the reason to play here rather than anywhere else, so it
+      // runs on every hand instead of waiting to be asked. It solves
+      // positions — a few hundred milliseconds on a phone — so it is deferred
+      // past this paint: the result lands immediately and the verdict fills
+      // in a moment later, rather than the whole screen freezing first.
+      reviewPending = true;
+      reviewOpen = false;
+      setTimeout(() => {
+        review = g.review();
+        if (review) saveLeaks(recordHand(leaks, review));
+        reviewPending = false;
+        render();
+      }, 0);
+
+      const r = g.hand?.result;
+      // Nobody won a tied hand, so nobody gets to gloat or concede.
+      for (let s = 0; s < g.options.seatCount; s++) {
+        if (s === g.mySeat || !r || r.tie) continue;
+        const won = r.winnerSide === (g.options.mode === 'partner' ? s % 2 : s);
+        const trigger: TalkTrigger = won
+          ? (r.status === 'blocked' ? 'winCount' : 'win')
+          : 'lose';
+        say(s, trigger, level, true);
+      }
+    }
+    render();
+  });
+
+  review = null;
+  reviewOpen = false;
+  verifyState = null;
+  shareLink = null;
+  await g.startHand();
+  render();
+}
+
+function hero(): HTMLElement {
+  const felt = el('div', 'table-felt hero');
+
+  const copy = el('div', 'hero-copy');
+  copy.append(el('div', 'eyebrow', 'Jamaican dominoes — the real way'));
+  copy.append(el('h2', undefined, 'Slam dem down.'));
+  copy.append(el('p', undefined,
+    'Doubles lie crosswise, the line snakes round the table, and six love ' +
+    'bruks the score back to nothing. Yard rules, a deal you can verify, free.'));
+  copy.append(el('p', 'hero-claim',
+    'And when the hand is done, it shows you the move you missed.'));
+
+  const row = el('div', 'row');
+  const deal = document.createElement('button');
+  deal.className = 'act';
+  deal.textContent = 'Deal me in';
+  deal.onclick = () => void startGame({
+    mode: 'partner', format: 'sixlove', duppy: 'ranker', tournament: false,
+  });
+  const fair = document.createElement('button');
+  fair.className = 'act ghost';
+  fair.textContent = 'How the deal stays fair';
+  fair.onclick = () => { view = 'fair'; render(); };
+  row.append(deal, fair);
+  copy.appendChild(row);
+
+  const line = el('div', 'line demo');
+  renderBoard(line, DEMO_BOARD, 22);
+
+  felt.append(copy, line);
+  return felt;
+}
+
+// ---------------------------------------------------------------- replay --
+/**
+ * A shared hand, replayed tile by tile.
+ *
+ * The link carries the whole hand, so this needs no account, no install and
+ * no server — someone opens it from a message and watches the board build
+ * itself on the real renderer. It is the argument-settler: this is what
+ * actually happened, in order.
+ */
+let replayHand: ReplayHand | null = null;
+let replayStep = 0;
+let replayTimer = 0;
+
+function stopReplay() {
+  clearInterval(replayTimer);
+  replayTimer = 0;
+}
+
+function playReplay() {
+  stopReplay();
+  replayTimer = window.setInterval(() => {
+    if (!replayHand || replayStep >= replayHand.steps.length) { stopReplay(); render(); return; }
+    replayStep++;
+    render();
+  }, 900);
+}
+
+function replayView(): HTMLElement {
+  const frag = el('div');
+  const r = replayHand!;
+  const step = r.steps[replayStep - 1] ?? null;
+
+  const head = el('div', 'panel');
+  head.append(el('div', 'eyebrow', 'A hand from Yard'));
+  head.append(el('h2', undefined, 'Watch it back'));
+  head.append(el('p', 'muted',
+    'Every tile, in the order it went down. Nobody\'s hand is in this link — ' +
+    'only what the table already saw.'));
+  frag.appendChild(head);
+
+  const felt = el('div', 'table-felt');
+  const line = el('div', 'line');
+  renderBoard(line, boardAfter(r, replayStep));
+  felt.appendChild(line);
+  frag.appendChild(felt);
+
+  const bar = el('div', 'panel');
+  const caption = el('div', 'replay-caption');
+  if (!step) {
+    caption.textContent = 'Before the first tile.';
+  } else if (step.kind === 'pass') {
+    caption.textContent = `${seatName(r, step.seat)} passed.`;
+  } else if (step.kind === 'draw') {
+    caption.textContent = `${seatName(r, step.seat)} drew.`;
+  } else {
+    caption.textContent = `${seatName(r, step.seat)} ${step.kind === 'pose' ? 'posed' : 'played'} ${step.tile}.`;
+  }
+  bar.appendChild(caption);
+  bar.append(el('div', 'muted', `Move ${replayStep} of ${r.steps.length}`));
+
+  const controls = el('div', 'row');
+  const back = document.createElement('button');
+  back.className = 'act ghost';
+  back.textContent = 'Back';
+  back.disabled = replayStep === 0;
+  back.onclick = () => { stopReplay(); replayStep = Math.max(0, replayStep - 1); render(); };
+
+  const toggle = document.createElement('button');
+  toggle.className = 'act';
+  const atEnd = replayStep >= r.steps.length;
+  toggle.textContent = replayTimer ? 'Pause' : atEnd ? 'Watch again' : 'Play';
+  toggle.onclick = () => {
+    if (replayTimer) { stopReplay(); render(); return; }
+    if (replayStep >= r.steps.length) replayStep = 0;
+    playReplay();
+    render();
+  };
+
+  const fwd = document.createElement('button');
+  fwd.className = 'act ghost';
+  fwd.textContent = 'Forward';
+  fwd.disabled = atEnd;
+  fwd.onclick = () => { stopReplay(); replayStep = Math.min(r.steps.length, replayStep + 1); render(); };
+
+  controls.append(back, toggle, fwd);
+  bar.appendChild(controls);
+  frag.appendChild(bar);
+
+  const cta = el('div', 'panel');
+  cta.append(el('h2', undefined, 'Your turn.'));
+  cta.append(el('p', 'muted',
+    'Yard rules, a deal you can check, and a coach that tells you the move ' +
+    'you missed. Free.'));
+  const deal = document.createElement('button');
+  deal.className = 'act';
+  deal.textContent = 'Deal me in';
+  deal.onclick = () => {
+    stopReplay();
+    replayHand = null;
+    history.replaceState(null, '', location.pathname);
+    view = 'play';
+    void startGame({ mode: 'partner', format: 'sixlove', duppy: 'ranker', tournament: false });
+  };
+  cta.appendChild(deal);
+  frag.appendChild(cta);
+  return frag;
+}
+
+function seatName(r: ReplayHand, seat: number): string {
+  if (seat === r.seat) return 'They';
+  return `Seat ${seat + 1}`;
+}
+
 // ----------------------------------------------------------------- lobby --
 function lobby(): HTMLElement {
   const panel = el('div', 'panel');
@@ -198,21 +489,12 @@ function lobby(): HTMLElement {
   const go = document.createElement('button');
   go.className = 'act';
   go.textContent = 'Deal';
-  go.onclick = async () => {
-    game = new LocalGame({
-      mode: mode.value as GameMode,
-      format: format.value as SetFormat,
-      seatCount: 4,
-      duppy: duppy.value as DuppyLevel,
-      tournament: tournament.value === '1',
-      oneAllPlayTwo: true,
-    });
-    game.on(() => render());
-    review = null;
-    verifyState = null;
-    await game.startHand();
-    render();
-  };
+  go.onclick = () => void startGame({
+    mode: mode.value as GameMode,
+    format: format.value as SetFormat,
+    duppy: duppy.value as DuppyLevel,
+    tournament: tournament.value === '1',
+  });
 
   panel.append(form, el('div', 'stack'), go);
 
@@ -282,6 +564,9 @@ function seats(g: LocalGame): HTMLElement {
     } else if (passes.get(seat)) {
       card.append(el('div', 'passed', 'passed'));
     }
+
+    const line = talk.get(seat);
+    if (line && seat !== g.mySeat) card.append(el('div', 'talk', line));
     wrap.appendChild(card);
   }
   return wrap;
@@ -386,21 +671,24 @@ function handResult(g: LocalGame): HTMLElement | null {
     const next = document.createElement('button');
     next.className = 'act';
     next.textContent = 'Next hand';
-    next.onclick = async () => { review = null; verifyState = null; await g.startHand(); render(); };
+    next.onclick = async () => {
+      review = null; reviewOpen = false; verifyState = null;
+      // Last hand's gloating and last hand's link must not carry over.
+      talk = new Map();
+      shareLink = null;
+      await g.startHand(); render();
+    };
     row.appendChild(next);
   } else {
     const again = document.createElement('button');
     again.className = 'act';
     again.textContent = 'New set';
-    again.onclick = () => { game = null; review = null; render(); };
+    again.onclick = () => {
+      game = null; review = null; reviewOpen = false;
+      talk = new Map(); shareLink = null; render();
+    };
     row.appendChild(again);
   }
-
-  const coach = document.createElement('button');
-  coach.className = 'act ghost';
-  coach.textContent = review ? 'Hide review' : 'Review this hand';
-  coach.onclick = () => { review = review ? null : g.review(); render(); };
-  row.appendChild(coach);
 
   const check = document.createElement('button');
   check.className = 'act ghost';
@@ -408,7 +696,43 @@ function handResult(g: LocalGame): HTMLElement | null {
   check.onclick = async () => { verifyState = await g.verify(); render(); };
   row.appendChild(check);
 
+  if (g.hand) {
+    const share = document.createElement('button');
+    share.className = 'act ghost';
+    share.textContent = 'Share this hand';
+    share.onclick = async () => {
+      const url = shareUrl(
+        encodeHand(g.hand!.moveLog, g.hand!.poser, g.mySeat, g.options.seatCount));
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch {
+        // Clipboard access is refused in plenty of browsers and contexts.
+        // Showing the link so it can be copied by hand is a working answer;
+        // an error message is not.
+      }
+      shareLink = { url, copied };
+      render();
+    };
+    row.appendChild(share);
+  }
+
   panel.appendChild(row);
+
+  if (shareLink) {
+    const box = el('div', 'share-box');
+    box.append(el('div', 'eyebrow',
+      shareLink.copied ? 'Link copied — send it to somebody' : 'Copy this link'));
+    const field = document.createElement('input');
+    field.readOnly = true;
+    field.value = shareLink.url;
+    field.onfocus = () => field.select();
+    box.appendChild(field);
+    box.append(el('div', 'muted',
+      'It replays the board tile by tile. Nobody\'s hand is in the link.'));
+    panel.appendChild(box);
+  }
 
   if (verifyState) {
     const v = el('div', 'verify ' + (verifyState.ok ? 'ok' : 'bad'));
@@ -422,6 +746,85 @@ function handResult(g: LocalGame): HTMLElement | null {
         el('code', 'seed', g.fairness.serverSeed), {}));
     }
   }
+  return panel;
+}
+
+/**
+ * The verdict, in one screen: how much of the hand you got right, and the one
+ * decision that turned it. No other domino game can tell you this — it needs
+ * a solver, not a rules engine — so it is stated plainly on every hand rather
+ * than hidden behind a button nobody presses.
+ *
+ * The move-by-move list is still there, one tap away. Twelve grades is a
+ * report; one decision is something you can actually take to the next hand.
+ */
+function coachSummary(g: LocalGame): HTMLElement | null {
+  if (reviewPending) {
+    const panel = el('div', 'panel coach-summary');
+    panel.append(el('div', 'eyebrow', 'The coach'));
+    panel.append(el('div', 'muted', 'Working out where the hand turned…'));
+    return panel;
+  }
+  if (!review) return null;
+  const r = review;
+
+  const panel = el('div', 'panel coach-summary');
+  const head = el('div', 'spread');
+  const left = el('div', 'stack');
+  left.append(el('div', 'eyebrow', 'The coach'));
+  left.append(el('h2', undefined, r.summary));
+  const acc = el('div', 'stack');
+  acc.style.textAlign = 'right';
+  acc.append(el('div', 'accuracy', `${g.reviewAccuracy(r)}%`), el('div', 'side-name', 'accuracy'));
+  head.append(left, acc);
+  panel.appendChild(head);
+
+  const critical = r.reviews.find((m) => m.ply === r.criticalPly);
+  if (critical) {
+    const turn = el('div', 'turning-point');
+    const played = 'tile' in critical.move ? critical.move.tile : 'a pass';
+    const best = 'tile' in critical.best ? critical.best.tile : 'passing';
+    turn.append(el('div', 'eyebrow', 'Where it turned'));
+    turn.append(el('div', 'note',
+      `Move ${critical.ply + 1}: you played ${played} — ${best} was stronger. ${critical.note}`));
+    if (critical.lesson) {
+      const link = document.createElement('button');
+      link.className = 'lesson';
+      link.textContent = `→ ${critical.lesson}`;
+      link.onclick = () => {
+        const lesson = lessonByRef(critical.lesson!);
+        if (lesson) { view = 'academy'; openLesson = lesson.id; render(); }
+      };
+      turn.appendChild(link);
+    }
+    panel.appendChild(turn);
+  }
+
+  // One hand's mistake is a note. The same mistake across many hands is the
+  // thing actually worth fixing, and no rival can tell you it.
+  const leak = standoutLeak(leaks);
+  if (leak) {
+    const box = el('div', 'leak');
+    box.append(el('div', 'eyebrow', 'Your leak'));
+    box.append(el('div', 'note', `${leak.lesson}. ${describeLeak(leak, leaks)}`));
+    const drill = document.createElement('button');
+    drill.className = 'lesson';
+    drill.textContent = '\u2192 Work on this';
+    drill.onclick = () => {
+      const lesson = lessonByRef(leak.lesson);
+      if (lesson) { view = 'academy'; openLesson = lesson.id; render(); }
+    };
+    box.appendChild(drill);
+    panel.appendChild(box);
+  }
+
+  const more = document.createElement('button');
+  more.className = 'act ghost';
+  more.textContent = reviewOpen
+    ? 'Hide the detail'
+    : `See all ${r.reviews.length} decision${r.reviews.length === 1 ? '' : 's'}`;
+  more.onclick = () => { reviewOpen = !reviewOpen; render(); };
+  panel.appendChild(more);
   return panel;
 }
 
@@ -475,6 +878,22 @@ function coachPanel(g: LocalGame, r: HandReview): HTMLElement {
   return panel;
 }
 
+/**
+ * Turning the duppy off. One tap, and it stays off — people play this in bed
+ * at two in the morning, and a voice they cannot silence is an uninstall.
+ */
+function soundToggle(): HTMLElement {
+  const bar = el('div', 'sound-bar');
+  const off = muted();
+  const b = document.createElement('button');
+  b.className = 'dismiss';
+  b.textContent = off ? 'Duppy voice off' : 'Duppy voice on';
+  b.setAttribute('aria-pressed', String(!off));
+  b.onclick = () => { setMuted(!off); render(); };
+  bar.appendChild(b);
+  return bar;
+}
+
 function tableView(g: LocalGame): DocumentFragment {
   const frag = document.createDocumentFragment();
   frag.appendChild(scoreboard(g));
@@ -486,10 +905,13 @@ function tableView(g: LocalGame): DocumentFragment {
   frag.appendChild(felt);
 
   frag.appendChild(seats(g));
+  frag.appendChild(soundToggle());
   frag.appendChild(myHand(g));
   const result = handResult(g);
   if (result) frag.appendChild(result);
-  if (review) frag.appendChild(coachPanel(g, review));
+  const summary = coachSummary(g);
+  if (summary) frag.appendChild(summary);
+  if (reviewOpen && review) frag.appendChild(coachPanel(g, review));
   return frag;
 }
 
@@ -503,6 +925,28 @@ function academyView(): DocumentFragment {
     'Five belts. Belt one is voiced and needs no reading. By belt four you are ' +
     'tracking what every pass gave away; by belt five the scoreline is changing ' +
     'how you play.'));
+
+  // The curriculum is the same for everyone; which part of it you need is not.
+  const leak = standoutLeak(leaks);
+  if (leak) {
+    const box = el('div', 'leak');
+    box.append(el('div', 'eyebrow', 'Start here'));
+    box.append(el('div', 'note',
+      `${leak.lesson} is costing you more than anything else. ${describeLeak(leak, leaks)}`));
+    const go = document.createElement('button');
+    go.className = 'lesson';
+    go.textContent = '\u2192 Open it';
+    go.onclick = () => {
+      const lesson = lessonByRef(leak.lesson);
+      if (lesson) { openLesson = lesson.id; render(); }
+    };
+    box.appendChild(go);
+    intro.appendChild(box);
+  } else if (leaks.hands > 0) {
+    intro.append(el('div', 'muted',
+      `${leaks.hands} hand${leaks.hands === 1 ? '' : 's'} reviewed so far. ` +
+      'Keep playing and the coach will tell you which lesson you personally need.'));
+  }
   frag.appendChild(intro);
 
   for (const b of BELTS) {
@@ -586,12 +1030,18 @@ function render() {
   const update = updateBar();
   if (update) app.appendChild(update);
 
-  if (view === 'play') {
-    if (!game) {
+  if (view === 'replay' && replayHand) {
+    app.appendChild(replayView());
+  } else if (view === 'play') {
+    if (game) {
+      app.appendChild(tableView(game));
+    } else {
+      // The table sells the game; the install card waits its turn below it.
+      app.appendChild(hero());
       const card = installCard();
       if (card) app.appendChild(card);
+      app.appendChild(lobby());
     }
-    app.appendChild(game ? tableView(game) : lobby());
   } else if (view === 'lounges') {
     app.appendChild(loungeModule ? loungeModule.loungesView(render) : pending('Opening the lounges'));
   } else if (view === 'academy') {
@@ -604,8 +1054,37 @@ function render() {
 }
 
 // --- bootstrap --------------------------------------------------------------
+// The board line snakes to fit the felt, so a rotate or window resize needs a
+// re-render to pick the new width.
+let resizeTimer = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(render, 150);
+});
+
 watchInstallability(render);
 registerServiceWorker(render);
+
+/**
+ * A link someone was sent opens straight into the replay — on a cold load,
+ * and also when the app is already open. Following a link that only changes
+ * the fragment does not reload the page, so without this a shared hand
+ * silently does nothing for anyone who already had Yard on screen.
+ */
+function openSharedHand() {
+  const shared = handFromUrl();
+  if (!shared) return;
+  stopReplay();
+  replayHand = shared;
+  replayStep = 0;
+  view = 'replay';
+  playReplay();
+  render();
+}
+
+window.addEventListener('hashchange', openSharedHand);
+openSharedHand();
+
 render();
 if (localStorage.getItem(LOUNGES_VISITED_KEY)) {
   void ensureLoungeModule(true);

@@ -116,9 +116,18 @@ function heuristicValue(s: HandState, side: number): number {
   return mine < theirs ? 0.4 : -0.4;
 }
 
+/**
+ * Where a decision stops being acceptable and starts costing the hand.
+ * Anything under this is graded `fine` and counts towards accuracy, so
+ * nothing below it may be reported as the hand's turning point — telling a
+ * player they threw away a hand we simultaneously scored 100% is the fastest
+ * way to make them stop believing the coach.
+ */
+const COSTLY = 1;
+
 function gradeFor(loss: number): Grade {
   if (loss <= 0.01) return 'best';
-  if (loss < 1) return 'fine';
+  if (loss < COSTLY) return 'fine';
   if (loss < 2) return 'loose';
   return 'blunder';
 }
@@ -294,16 +303,21 @@ export function reviewHand(
   for (const r of reviews) counts[r.grade]++;
 
   let criticalPly: number | null = null;
-  let worst = 0;
+  // Only a decision that actually cost something can be the turning point.
+  // A move graded `fine` counts towards accuracy, so naming it as where the
+  // hand was lost would contradict the score shown beside it.
+  let worst = COSTLY;
   for (const r of reviews) {
-    if (r.loss > worst) { worst = r.loss; criticalPly = r.ply; }
+    if (r.loss >= worst) { worst = r.loss; criticalPly = r.ply; }
   }
 
   const summary =
     criticalPly === null
       ? reviews.length === 0
         ? 'You were never given a real choice this hand.'
-        : 'Clean hand. Every decision you had, you got right.'
+        : counts.best === reviews.length
+          ? 'Clean hand. Every decision you had, you got right.'
+          : 'Solid hand. Nothing given away.'
       : counts.blunder > 0
         ? 'One move threw this hand away. Everything before it was fine.'
         : 'You gave up ground here — the hand was winnable.';

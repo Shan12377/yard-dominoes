@@ -7,10 +7,10 @@
  * waiting: presence via Realtime channel presence, chat via a table with RLS,
  * and tier gates enforced by the database rather than the client.
  *
- * Voice: the presence payload carries a `speaking` slot and the UI shows who
- * holds the mic, but actual audio needs a WebRTC provider (LiveKit or Daily).
- * That is a paid external service and a deliberate later step — see
- * CLAUDE.md. Nothing here fakes it.
+ * Voice: real, and it rides this channel. `voice.ts` runs a peer-to-peer
+ * WebRTC audio mesh and signals over this channel's broadcast events, so
+ * there is no media server and no per-minute bill. Guests hear the room;
+ * talking is what membership buys.
  */
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -84,6 +84,12 @@ export interface PresenceEntry {
   user_id: string;
   username: string;
   tier: Tier;
+  /**
+   * In the lounge is not the same as on the mic. A voice mesh must only dial
+   * people who actually joined voice — otherwise every speaker opens a dead
+   * peer connection to every reader in the room.
+   */
+  voice?: boolean;
 }
 
 function db() {
@@ -172,6 +178,8 @@ export async function sendMessage(loungeId: string, body: string): Promise<void>
 
 export interface LoungeRoom {
   channel: RealtimeChannel;
+  /** Re-announce yourself, e.g. when you pick up or put down the mic. */
+  setVoice: (voice: boolean) => void;
   leave: () => void;
 }
 
@@ -210,7 +218,11 @@ export function enterLounge(
       }
     });
 
-  return { channel, leave: () => { void db().removeChannel(channel); } };
+  return {
+    channel,
+    setVoice: (voice: boolean) => { void channel.track({ ...me, voice }); },
+    leave: () => { void db().removeChannel(channel); },
+  };
 }
 
 /** Kick off a Stripe checkout for a paid tier. Resolves to a redirect URL. */
