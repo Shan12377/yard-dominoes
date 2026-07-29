@@ -4,7 +4,7 @@
   "type": "module",
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "test": "node --test packages/engine/test/*.test.ts apps/web/src/*.test.ts",
+    "test": "node --test packages/engine/test/*.test.ts apps/web/src/*.test.ts supabase/functions/_shared/*.test.ts",
     "bench": "node packages/engine/bench.ts",
     "dev": "npm run dev --workspace @yard/web",
     "build": "npm run build --workspace @yard/web",

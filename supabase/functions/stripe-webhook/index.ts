@@ -1,12 +1,49 @@
 // Stripe webhook. The ONLY writer to profiles.tier and payments.
 //
-// Env: STRIPE_WEBHOOK_SECRET. Configure the endpoint in the Stripe dashboard
-// for checkout.session.completed and customer.subscription.deleted, and set
-// verify_jwt = false for this function (Stripe cannot send a Supabase JWT).
+// Env: STRIPE_WEBHOOK_SECRET, STRIPE_SECRET_KEY. Set verify_jwt = false for
+// this function (Stripe cannot send a Supabase JWT).
+//
+// Enable exactly these events on the endpoint in the Stripe dashboard:
+//   checkout.session.completed      — first payment: grants the tier
+//   invoice.paid                    — every renewal: extends the tier
+//   customer.subscription.deleted   — cancelled: stops renewing
+// `invoice.paid` is not optional. Without it a membership expires at the end
+// of the term it was bought with and never renews, however much the member
+// keeps paying. `invoice.payment_failed` deliberately has no handler: Stripe
+// dunning retries for weeks and ends in subscription.deleted, which is
+// handled, so acting on the first failure would cut off a member whose card
+// is about to go through.
 
 import { json, serviceClient } from '../_shared/lib.ts';
+import {
+  customerOf, expiresAt, invoicePeriodEnd, subscriptionPeriodEnd,
+  tierFromInvoice, userFromInvoice,
+} from '../_shared/billing.ts';
+import type { StripeSubscription } from '../_shared/billing.ts';
 
 const enc = new TextEncoder();
+
+/**
+ * Read an object back from Stripe. Needed twice: the checkout session says
+ * which tier was bought but never how long for (the term lives in a price id
+ * set in the dashboard, so guessing it here is guessing at somebody's money),
+ * and a Dispute names only the charge it came from, never the customer.
+ *
+ * Returns null rather than throwing — a 500 here makes Stripe retry the event
+ * forever, and every caller has a safe fallback.
+ */
+async function stripeGet(path: string): Promise<Record<string, unknown> | null> {
+  const key = Deno.env.get('STRIPE_SECRET_KEY');
+  if (!key) return null;
+  try {
+    const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Verify Stripe's signature header against the raw body. */
 async function verifySignature(payload: string, header: string | null, secret: string): Promise<boolean> {
@@ -46,11 +83,14 @@ Deno.serve(async (req) => {
     const userId = session.metadata?.user_id ?? session.client_reference_id;
     const tier = session.metadata?.tier;
     if (userId && (tier === 'yardie' || tier === 'vip')) {
-      const expires = new Date();
-      expires.setFullYear(expires.getFullYear() + 1);
+      // Was a hardcoded year. A monthly price therefore bought twelve months
+      // for one, and cancelling after the first payment kept the other eleven.
+      const subId = typeof session.subscription === 'string' ? session.subscription : null;
+      const sub = subId ? await stripeGet(`subscriptions/${subId}`) : null;
+      const expires = expiresAt(subscriptionPeriodEnd(sub as StripeSubscription | null));
       await db.from('profiles').update({
         tier,
-        tier_expires_at: expires.toISOString(),
+        tier_expires_at: expires,
         stripe_customer_id: session.customer ?? null,
       }).eq('id', userId);
       await db.from('payments').insert({
@@ -63,12 +103,58 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Every renewal lands here. Without it a membership quietly dies at the end
+  // of the term it was bought with, while Stripe carries on charging for it.
+  if (event.type === 'invoice.paid') {
+    const invoice = event.data.object;
+    const paidTo = invoicePeriodEnd(invoice);
+    if (paidTo !== null) {
+      const tier = tierFromInvoice(invoice);
+      const patch = { tier_expires_at: expiresAt(paidTo), ...(tier ? { tier } : {}) };
+      // Subscriptions sold from this checkout carry the member's id, so a
+      // renewal resolves without depending on checkout.session.completed
+      // having landed first. Ones sold before that are found by customer.
+      const userId = userFromInvoice(invoice);
+      const customer = customerOf(invoice);
+      if (userId) await db.from('profiles').update(patch).eq('id', userId);
+      else if (customer) await db.from('profiles').update(patch).eq('stripe_customer_id', customer);
+    }
+  }
+
   if (event.type === 'customer.subscription.deleted') {
     const sub = event.data.object;
-    // Let the year they paid for run out; just do not renew.
-    await db.from('profiles')
-      .update({ tier_expires_at: new Date(sub.current_period_end * 1000).toISOString() })
-      .eq('stripe_customer_id', sub.customer);
+    const customer = customerOf(sub);
+    if (customer) {
+      // Let the term they paid for run out; just do not renew. Stripe fires
+      // this at the end of the period, so an unreadable date means now.
+      await db.from('profiles')
+        .update({ tier_expires_at: expiresAt(subscriptionPeriodEnd(sub) ?? Math.floor(Date.now() / 1000)) })
+        .eq('stripe_customer_id', customer);
+    }
+  }
+
+  // "A refunded member is not a member" — .claude/rules/billing.md. Expiring
+  // rather than clearing `tier` keeps the record of what they had, and the
+  // hold stops a later payment quietly re-granting it without a human looking.
+  const revokes: Record<string, 'refunded' | 'disputed'> = {
+    'charge.refunded': 'refunded',
+    'charge.dispute.created': 'disputed',
+  };
+  const hold = revokes[event.type];
+  if (hold) {
+    const object = event.data.object;
+    // A Charge carries its customer. A Dispute does not — it names only the
+    // charge it came from, so that has to be read back before we know whose
+    // membership this is.
+    let customer = customerOf(object);
+    if (!customer && typeof object?.charge === 'string') {
+      customer = customerOf(await stripeGet(`charges/${object.charge}`));
+    }
+    if (customer) {
+      await db.from('profiles')
+        .update({ tier_expires_at: new Date().toISOString(), billing_hold: hold })
+        .eq('stripe_customer_id', customer);
+    }
   }
 
   return json({ received: true });

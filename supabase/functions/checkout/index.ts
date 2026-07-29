@@ -40,6 +40,11 @@ Deno.serve(handled(async (req) => {
     client_reference_id: user.id,
     'metadata[user_id]': user.id,
     'metadata[tier]': tier,
+    // Session metadata does not reach the subscription, and renewal invoices
+    // carry the subscription's. Without this a renewal a year from now can
+    // only be traced back to a member by customer id.
+    'subscription_data[metadata][user_id]': user.id,
+    'subscription_data[metadata][tier]': tier,
   });
   if (profile?.stripe_customer_id) params.set('customer', profile.stripe_customer_id);
 
