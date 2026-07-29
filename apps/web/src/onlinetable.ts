@@ -12,6 +12,7 @@ import {
   supabase, startHand as apiStartHand, playMove as apiPlayMove, passPose as apiPassPose,
   leaveSeat as apiLeaveSeat, watchTable, ConflictError, type PublicHand, type TableSubscription,
 } from './online.ts';
+import * as sfx from './sfx.ts';
 import { legalMoves, sideOf } from '@yard/engine';
 import type { GameMode, Move, TileId } from '@yard/engine';
 
@@ -156,6 +157,21 @@ export class OnlineGame {
   private subscribe() {
     this.sub = watchTable(this.table.id, {
       onPublic: (hand) => {
+        // Online has no 'played' event — the server sends whole states, not
+        // moves — so the sound comes off the diff. A longer line under the
+        // same hand id is a tile that just landed; a new hand id is a deal.
+        // Both are true for my own move too, which is what we want: one knock
+        // per tile, whoever played it.
+        const prev = this.hand;
+        const laid = (h: PublicHand | null) => h?.board?.line.length ?? 0;
+        if (prev && hand.hand_id === prev.hand_id) {
+          if (laid(hand) > laid(prev)) sfx.play('knock');
+        } else if (laid(hand) === 0) {
+          // A fresh deal. An opening board with tiles already on it means we
+          // arrived in the middle of somebody else's hand — no shuffle for
+          // that, it did not just happen.
+          sfx.play('shuffle');
+        }
         this.hand = hand;
         this.emit({ type: 'state' });
       },
@@ -165,6 +181,9 @@ export class OnlineGame {
         this.emit({ type: 'state' });
       },
       onSet: (set) => {
+        // Only on the edge into six love — `sets` rows update on every hand,
+        // and a flag that is already true must not re-fire the sound.
+        if (!this.sixLove && set.six_love) sfx.play('sixLove');
         this.scores = set.scores as number[]; this.handValue = set.hand_value as number;
         this.poser = set.poser as number; this.poseMustBeDoubleSix = set.pose_must_be_double_six as boolean;
         this.handsPlayed = set.hands_played as number; this.winnerSide = set.winner_side as number | null;

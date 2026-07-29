@@ -12,7 +12,7 @@
  *     network.
  */
 
-const VERSION = 'bdt-v1';
+const VERSION = 'bdt-v2';
 const SHELL = `${VERSION}-shell`;
 
 // Bumping VERSION invalidates everything below.
@@ -22,6 +22,12 @@ const PRECACHE = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',
+  // The table's own noise. Precached rather than left to the runtime cache
+  // because a knock fetched on first play arrives after the tile has already
+  // landed — and offline, it would never arrive at all. ~180 KB for all three.
+  '/sfx/knock.m4a',
+  '/sfx/shuffle.m4a',
+  '/sfx/six-love.m4a',
 ];
 
 self.addEventListener('install', (event) => {

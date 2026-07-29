@@ -9,6 +9,8 @@ import { tileEl, renderBoard, backsEl, scoreTrack, el } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
+import * as sfx from './sfx.ts';
+import { applyFelt, FELTS, felt, setFelt } from './felt.ts';
 import {
   platform, promptInstall, watchInstallability, registerServiceWorker,
   applyUpdate, updatePending, IOS_STEPS,
@@ -246,6 +248,14 @@ async function startGame(opts: {
 
   g.on((e) => {
     const level = opts.duppy;
+
+    // Every tile knocks, mine included — the sound is bone hitting board, not
+    // an opponent doing something to me. The talk below is what's theirs.
+    if (e.type === 'played') sfx.play('knock');
+    // Six love is the loudest thing that happens in this game and it ends the
+    // set, so it gets its own sound rather than sharing the win line's.
+    if (e.type === 'setOver' && g.set.sixLove) sfx.play('sixLove');
+
     if (e.type === 'passed' && e.seat !== g.mySeat) {
       say(e.seat, 'iPass', level);
     } else if (e.type === 'passed' && e.seat === g.mySeat) {
@@ -295,6 +305,7 @@ async function startGame(opts: {
   reviewOpen = false;
   verifyState = null;
   shareLink = null;
+  sfx.play('shuffle');
   await g.startHand();
   render();
 }
@@ -697,6 +708,7 @@ function handResult(g: LocalGame): HTMLElement | null {
       // Last hand's gloating and last hand's link must not carry over.
       talk = new Map();
       shareLink = null;
+      sfx.play('shuffle');
       await g.startHand(); render();
     };
     row.appendChild(next);
@@ -900,19 +912,43 @@ function coachPanel(g: LocalGame, r: HandReview): HTMLElement {
 }
 
 /**
- * Turning the duppy off. One tap, and it stays off — people play this in bed
- * at two in the morning, and a voice they cannot silence is an uninstall.
+ * Turning the sound off. One tap, and it stays off — people play this in bed
+ * at two in the morning, and audio they cannot silence is an uninstall.
+ *
+ * ONE toggle for the duppy's voice and the table's noise together. Two
+ * separate mutes is how someone ends up hunting for whichever one is still
+ * making a sound, so `sfx.ts` deliberately reads this same flag.
  */
 function soundToggle(): HTMLElement {
   const bar = el('div', 'sound-bar');
+  bar.appendChild(feltPicker());
+
   const off = muted();
   const b = document.createElement('button');
   b.className = 'dismiss';
-  b.textContent = off ? 'Duppy voice off' : 'Duppy voice on';
+  b.textContent = off ? 'Sound off' : 'Sound on';
   b.setAttribute('aria-pressed', String(!off));
-  b.onclick = () => { setMuted(!off); render(); };
+  b.onclick = () => { setMuted(!off); if (!off) sfx.silence(); render(); };
   bar.appendChild(b);
   return bar;
+}
+
+/** Pick the colour of the table. Persisted, and applied everywhere at once. */
+function feltPicker(): HTMLElement {
+  const wrap = el('div', 'felt-pick');
+  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('aria-label', 'Table colour');
+  const current = felt();
+  for (const f of FELTS) {
+    const b = document.createElement('button');
+    b.dataset.felt = f.id;
+    b.title = f.label;
+    b.setAttribute('aria-label', f.label);
+    b.setAttribute('aria-pressed', String(f.id === current));
+    b.onclick = () => { setFelt(f.id); render(); };
+    wrap.appendChild(b);
+  }
+  return wrap;
 }
 
 function tableView(g: LocalGame): DocumentFragment {
@@ -1126,6 +1162,19 @@ window.addEventListener('resize', () => {
 
 watchInstallability(render);
 registerServiceWorker(render);
+
+applyFelt();
+
+/**
+ * Browsers only let audio start inside a user gesture, and iOS will not play
+ * an element that has never been played inside one — so the very first touch
+ * anywhere primes every clip. `once` means this costs one listener, and
+ * `pointerdown` fires before the click that deals the first hand, so the
+ * shuffle that follows is already unlocked.
+ */
+for (const evt of ['pointerdown', 'keydown'] as const) {
+  window.addEventListener(evt, () => sfx.unlock(), { once: true });
+}
 
 /**
  * A link someone was sent opens straight into the replay — on a cold load,

@@ -38,6 +38,49 @@
 
   --r: 6px;
   --gap: 12px;
+
+  /* The felt. Defaults duplicate [data-felt="brown"] below so the table is
+     never unpainted in the moment before felt.ts sets the attribute. These are
+     deliberately NOT --forest: that green is the brand, used on buttons, links
+     and the logo, and a player recolouring their table must not restyle the
+     whole app. */
+  --felt-hi:  #8A5A2E;
+  --felt:     #6B4423;
+  --felt-lo:  #462C14;
+  --felt-rim: #33200E;
+}
+
+/* Wood, the default — a yard table is plywood or a board over a drum, not
+   casino baize. */
+[data-felt="brown"] {
+  --felt-hi:  #8A5A2E;
+  --felt:     #6B4423;
+  --felt-lo:  #462C14;
+  --felt-rim: #33200E;
+}
+
+/* Lighter and warmer. Kept well clear of --bone (#FDF6E3): bone tiles on a
+   genuinely cream felt is the one combination that fails, and docs/design.md
+   records a bone/sand-hi collision that already had to be fixed once. */
+[data-felt="clay"] {
+  --felt-hi:  #C08A5A;
+  --felt:     #A66E3E;
+  --felt-lo:  #7E4F28;
+  --felt-rim: #5A3A1E;
+}
+
+[data-felt="green"] {
+  --felt-hi:  #1C8449;
+  --felt:     #146B3A;
+  --felt-lo:  #0E4F2A;
+  --felt-rim: #5A3A1E;
+}
+
+[data-felt="blue"] {
+  --felt-hi:  #2A6E9E;
+  --felt:     #1B4F72;
+  --felt-lo:  #123852;
+  --felt-rim: #2E1F12;
 }
 
 * { box-sizing: border-box; }
@@ -245,8 +288,8 @@ label.field > span {
   background:
     repeating-linear-gradient(115deg, rgba(255,255,255,0.045) 0 2px, transparent 2px 6px),
     radial-gradient(120% 90% at 50% -15%, rgba(255, 255, 255, 0.14), transparent 55%),
-    linear-gradient(165deg, var(--forest-hi), var(--forest) 45%, var(--forest-lo));
-  border: 6px solid var(--wood);
+    linear-gradient(165deg, var(--felt-hi), var(--felt) 45%, var(--felt-lo));
+  border: 6px solid var(--felt-rim);
   border-radius: 10px;
   box-shadow:
     inset 0 0 0 1px var(--wood-hi),
@@ -301,8 +344,15 @@ label.field > span {
 .tile.h { grid-template-rows: 1fr; grid-template-columns: 1fr 1px 1fr; }
 .tile .half {
   display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-  place-items: center; padding: 2px;
+  padding: 2px;
 }
+/* Each of the nine cells is its own centring box. It must STRETCH to fill its
+   grid cell — `place-items: center` on .half instead shrink-wraps every span
+   to its contents, and since the pip below is sized as a percentage of that
+   span, the percentage resolves against zero and every pip disappears. That
+   is exactly what happened when pips moved from a fixed 5px to a percentage:
+   the tiles went blank, and a stale service worker cache hid it. */
+.tile .half span { display: grid; place-items: center; }
 /* Sized against the cell, not in pixels: board tiles now scale to the felt,
    and a fixed 5px pip left a big bone looking almost blank. */
 .tile .half b {
@@ -405,7 +455,25 @@ label.field > span {
   background: var(--sand); color: var(--muted);
 }
 .share-box .muted { font-size: 12px; }
-.sound-bar { display: flex; justify-content: flex-end; margin: 8px 0 2px; }
+.sound-bar {
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: 8px; flex-wrap: wrap; margin: 8px 0 2px;
+}
+
+/* Swatches, not a <select> — the choice is a colour, so show the colour.
+   Each button carries its own data-felt, and because the theme blocks above
+   are plain attribute selectors rather than :root ones, the button paints
+   itself from the very tokens it would set. One place defines each felt. */
+.felt-pick { display: flex; gap: 6px; align-items: center; }
+.felt-pick button {
+  width: 22px; height: 22px; padding: 0; cursor: pointer;
+  border: 2px solid var(--felt-rim); border-radius: 50%;
+  background: linear-gradient(165deg, var(--felt-hi), var(--felt) 60%);
+}
+.felt-pick button[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--sand), 0 0 0 4px var(--gold);
+}
+.felt-pick button:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; }
 .replay-caption {
   font-family: var(--body); font-weight: 800; font-size: 16px;
   margin-bottom: 4px;

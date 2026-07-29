@@ -86,6 +86,17 @@ export function registerServiceWorker(onUpdateReady: () => void) {
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
 
+  // Never in the dev server. sw.js caches same-origin GETs first-hit-wins,
+  // which is safe in production because Vite content-hashes every built asset
+  // — but `npm run dev` serves `/src/styles.css` and `/src/*.ts` at stable
+  // URLs, so the worker pins the first version it sees and keeps serving it
+  // through every edit. That has already hidden a real bug from a whole
+  // session: pips had been invisible on every tile, and the felt kept
+  // rendering in the previous build's colour, because the page under test was
+  // never the code on disk. To exercise the worker itself, build and preview
+  // (`npm run build && npx vite preview`) — PROD is true there.
+  if (import.meta.env.DEV) return;
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((reg) => {
       if (reg.waiting) { waitingWorker = reg.waiting; onUpdateReady(); }
