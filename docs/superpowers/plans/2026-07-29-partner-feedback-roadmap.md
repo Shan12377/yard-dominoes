@@ -172,10 +172,19 @@ dominoes, and they are already in `apps/web/public/sfx/`:
 **Verified in the browser, not just typechecked:** four tiles on the board
 produced exactly four `knock.m4a` plays at 0.55 volume; muting produced zero
 plays across four more tiles; a fresh deal produced exactly one `shuffle.m4a`
-and no stray knock. **`six-love.m4a` is wired but was NOT heard** — reaching a
-six love needs a full set, and neither the local `setOver` path nor the online
-`sets.six_love` edge was played through. It is one line on each path, but treat
-it as unproven.
+and no stray knock.
+
+**`six-love.m4a` — resolved 2026-07-29, do not re-flag as unproven.** Both
+paths were played through to a genuine set conclusion, not just read as code:
+locally, 49 real hands (Partner/Six love vs a duppy), the sound fired audibly
+at volume 0.85 exactly once, after one silent `unlock()` priming play at
+volume 0 — matching `VOLUME.sixLove` in `sfx.ts` precisely. Online, the same
+proof through the real `play-move`/`persist` server path: 94 real hands, one
+audible play at 0.85. (One authenticated client vs duppy-filled seats IS the
+online path — the duppy moves happen server-side inside `play-move`, so this
+needed no second human.) Both runs were scripted — clicking a legal tile or
+resolving a `Pass`/end-prompt every turn, bounded to a few minutes of wall
+clock — not a human sitting through 49–94 hands by hand.
 
 ### 1.3 Yard *and* Foreign
 
@@ -256,9 +265,13 @@ hold di game." on screen.
 - [ ] **NOT done: a notice when someone joins.** Needs a diff of the previous
       roster and somewhere to put a transient message.
 
-**NOT verified.** This needs two real clients in the same lounge and only one
-was available — two tabs in one browser share a Supabase session and are not
-two players. The panel has never been seen with a name in it.
+**Resolved 2026-07-29 — verified with two real, isolated clients**, not two
+tabs sharing a session. A seated player's watcher panel read `Watching — 1`
+with the spectator's real username, and — the specific risk the `channel.track`
+note above warns about — the entry survived the spectator picking up the
+microphone: still `Watching — 1`, same username, and still receiving
+broadcasts (a follow-up quick-chat message) afterward, proving `table` was
+never silently cleared by the `voice:true` announce.
 
 ---
 
@@ -282,7 +295,13 @@ implementing exactly:
       are across a real table — everyone hears it, including the people it
       would hurt.
       Verified live at a real table: clicking GG put a green GG chip on my own
-      seat and it cleared itself. **Not verified from a second client.**
+      seat and it cleared itself. **Resolved 2026-07-29 — also verified from a
+      second, real, isolated client**: B saw A's GG chip appear on A's own
+      seat, not just A seeing their own click reflected locally. Re-confirmed
+      after the watcher-panel/voice-pickup check above (same two-client
+      session) with a second message (BLESS) — quick chat kept reaching B
+      after B's presence entry had already been through a voice-state change,
+      which is the scenario most likely to have broken it silently.
 - [ ] Free-text typed chat at the table (this is only the canned half).
 - [ ] **VIP can send private messages.**
 - [ ] **Nobody seated in a live hand may send or receive a private message.**
