@@ -1,0 +1,270 @@
+// POST /tournament-host  { action, ... }
+//
+// Everything a host does. One function rather than six, deliberately: every
+// action shares the same gate — is the caller `profiles.is_host` — and six
+// copies of a permission check is how one of them ends up missing. The gate is
+// written once, at the top, and nothing below it runs until it passes.
+//
+// A host holds NO database privilege. `is_host` is a boolean this function
+// reads under service_role; it appears in no grant and no RLS policy, and there
+// is no Postgres role behind it. That is the narrow scoping the requirement
+// asked for, and it is narrow by construction rather than by discipline.
+//
+// v1 is the tournament a human runs by hand. There is no bracket generator and
+// no auto-advance: the host draws a round, the players play it, the host marks
+// who is out, and the host draws the next round. The results already live in
+// `sets`, so automating that later is cheap — and by then one real Sunday will
+// have shown which assumptions were wrong.
+
+import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
+import { drawCutLine } from '../_shared/tournament-queue.ts';
+import { loadQueue, standingFor } from '../_shared/tournament.ts';
+import { clockByName } from '../_shared/engine/clock.ts';
+
+const MODES = ['cutthroat', 'partner'];
+const FORMATS = ['sixlove', 'firstToSix', 'single'];
+/** Mirrors CLOCKS in the engine, and the check constraint in 0015. */
+const CLOCKS = ['speed', 'yard', 'relaxed'];
+
+/**
+ * The statuses a host may set on a signup by hand.
+ *
+ * `out` is how a round advances in v1 — the host marks the players who lost and
+ * draws the next round from whoever is left. `disqualified` is the penalty, and
+ * the difference between them is only that one is a result and the other is a
+ * judgement; both remove a player from the queue.
+ *
+ * `signed_up` is here so a mistake is reversible. A host who marks the wrong
+ * person out at nine on a Sunday morning must not need a database console.
+ */
+const HOST_SETTABLE = ['signed_up', 'out', 'disqualified'];
+
+/** Fills a seat nobody has claimed yet, until a real player joins it. */
+const PLACEHOLDER_DUPPY = 'yard';
+
+Deno.serve(handled(async (req) => {
+  const user = await requireUser(req);
+  const body = await req.json() as Record<string, any>;
+  const action = String(body.action ?? '');
+  const db = serviceClient();
+
+  // The gate. Read server-side, from the database, before anything else.
+  const { data: me } = await db.from('profiles').select('is_host').eq('id', user.id).single();
+  if (!me?.is_host) throw new HttpError(403, 'only a host can run a tournament');
+
+  // ------------------------------------------------------------- create --
+  if (action === 'create') {
+    const mode = String(body.mode ?? 'cutthroat');
+    const format = String(body.format ?? 'firstToSix');
+    const seatCount = Number(body.seatCount ?? 4);
+    if (!MODES.includes(mode)) throw new HttpError(422, 'unknown mode');
+    if (!FORMATS.includes(format)) throw new HttpError(422, 'unknown format');
+    if (![2, 3, 4].includes(seatCount)) throw new HttpError(422, 'seat count must be 2, 3 or 4');
+    // Same rule create-table enforces: partner is inherently 2-vs-2, and
+    // sideOf() would split three seats into a nonsensical 2-vs-1.
+    if (mode === 'partner' && seatCount !== 4) {
+      throw new HttpError(422, 'partner needs exactly 4 seats');
+    }
+    if (!body.startsAt) throw new HttpError(422, 'a tournament needs a start time');
+
+    const { data, error } = await db.from('tournaments').insert({
+      name: String(body.name ?? '').trim(),
+      mode,
+      format,
+      seat_count: seatCount,
+      // Named, not numeric — the server looks the seconds up when it opens the
+      // tables, exactly as create-table does, so nobody can schedule a
+      // ten-minute turn by posting a number.
+      clock: CLOCKS.includes(String(body.clock)) ? String(body.clock) : 'yard',
+      starts_at: body.startsAt,
+      signups_open_at: body.signupsOpenAt ?? null,
+      rounds: Number(body.rounds ?? 3),
+      lounge_id: body.loungeId ?? null,
+      host_id: user.id,
+    }).select().single();
+    if (error) throw new HttpError(422, error.message);
+    return json({ ok: true, tournamentId: data.id });
+  }
+
+  // Everything below acts on an existing event.
+  const tournamentId = body.tournamentId;
+  if (!tournamentId) throw new HttpError(422, 'which tournament?');
+  const { data: t } = await db.from('tournaments').select('*').eq('id', tournamentId).single();
+  if (!t) throw new HttpError(404, 'no such tournament');
+
+  // ------------------------------------------------------------- notice --
+  // The intercom. A column, not a Realtime broadcast: broadcast is
+  // peer-to-peer, so a patched client could put words in the host's mouth.
+  if (action === 'notice') {
+    const notice = body.notice === null || body.notice === ''
+      ? null
+      : String(body.notice).slice(0, 280);
+    const { error } = await db.from('tournaments').update({ notice }).eq('id', t.id);
+    if (error) throw new HttpError(500, error.message);
+    return json({ ok: true, notice });
+  }
+
+  // ------------------------------------------------------ open / close --
+  if (action === 'open' || action === 'close' || action === 'cancel') {
+    const status = action === 'open' ? 'signups_open'
+      : action === 'close' ? 'seating'
+        : 'cancelled';
+    const { error } = await db.from('tournaments').update({ status }).eq('id', t.id);
+    if (error) throw new HttpError(500, error.message);
+    return json({ ok: true, status });
+  }
+
+  // --------------------------------------------------------------- mark --
+  if (action === 'mark') {
+    const status = String(body.status ?? '');
+    if (!HOST_SETTABLE.includes(status)) throw new HttpError(422, 'not a status a host sets');
+    if (!body.userId) throw new HttpError(422, 'which player?');
+    // Scoped to THIS event. Ratings in `profiles` are deliberately untouched —
+    // "strip a player's runs" is ambiguous between a Sunday result and a
+    // permanent record, and the smaller blast radius is right while that
+    // question is open.
+    const { error } = await db.from('tournament_signups')
+      .update({ status, ...(status === 'signed_up' ? { round: null, table_id: null } : {}) })
+      .eq('tournament_id', t.id).eq('user_id', body.userId);
+    if (error) throw new HttpError(500, error.message);
+    return json({ ok: true });
+  }
+
+  // -------------------------------------------------------------- start --
+  // Draw one round: order the queue, cut it into full tables of real people,
+  // and open a table for each. Everyone past the cut is a substitute, which is
+  // a benefit this app already sells rather than an overflow to apologise for.
+  if (action === 'start') {
+    // Drawing again while a round is still being played would open a second set
+    // of tables for the same people and quietly split the event in half. The
+    // host has to wait for the round to end — which in v1 means marking the
+    // losers out — before the next draw.
+    const { data: live } = await db.from('tables').select('id')
+      .eq('tournament_id', t.id).in('status', ['waiting', 'playing']).limit(1);
+    if (live?.length) {
+      throw new HttpError(409,
+        'a round is still running — mark the players who are out first');
+    }
+
+    const ordered = await loadQueue(db, t.id);
+    const { tables: draw, substitutes } = drawCutLine(
+      ordered.map((p) => p.userId), t.seat_count);
+
+    if (draw.length === 0) {
+      // Fewer entrants than one full table. Partner needs exactly four seats,
+      // so three people is not a small tournament — it is not a tournament.
+      throw new HttpError(409,
+        `not enough players for a full table of ${t.seat_count}`);
+    }
+
+    // Which round this is. v1 has no auto-advance, so the round number simply
+    // counts the draws the host has made: whoever is still in line after the
+    // host marked the losers out is round N+1.
+    //
+    // Note that last round's SUBSTITUTES are still in line and will be drawn
+    // into this one alongside the winners. That is deliberate rather than
+    // overlooked — they turned up and never got a seat — but a host who wants a
+    // pure winners' bracket marks them out too, which is one click each.
+    const { data: rounds } = await db.from('tournament_signups')
+      .select('round').eq('tournament_id', t.id).not('round', 'is', null)
+      .order('round', { ascending: false }).limit(1);
+    const roundNo = ((rounds?.[0]?.round as number | undefined) ?? 0) + 1;
+
+    const clock = clockByName(t.clock);
+    const opened: { tableId: string; joinCode: string; players: string[] }[] = [];
+
+    for (const group of draw) {
+      const { data: code } = await db.rpc('generate_join_code');
+      const { data: table, error } = await db.from('tables').insert({
+        join_code: code,
+        mode: t.mode,
+        format: t.format,
+        seat_count: t.seat_count,
+        turn_seconds: clock.base,
+        turn_cap_seconds: clock.cap,
+        // The RULES flag, not the event: a tournament hand forces the 6-6 to be
+        // LED rather than merely held, which is what Jamaican players notice
+        // first about a real tournament table.
+        tournament: true,
+        one_all_play_two: true,
+        use_boneyard: false,
+        is_private: false,
+        lounge_id: t.lounge_id,
+        created_by: user.id,
+        tournament_id: t.id,
+        round_no: roundNo,
+      }).select().single();
+      if (error) throw new HttpError(500, error.message);
+
+      // Every seat starts as a placeholder duppy, and the drawn players
+      // displace them by calling `join-table` themselves — the ordinary path,
+      // which naturally proves they turned up. A seat cannot be empty: the
+      // `seat_is_person_or_duppy` check from 0001 forbids a row that is neither.
+      //
+      // Auto-seating an absent player would be worse than not seating them: the
+      // table would wait on somebody who is not at their phone. A no-show seat
+      // stays claimable, which is what the substitutes line is for.
+      const seats = [];
+      for (let i = 0; i < t.seat_count; i++) {
+        seats.push({
+          table_id: table.id, seat_index: i,
+          user_id: null, duppy_level: PLACEHOLDER_DUPPY,
+        });
+      }
+      const { error: seatsError } = await db.from('seats').insert(seats);
+      // create-table swallows this error — a known open thread in
+      // docs/memory.md. It must not be swallowed here: a half-seated table is a
+      // round that nobody can play.
+      if (seatsError) {
+        await db.from('tables').delete().eq('id', table.id);
+        throw new HttpError(500, seatsError.message);
+      }
+
+      await db.from('tournament_signups')
+        .update({ status: 'seated', round: roundNo, table_id: table.id })
+        .eq('tournament_id', t.id).in('user_id', group);
+
+      opened.push({ tableId: table.id, joinCode: table.join_code, players: group });
+    }
+
+    if (substitutes.length) {
+      await db.from('tournament_signups')
+        .update({ status: 'substitute', round: roundNo, table_id: null })
+        .eq('tournament_id', t.id).in('user_id', substitutes);
+    }
+
+    await db.from('tournaments').update({ status: 'running' }).eq('id', t.id);
+    return json({ ok: true, round: roundNo, tables: opened, substitutes });
+  }
+
+  // -------------------------------------------------------------- finish --
+  if (action === 'finish') {
+    const { error } = await db.from('tournaments')
+      .update({ status: 'finished' }).eq('id', t.id);
+    if (error) throw new HttpError(500, error.message);
+    return json({ ok: true });
+  }
+
+  // -------------------------------------------------------------- queue --
+  // What the host sees: the ordered list with the cut line already drawn.
+  if (action === 'queue') {
+    const ordered = await loadQueue(db, t.id);
+    const { tables: draw, substitutes } = drawCutLine(
+      ordered.map((p) => p.userId), t.seat_count);
+    return json({
+      ok: true,
+      queue: ordered.map((p, i) => ({
+        userId: p.userId, username: p.username, tier: p.tier,
+        signedUpAt: p.signedUpAt, status: p.status,
+        round: p.round, tableId: p.tableId,
+        position: i + 1,
+        aboveCut: i < draw.length * t.seat_count,
+      })),
+      wouldSeat: draw.length * t.seat_count,
+      substitutes: substitutes.length,
+      standing: standingFor(ordered, t.seat_count, user.id),
+    });
+  }
+
+  throw new HttpError(422, `unknown action ${action}`);
+}));

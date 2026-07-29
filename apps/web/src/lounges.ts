@@ -135,13 +135,20 @@ export interface MyProfile {
   tier: Tier;
   origin: Origin | null;
   gender: Gender | null;
+  /**
+   * Runs tournaments. Read here only to decide whether to draw the host
+   * controls — it grants nothing. Every host action is an Edge Function that
+   * re-reads this column server-side, so a patched client that flips this flag
+   * gets a panel full of buttons that all answer 403.
+   */
+  isHost: boolean;
 }
 
 export async function myProfile(): Promise<MyProfile | null> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) return null;
   const { data } = await db().from('profiles')
-    .select('id, username, tier, tier_expires_at, origin, gender').eq('id', auth.user.id).single();
+    .select('id, username, tier, tier_expires_at, origin, gender, is_host').eq('id', auth.user.id).single();
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
   return {
@@ -150,6 +157,7 @@ export async function myProfile(): Promise<MyProfile | null> {
     tier: (expired ? 'guest' : data.tier) as Tier,
     origin: (data.origin ?? null) as Origin | null,
     gender: (data.gender ?? null) as Gender | null,
+    isHost: Boolean(data.is_host),
   };
 }
 

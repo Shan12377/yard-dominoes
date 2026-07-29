@@ -87,6 +87,11 @@ export const createTable = (input: CreateTableInput) =>
 export const joinTable = (joinCode: string) =>
   call<{ tableId: string; seatIndex: number }>('join-table', { joinCode });
 
+/** Sit at a table you already know the id of — a tournament seat you were
+ *  drawn to, where nobody read a code aloud. Same function, same checks. */
+export const joinTableById = (tableId: string) =>
+  call<{ tableId: string; seatIndex: number }>('join-table', { tableId });
+
 export const passPose = (tableId: string) =>
   call<{ ok: true }>('pass-pose', { tableId });
 

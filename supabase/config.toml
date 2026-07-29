@@ -39,6 +39,10 @@ verify_jwt = true
 verify_jwt = true
 [functions.expire-turns]
 verify_jwt = false
+[functions.tournament-signup]
+verify_jwt = true
+[functions.tournament-host]
+verify_jwt = true
 [functions.checkout]
 verify_jwt = true
 [functions.stripe-webhook]

@@ -23,7 +23,18 @@ export interface TableInfo {
   mode: GameMode;
   format: string;
   seatCount: 2 | 3 | 4;
+  /**
+   * The RULES flag, not the event: the double-six must actually be LED, not
+   * merely held. It has meant that since 0001 and is set on plenty of casual
+   * tables. `tournamentId` below is the different thing — which Sunday, if any,
+   * this table belongs to.
+   */
   tournament: boolean;
+  /** The event this table was drawn for, or null for an ordinary table. */
+  tournamentId: string | null;
+  roundNo: number | null;
+  /** Filled in only for a tournament table, so the banner can name it. */
+  tournamentName: string | null;
   status: 'waiting' | 'playing' | 'finished';
   turnSeconds: number;
   /** Ceiling on a single turn, bank included. */
@@ -118,7 +129,19 @@ export class OnlineGame {
       id: t.id, loungeId: t.lounge_id, mode: t.mode, format: t.format, seatCount: t.seat_count,
       tournament: t.tournament, status: t.status, turnSeconds: t.turn_seconds,
       turnCapSeconds: t.turn_cap_seconds ?? t.turn_seconds, joinCode: t.join_code,
+      tournamentId: t.tournament_id ?? null, roundNo: t.round_no ?? null,
+      tournamentName: null,
     });
+
+    // One extra read, and only for a table that is actually part of an event.
+    // Fire-and-forget would be wrong here: the banner is the only thing telling
+    // a player which round they are in, so it is worth the round trip before
+    // the first render rather than a name that pops in afterwards.
+    if (t.tournament_id) {
+      const { data: event } = await conn.from('tournaments')
+        .select('name').eq('id', t.tournament_id).maybeSingle();
+      game.table = { ...game.table, tournamentName: (event?.name as string) ?? null };
+    }
 
     const { data: auth } = await conn.auth.getUser();
     game.myUserId = auth.user?.id ?? null;

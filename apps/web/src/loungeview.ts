@@ -21,6 +21,7 @@ import { openTablesPanel, joinByCodeField, liveTableView } from './onlinetablevi
 import { el } from './render.ts';
 import { canSpeak, joinVoice } from './voice.ts';
 import type { VoiceRoom } from './voice.ts';
+import { loadTournament, stopTournamentClock, tournamentPanel } from './tournamentview.ts';
 
 /**
  * Reactions: table talk for people who cannot or will not talk. Free for
@@ -98,6 +99,12 @@ export async function loadLounges(rerender: () => void) {
     loungeState.me = me;
     loungeState.error = null;
 
+    // Additive, and never allowed to take the lounges down with it: before the
+    // tournament migration is applied these queries 404, and a player must
+    // still be able to walk into a room. loadTournament swallows its own
+    // failures for exactly that reason.
+    await loadTournament(me);
+
     if (!loungeState.onlineGame) {
       const active = await findActiveSeat();
       if (active) await attachTable(active.tableId, rerender);
@@ -113,6 +120,11 @@ export async function loadLounges(rerender: () => void) {
 export function leaveCurrentLounge() {
   draft = '';
   draftCaret = 0;
+  // The countdown only lives on the lounge LIST, and this is called both on the
+  // way into a room and on the way off the tab. It reschedules itself the next
+  // time the list draws, so stopping it here costs nothing and stops a timer
+  // waking a screen the player has left.
+  stopTournamentClock();
   // Voice holds the microphone and open peer connections, so it must be torn
   // down before the channel it signals over goes away.
   if (loungeState.voice) {
@@ -510,6 +522,11 @@ function loungeList(rerender: () => void): DocumentFragment {
   frag.appendChild(head);
 
   if (me && profileOpen) frag.appendChild(profilePanel(me, rerender));
+
+  // Above the lounge cards: the countdown is the thing a player should not be
+  // able to miss, and this is the screen they land on.
+  const tourney = tournamentPanel(me, (tableId) => void attachTable(tableId, rerender), rerender);
+  if (tourney) frag.appendChild(tourney);
 
   frag.appendChild(joinByCodeField((tableId) => void attachTable(tableId, rerender)));
 

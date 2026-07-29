@@ -902,3 +902,76 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 }
 .clock-fill.urgent { background: var(--blood); }
 @media (prefers-reduced-motion: reduce) { .clock-fill { transition: none; } }
+
+/* ------------------------------------------------------------ tournaments
+   The banner has to be impossible to miss without being a hazard.
+
+   The requirement said "flashing". This is not: anything above three flashes a
+   second is a seizure risk and fails WCAG 2.3.1. What "flashing" means here is
+   *make sure nobody scrolls past it*, and a gold-edged card at the top of the
+   page with a slow breath on the call to action does that honestly. The global
+   prefers-reduced-motion rule already flattens every animation in this file;
+   `.pulse` also kills its own outright below, because an "instant" infinite
+   animation is still an animation being ticked sixty times a second. */
+.panel.tourney {
+  border-color: var(--gold);
+  border-left: 4px solid var(--gold);
+  background: linear-gradient(180deg, #FFFCEF, #FFF8E2 46%, #F9EFD0);
+}
+.tourney-when {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  margin-top: 4px; font-size: 14px; color: var(--muted);
+}
+.tourney-countdown {
+  font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em;
+  color: var(--gold-deep); text-transform: uppercase;
+}
+/* The intercom line. Written by the host through a checked Edge Function and
+   read by everyone — never a peer broadcast, which anyone could forge. */
+.tourney-notice {
+  margin-top: 12px; padding: 10px 12px; border-radius: var(--r);
+  border-left: 3px solid var(--forest); background: rgba(20, 107, 58, 0.08);
+  font-size: 14px; color: var(--ink);
+}
+.tourney-body { margin-top: 14px; display: grid; gap: 10px; justify-items: start; }
+.tourney-body p { font-size: 14.5px; line-height: 1.5; }
+
+/* "#14 — three VIPs are ahead of you." That number is the product. */
+.tourney-position { display: flex; gap: 14px; align-items: center; }
+.tourney-position .queue-number {
+  font-family: var(--display); font-size: 40px; line-height: 1;
+  color: var(--forest);
+}
+
+button.act.pulse { animation: tourney-breath 2.4s ease-in-out infinite; }
+@keyframes tourney-breath {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 164, 0, 0.55); }
+  50%      { box-shadow: 0 0 0 8px rgba(224, 164, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  button.act.pulse { animation: none; box-shadow: none; }
+}
+
+/* Host controls. Drawn for is_host, but every button is checked again on the
+   server — this is a rendering decision, never a permission. */
+.tourney-host { margin-top: 16px; border-top: 1px dashed rgba(90, 58, 30, 0.3); padding-top: 14px; }
+.tourney-host .row { margin-top: 8px; }
+.tourney-host input.field { flex: 1; min-width: 180px; }
+.tourney-queue { display: grid; gap: 4px; margin-top: 8px; }
+.queue-row {
+  display: flex; gap: 8px; align-items: center; font-size: 13px;
+  padding: 5px 8px; border-radius: var(--r); background: rgba(255, 255, 255, 0.5);
+}
+.queue-row .queue-pos {
+  font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 22px;
+}
+/* Below the cut line is the substitutes line — a benefit this app already
+   sells, so it is dimmed and marked, never struck through. */
+.queue-row.below-cut { opacity: 0.62; border-left: 2px solid var(--wood-hi); }
+.tourney-new { margin-top: 14px; }
+button.dismiss.small { font-size: 12px; }
+.small { font-size: 12.5px; }
+
+/* One line on an ordinary table saying which round it is. A tournament match
+   is not a second table screen. */
+.eyebrow.tourney-round { color: var(--gold-deep); margin-top: 2px; }

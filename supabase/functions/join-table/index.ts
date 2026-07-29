@@ -22,6 +22,23 @@ Deno.serve(handled(async (req) => {
     }
   }
 
+  // A tournament table is an ordinary table, so the join code alone would let
+  // anybody who overheard it take a drawn player's seat. The event is the gate:
+  // you must be in that tournament's queue and still standing.
+  //
+  // Deliberately not bound to the ONE table you were drawn to. A substitute
+  // taking a no-show's seat is the whole point of the substitutes line, and
+  // binding a player to a single table would mean a host-only seat-swapping
+  // function existed before anyone had run a real Sunday.
+  if (table.tournament_id) {
+    const { data: signup } = await db.from('tournament_signups')
+      .select('status').eq('tournament_id', table.tournament_id)
+      .eq('user_id', user.id).maybeSingle();
+    if (!signup || !['seated', 'substitute'].includes(signup.status)) {
+      throw new HttpError(403, 'this table belongs to a tournament you are not in');
+    }
+  }
+
   const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
   const existing = seats!.find((s: any) => s.user_id === user.id);
   if (existing) return json({ ok: true, tableId: table.id, seatIndex: existing.seat_index });

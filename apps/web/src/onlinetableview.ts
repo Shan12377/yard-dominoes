@@ -221,6 +221,14 @@ export function liveTableView(
   leave.onclick = () => void (async () => { await game.leaveSeat(); onLeave(); })();
   top.appendChild(leave);
   head.appendChild(top);
+  // A tournament table is an ordinary table — same view, same everything — so
+  // this is one line saying which round you are in, not a second table screen.
+  if (game.table.tournamentId && game.table.roundNo) {
+    const round = game.table.roundNo;
+    const name = game.table.tournamentName;
+    head.append(el('div', 'eyebrow tourney-round',
+      name ? `Round ${round} · ${name}` : `Round ${round}`));
+  }
   if (game.isSpectator) head.append(el('div', 'muted', 'Watching — spectators never see anyone\'s tiles'));
   frag.appendChild(head);
 
