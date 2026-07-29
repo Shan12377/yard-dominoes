@@ -1,9 +1,16 @@
 # Tournaments — debrief
 
-**Status:** not started. This is the scoping document, written before any code.
+**Status:** the queue rule is written and tested
+(`supabase/functions/_shared/tournament-queue.ts`). Nothing else is built. No
+migration exists; production is untouched.
 **Source of requirements:** Wave 2.3 of
 [the partner feedback roadmap](./2026-07-29-partner-feedback-roadmap.md).
 **Next migration number:** `0015`.
+
+> **Start here if you are picking this up.** Read §0 and §6, then
+> `tournament-queue.ts` and its tests. The false start recorded in §11 happened
+> because the agent's worktree was branched one commit before this file existed
+> — check you can actually see `tournament-queue.ts` before you write anything.
 
 Per the partner, this is *the* reason people buy VIP — a stronger pitch than
 the microphone. Treat the queue rule as the paid promise it is.
@@ -89,7 +96,7 @@ The event. Reads mostly like a `tables` row's calendar entry.
 | `mode`, `format`, `seat_count` | passed straight to `create-table` later |
 | `starts_at` | timestamptz. The countdown reads this |
 | `signups_open_at` | nullable; null = open as soon as announced |
-| `table_count` | how many tables the host is running. `table_count * seat_count` is the **cut line** |
+| `rounds` | smallint. The stated shape is two rounds plus a final, so `3`. Not used by v1 — the host decides — but cheap to record now |
 | `status` | `announced` / `signups_open` / `seating` / `running` / `finished` / `cancelled` |
 | `notice` | text, nullable. The intercom — see §5 |
 | `host_id` | fk `profiles` |
@@ -211,28 +218,50 @@ and it would be the *only* place in the app that does.
 
 **One implementation of the ordering, not two.** The player's "you are #14, with
 3 VIPs ahead of you" and the host's seating pass must be the same ordering or
-they will disagree on the one day it matters. Put it in one SQL view or one
-function and have both read it.
+they will disagree on the one day it matters.
 
-Everyone past `table_count * seat_count` is the **substitutes line**. That is
+*Revised — the first draft of this document said "one SQL view or one function
+read by both", which is wrong in this codebase.* `apps/web` imports nothing from
+`supabase/functions` (checked: zero matches), so anything living in `_shared/`
+is out of the browser's reach and the client would end up with a second copy.
+
+The actual answer is simpler: **the browser never sorts.** The server computes
+each entry's position and the client renders the number it is handed. There is
+no duplication because the client does not implement the rule at all. That also
+keeps the ordering inside the service-role boundary, consistent with the rest of
+this app, where the client is never the thing that decides.
+
+Everyone past the last full table is the **substitutes line**. The number of
+tables is derived from turnout, not declared by the host — 11 people in fours is
+two tables and three substitutes. That is
 already a promised VIP benefit — `lounges.ts:59` sells "Front of the tournament
 substitutes line" today — and the same ordering delivers it for free. It is one
 ordered list with a cut line drawn across it, not two lists.
 
-### Test this one properly
+### This part is done
 
-The ordering is the paid promise and it is the thing players will argue about.
-Extract it as a pure function and unit-test it, exactly the way
-`apps/web/src/name-cache.ts` holds the pure decision behind the name cache with
-`name-cache.test.ts` beside it.
+`supabase/functions/_shared/tournament-queue.ts` — pure, no Deno, no network, so
+`npm test` covers it (the same split `billing.ts` uses). Two functions:
 
-Cases that must be in the test:
+- `queueOrder(entries, now)` — the sort above
+- `drawCutLine(ordered, seatCount)` — full tables of humans, everyone else a
+  substitute
 
-- VIP signed up last still seats ahead of every guest
-- expired VIP does **not** jump (this is the `effective_tier` case)
-- two VIPs, identical `signed_up_at` → stable, repeatable order
-- the cut line lands in the right place, and #N+1 is a substitute not a reject
-- yardie sits between vip and guest
+18 tests in `tournament-queue.test.ts`, covering all five cases this section
+originally listed plus the upgrade-jumps-the-queue case, unknown tier strings,
+and a sweep asserting no table is ever short and nobody is lost across every
+turnout from 0 to 40.
+
+**Only full tables of real people play.** The alternative — spread everyone
+across `ceil(n / seatCount)` tables and pad with duppies — was written and
+rejected (§11). A Sunday where a quarter of the seats are bots is not a
+tournament, and a bot would be deciding which humans go through. The overflow is
+not waste; it is the substitutes line, which is already on the pricing page.
+
+A consequence to carry into §8: fewer entrants than one full table means no
+tables at all. Partner mode needs exactly four seats — `create-table` rejects
+anything else and `sideOf()` would split three seats into a nonsensical 2-vs-1 —
+so three people is not a small tournament, it is not a tournament. Cancel.
 
 ---
 
@@ -260,9 +289,9 @@ not open yet.
 
 ## 8. Seating
 
-When the host starts the event, for each table up to `table_count`: call the
-existing `create-table` with `tournament: true`, `lounge_id` = the tournament
-lounge, then fill seats from the ordered queue.
+When the host starts the event, run the queue through `queueOrder` then
+`drawCutLine`, and for each full table call the existing `create-table` with
+`tournament: true` and `lounge_id` = the tournament lounge.
 
 Note that `create-table` currently seats **the caller** at seat 0
 (`create-table/index.ts:58`) and `join-table` requires the *joining user's* auth
@@ -285,15 +314,56 @@ line exists for. Auto-seating an absent player is worse than not seating them.
 - [ ] Tournament lounge seeded
 - [ ] `tournament-signup` Edge Function (sign up / withdraw), server-set timestamp
 - [ ] Host functions: create event, set notice, open/close signups, start, disqualify — each checking `is_host`
-- [ ] One ordering implementation, read by both the queue display and seating
-- [ ] Pure `seatingOrder()` + unit tests covering the five cases in §6
+- [x] **Done.** `tournament-queue.ts` + 18 tests — the queue rule and the cut
+      line. Three tier bands, `effective_tier` semantics, evaluated at seating
+      time. The server computes position; the browser never sorts.
 - [ ] Banner + countdown, no flashing, `prefers-reduced-motion` honoured
 - [ ] Queue position visible to the player, VIPs-ahead-of-you count included
 - [ ] Verified with two real isolated clients, not two tabs — two tabs share a
       Supabase session. Both spectator and quick-chat verification in Wave 1
       needed this and it caught things a single client did not.
 
-## 10. Open questions for Dr. Hunter
+## 10. The false start, and what it cost
+
+A first attempt (2026-07-29) produced `supabase/functions/_shared/bracket.ts`
+and its tests in an isolated worktree. **It was branched at `1298711`, one
+commit before this document existed at `cb17cb8`, so it never had any of the
+above.** Nothing shipped, nothing was committed, no migration ran. Recording it
+because four of the five mistakes are ones anyone would make from the
+requirements alone.
+
+**It built the deferred half first.** `advancersFrom`, `roundComplete`,
+`tournamentIsOver`, multi-round seeding — the bracket state machine §1 says to
+resist until one real Sunday has been played, written before signup, the queue,
+the host role or the intercom existed.
+
+**Two priority bands instead of three.** `0` for VIP, `1` for everyone else,
+which sorts a paying Yardie level with a free guest.
+
+**A stored generated column for priority.** The stated intent — write the rule
+down once so the client's list and the server's seeder cannot disagree — is
+exactly right, and is why §6 exists. The mechanism cannot work: a Postgres
+generated column may only reference its own row and must be immutable, so it
+cannot read `profiles.tier` at all. Any such column necessarily freezes a copy
+of the tier at insert, which is `tier_at_signup` ordering — the precise
+behaviour §6 rules out, arrived at by a route that looks like the right idea.
+
+**`effective_tier()` bypassed**, so an expired VIP would still jump.
+
+**Duppies instead of substitutes.** `seatAssignments` spread players evenly and
+padded the gaps with bots, deleting a VIP benefit the app sells today.
+
+The salvage: `tournament-queue.ts` keeps the deterministic `userId` tiebreak and
+the returns-a-new-array discipline, both of which that draft got right and both
+of which are load-bearing. The bracket half is not lost either — it is written
+down here, and it will be easier to build correctly once a real Sunday has shown
+which of its assumptions were wrong.
+
+**The process lesson, which is the general one:** a worktree cut before a
+planning document exists cannot follow it. Rebase the worktree onto `main`
+before starting, and check the plan file is actually present.
+
+## 11. Open questions for Dr. Hunter
 
 1. Does "strip a player's runs" mean the tournament result only, or rating
    points too? (§4 — defaulting to the smaller one.)
