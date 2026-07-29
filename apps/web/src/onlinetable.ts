@@ -13,6 +13,7 @@ import {
   leaveSeat as apiLeaveSeat, watchTable, ConflictError, type PublicHand, type TableSubscription,
 } from './online.ts';
 import * as sfx from './sfx.ts';
+import { staleUserIds } from './name-cache.ts';
 import { legalMoves, sideOf } from '@yard/engine';
 import type { GameMode, Move, TileId } from '@yard/engine';
 
@@ -151,8 +152,17 @@ export class OnlineGame {
    * else, so without this every human at every online table renders as "Seat
    * 0" — which is what shipped, because the field existed and the view read
    * it and nothing ever wrote it.
+   *
+   * Entries carry a fetch time and go stale after NAME_TTL_MS (see
+   * `staleUserIds`, the pure decision this makes). A permanent cache means a
+   * player who edits their name or origin mid-game — the editor now exists,
+   * so this is reachable — stays wrong on every screen already open on them
+   * until that viewer leaves and re-enters the table. `loadNames()` is
+   * called again from `onPublic` below, which already fires on every move,
+   * so a stale entry corrects itself within a hand or two without a second
+   * Realtime subscription just to watch profiles.
    */
-  private names = new Map<string, { username: string; origin: string | null }>();
+  private names = new Map<string, { username: string; origin: string | null; fetchedAt: number }>();
 
   private applySeats(rows: any[]) {
     this.seats = rows.map((s) => ({
@@ -170,21 +180,22 @@ export class OnlineGame {
   }
 
   /**
-   * Fill in whoever we do not know yet, then redraw. Fire-and-forget on
-   * purpose: a name is decoration on a hand that is already playable, so a
-   * failed lookup leaves "Seat 2" rather than blocking the table.
+   * Fill in whoever we do not know yet or have not re-checked recently, then
+   * redraw. Fire-and-forget on purpose: a name is decoration on a hand that
+   * is already playable, so a failed lookup leaves the last name known
+   * rather than blocking the table.
    */
   private async loadNames() {
-    const missing = [...new Set(
-      this.seats.filter((s) => s.userId && !this.names.has(s.userId)).map((s) => s.userId!),
-    )];
-    if (missing.length === 0) return;
-    const { data } = await db().from('profiles').select('id, username, origin').in('id', missing);
+    const now = Date.now();
+    const due = staleUserIds(this.seats.map((s) => s.userId), this.names, now);
+    if (due.length === 0) return;
+    const { data } = await db().from('profiles').select('id, username, origin').in('id', due);
     if (!data?.length) return;
     for (const row of data) {
       this.names.set(row.id as string, {
         username: row.username as string,
         origin: (row.origin ?? null) as string | null,
+        fetchedAt: now,
       });
     }
     this.seats = this.seats.map((s) => {
@@ -213,6 +224,10 @@ export class OnlineGame {
           sfx.play('shuffle');
         }
         this.hand = hand;
+        // Piggybacks the staleness sweep on a move that was already going to
+        // redraw the table — see the comment on `names` for why this exists
+        // instead of a dedicated subscription.
+        void this.loadNames();
         this.emit({ type: 'state' });
       },
       onMyTiles: (handId, tiles) => {
