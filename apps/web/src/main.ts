@@ -664,6 +664,23 @@ function handResult(g: LocalGame): HTMLElement | null {
     panel.append(el('p', 'muted', 'Score bruk. Back to love all, and the six opens.'));
   }
 
+  // The "these tiles were rigged" feeling arrives at exactly one moment: when
+  // you have just lost, and hardest when six love has just gone against you.
+  // That is the only point where a provably fair deal means anything
+  // emotionally, so it is the only point worth naming it. Explaining the
+  // cryptography anywhere else is a lecture nobody asked for — which is why
+  // the Fair Deal page alone was not converting this into something felt.
+  //
+  // Eighteen years of the incumbent arguing with players about "bad hands" on
+  // Facebook is the thing this one line replaces.
+  const sixLoveAgainst = g.set.sixLove
+    && g.set.winnerSide !== null && g.set.winnerSide !== g.mySide;
+  if (!r.tie && (!won || sixLoveAgainst)) {
+    panel.append(el('p', 'check-it', sixLoveAgainst
+      ? 'Six love against you. Think the deal was rigged? Check it.'
+      : 'Think the deal was against you? Check it.'));
+  }
+
   const row = el('div', 'row');
 
   if (g.set.winnerSide === null) {

@@ -663,6 +663,17 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .reaction:hover:not(:disabled) { border-color: var(--gold); color: var(--ink); }
 .reaction:active:not(:disabled) { transform: scale(0.94); }
 .reaction:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* The Verify prompt, shown only on a loss. It has to carry an accusation
+   without shouting — it is answering a suspicion the player already has, so it
+   points at the button rather than defending the shuffle. */
+.check-it {
+  margin: 12px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--gold);
+  font-weight: 700;
+  color: var(--gold-deep);
+}
 .reaction img { display: block; border-radius: 4px; }
 .roster .person .thrown {
   border-radius: 4px; margin-left: auto;
