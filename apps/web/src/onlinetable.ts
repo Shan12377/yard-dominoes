@@ -34,6 +34,8 @@ export interface SeatInfo {
   seatIndex: number;
   userId: string | null;
   username: string | null;
+  /** 'yardie' | 'foreign' | null — self-declared, never inferred. */
+  origin: string | null;
   duppyLevel: string | null;
   /** Unspent seconds this seat carries into its next turn. Server-owned. */
   timeBank: number;
@@ -150,13 +152,14 @@ export class OnlineGame {
    * 0" — which is what shipped, because the field existed and the view read
    * it and nothing ever wrote it.
    */
-  private names = new Map<string, string>();
+  private names = new Map<string, { username: string; origin: string | null }>();
 
   private applySeats(rows: any[]) {
     this.seats = rows.map((s) => ({
       seatIndex: s.seat_index,
       userId: s.user_id,
-      username: s.user_id ? this.names.get(s.user_id) ?? null : null,
+      username: s.user_id ? this.names.get(s.user_id)?.username ?? null : null,
+      origin: s.user_id ? this.names.get(s.user_id)?.origin ?? null : null,
       duppyLevel: s.duppy_level,
       timeBank: s.time_bank ?? 0,
     }));
@@ -176,13 +179,18 @@ export class OnlineGame {
       this.seats.filter((s) => s.userId && !this.names.has(s.userId)).map((s) => s.userId!),
     )];
     if (missing.length === 0) return;
-    const { data } = await db().from('profiles').select('id, username').in('id', missing);
+    const { data } = await db().from('profiles').select('id, username, origin').in('id', missing);
     if (!data?.length) return;
-    for (const row of data) this.names.set(row.id as string, row.username as string);
-    this.seats = this.seats.map((s) => ({
-      ...s,
-      username: s.userId ? this.names.get(s.userId) ?? s.username : null,
-    }));
+    for (const row of data) {
+      this.names.set(row.id as string, {
+        username: row.username as string,
+        origin: (row.origin ?? null) as string | null,
+      });
+    }
+    this.seats = this.seats.map((s) => {
+      const known = s.userId ? this.names.get(s.userId) : undefined;
+      return known ? { ...s, username: known.username, origin: known.origin } : s;
+    });
     this.emit({ type: 'state' });
   }
 

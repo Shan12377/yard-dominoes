@@ -187,11 +187,28 @@ and the UK/US Jamaican community is a large part of the paying base.
       foreign", and the body says "Yard rules from wherever you're playing".
       Art still speaks only to the island; the band and the reaction set are
       unchanged.
-- [ ] **Profile badge: Yardie vs Foreign.** The partner raised this himself and
-      it is culturally specific in a way no rival has. Self-declared, shown on
-      the seat and the profile.
-- [ ] Optional **M/F** on the profile. He wants players to know who they are
-      talking to. Keep it optional and never inferred.
+- [x] **Done.** `0014_profile_identity.sql` adds `profiles.origin`
+      ('yardie'|'foreign') and `profiles.gender` ('f'|'m'), both nullable and
+      never inferred. **Applied to production and verified**: exactly five
+      columns are UPDATE-grantable to `authenticated` (username, flag, bio,
+      origin, gender) and `tier` is still not one of them, so `0012` holds.
+      `origin` is deliberately NOT `flag`: a Jamaican in London is foreign and
+      her flag is still 'jm'. `flag` remains unwritten by anything.
+- [x] **Done.** Optional M/F, as "Call me — She / He". Tapping the chosen
+      option clears it, so an optional question stays answerable with "never
+      mind".
+- **This required building the first profile editor in the app** — until now
+      `username` was assigned at sign-up and nothing was ever editable.
+      Reachable from the lounge LIST via "Edit profile" (not from inside a
+      lounge — you back out first, which is a rough edge worth revisiting).
+      Badge shows on the seat and beside your name in the lounge list; the
+      class is `origin-yardie`, prefixed because `.badge.yardie` was already
+      the Yardie TIER and they mean different things.
+
+Verified live end to end: renamed the account, chose Foreign + She, confirmed
+the row in Postgres, and saw `Shelly_Yard · FOREIGN` on the seat at a real
+table. The too-short-name error path shows its message rather than failing
+silently.
 - [ ] **Avatars for people who will not show their face.** Must be a real
       option, not a fallback — many players want presence without a photo. The
       art template applies.

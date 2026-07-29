@@ -253,7 +253,15 @@ export function liveTableView(
   game.seats.forEach((s) => {
     const card = el('div', 'seat');
     if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
-    card.append(el('h3', undefined, s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`));
+    const who = el('div', 'who');
+    who.append(el('h3', undefined,
+      s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`));
+    // Yard or foreign, if they said. A duppy is from nowhere.
+    if (s.origin === 'yardie' || s.origin === 'foreign') {
+      who.append(el('span', `badge origin-${s.origin}`,
+        s.origin === 'yardie' ? 'Yardie' : 'Foreign'));
+    }
+    card.appendChild(who);
     const count = game.hand?.hand_sizes[s.seatIndex] ?? 0;
     card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
     if (s.seatIndex !== game.mySeat) card.append(backsEl(count));

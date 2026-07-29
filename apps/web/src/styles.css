@@ -650,6 +650,43 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 .badge.yardie { border-color: rgba(36, 22, 8, 0.22); color: var(--muted); }
 .badge.vip { border-color: var(--gold); color: var(--gold-deep); }
+/* Where somebody plays from. Prefixed because `.badge.yardie` above is the
+   Yardie TIER, and the two mean completely different things. */
+.badge.origin-yardie { border-color: var(--forest); color: var(--forest); }
+.badge.origin-foreign { border-color: var(--wood-hi); color: var(--wood); }
+
+/* A seat's name line: who they are, then where they play from. */
+.seat .who { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ------------------------------------------------------- profile editing */
+.field-label {
+  display: block; margin-top: 14px; margin-bottom: 4px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted);
+}
+input.field {
+  width: 100%; padding: 10px 12px;
+  font-family: var(--body); font-size: 15px;
+  color: var(--ink); background: var(--sand-hi);
+  border: 1px solid rgba(90, 58, 30, 0.28); border-radius: var(--r);
+}
+input.field:focus-visible { outline: 2px solid var(--forest); outline-offset: 1px; }
+p.small { font-size: 13px; margin: 2px 0 8px; }
+
+/* Two-state choices where tapping the chosen one clears it, so an optional
+   question stays answerable with "never mind". */
+.choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.choices .choice {
+  font-family: var(--body); font-weight: 700; font-size: 14px;
+  padding: 9px 16px; cursor: pointer;
+  color: var(--ink); background: var(--sand-hi);
+  border: 1px solid rgba(90, 58, 30, 0.28); border-radius: 99px;
+}
+.choices .choice[aria-pressed='true'] {
+  background: var(--forest); color: #EAF7EF; border-color: var(--forest);
+}
+.choices .choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+button.act.small { font-size: 12px; padding: 7px 12px; }
 
 /* ------------------------------------------------------------------ voice
    Hearing the yard is free; talking is the membership. A guest watches the

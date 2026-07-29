@@ -10,8 +10,11 @@ import {
   listLounges, myProfile, canEnter, recentMessages, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
+  saveProfile, ORIGIN_LABEL,
 } from './lounges.ts';
-import type { Lounge, LoungeMessage, LoungeRoom, PresenceEntry, Tier } from './lounges.ts';
+import type {
+  Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
+} from './lounges.ts';
 import { ensureSignedIn, findActiveSeat } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
 import { openTablesPanel, joinByCodeField, liveTableView } from './onlinetableview.ts';
@@ -36,7 +39,7 @@ type LiveVoice = VoiceRoom & { syncRoster: (ids: string[]) => void };
 
 interface LoungeState {
   lounges: Lounge[];
-  me: { id: string; username: string; tier: Tier } | null;
+  me: MyProfile | null;
   current: Lounge | null;
   roster: PresenceEntry[];
   messages: LoungeMessage[];
@@ -370,6 +373,117 @@ function tierBadge(tier: Tier): HTMLElement {
   return b;
 }
 
+/** Yard or foreign, worn on the profile and on the seat. */
+export function originBadge(origin: Origin): HTMLElement {
+  // `origin-` prefixed, not bare: the tier badge already owns `.badge.yardie`
+  // and the Yardie TIER and a Yardie ORIGIN are different things entirely.
+  return el('span', `badge origin-${origin}`, ORIGIN_LABEL[origin]);
+}
+
+// -------------------------------------------------------------- profile --
+let profileOpen = false;
+let profileError: string | null = null;
+let profileSaving = false;
+
+/**
+ * The first place in this app a player has ever been able to change anything
+ * about themselves. Until now `profiles.username` was assigned at sign-up and
+ * `flag` had sat unwritten since the very first migration.
+ *
+ * Three fields, and two of them are optional on purpose. "Did not say" is a
+ * real answer to both where you play from and what to call you, so neither
+ * question has a default and neither is ever inferred — not from a name, not
+ * from a voice, not from an IP.
+ */
+function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Your profile'));
+  panel.append(el('h2', undefined, 'Who yuh be'));
+
+  const name = document.createElement('input');
+  name.className = 'field';
+  name.value = me.username;
+  name.maxLength = 24;
+  name.setAttribute('aria-label', 'Your name');
+  panel.append(el('label', 'field-label', 'Name'), name);
+
+  panel.append(el('label', 'field-label', 'Where you play from'));
+  panel.append(el('p', 'muted small',
+    'Yard or foreign — both are Jamaican. Somebody in Brooklyn flying the '
+    + 'flag is still foreign, and that is the point of asking.'));
+  let origin: Origin | null = me.origin;
+  const originRow = choiceRow(
+    [['yardie', 'Yardie'], ['foreign', 'Foreign']],
+    () => origin,
+    (v) => { origin = v as Origin | null; },
+  );
+  panel.appendChild(originRow);
+
+  panel.append(el('label', 'field-label', 'Call me (optional)'));
+  let gender: Gender | null = me.gender;
+  const genderRow = choiceRow(
+    [['f', 'She'], ['m', 'He']],
+    () => gender,
+    (v) => { gender = v as Gender | null; },
+  );
+  panel.appendChild(genderRow);
+
+  if (profileError) panel.append(el('div', 'banner', profileError));
+
+  const save = document.createElement('button');
+  save.className = 'act';
+  save.textContent = profileSaving ? 'Saving…' : 'Save';
+  save.disabled = profileSaving;
+  save.onclick = () => void (async () => {
+    profileSaving = true;
+    profileError = null;
+    rerender();
+    try {
+      await saveProfile({ username: name.value, origin, gender });
+      // Re-read rather than patching the local copy: the server is the only
+      // thing that knows whether the name was actually accepted.
+      loungeState.me = await myProfile();
+      profileOpen = false;
+    } catch (err) {
+      profileError = err instanceof Error ? err.message : 'could not save';
+    } finally {
+      profileSaving = false;
+      rerender();
+    }
+  })();
+  panel.appendChild(save);
+  return panel;
+}
+
+/**
+ * A row of choices where picking the one already chosen clears it. That is how
+ * an optional question stays answerable with "actually, never mind" — without
+ * it, a player who taps "She" by accident can never take it back.
+ */
+function choiceRow(
+  options: [string, string][],
+  get: () => string | null,
+  set: (v: string | null) => void,
+): HTMLElement {
+  const row = el('div', 'choices');
+  const paint = () => {
+    for (const b of Array.from(row.children) as HTMLButtonElement[]) {
+      b.setAttribute('aria-pressed', String(b.dataset.value === get()));
+    }
+  };
+  for (const [value, label] of options) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'choice';
+    b.dataset.value = value;
+    b.textContent = label;
+    b.onclick = () => { set(get() === value ? null : value); paint(); };
+    row.appendChild(b);
+  }
+  paint();
+  return row;
+}
+
 // ----------------------------------------------------------- lounge list --
 function loungeList(rerender: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
@@ -385,9 +499,17 @@ function loungeList(rerender: () => void): DocumentFragment {
   if (me) {
     const you = el('div', 'row');
     you.append(el('span', 'muted', `Signed in as ${me.username}`), tierBadge(me.tier));
+    if (me.origin) you.append(originBadge(me.origin));
+    const edit = document.createElement('button');
+    edit.className = 'act ghost small';
+    edit.textContent = profileOpen ? 'Done' : 'Edit profile';
+    edit.onclick = () => { profileOpen = !profileOpen; profileError = null; rerender(); };
+    you.append(edit);
     head.append(you);
   }
   frag.appendChild(head);
+
+  if (me && profileOpen) frag.appendChild(profilePanel(me, rerender));
 
   frag.appendChild(joinByCodeField((tableId) => void attachTable(tableId, rerender)));
 

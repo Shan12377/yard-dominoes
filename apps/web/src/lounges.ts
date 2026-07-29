@@ -112,14 +112,75 @@ function db() {
 
 export const loungesAvailable = online;
 
-export async function myProfile(): Promise<{ id: string; username: string; tier: Tier } | null> {
+/**
+ * Yard or foreign — self-declared, never inferred, and never required.
+ *
+ * The business partner asked for this by name, and it is the one piece of
+ * identity in the product no rival has: the audience genuinely is split
+ * between the island and the diaspora, and a Jamaican in London wants to be
+ * read as foreign without anyone thinking she is any less Jamaican. It is a
+ * separate axis from `flag` (a territory code): you can fly jm and be foreign.
+ */
+export type Origin = 'yardie' | 'foreign';
+export type Gender = 'f' | 'm';
+
+export const ORIGIN_LABEL: Record<Origin, string> = {
+  yardie: 'Yardie',
+  foreign: 'Foreign',
+};
+
+export interface MyProfile {
+  id: string;
+  username: string;
+  tier: Tier;
+  origin: Origin | null;
+  gender: Gender | null;
+}
+
+export async function myProfile(): Promise<MyProfile | null> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) return null;
   const { data } = await db().from('profiles')
-    .select('id, username, tier, tier_expires_at').eq('id', auth.user.id).single();
+    .select('id, username, tier, tier_expires_at, origin, gender').eq('id', auth.user.id).single();
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
-  return { id: data.id, username: data.username, tier: (expired ? 'guest' : data.tier) as Tier };
+  return {
+    id: data.id,
+    username: data.username,
+    tier: (expired ? 'guest' : data.tier) as Tier,
+    origin: (data.origin ?? null) as Origin | null,
+    gender: (data.gender ?? null) as Gender | null,
+  };
+}
+
+/**
+ * Save what a member owns. Only these keys, ever — `tier` is granted to
+ * service_role alone (0012), and this is a good place to be reminded why: the
+ * paywall was decorative for a while because a table-wide UPDATE grant let
+ * anyone PATCH their own tier to 'vip'.
+ *
+ * Throws on a taken username, which is the one failure a player can actually
+ * fix, so the caller must show it rather than swallow it.
+ */
+export async function saveProfile(
+  patch: { username?: string; origin?: Origin | null; gender?: Gender | null },
+): Promise<void> {
+  const { data: auth } = await db().auth.getUser();
+  if (!auth.user) throw new Error('Sign in first');
+  if (patch.username !== undefined) {
+    const name = patch.username.trim();
+    if (name.length < 2 || name.length > 24) {
+      throw new Error('A name is between 2 and 24 characters');
+    }
+    patch = { ...patch, username: name };
+  }
+  const { error } = await db().from('profiles').update(patch).eq('id', auth.user.id);
+  if (error) {
+    // 23505 is the unique violation on username. Everything else is ours.
+    throw new Error(error.code === '23505'
+      ? 'Somebody already has that name'
+      : error.message);
+  }
 }
 
 export async function listLounges(): Promise<Lounge[]> {
