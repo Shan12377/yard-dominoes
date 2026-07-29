@@ -1,4 +1,4 @@
-/* Yard service worker.
+/* Beat Di Table service worker.
  *
  * Deliberately conservative. Three rules drive everything here:
  *
@@ -12,7 +12,7 @@
  *     network.
  */
 
-const VERSION = 'yard-v2';
+const VERSION = 'bdt-v1';
 const SHELL = `${VERSION}-shell`;
 
 // Bumping VERSION invalidates everything below.

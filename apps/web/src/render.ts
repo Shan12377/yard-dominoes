@@ -1,7 +1,7 @@
 import { halves } from '@yard/engine';
 import type { Board, Pip, TileId } from '@yard/engine';
-import { layoutLine, orientLine } from './layout.ts';
-import type { TilePlacement } from './layout.ts';
+import { layoutLine, MIN_WIDTH_UNITS, orientLine } from './layout.ts';
+import type { OrientedTile, TilePlacement } from './layout.ts';
 
 /** Pip positions on a 3x3 grid, per face value, for a vertical half. */
 const LAYOUT: Record<number, number[]> = {
@@ -59,15 +59,83 @@ function boardTile(p: TilePlacement): HTMLElement {
   return el;
 }
 
-/** One layout unit is half a tile's short side doubled — see layout.ts. */
-function unitPx(): number {
-  return window.innerWidth < 640 ? 13 : 15;
+/**
+ * One layout unit is half a tile's short side — a tile is 2 units across and
+ * 4 long (see layout.ts). The unit is therefore the single number deciding
+ * whether the board reads as real dominoes or as counters, which is why it is
+ * measured rather than guessed: it used to be a hardcoded 13 or 15, so the
+ * felt stretched to the screen while the bones stayed the same size on a
+ * phone and a 27-inch monitor alike.
+ */
+const MIN_UNIT = 11;
+const MAX_UNIT = 28;
+
+/** Felt border + felt padding + the line's own padding, both sides. */
+const CHROME_X = 2 * (6 + 12 + 10);
+const CHROME_Y = 2 * (6 + 14 + 10);
+
+export interface BoardFit {
+  /** Cap the width in units — the hero uses it to keep its demo line short. */
+  maxUnits?: number;
+  /** Pin the unit instead of fitting, for boards whose box is not the felt. */
+  unit?: number;
 }
 
-function boardUnits(u: number): number {
-  // App column is capped at 940px; subtract app padding, felt border+padding.
-  const avail = Math.min(window.innerWidth, 940) - 32 - 36 - 20;
-  return Math.floor(avail / u);
+/** The box the grid has to live inside, in CSS pixels. */
+export interface BoardBox { width: number; height: number }
+
+/** What the felt actually offers: app column capped at 940, felt at 64vh. */
+function feltBox(): BoardBox {
+  return {
+    width: Math.min(window.innerWidth, 940) - 32 - CHROME_X,
+    height: Math.min(window.innerHeight * 0.64, 560) - CHROME_Y,
+  };
+}
+
+export function rowsOf(placements: TilePlacement[]): number {
+  const min = Math.min(...placements.map((p) => p.row));
+  const max = Math.max(...placements.map((p) => p.row + p.rowSpan));
+  return max - min;
+}
+
+/**
+ * The largest tiles this line fits in at. Pure, so it can be tested without
+ * a browser — `fitBoard` only supplies the measurements.
+ *
+ * Bigger tiles mean fewer units across, which means more rows, which needs
+ * more height — so the size cannot be solved directly and is searched for
+ * instead, largest first. `layoutLine` is pure and a hand is at most 28
+ * tiles, so trying every size costs nothing measurable.
+ *
+ * A four-tile opening therefore renders big and a full board still fits,
+ * where before both rendered identically small.
+ */
+export function chooseUnit(
+  line: OrientedTile[], box: BoardBox, opts: BoardFit = {},
+): { u: number; placements: TilePlacement[] } {
+  const cap = opts.maxUnits ?? Infinity;
+
+  const at = (u: number) => {
+    const across = Math.min(Math.floor(box.width / u), cap);
+    // Narrower than this and layoutLine has no room to turn the elbow.
+    return across < MIN_WIDTH_UNITS ? null : layoutLine(line, across);
+  };
+
+  if (opts.unit) {
+    const placements = at(opts.unit);
+    if (placements) return { u: opts.unit, placements };
+  }
+
+  let last: { u: number; placements: TilePlacement[] } | null = null;
+  for (let u = MAX_UNIT; u >= MIN_UNIT; u--) {
+    const placements = at(u);
+    if (!placements) continue;
+    last = { u, placements };
+    if (rowsOf(placements) * u <= box.height) return last;
+  }
+  // Nothing fit the height budget — take the smallest and let the felt
+  // scroll, which is what it did for every board before this.
+  return last ?? { u: MIN_UNIT, placements: layoutLine(line, MIN_WIDTH_UNITS) };
 }
 
 /**
@@ -75,7 +143,7 @@ function boardUnits(u: number): number {
  * with touching halves matching, doubles crosswise in the line, and the line
  * snaking 90° at the table edge. Layout math lives in layout.ts.
  */
-export function renderBoard(host: HTMLElement, board: Board | null, maxUnits?: number) {
+export function renderBoard(host: HTMLElement, board: Board | null, opts: BoardFit = {}) {
   host.innerHTML = '';
   if (!board || board.line.length === 0) {
     host.style.gridTemplateColumns = '';
@@ -83,9 +151,7 @@ export function renderBoard(host: HTMLElement, board: Board | null, maxUnits?: n
     return;
   }
 
-  const u = unitPx();
-  const units = Math.min(boardUnits(u), maxUnits ?? Infinity);
-  const placements = layoutLine(orientLine(board), units);
+  const { u, placements } = chooseUnit(orientLine(board), feltBox(), opts);
 
   const maxCol = Math.max(...placements.map((p) => p.col + p.colSpan));
   const minRow = Math.min(...placements.map((p) => p.row));

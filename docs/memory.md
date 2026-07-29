@@ -271,6 +271,94 @@ re-deriving it from chat history.
      which is why a whole Fair Deal page was not converting a real structural
      advantage into something felt.
 
+5. **Billing — the paywall was decorative, and renewals killed members.**
+   Found by reading `.claude/rules/billing.md` against the code it governs:
+   the rule already specified the correct behaviour and the webhook did not
+   implement it. Four separate defects, all in the money path.
+
+   - **Anyone signed in could grant themselves VIP.** `0006` granted
+     table-wide `UPDATE` on every table to `authenticated` so RLS could act
+     as the gate, but RLS is row-level only: the profiles policy decides
+     which ROW you may write, never which COLUMNS. `effective_tier()` reads
+     `tier` and `tier_expires_at`, both of which sat in that grant, so one
+     PATCH bought a free membership. Ratings, `hands_played` and the speed
+     counters were writable too, which made every leaderboard fiction.
+     Setting `stripe_customer_id` to a paying member's id was worse still —
+     the webhook matches renewals on that column. Fixed in
+     `0012_profile_column_privileges.sql` with column grants (`username`,
+     `flag`, `bio` — the three a member actually owns). Postgres checks
+     column privileges before RLS, which is why this is the right layer.
+     **A future blanket `grant update on all tables` silently reopens it.**
+   - **A hardcoded year, whatever the term.** `checkout.session.completed`
+     set `tier_expires_at` to now + 1 year regardless of the price bought, so
+     a monthly price sold twelve months for one and cancelling after the
+     first payment kept the other eleven. It now reads the real period from
+     the subscription. The term lives in a dashboard price id, so the code
+     cannot infer it — it has to ask.
+   - **`invoice.paid` was not handled at all**, the exact failure the rule
+     warns about in bold: Stripe renews and charges the card while
+     `effective_tier` sees an expired date and drops a paying member to
+     guest. Now the authoritative writer for every renewal. Checkout stamps
+     `subscription_data[metadata]` so a renewal a year out identifies its own
+     member without depending on event ordering; subscriptions sold before
+     that are still found by customer id.
+   - **Cancellation threw and retried forever.** Stripe moved
+     `current_period_end` off the Subscription onto its items in the
+     2025-03-31 API version. `new Date(undefined * 1000).toISOString()`
+     raises a RangeError, so the handler 500'd, Stripe retried the event
+     indefinitely, and the cancellation never applied — a cancelled member
+     kept access permanently. All period reads now check both layouts.
+   - Refunds and chargebacks revoke immediately (`0011_billing_hold.sql`
+     adds the flag; note `profiles.flag` is a territory code and unrelated).
+     A Dispute names only its charge, never a customer, so the charge is read
+     back to find whose membership it is. `invoice.payment_failed`
+     deliberately has no handler — dunning retries for weeks and ends in
+     `subscription.deleted`, which is handled, so acting on the first failure
+     would cut off a member whose card is about to go through.
+
+   Every handler is idempotent by construction (absolute timestamps, never
+   increments), so Stripe's retries need no event-id table. The pure payload
+   readers live in `supabase/functions/_shared/billing.ts` with 14 tests in
+   `npm test` — Deno is not installed locally and edge functions are outside
+   the `tsc` project, so without those the money path had no check at all.
+
+   **Not done, and deliberate:** `customer.subscription.updated` (upgrade
+   Yardie → VIP via the Stripe portal). There is no portal link in the app,
+   so every tier change currently goes back through checkout, which handles
+   it. Wire it if a portal ships. Also unguarded: `invoice.paid` assumes
+   every invoice is a subscription invoice. It is — everything sold is
+   `mode: 'subscription'` — and a shape-sniffing guard whose failure mode is
+   "lock out a paying member" is a worse trade than the manual-invoice edge
+   case it would protect against.
+
+6. **The board never grew — fixed 2026-07-29.** Raised by the business
+   partner after a JamDom walkthrough: "yours need to be a little bit bigger,
+   so it's like an actual domino you're looking at." He was describing a real
+   bug, not a preference. `unitPx()` in `render.ts` returned a hardcoded 13 or
+   15, so a tile was 60px tall on a phone and on a 27-inch monitor alike — the
+   felt stretched to the viewport while the bones stayed put, and a four-tile
+   opening rendered at exactly the same size as a twenty-eight-tile endgame.
+
+   The unit is now searched for rather than fixed. Bigger tiles mean fewer
+   units across, which means more rows, which needs more height, so the size
+   cannot be solved directly — `chooseUnit()` tries MAX_UNIT (28) downward and
+   takes the first that fits both the width and the felt's `min(64vh, 560px)`.
+   `layoutLine` is pure and a hand is 28 tiles at most, so trying every size
+   costs nothing. Measured: desktop went 15 → 28 (tile 30×60 → 56×112), phone
+   13 → 23 (26×52 → 46×92), both roughly double.
+
+   Two things this depended on. The pips were a hardcoded 5px, which left a
+   big bone looking almost blank — they are now sized as a percentage of their
+   cell. And the host element is **detached** when `renderBoard` runs (it is
+   built, filled, then appended), so measuring the parent is not an option and
+   the box is computed from the window and the known CSS chrome instead.
+
+   `chooseUnit()` is pure and exported for that reason; `apps/web/src/render.test.ts`
+   asserts across every board length 1–28 on a phone and a desktop box that the
+   line fits its width, fits its height, never shrinks on the larger screen, and
+   never squeezes below `MIN_WIDTH_UNITS`. The hero pins `unit: 15` so the front
+   door keeps the size it was designed at.
+
 ## Done — infrastructure (2026-07-27 session)
 
 Everything below is live and verified, not just written:
@@ -309,11 +397,16 @@ Everything below is live and verified, not just written:
   guard, same pattern as `main.ts`'s `ensureLoungeModule()`/`loungeLoading`),
   parked during the online-play final review rather than blocking merge.
 
-- **Billing webhook gaps** (`billing.md`, doc #2): only `checkout.session.completed`
-  and `customer.subscription.deleted` are wired. Missing: `invoice.paid` (the
-  one that keeps renewals alive — its absence is a real bug waiting to happen,
-  not a hypothetical), `invoice.payment_failed`, `customer.subscription.updated`,
-  `charge.refunded`, `charge.dispute.created`. No plan written yet for this.
+- ~~**Billing webhook gaps**~~ — fixed 2026-07-29, see phase 5 above. Only
+  `customer.subscription.updated` remains unwired, and only matters once a
+  Stripe billing portal exists.
+
+- **The Stripe endpoint must be reconfigured to send the new events.** The
+  code handles `invoice.paid`, `charge.refunded` and `charge.dispute.created`;
+  the dashboard endpoint is still subscribed to the original two, so until
+  someone ticks them the renewal fix does nothing in production. Migrations
+  `0011` and `0012` also need applying, and `0012` is the one that closes the
+  free-VIP hole. Deploy order does not matter, but neither is optional.
 
 - Rankings/leaderboard UI (per-style ratings already tracked in
   `profiles.rating_partner` / `rating_cutthroat`, never surfaced anywhere).

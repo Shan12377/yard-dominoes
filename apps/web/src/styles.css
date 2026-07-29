@@ -303,7 +303,12 @@ label.field > span {
   display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
   place-items: center; padding: 2px;
 }
-.tile .half b { width: 5px; height: 5px; border-radius: 50%; background: var(--pip); display: block; }
+/* Sized against the cell, not in pixels: board tiles now scale to the felt,
+   and a fixed 5px pip left a big bone looking almost blank. */
+.tile .half b {
+  width: 56%; aspect-ratio: 1; border-radius: 50%;
+  background: var(--pip); display: block;
+}
 
 .hand { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0; }
 .hand .tile { --w: 38px; --h: 76px; cursor: pointer; transition: transform 140ms ease; }
@@ -705,3 +710,34 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   from { transform: scale(0.4) rotate(-12deg); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
+
+/* -------------------------------------------------------------------- legal */
+/* A policy nobody can read is weaker evidence of consent than one they can,
+   so these pages run wider and darker than the .lesson default they reuse. */
+.legal { max-width: 62ch; }
+.legal .lesson p { font-size: 14.5px; line-height: 1.6; color: var(--ink); margin-bottom: 8px; }
+.legal .lesson p:last-child { margin-bottom: 0; }
+.legal-updated { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+.legal-footer {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 22px; padding-top: 14px;
+  border-top: 1px solid rgba(36, 22, 8, 0.12);
+  font-size: 12px; color: var(--muted);
+}
+.linky {
+  background: none; border: 0; padding: 0;
+  font-family: var(--body); font-size: 12px; color: var(--muted);
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.linky:hover { color: var(--ink); }
+
+.age-gate { display: flex; gap: 8px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+.age-gate input {
+  font-family: var(--mono); font-size: 16px; /* 16px or iOS zooms on focus */
+  width: 7ch; padding: 9px 10px;
+  border: 1px solid rgba(36, 22, 8, 0.28); border-radius: var(--r);
+  background: var(--bone); color: var(--ink);
+}
+.age-gate input:focus-visible { outline: 2px solid var(--forest); outline-offset: 1px; }
+.age-error { color: var(--blood); font-size: 13px; margin-top: 8px; }

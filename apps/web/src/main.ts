@@ -14,7 +14,12 @@ import {
   applyUpdate, updatePending, IOS_STEPS,
 } from './pwa.ts';
 
-type View = 'play' | 'lounges' | 'academy' | 'membership' | 'fair' | 'replay';
+import {
+  ageGate, privacyView, socialAllowed, termsView, tooYoungView,
+} from './legal.ts';
+
+type View = 'play' | 'lounges' | 'academy' | 'membership' | 'fair' | 'replay'
+  | 'terms' | 'privacy';
 
 const app = document.getElementById('app')!;
 
@@ -104,7 +109,7 @@ function installCard(): HTMLElement | null {
   card.append(el('div', 'eyebrow', 'Put it on your phone'));
 
   if (p === 'prompt') {
-    card.append(el('h2', undefined, 'Install Yard'));
+    card.append(el('h2', undefined, 'Install Beat Di Table'));
     card.append(el('p', 'muted',
       'Add it to your home screen — opens full screen, loads instantly, and works offline against the duppies.'));
     const b = document.createElement('button');
@@ -117,7 +122,7 @@ function installCard(): HTMLElement | null {
     };
     card.appendChild(b);
   } else if (p === 'ios-safari') {
-    card.append(el('h2', undefined, 'Add Yard to your home screen'));
+    card.append(el('h2', undefined, 'Add Beat Di Table to your home screen'));
     card.append(el('p', 'muted', 'Three taps, and it opens like any other app.'));
     const list = el('ul', 'steps');
     for (const step of IOS_STEPS) {
@@ -129,7 +134,7 @@ function installCard(): HTMLElement | null {
   } else {
     card.append(el('h2', undefined, 'Open in Safari to install'));
     card.append(el('p', 'muted',
-      'On iPhone, only Safari can add an app to the home screen. Open yard in Safari, then tap Share and Add to Home Screen.'));
+      'On iPhone, only Safari can add an app to the home screen. Open Beat Di Table in Safari, then tap Share and Add to Home Screen.'));
   }
 
   const skip = document.createElement('button');
@@ -149,7 +154,7 @@ function updateBar(): HTMLElement | null {
   const midHand = game?.hand?.status === 'active';
   const bar = el('div', 'update-bar');
   bar.append(el('span', undefined,
-    midHand ? 'A new version is ready — it will apply after this hand.' : 'A new version of Yard is ready.'));
+    midHand ? 'A new version is ready — it will apply after this hand.' : 'A new version of Beat Di Table is ready.'));
   if (!midHand) {
     const b = document.createElement('button');
     b.className = 'act ghost';
@@ -164,7 +169,7 @@ function updateBar(): HTMLElement | null {
 function chrome(): HTMLElement {
   const bar = el('div', 'topbar');
   const brand = el('div', 'brand');
-  const h1 = el('h1', undefined, 'Yard');
+  const h1 = el('h1', undefined, 'Beat Di Table');
   const tag = el('span', 'eyebrow', 'Jamaican dominoes');
   brand.append(h1, tag);
 
@@ -321,7 +326,7 @@ function hero(): HTMLElement {
   copy.appendChild(row);
 
   const line = el('div', 'line demo');
-  renderBoard(line, DEMO_BOARD, 22);
+  renderBoard(line, DEMO_BOARD, { maxUnits: 22, unit: 15 });
 
   felt.append(copy, line);
   return felt;
@@ -360,7 +365,7 @@ function replayView(): HTMLElement {
   const step = r.steps[replayStep - 1] ?? null;
 
   const head = el('div', 'panel');
-  head.append(el('div', 'eyebrow', 'A hand from Yard'));
+  head.append(el('div', 'eyebrow', 'A hand from Beat Di Table'));
   head.append(el('h2', undefined, 'Watch it back'));
   head.append(el('p', 'muted',
     'Every tile, in the order it went down. Nobody\'s hand is in this link — ' +
@@ -1033,6 +1038,25 @@ function fairView(): HTMLElement {
   return panel;
 }
 
+/**
+ * Terms and privacy belong within reach of every screen but nowhere near the
+ * five things people came to do, so they sit in a footer rather than taking a
+ * sixth slot in the nav.
+ */
+function legalFooter(): HTMLElement {
+  const foot = el('footer', 'legal-footer');
+  const links: [View, string][] = [['terms', 'Terms'], ['privacy', 'Privacy']];
+  for (const [id, label] of links) {
+    const link = document.createElement('button');
+    link.className = 'linky';
+    link.textContent = label;
+    link.onclick = () => { view = id; render(); };
+    foot.appendChild(link);
+  }
+  foot.appendChild(el('span', undefined, `© ${new Date().getFullYear()} Beat Di Table`));
+  return foot;
+}
+
 function pending(message: string): HTMLElement {
   const panel = el('div', 'panel');
   panel.append(el('div', 'eyebrow', 'One moment'), el('h2', undefined, message));
@@ -1062,7 +1086,22 @@ function render() {
       app.appendChild(lobby());
     }
   } else if (view === 'lounges') {
-    app.appendChild(loungeModule ? loungeModule.loungesView(render) : pending('Opening the lounges'));
+    // The lounges are the only place strangers can talk to you, so the age
+    // screen sits here rather than at sign-in — sign-in is silent and
+    // anonymous by design, and solo play against the duppies involves nobody
+    // else and stays open to everyone.
+    const allowed = socialAllowed();
+    if (allowed === null) {
+      app.appendChild(ageGate(() => render()));
+    } else if (!allowed) {
+      app.appendChild(tooYoungView(() => { view = 'play'; render(); }));
+    } else {
+      app.appendChild(loungeModule ? loungeModule.loungesView(render) : pending('Opening the lounges'));
+    }
+  } else if (view === 'terms') {
+    app.appendChild(termsView());
+  } else if (view === 'privacy') {
+    app.appendChild(privacyView());
   } else if (view === 'academy') {
     app.appendChild(academyView());
   } else if (view === 'membership') {
@@ -1070,6 +1109,10 @@ function render() {
   } else {
     app.appendChild(fairView());
   }
+
+  // Not during a live hand — the table is full-bleed and a footer under it
+  // reads as the game having ended.
+  if (!(view === 'play' && game)) app.appendChild(legalFooter());
 }
 
 // --- bootstrap --------------------------------------------------------------
