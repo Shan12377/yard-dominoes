@@ -100,7 +100,7 @@ function installCard(): HTMLElement | null {
   const p = platform();
   if (p === 'installed' || p === 'unsupported') return null;
 
-  const card = el('div', 'install-card');
+  const card = el('div', 'install-card door');
   card.append(el('div', 'eyebrow', 'Put it on your phone'));
 
   if (p === 'prompt') {
@@ -415,7 +415,7 @@ function replayView(): HTMLElement {
   bar.appendChild(controls);
   frag.appendChild(bar);
 
-  const cta = el('div', 'panel');
+  const cta = el('div', 'panel door');
   cta.append(el('h2', undefined, 'Your turn.'));
   cta.append(el('p', 'muted',
     'Yard rules, a deal you can check, and a coach that tells you the move ' +
@@ -442,14 +442,13 @@ function seatName(r: ReplayHand, seat: number): string {
 
 // ----------------------------------------------------------------- lobby --
 function lobby(): HTMLElement {
-  const panel = el('div', 'panel');
+  const panel = el('div', 'panel door');
   panel.append(
     el('div', 'eyebrow', 'Start a game'),
     el('h2', undefined, 'Sit down'),
   );
 
-  const form = el('div', 'row');
-  form.style.marginTop = '14px';
+  const form = el('div', 'lobby-form');
 
   const mode = document.createElement('select');
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>
@@ -1038,6 +1037,9 @@ function render() {
     } else {
       // The table sells the game; the install card waits its turn below it.
       app.appendChild(hero());
+      // Carries the green of the felt down into the cream page, so the half
+      // below the fold reads as the same yard rather than a separate site.
+      app.appendChild(el('div', 'yard-band'));
       const card = installCard();
       if (card) app.appendChild(card);
       app.appendChild(lobby());

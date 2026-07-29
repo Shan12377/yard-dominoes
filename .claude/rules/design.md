@@ -63,8 +63,15 @@ substitutes for the actual surface materials (felt, wood, bone).
   flyer.
 - **Body** — `Karla`. Warm, slightly quirky, not a default UI face.
 - **Mono** — `IBM Plex Mono`. Scores, counts, join codes, timers.
-- **`Bungee`** — reserved for the six-love celebration and the wordmark ONLY.
-  It is a signage face; used anywhere else it becomes noise.
+- **`Bungee`** — the poster voice: the wordmark, the six-love celebration, and
+  the headings on the front door (the hero and the cards a visitor sees before
+  they sit down). It is a signage face and it stops at the table — inside a
+  live game, headings are Anton. Mixing the two faces on one screen is what
+  made the front page read as two different sites stacked on each other: a
+  Bungee hero over Anton section headings.
+
+  Bungee is bright gold on the felt and `--ink` on cream. Never bright gold on
+  cream — it fails contrast.
 
 Patois goes in the interface, not just the copy: pose, bruk, under love, count,
 slam, sporting, duppy, bredrin. Never translate these into generic game words.
@@ -85,6 +92,32 @@ design:
    a bulb. Gradients run top-light to bottom-dark, consistently, everywhere,
    including on the cream room itself (a very slight vignette keeps the
    content area from reading as a flat fill).
+5. **Cards are objects too.** Panels get the same treatment as tiles: a
+   top-light gradient, a slightly darker bottom border for thickness, and a
+   soft warm shadow. A card that is one flat fill with a hairline border is
+   the thing that makes a page look like 2009.
+6. **No stock form controls, ever.** A `<select>` without `appearance: none`
+   renders the operating system's chevron and focus ring, and that single
+   detail undoes everything else on the page — it is the most dated thing we
+   shipped and the first thing that read as the incumbent's site. Controls get
+   our chevron, our border, our gold focus ring.
+
+## Illustration
+
+`apps/web/public/art/yard-band.svg` is the house motif: coconut palms, a midday
+sun, and a line of bones stood up in the yard, flat vector in four palette
+colours. It sits between the felt hero and the cream cards and carries the
+green down the page.
+
+The register is a dancehall flyer silhouette, **not** a travel-brochure beach —
+that distinction is the whole point, because postcard-tropical is exactly the
+cliché that makes a Caribbean product look generic. The standing bones are what
+make it this game's picture rather than stock palm art; keep them in anything
+that replaces it.
+
+It renders `contain` at every width. Do not "fix" the small phone rendering by
+cropping it — the palms sit near the artboard edges and a crop slices them in
+half. More presence on a phone means a second, tighter composition.
 
 ## Motion
 

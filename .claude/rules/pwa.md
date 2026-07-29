@@ -65,8 +65,12 @@ instructions.
 - `start_url` must be inside `scope` or install silently fails.
 - Keep one `maskable` icon with content inside the middle 80%, or Android crops
   into the tile art.
-- `theme_color` must match the CSS background (`#140B09`) or the status bar
-  flashes a different colour on launch.
+- `theme_color` and `background_color` must match the CSS background — the
+  Sunday Yard room, `#FAF3E1` — or the status bar and the launch splash flash
+  a different colour. These were left on the old dark theme's `#140B09` for a
+  full palette cycle, so an installed phone opened on a black splash into a
+  cream app. Whenever the room colour changes, change these three together:
+  `manifest.webmanifest`, the `theme-color` meta in `index.html`, and `--sand`.
 
 ## Testing
 

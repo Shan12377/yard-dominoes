@@ -12,7 +12,7 @@
  *     network.
  */
 
-const VERSION = 'yard-v1';
+const VERSION = 'yard-v2';
 const SHELL = `${VERSION}-shell`;
 
 // Bumping VERSION invalidates everything below.
