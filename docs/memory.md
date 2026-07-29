@@ -167,10 +167,109 @@ re-deriving it from chat history.
      technically outside a too-strict reading of "green is the table surface
      only," ruled acceptable since the actual design principle is a
      proportion/balance rule, not a single-selector lock.
-3. **Voice** — not started. Confirmed **real live voice**, not voice notes.
-   Requires a LiveKit or Daily account (real per-minute cost, needs your
-   credentials) before any code gets written for it. `CLAUDE.md` updated
-   2026-07-27 to reflect this as planned rather than off-limits.
+3. **Voice — built, and as of 2026-07-28 actually proven to work.** The
+   LiveKit/Daily requirement in the old version of this entry is gone: voice
+   is a peer-to-peer WebRTC mesh signalling over the Supabase Realtime channel
+   the lounge already holds (`apps/web/src/voice.ts`). No SFU, no media
+   vendor, no per-minute bill. Full failure list in `.claude/rules/voice.md`.
+
+   - **It had never once connected two people, and nothing said so.**
+     `enterLounge` read `entries[0]` from `channel.presenceState()`. Realtime
+     keys presence to an *array* of metas per person and a second `track()`
+     appends rather than replaces, so `entries[0]` is frozen at the moment
+     someone walked into the room — before they picked up a microphone. The
+     `voice` flag therefore stayed `false` for everybody forever,
+     `syncRoster()` never had a peer to dial, and `new RTCPeerConnection` was
+     never called at all. Both sides showed "Listening" and heard silence,
+     with no error in any console. Fixed by reading the newest meta
+     (`newestPresence()` in `voice.ts`, sitting next to `diffRoster()`, the
+     step it feeds, with regression tests for the two-meta case and for a key
+     left with no metas — that one put `undefined` in the roster and threw
+     inside render).
+   - **Only a second real client could have found it.** Unit tests pass on
+     the broken version; one browser looks fine. `voice.md` already warned
+     that two tabs share `localStorage`, collapse to one Supabase session,
+     and prove nothing — that warning is now load-bearing, not advice.
+   - **Proven, not assumed** (`docs/two-client-voice-check.mjs`,
+     `docs/two-client-audio-1-signin.mjs`, `docs/two-client-audio-2-flow.mjs`):
+     both peers reach `connectionState: 'connected'`; audio packets are sent
+     and bytes arrive at the far end; the arriving audio carries real
+     `totalAudioEnergy` (silence packets would satisfy a byte counter, so
+     energy is the honest metric); **mute drops far-end energy to exactly
+     +0.000000 against +1.61 unmuted**, which is the one bug `voice.md` says
+     loses trust permanently; and leaving stops every sender track, so no
+     recording light is left on. Speaking needs a paid tier, so the audio
+     harness runs in two phases with the tier set out of band — both test
+     accounts were reverted to guest afterwards.
+   - **Reactions and voice now render at the four-seat table**, not only in
+     the lounge. This was a rendering gap, not missing plumbing: the table
+     view replaces the room view but nothing leaves the lounge channel, so
+     the mesh was already live there and simply was not drawn. Seats show who
+     is talking and what they threw; the speaking glow deliberately leaves
+     `border-color` alone so it can never mask the gold whose-turn ring.
+   - **All three routes onto a seat now join the channel.** Only "sit down
+     from inside a lounge" ever did. Joining by code left the mic on
+     "Connecting…" forever and dropped every reaction; they all go through
+     `attachTable()`, which guards against re-entering a lounge you are
+     already talking in (`openLounge()` tears the room down and would drop a
+     live mic).
+
+   **Still unproven, and both need a real device — do not claim otherwise:**
+   (a) iOS Safari backgrounding, where the WebSocket dies with no close event
+   and voice must recover on return; the simulator does not reproduce it.
+   (b) Strict-NAT relay, which cannot be exercised until Cloudflare TURN
+   credentials exist. There is no TURN configured today — `iceServers()` adds
+   one only if `VITE_TURN_URL/USERNAME/CREDENTIAL` are set, and they are not
+   set anywhere, not even in `.env.example`. STUN alone covers the majority
+   and those behind strict NAT currently just fail to connect.
+
+   **When TURN is wired, do not use static `VITE_` credentials.** Anything
+   `VITE_`-prefixed is compiled into the bundle and readable in devtools, so
+   static TURN creds let anyone relay on the account — burning the 1,000 GB
+   free tier and then real money at $0.05/GB. Cloudflare's TURN is built
+   around short-lived credentials minted from a TURN Key; mint them in an
+   Edge Function per session. Sizing: ~50 MB per relayed player-hour in a
+   four-seat mesh, so the free tier is roughly 19,000 relayed player-hours a
+   month, and only the minority behind strict NAT relay at all.
+
+   `canSpeak()` remains a client-side gate — a patched client could still
+   transmit. The fix when freeloading actually appears is Realtime
+   Authorization (an RLS policy on `realtime.messages` for the
+   `voice-signal` event), which needs a migration. Not more client checks.
+
+4. **Front door + the Verify line — shipped 2026-07-28.**
+   - The page's bottom half read as an older site than the hero. Three causes,
+     all fixed: stock `<select>` controls (no `appearance: none`, so the OS
+     drew its own chevron and focus ring — the single most dated thing on the
+     page and the strongest "this is the incumbent" signal); two typefaces on
+     one screen (Bungee hero over Anton headings — Bungee is now the poster
+     voice for the whole front door and hands over to Anton at the table);
+     and flat cards, which now get the light-from-above, bottom-edge,
+     real-shadow treatment `design.md` already demanded of the tiles.
+   - `apps/web/public/art/yard-band.svg` is the house motif — coconut palms, a
+     midday sun, a line of bones stood up in the yard — bridging the felt into
+     the cream. Deliberately a dancehall-flyer silhouette, **not** a
+     travel-brochure beach; postcard-tropical is the cliché that makes
+     Caribbean products look generic, and the standing bones are what make it
+     this game's picture rather than stock palm art. It renders `contain` at
+     every width: cropping it on phones was tried and reverted because the
+     palms sit near the artboard edges and any crop slices them in half.
+   - **A latent bug from the Sunday Yard palette change:** the manifest and
+     the `theme-color` meta still declared the old dark theme
+     (`#140B09`/`#1A0F0D`), so an installed phone opened on a near-black
+     splash and status bar into a cream app. Fixed, and `pwa.md` now says to
+     change the three together whenever the room colour moves.
+   - **The service worker `VERSION` had never been bumped** after the palette
+     change, so returning players were being served the old design
+     indefinitely. Hit this personally mid-build when the browser kept showing
+     stale CSS. Bumped to `yard-v2`.
+   - **The Verify line now appears where the suspicion actually lands** — on a
+     loss, with a sharper variant when six love has just gone against you.
+     The button, the Fair Deal page and the hero link were all already built;
+     the pointed line was missing at the only moment it means anything.
+     Explaining the cryptography anywhere else is a lecture nobody asked for,
+     which is why a whole Fair Deal page was not converting a real structural
+     advantage into something felt.
 
 ## Done — infrastructure (2026-07-27 session)
 
