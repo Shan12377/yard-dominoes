@@ -32,7 +32,7 @@ Deno.serve(handled(async (req) => {
   if (row.turn !== mySeat) throw new HttpError(409, 'not your turn');
   if (move.seat !== mySeat) throw new HttpError(403, 'you cannot move for another seat');
 
-  let state = toState(row, table!.seat_count, table!.mode);
+  let state = toState(row, table!.seat_count, table!.mode, table!.format);
   if (!isLegal(state, move)) throw new HttpError(422, 'illegal move');
 
   const clock: Clock = { base: table!.turn_seconds, cap: table!.turn_cap_seconds };
@@ -81,7 +81,7 @@ Deno.serve(handled(async (req) => {
       options: {
         mode: table!.mode, format: table!.format, seatCount: table!.seat_count,
         tournament: table!.tournament, oneAllPlayTwo: table!.one_all_play_two,
-        useBoneyard: table!.use_boneyard, target: 6,
+        useBoneyard: table!.use_boneyard, target: table!.format === 'french' ? 100 : 6,
       },
       scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,
       poseMustBeDoubleSix: set!.pose_must_be_double_six, playoff: set!.playoff,

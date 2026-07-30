@@ -22,7 +22,7 @@ Deno.serve(handled(async () => {
     const { data: table } = await db.from('tables').select('*').eq('id', set!.table_id).single();
     const { data: seats } = await db.from('seats').select('*').eq('table_id', table!.id).order('seat_index');
 
-    let state = toState(row as any, table!.seat_count, table!.mode);
+    let state = toState(row as any, table!.seat_count, table!.mode, table!.format);
     if (legalMoves(state).length === 0) continue;
 
     const clock = { base: table!.turn_seconds, cap: table!.turn_cap_seconds };
@@ -55,7 +55,7 @@ Deno.serve(handled(async () => {
         options: {
           mode: table!.mode, format: table!.format, seatCount: table!.seat_count,
           tournament: table!.tournament, oneAllPlayTwo: table!.one_all_play_two,
-          useBoneyard: table!.use_boneyard, target: 6,
+          useBoneyard: table!.use_boneyard, target: table!.format === 'french' ? 100 : 6,
         },
         scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,
         poseMustBeDoubleSix: set!.pose_must_be_double_six, playoff: set!.playoff,

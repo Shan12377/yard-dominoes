@@ -22,7 +22,7 @@ import { loadQueue, standingFor } from '../_shared/tournament.ts';
 import { clockByName } from '../_shared/engine/clock.ts';
 
 const MODES = ['cutthroat', 'partner', 'openhand'];
-const FORMATS = ['sixlove', 'firstToSix', 'single'];
+const FORMATS = ['sixlove', 'firstToSix', 'single', 'french'];
 /** Mirrors CLOCKS in the engine, and the check constraint in 0015. */
 const CLOCKS = ['speed', 'yard', 'relaxed'];
 

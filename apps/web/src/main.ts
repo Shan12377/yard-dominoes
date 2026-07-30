@@ -2,6 +2,15 @@ import {
   BELTS, lessonByRef, knownVoids, GRADE_LABEL, duppyLine, halves, TALK_CHANCE,
   EMPTY_LEAKS, recordHand, standoutLeak, describeLeak, isPartnered, sideOf,
 } from '@yard/engine';
+
+function formatLabel(format: SetFormat): string {
+  switch (format) {
+    case 'sixlove': return 'Six love';
+    case 'firstToSix': return 'First to six';
+    case 'french': return 'French — race to 100';
+    case 'single': return 'Single hand';
+  }
+}
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { Board, DuppyLevel, GameMode, HandReview, Move, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
@@ -524,10 +533,15 @@ function lobby(): HTMLElement {
   const format = document.createElement('select');
   const syncFormat = () => {
     // Cut throat six love runs to a median of ~196 hands. Never make it the
-    // default on a phone; players abandon halfway and everyone loses.
-    format.innerHTML = isPartnered(mode.value as GameMode)
+    // default on a phone; players abandon halfway and everyone loses. French
+    // is 4-hand cut throat only in v1 (see french debrief).
+    const partnered = isPartnered(mode.value as GameMode);
+    const cutthroatOptions = `<option value="firstToSix">First to six</option>`
+      + `<option value="sixlove">Six love — very long</option>`
+      + `<option value="french">French — race to 100 (lowest wins)</option>`;
+    format.innerHTML = partnered
       ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
-      : `<option value="firstToSix">First to six</option><option value="sixlove">Six love — very long</option>`;
+      : cutthroatOptions;
   };
   syncFormat();
   mode.onchange = syncFormat;
@@ -594,7 +608,7 @@ function scoreboard(g: LocalGame): HTMLElement {
   const meta = el('div', 'stack');
   meta.style.marginLeft = 'auto';
   meta.style.textAlign = 'right';
-  meta.append(el('div', 'eyebrow', g.options.format === 'sixlove' ? 'Six love' : 'First to six'));
+  meta.append(el('div', 'eyebrow', formatLabel(g.options.format)));
   if (g.set.handValue > 1) {
     meta.append(el('div', 'side-name', g.set.playoff
       ? 'One all — this hand plays two'

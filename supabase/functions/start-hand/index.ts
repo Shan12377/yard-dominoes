@@ -76,6 +76,10 @@ Deno.serve(handled(async (req) => {
     useBoneyard: table.use_boneyard,
     poser: set!.pose_must_be_double_six ? undefined : set!.poser,
     poseMustBeDoubleSix: set!.pose_must_be_double_six || table.tournament,
+    // French round 1 is opened by whoever holds the chucha (0-0). The
+    // pose_must_be_double_six flag stays TRUE for that first hand (createSet
+    // sets it), and openingTile switches from 6-6 to 0-0 for French.
+    openingTile: table.format === 'french' ? '0-0' : '6-6',
   });
 
   const { data: handRow, error: handError } = await db.from('hands').insert({

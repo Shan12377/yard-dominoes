@@ -363,6 +363,10 @@ export class OnlineGame {
       status: this.hand.status as 'active' | 'domino' | 'blocked',
       result: this.hand.result as any,
       poseMustBeDoubleSix: this.poseMustBeDoubleSix,
+      // Chucha opens French, double-six opens every other format. Derived
+      // from format so the legal-move enumeration matches the server's,
+      // without persisting yet another column.
+      openingTile: this.table.format === 'french' ? '0-0' : '6-6',
       poser: this.poser,
     });
   }

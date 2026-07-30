@@ -29,22 +29,34 @@ export interface DealInput {
   /** Poser for this hand. Ignored when poseMustBeDoubleSix is set. */
   poser?: number;
   poseMustBeDoubleSix: boolean;
+  /**
+   * Which tile must lead the opening pose when poseMustBeDoubleSix is true.
+   * Defaults to 6-6 for every format except French, where it's the chucha
+   * (0-0). If nobody holds the requested tile, the engine falls back to
+   * highest-double / heaviest-tile just as it does for a missing 6-6.
+   */
+  openingTile?: TileId;
 }
 
-export function findDoubleSixHolder(hands: TileId[][]): number {
-  return hands.findIndex((h) => h.includes(DOUBLE_SIX));
+export function findOpeningHolder(hands: TileId[][], openingTile: TileId): number {
+  return hands.findIndex((h) => h.includes(openingTile));
 }
 
 /**
  * Who opens the hand.
  *
- * Normally the double-six holder. In the two-hander played with a boneyard the
- * 6-6 may not have been dealt at all, in which case the convention is that the
- * highest double opens, falling back to the heaviest tile if nobody holds one.
+ * Normally the holder of the required opening tile (6-6 for sixlove /
+ * firstToSix, 0-0 for French). If the tile wasn't dealt at all — as can
+ * happen in the two-hander played with a boneyard — the convention is that
+ * the highest double opens, falling back to the heaviest tile if nobody
+ * holds one.
  */
-export function findOpener(hands: TileId[][]): { seat: number; canForceDoubleSix: boolean } {
-  const six = findDoubleSixHolder(hands);
-  if (six >= 0) return { seat: six, canForceDoubleSix: true };
+export function findOpener(
+  hands: TileId[][],
+  openingTile: TileId = DOUBLE_SIX,
+): { seat: number; canForceOpening: boolean } {
+  const held = findOpeningHolder(hands, openingTile);
+  if (held >= 0) return { seat: held, canForceOpening: true };
 
   let bestSeat = 0;
   let bestScore = -1;
@@ -58,7 +70,7 @@ export function findOpener(hands: TileId[][]): { seat: number; canForceDoubleSix
       }
     }
   });
-  return { seat: bestSeat, canForceDoubleSix: false };
+  return { seat: bestSeat, canForceOpening: false };
 }
 
 export function deal(input: DealInput): HandState {
@@ -70,12 +82,14 @@ export function deal(input: DealInput): HandState {
   const boneyard = input.order.slice(input.seatCount * perPlayer);
 
   // When the score is fresh, has just bruk, or a replay is due, the hand is
-  // opened by whoever holds the double-six — not by the previous winner.
-  const opener = findOpener(hands);
+  // opened by whoever holds the required opening tile (6-6 for standard
+  // play, 0-0 for French) — not by the previous winner.
+  const openingTile = input.openingTile ?? DOUBLE_SIX;
+  const opener = findOpener(hands, openingTile);
   const openerLed = input.poseMustBeDoubleSix || input.poser === undefined;
   const poser = openerLed ? opener.seat : input.poser!;
   // Can't force a lead of a tile nobody was dealt.
-  const forceDoubleSix = input.poseMustBeDoubleSix && opener.canForceDoubleSix;
+  const forceOpening = input.poseMustBeDoubleSix && opener.canForceOpening;
 
   return {
     seatCount: input.seatCount,
@@ -88,7 +102,8 @@ export function deal(input: DealInput): HandState {
     moveLog: [],
     status: 'active',
     result: null,
-    poseMustBeDoubleSix: forceDoubleSix,
+    poseMustBeDoubleSix: forceOpening,
+    openingTile,
     poser,
   };
 }
@@ -113,9 +128,11 @@ export function legalMoves(s: HandState): Move[] {
   // Opening the hand.
   if (s.board === null) {
     if (s.poseMustBeDoubleSix) {
-      // Tournament / post-bruk opening: the 6-6 must actually be led, not
-      // merely held. "Sporting" is not available here.
-      return hand.includes(DOUBLE_SIX) ? [{ kind: 'pose', seat, tile: DOUBLE_SIX }] : [];
+      // Tournament / post-bruk / French-round-1 opening: the required
+      // opening tile must actually be led, not merely held. "Sporting" is
+      // not available here. Field name is legacy — the tile is openingTile,
+      // 6-6 outside French, 0-0 inside it.
+      return hand.includes(s.openingTile) ? [{ kind: 'pose', seat, tile: s.openingTile }] : [];
     }
     // Casual opening, or any hand opened by the previous winner: any tile.
     return hand.map((tile) => ({ kind: 'pose', seat, tile }) as Move);
@@ -156,6 +173,9 @@ function place(board: Board, tile: TileId, end: End): Board {
 
 function resolve(s: HandState, status: 'domino' | 'blocked'): HandResult {
   const counts = s.hands.map(handCount);
+  // Per-seat "did this seat end the hand still holding any double?" — used
+  // by French scoring to double that seat's pips. Other formats ignore it.
+  const doublesRemaining = s.hands.map((h) => h.some(isDouble));
 
   if (status === 'domino') {
     const seat = s.hands.findIndex((h) => h.length === 0);
@@ -165,6 +185,7 @@ function resolve(s: HandState, status: 'domino' | 'blocked'): HandResult {
       winnerSide: sideOf(seat, s.mode),
       tie: false,
       counts,
+      doublesRemaining,
     };
   }
 
@@ -177,10 +198,13 @@ function resolve(s: HandState, status: 'domino' | 'blocked'): HandResult {
   const lowest = Math.min(...counts);
   const tied = counts.filter((c) => c === lowest).length > 1;
   if (tied) {
-    return { status, winnerSeat: null, winnerSide: null, tie: true, counts };
+    return { status, winnerSeat: null, winnerSide: null, tie: true, counts, doublesRemaining };
   }
   const seat = counts.indexOf(lowest);
-  return { status, winnerSeat: seat, winnerSide: sideOf(seat, s.mode), tie: false, counts };
+  return {
+    status, winnerSeat: seat, winnerSide: sideOf(seat, s.mode), tie: false, counts,
+    doublesRemaining,
+  };
 }
 
 export function applyMove(prev: HandState, move: Move): HandState {

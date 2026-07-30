@@ -64,6 +64,13 @@ export interface PublicView {
   moveLog: Move[];
   poseMustBeDoubleSix: boolean;
   /**
+   * Which tile the forced pose must be — 6-6 outside French, 0-0 (chucha)
+   * inside French round 1. Legal-move enumeration needs this: the bot's stub
+   * hand goes through the same `legalMoves` path players do, and without the
+   * right opening tile the forced-pose branch returns no moves.
+   */
+  openingTile: TileId;
+  /**
    * Present only when `mode === 'openhand'`. `undefined` in every other mode —
    * this shape is the anti-cheat invariant expressed in the type. A caller
    * should reach for `partnerHandOf(view)` rather than reading this field
@@ -107,6 +114,7 @@ export function publicView(s: HandState, seat: number): PublicView {
     boneyardSize: s.boneyard.length,
     moveLog: s.moveLog.map((m) => ({ ...m })),
     poseMustBeDoubleSix: s.poseMustBeDoubleSix,
+    openingTile: s.openingTile,
     ...(partnerHand !== undefined ? { partnerHand } : {}),
   };
 }
@@ -320,6 +328,7 @@ function stateFromDeal(view: PublicView, deal: TileId[][]): HandState {
     status: 'active',
     result: null,
     poseMustBeDoubleSix: view.poseMustBeDoubleSix,
+    openingTile: view.openingTile,
     poser: view.seat,
   };
 }

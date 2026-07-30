@@ -4,7 +4,7 @@
 // the exact same rules code that the tests cover is what validates live moves.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import type { GameMode, HandState, Move } from '../_shared/engine/types.ts';
+import type { GameMode, HandState, Move, SetFormat, TileId } from '../_shared/engine/types.ts';
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -95,8 +95,27 @@ export interface HandRow {
   version: number;
 }
 
+/**
+ * Which tile the forced-pose branch must lead. French round 1 uses the chucha
+ * (0-0); every other format uses the double-six. Derived from format so no new
+ * database column is needed and there is only ever one place to change if the
+ * rule ever splits further.
+ */
+export function openingTileForFormat(format: SetFormat): TileId {
+  return format === 'french' ? '0-0' : '6-6';
+}
+
+/**
+ * Target score for a set — how many points end it. First-to-six for the
+ * standard formats; race-to-100 for French (where the seat that CROSSES it
+ * loses, and the winner is the seat with the lowest score at that moment).
+ */
+export function targetForFormat(format: SetFormat): number {
+  return format === 'french' ? 100 : 6;
+}
+
 /** Rehydrate the engine's state object from a database row. */
-export function toState(row: HandRow, seatCount: number, mode: GameMode): HandState {
+export function toState(row: HandRow, seatCount: number, mode: GameMode, format: SetFormat): HandState {
   return {
     seatCount,
     mode,
@@ -109,6 +128,7 @@ export function toState(row: HandRow, seatCount: number, mode: GameMode): HandSt
     status: row.status as HandState['status'],
     result: row.result,
     poseMustBeDoubleSix: row.pose_must_be_double_six,
+    openingTile: openingTileForFormat(format),
     poser: row.poser,
   };
 }

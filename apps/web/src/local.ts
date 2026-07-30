@@ -91,6 +91,7 @@ export class LocalGame {
       useBoneyard: false,
       poser: this.set.poseMustBeDoubleSix ? undefined : this.set.poser,
       poseMustBeDoubleSix: this.set.poseMustBeDoubleSix || this.options.tournament,
+      openingTile: this.options.format === 'french' ? '0-0' : '6-6',
     });
     this.dealt = this.hand.hands.map((h) => [...h]);
     this.fairness = {
@@ -167,6 +168,7 @@ export class LocalGame {
       status: 'active',
       result: null,
       poseMustBeDoubleSix: this.hand.poseMustBeDoubleSix,
+      openingTile: this.hand.openingTile,
       poser: this.hand.poser,
     };
     return reviewHand(initial, this.hand.moveLog, this.mySeat);

@@ -26,8 +26,14 @@ export type GameMode = 'cutthroat' | 'partner' | 'openhand';
  *               A win by a side on zero BRUKS the score back to 0-0.
  * firstToSix  — best of six. Plain race to six, no reset.
  * single      — one hand, one winner. Used for drills.
+ * french      — race to 100 where LOWER is better. Losers add their remaining
+ *               pip count to their own running total (doubles left in hand
+ *               double that hand's score). First seat to hit target loses;
+ *               winner is the seat with the lowest score at that moment. The
+ *               chucha (0-0) opens round 1. Cross-shaped board and coin-tied
+ *               shuffle-at-50 are deferred — see french debrief.
  */
-export type SetFormat = 'sixlove' | 'firstToSix' | 'single';
+export type SetFormat = 'sixlove' | 'firstToSix' | 'single' | 'french';
 
 export type End = 'left' | 'right';
 
@@ -67,6 +73,13 @@ export interface HandResult {
   tie: boolean;
   /** Pip count remaining per seat at the moment the hand ended. */
   counts: number[];
+  /**
+   * True at each seat that still held any double when the hand ended. French
+   * doubles the pip count of a seat left with any double, so this is the
+   * per-seat flag scoring needs; other formats ignore the field. Made optional
+   * so old fixtures still typecheck.
+   */
+  doublesRemaining?: boolean[];
 }
 
 export interface HandState {
@@ -84,11 +97,20 @@ export interface HandState {
   status: HandStatus;
   result: HandResult | null;
   /**
-   * When true the poser must lead the 6-6 specifically. Set on the opening
-   * hand of a set in tournament mode, and on every hand that follows a bruk,
-   * a tied replay, or a one-all playoff.
+   * When true the poser must lead the OPENING TILE specifically (see
+   * openingTile below). Set on the opening hand of a set in tournament mode,
+   * on every hand that follows a bruk, a tied replay, a one-all playoff, and
+   * always on round 1 of a French set. The field is misnamed for legacy DB
+   * reasons — the actual tile is openingTile, not necessarily 6-6.
    */
   poseMustBeDoubleSix: boolean;
+  /**
+   * The tile the poser must lead when poseMustBeDoubleSix is true. Defaults
+   * to 6-6 for every format except French, where round 1 is opened by the
+   * chucha (0-0) holder leading the 0-0. Derived from format at rehydration
+   * time; not persisted to the DB.
+   */
+  openingTile: TileId;
   /** Seat that poses this hand. */
   poser: number;
 }

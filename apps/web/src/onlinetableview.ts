@@ -41,7 +41,10 @@ export async function openTablesPanel(
       const modeLabel = t.mode === 'partner' ? 'Partner'
         : t.mode === 'openhand' ? 'Open hand'
           : 'Cut throat';
-      row.append(el('span', undefined, `${modeLabel} · ${t.format === 'sixlove' ? 'Six love' : 'First to six'}`));
+      const formatLabel = t.format === 'sixlove' ? 'Six love'
+        : t.format === 'french' ? 'French'
+          : 'First to six';
+      row.append(el('span', undefined, `${modeLabel} · ${formatLabel}`));
       row.append(el('span', 'muted', `${t.occupiedSeats}/${t.seatCount}`));
       const join = document.createElement('button');
       join.className = 'act ghost';

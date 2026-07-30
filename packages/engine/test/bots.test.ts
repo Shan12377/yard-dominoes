@@ -32,7 +32,11 @@ describe('the duppies cannot see your tiles', () => {
   test('a public view contains no other seat\'s tiles', async () => {
     const h = await freshHand();
     const view = publicView(h, 0);
-    const serialized = JSON.stringify(view);
+    // openingTile is a table-wide public constant (6-6 outside French, 0-0
+    // inside), NOT a hand tile — strip it before the anti-cheat scan so the
+    // seat that happens to hold the opening tile isn't a false positive.
+    const { openingTile: _skip, ...seatSensitive } = view;
+    const serialized = JSON.stringify(seatSensitive);
 
     // Every tile held by another seat must be absent from the view, unless the
     // reviewed seat happens to hold the same id (impossible — ids are unique).

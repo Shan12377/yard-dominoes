@@ -2,14 +2,20 @@ import { isPartnered, seatsOfSide, sideCount, sideOf } from './tiles.ts';
 import type { HandResult, SetOptions, SetState } from './types.ts';
 
 export function createSet(options: Partial<SetOptions> = {}): SetState {
+  const inputFormat = options.format ?? 'sixlove';
+  // French has fixed defaults that would otherwise be caller boilerplate on
+  // every start-set call: target is 100 (first to hit it LOSES), the chucha
+  // must lead round 1 regardless of tournament mode, and the whole thing is
+  // cutthroat-4. Overrides still land because `...options` follows.
+  const french = inputFormat === 'french';
   const opts: SetOptions = {
-    mode: 'partner',
-    format: 'sixlove',
+    mode: french ? 'cutthroat' : 'partner',
+    format: inputFormat,
     seatCount: 4,
     tournament: false,
     oneAllPlayTwo: true,
     useBoneyard: false,
-    target: 6,
+    target: french ? 100 : 6,
     ...options,
   };
   return {
@@ -17,10 +23,11 @@ export function createSet(options: Partial<SetOptions> = {}): SetState {
     scores: new Array(sideCount(opts.seatCount, opts.mode)).fill(0),
     handValue: 1,
     poser: 0,
-    // The opening hand of every set is opened by the double-six holder. In
-    // tournament play he must actually LEAD it; in casual play he may declare
-    // "sporting" and open with any tile instead.
-    poseMustBeDoubleSix: opts.tournament,
+    // The opening hand of every set is opened by the required opening tile's
+    // holder (6-6 outside French, 0-0 inside it). In tournament play or
+    // French round 1 he must actually LEAD it; in casual non-French play he
+    // may declare "sporting" and open with any tile instead.
+    poseMustBeDoubleSix: opts.tournament || french,
     playoff: false,
     handsPlayed: 0,
     winnerSide: null,
@@ -60,6 +67,35 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
   s.handsPlayed += 1;
 
   const { mode, seatCount, format, target, oneAllPlayTwo } = s.options;
+
+  // --- French: race to 100 where LOWER wins -------------------------------
+  // Every seat adds their remaining pip count to their own running total,
+  // doubled if they held any double when the hand ended. A domino winner's
+  // hand is empty so they add zero — the "winner scores zero" property falls
+  // out for free. The moment any seat crosses `target` the set ends and the
+  // winner is the seat with the LOWEST score. Ties on the lowest are broken
+  // by the earliest seat, which is ponytail-adequate — a real tie among
+  // seats crossing 100 in the same hand is vanishingly rare. See
+  // docs/superpowers/plans/2026-07-30-french-debrief.md for what's deferred
+  // (true mid-set elimination, cross-shaped board, coin-tied shuffle at 50).
+  if (format === 'french') {
+    const doubles = result.doublesRemaining ?? new Array(seatCount).fill(false);
+    for (let seat = 0; seat < seatCount; seat++) {
+      const factor = doubles[seat] ? 2 : 1;
+      s.scores[seat] += result.counts[seat] * factor;
+    }
+    s.handValue = 1;
+    s.poseMustBeDoubleSix = false; // chucha only forced round 1
+    if (result.winnerSeat !== null) s.poser = result.winnerSeat;
+    if (s.scores.some((v) => v >= target)) {
+      let minSeat = 0;
+      for (let seat = 1; seat < seatCount; seat++) {
+        if (s.scores[seat] < s.scores[minSeat]) minSeat = seat;
+      }
+      s.winnerSide = minSeat;
+    }
+    return s;
+  }
 
   // --- Tied blocked hand: replay at a higher value -------------------------
   if (result.tie) {
