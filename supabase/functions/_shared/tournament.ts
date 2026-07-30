@@ -2,9 +2,15 @@
 //
 // The RULE — who is ahead of whom, and where the cut line falls — is pure and
 // lives in `tournament-queue.ts`, where `npm test` covers it. This file is the
-// reads and writes around that rule, and it imports `jsr:` so it is out of
-// reach of `node --test` by design. Nothing here decides anything; it loads
-// rows, hands them to the tested functions, and shapes the answer.
+// reads and writes around that rule: it loads rows, hands them to the tested
+// functions, and shapes the answer.
+//
+// Its only `jsr:` import is `import type`, which Node's type stripping erases,
+// so `standingFor` and `signupsOpen` ARE reachable from `node --test` and are
+// tested in `tournament.test.ts`. (An earlier version of this comment claimed
+// the opposite and that is why they went untested for a while — the numbers
+// `standingFor` returns are the ones on screen selling VIP.) Only `loadQueue`
+// needs a live client, and it is the thin half.
 //
 // Both Edge Functions that touch the queue go through here, so a player's
 // "you are #14" and the host's seating draw cannot disagree — they are the same
@@ -93,7 +99,10 @@ export function standingFor(
   now = Date.now(),
 ): Standing {
   const index = userId === null ? -1 : ordered.findIndex((p) => p.userId === userId);
-  const seated = drawCutLine(ordered.map((p) => p.userId), seatCount).tables.flat();
+  // `drawCutLine` stays the authority on where the line falls — asking it and
+  // comparing an index beats re-deriving `floor(n / seatCount) * seatCount`
+  // here, which would be a second copy of the rule that seats people.
+  const seats = drawCutLine(ordered.map((p) => p.userId), seatCount).tables.length * seatCount;
 
   if (index < 0) {
     return {
@@ -110,7 +119,7 @@ export function standingFor(
     position: index + 1,
     vipsAhead,
     total: ordered.length,
-    aboveCut: seated.includes(me.userId),
+    aboveCut: index < seats,
     status: me.status,
     round: me.round,
     tableId: me.tableId,

@@ -21,7 +21,7 @@
 import { el } from './render.ts';
 import { tickInterval, untilLabel } from './countdown.ts';
 import {
-  cancelTournament, createTournament, drawRound, enterTournament, finishTournament,
+  cancelTournament, clearRound, createTournament, drawRound, enterTournament, finishTournament,
   hostQueue, hostableTournaments, markPlayer, myStanding, nextTournament,
   setNotice, setSignups, withdrawFromTournament,
 } from './tournaments.ts';
@@ -339,6 +339,10 @@ function hostControls(t: Tournament, me: MyProfile, rerender: () => void): HTMLE
   if (t.status === 'signups_open') controls.append(button('Close sign-ups', () => setSignups(t.id, false)));
   if (t.status === 'seating' || t.status === 'running') {
     controls.append(button('Draw the tables', () => drawRound(t.id)));
+    // Sits beside Draw on purpose. The 409 a host hits when a no-show table
+    // blocks the next round names this button, and it should be under their
+    // thumb when they read that, not somewhere they have to go looking.
+    controls.append(button('Clear un-started tables', () => clearRound(t.id)));
   }
   if (t.status === 'running') controls.append(button('Finish', () => finishTournament(t.id)));
   controls.append(button('Cancel', () => cancelTournament(t.id)));

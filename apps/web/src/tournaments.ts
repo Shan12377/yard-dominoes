@@ -162,6 +162,21 @@ export const cancelTournament = (tournamentId: string) =>
 export const finishTournament = (tournamentId: string) =>
   call<{ ok: true }>('tournament-host', { action: 'finish', tournamentId });
 
+/**
+ * Un-draw a round: abandon the tables nobody ever started and put those players
+ * back in the queue.
+ *
+ * The escape hatch for the one state a host cannot otherwise leave. A table
+ * where nobody turned up stays 'waiting' for ever — nothing in the app writes
+ * 'abandoned', and a table only reaches 'finished' when a set completes — so it
+ * blocks every future draw. No-shows are expected here; the substitutes line
+ * exists for them.
+ *
+ * Only un-started tables are touched, so this can never void a hand in play.
+ */
+export const clearRound = (tournamentId: string) =>
+  call<{ cleared: number }>('tournament-host', { action: 'clear', tournamentId });
+
 /** Draw one round: order the queue, cut it into full tables, open them. */
 export const drawRound = (tournamentId: string) =>
   call<{

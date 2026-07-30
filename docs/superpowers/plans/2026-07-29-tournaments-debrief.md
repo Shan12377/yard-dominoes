@@ -306,6 +306,31 @@ Note that `create-table` currently seats **the caller** at seat 0
 player who does not turn up to claim their seat is exactly who the substitutes
 line exists for. Auto-seating an absent player is worse than not seating them.
 
+### A host must be able to un-draw a round
+
+Found by review after v1 shipped, and fixed: **nothing in this codebase ever
+writes `tables.status = 'abandoned'`.** The enum value has existed since `0001`
+and no code path sets it. A table only reaches `finished` when a set completes
+through `play-move` or `expire-turns`, and `expire-turns` walks *hands*, so a
+table where no hand was ever started is invisible to it.
+
+The draw guard refuses a new round while any of the event's tables is `waiting`
+or `playing`. Put those together and a table nobody turned up to sits at
+`waiting` for ever and blocks every future draw, with no host action able to
+clear it — recovery through a database console, which §4 says a host must never
+need. No-shows are not an edge case; the substitutes line exists because they
+are expected.
+
+The same dead end has a second entrance: the draw is a sequence of separate
+writes with no transaction, so a failure partway leaves live tables behind and
+the retry hits the same guard.
+
+`tournament-host`'s `clear` action abandons only `waiting` tables — never a hand
+in play, which is `expire-turns`' business — and returns those players to the
+queue. Players are updated before tables, so a failure between the two leaves
+people re-queued and tables still dead, which clearing again fixes; the other
+order strands players pointing at a table in no round.
+
 ---
 
 ## 9. Definition of done for v1

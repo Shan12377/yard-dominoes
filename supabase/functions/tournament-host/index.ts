@@ -123,11 +123,63 @@ Deno.serve(handled(async (req) => {
     // "strip a player's runs" is ambiguous between a Sunday result and a
     // permanent record, and the smaller blast radius is right while that
     // question is open.
+    //
+    // `table_id` is cleared whichever way this goes. It means "the table you
+    // are sitting at right now", so leaving it set on a player the host just
+    // marked out points them at a table they are no longer in — and the client
+    // reads exactly that field to decide whether to offer "Take your seat".
+    // `round` is kept on out/disqualified because it records WHICH round they
+    // went out in, which is worth having; only a return to the queue clears it.
     const { error } = await db.from('tournament_signups')
-      .update({ status, ...(status === 'signed_up' ? { round: null, table_id: null } : {}) })
+      .update({ status, table_id: null, ...(status === 'signed_up' ? { round: null } : {}) })
       .eq('tournament_id', t.id).eq('user_id', body.userId);
     if (error) throw new HttpError(500, error.message);
     return json({ ok: true });
+  }
+
+  // -------------------------------------------------------------- clear --
+  // Un-draw a round.
+  //
+  // Without this the event can reach a state no host action can leave. The
+  // `start` guard below refuses to draw while any table is 'waiting' or
+  // 'playing', and NOTHING in this codebase ever writes 'abandoned' — a table
+  // only becomes 'finished' when a set completes through play-move or
+  // expire-turns, and expire-turns walks hands, so a table where no hand was
+  // ever started is invisible to it.
+  //
+  // So a table nobody turned up to sits at 'waiting' for ever and blocks every
+  // future draw with "a round is still running". No-shows are not an edge case
+  // here — the substitutes line exists because they are expected. The same dead
+  // end has a second entrance: the draw loop below is a sequence of separate
+  // writes, so a failure partway leaves live tables behind and the retry hits
+  // the same guard.
+  //
+  // Only 'waiting' tables are cleared. 'waiting' means start-hand was never
+  // called, so nothing was played and nothing is lost. A 'playing' table has a
+  // live hand and is expire-turns' business, not a host's — it force-plays an
+  // abandoned hand to a real finish rather than voiding it.
+  if (action === 'clear') {
+    const { data: dead, error: findError } = await db.from('tables')
+      .select('id').eq('tournament_id', t.id).eq('status', 'waiting');
+    if (findError) throw new HttpError(500, findError.message);
+    if (!dead?.length) throw new HttpError(409, 'no un-started tables to clear');
+
+    const ids = dead.map((r: any) => r.id as string);
+
+    // Players first. If the table update failed after this, the worst case is
+    // players back in the queue and tables still marked dead — recoverable by
+    // clearing again. The other order strands players pointing at a table that
+    // no longer exists in any round.
+    const { error: seatError } = await db.from('tournament_signups')
+      .update({ status: 'signed_up', round: null, table_id: null })
+      .eq('tournament_id', t.id).in('table_id', ids);
+    if (seatError) throw new HttpError(500, seatError.message);
+
+    const { error: tableError } = await db.from('tables')
+      .update({ status: 'abandoned' }).in('id', ids);
+    if (tableError) throw new HttpError(500, tableError.message);
+
+    return json({ ok: true, cleared: ids.length });
   }
 
   // -------------------------------------------------------------- start --
@@ -139,11 +191,18 @@ Deno.serve(handled(async (req) => {
     // of tables for the same people and quietly split the event in half. The
     // host has to wait for the round to end — which in v1 means marking the
     // losers out — before the next draw.
-    const { data: live } = await db.from('tables').select('id')
+    //
+    // 'abandoned' is deliberately not in this list: that is what `clear` writes,
+    // and the whole point of `clear` is to get a stuck event past this guard.
+    const { data: live } = await db.from('tables').select('id, status')
       .eq('tournament_id', t.id).in('status', ['waiting', 'playing']).limit(1);
     if (live?.length) {
-      throw new HttpError(409,
-        'a round is still running — mark the players who are out first');
+      // Two different problems wear the same 409, so say which one this is. A
+      // table still 'waiting' was never started — nobody turned up, or nobody
+      // pressed start — and waiting for it to finish on its own never happens.
+      throw new HttpError(409, live[0].status === 'waiting'
+        ? 'a table from the last round was never started — clear the round first'
+        : 'a round is still being played — mark the players who are out first');
     }
 
     const ordered = await loadQueue(db, t.id);
