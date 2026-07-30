@@ -87,17 +87,28 @@ then replace its final sentence with one line below.
 **5 · `hoops`**
 > The character wears large gold hoop earrings on each side with its dark hair
 > slicked back flat, and its expression is calm and confident, at rest, neither
-> smiling nor frowning.
+> smiling nor frowning, with a short straight neutral mouth line matching the
+> other characters in the set.
 
 **6 · `cap`**
-> The character wears a warm black flat cap tilted slightly, with a single gold
-> tooth showing, and its expression is calm and settled, at rest, neither
+> The character wears a warm black flat cap tilted slightly, with its mouth
+> closed in a short straight neutral line and a single small gold tooth
+> visible right at the centre of that closed line — not an open mouth, not a
+> smile — and its expression is otherwise calm and settled, at rest, neither
 > smiling nor frowning.
 
 **7 · `phones`**
 > The character wears large warm black over-ear headphones with a gold band
 > across the top of its head, and its expression is calm and settled, at rest,
-> neither smiling nor frowning.
+> neither smiling nor frowning, with a short straight neutral mouth line
+> matching the other characters in the set.
+
+*(Amended after the first generation: `hoops` and `phones` came back without
+the neutral mouth line the other six have, and `cap`'s gold tooth first
+rendered as an open smiling mouth. The wording above is what actually
+produced a consistent set — use it, not a bare re-read of "calm and settled"
+alone, which the model does not reliably fill in with a mouth line on its
+own.)
 
 **8 · `plain`**
 > The character wears nothing at all and carries only a thin gold outline

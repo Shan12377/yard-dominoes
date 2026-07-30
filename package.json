@@ -12,6 +12,7 @@
     "sync:engine": "rm -rf supabase/functions/_shared/engine && mkdir -p supabase/functions/_shared/engine && cp packages/engine/src/*.ts supabase/functions/_shared/engine/",
     "db:reset": "npx supabase db reset",
     "fn:serve": "npm run sync:engine && npx supabase functions serve",
-    "fn:deploy": "npm run sync:engine && npx supabase functions deploy"
+    "fn:deploy": "npm run sync:engine && npx supabase functions deploy",
+    "gen:avatars": "python3 scripts/gen_avatars.py"
   }
 }
