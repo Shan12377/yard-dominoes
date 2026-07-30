@@ -4,7 +4,7 @@
 // the exact same rules code that the tests cover is what validates live moves.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import type { HandState, Move } from '../_shared/engine/types.ts';
+import type { GameMode, HandState, Move } from '../_shared/engine/types.ts';
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -96,7 +96,7 @@ export interface HandRow {
 }
 
 /** Rehydrate the engine's state object from a database row. */
-export function toState(row: HandRow, seatCount: number, mode: 'partner' | 'cutthroat'): HandState {
+export function toState(row: HandRow, seatCount: number, mode: GameMode): HandState {
   return {
     seatCount,
     mode,
