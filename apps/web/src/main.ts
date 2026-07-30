@@ -1,6 +1,6 @@
 import {
   BELTS, lessonByRef, knownVoids, GRADE_LABEL, duppyLine, halves, TALK_CHANCE,
-  EMPTY_LEAKS, recordHand, standoutLeak, describeLeak,
+  EMPTY_LEAKS, recordHand, standoutLeak, describeLeak, isPartnered, sideOf,
 } from '@yard/engine';
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { Board, DuppyLevel, GameMode, HandReview, Move, SetFormat } from '@yard/engine';
@@ -331,7 +331,7 @@ async function startGame(opts: {
       // Nobody won a tied hand, so nobody gets to gloat or concede.
       for (let s = 0; s < g.options.seatCount; s++) {
         if (s === g.mySeat || !r || r.tie) continue;
-        const won = r.winnerSide === (g.options.mode === 'partner' ? s % 2 : s);
+        const won = r.winnerSide === sideOf(s, g.options.mode);
         const trigger: TalkTrigger = won
           ? (r.status === 'blocked' ? 'winCount' : 'win')
           : 'lose';
@@ -518,13 +518,14 @@ function lobby(): HTMLElement {
 
   const mode = document.createElement('select');
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>
+                    <option value="openhand">Open hand — partner sees your tiles</option>
                     <option value="cutthroat">Cut throat — every man for himself</option>`;
 
   const format = document.createElement('select');
   const syncFormat = () => {
     // Cut throat six love runs to a median of ~196 hands. Never make it the
     // default on a phone; players abandon halfway and everyone loses.
-    format.innerHTML = mode.value === 'partner'
+    format.innerHTML = isPartnered(mode.value as GameMode)
       ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
       : `<option value="firstToSix">First to six</option><option value="sixlove">Six love — very long</option>`;
   };
@@ -577,7 +578,7 @@ function scoreboard(g: LocalGame): HTMLElement {
   const panel = el('div', 'panel');
   const board = el('div', 'scoreboard');
 
-  if (g.options.mode === 'partner') {
+  if (isPartnered(g.options.mode)) {
     board.append(
       scoreTrack('You & partner', g.set.scores[g.mySide], { us: true, bruk: g.lastResultBruk }),
       scoreTrack('Them', g.set.scores[1 - g.mySide], { bruk: g.lastResultBruk }),
@@ -612,7 +613,7 @@ function seats(g: LocalGame): HTMLElement {
   for (let seat = 0; seat < g.options.seatCount; seat++) {
     const card = el('div', 'seat');
     if (g.hand?.turn === seat && g.hand.status === 'active') card.classList.add('turn');
-    if (g.options.mode === 'partner' && seat !== g.mySeat && seat % 2 === g.mySeat % 2) {
+    if (isPartnered(g.options.mode) && seat !== g.mySeat && seat % 2 === g.mySeat % 2) {
       card.classList.add('partner');
     }
     card.append(el('h3', undefined, g.seatLabel(seat)));
@@ -638,6 +639,19 @@ function seats(g: LocalGame): HTMLElement {
 }
 
 let pendingTile: string | null = null;
+
+function partnerHandPanel(tiles: string[]): HTMLElement {
+  const panel = el('div', 'panel partner-hand');
+  panel.append(el('div', 'eyebrow', 'Partner'));
+  const row = el('div', 'hand');
+  for (const tile of tiles) {
+    const node = tileEl(tile);
+    node.classList.add('sm', 'dead');
+    row.appendChild(node);
+  }
+  panel.appendChild(row);
+  return panel;
+}
 
 function myHand(g: LocalGame): HTMLElement {
   const panel = el('div', 'panel');
@@ -721,7 +735,7 @@ function handResult(g: LocalGame): HTMLElement | null {
       .map((c, seat) => `${g.seatLabel(seat)} ${c}`)
       .join('  ·  ');
     panel.append(el('p', 'muted', counts));
-    if (g.options.mode === 'partner') {
+    if (isPartnered(g.options.mode)) {
       panel.append(el('p', 'muted',
         'Lowest single hand takes it — a partner\'s tiles never come into it.'));
     }
@@ -1014,6 +1028,13 @@ function tableView(g: LocalGame): DocumentFragment {
 
   frag.appendChild(seats(g));
   frag.appendChild(soundToggle());
+  // Openhand: your partner's tiles above your own, on the same terms as the
+  // online table — small, non-interactive, labelled. LocalGame holds the full
+  // engine state, so this is a direct read; no RLS or subscription involved.
+  if (g.options.mode === 'openhand' && g.hand) {
+    const partnerSeat = g.mySeat ^ 2;
+    frag.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
+  }
   frag.appendChild(myHand(g));
   const result = handResult(g);
   if (result) frag.appendChild(result);

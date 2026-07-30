@@ -57,12 +57,23 @@ export function otherHalf(id: TileId, end: Pip): Pip {
  * Partner: seats 0&2 are side 0, seats 1&3 are side 1.
  * Cutthroat: every seat is its own side.
  */
+/**
+ * True when the mode pairs seats into sides — partner and openhand both do,
+ * cutthroat does not. Every play-rules branch that used to compare
+ * `mode === 'partner'` reads this instead, so adding openhand (or any future
+ * paired variant) does not silently exclude itself from the rules that make it
+ * a paired game.
+ */
+export function isPartnered(mode: GameMode): boolean {
+  return mode === 'partner' || mode === 'openhand';
+}
+
 export function sideOf(seat: number, mode: GameMode): number {
-  return mode === 'partner' ? seat % 2 : seat;
+  return isPartnered(mode) ? seat % 2 : seat;
 }
 
 export function sideCount(seatCount: number, mode: GameMode): number {
-  return mode === 'partner' ? 2 : seatCount;
+  return isPartnered(mode) ? 2 : seatCount;
 }
 
 /** Seats belonging to a side. */

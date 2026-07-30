@@ -38,7 +38,10 @@ export async function openTablesPanel(
     const list = el('div', 'stack');
     for (const t of tables) {
       const row = el('div', 'row');
-      row.append(el('span', undefined, `${t.mode === 'partner' ? 'Partner' : 'Cut throat'} · ${t.format === 'sixlove' ? 'Six love' : 'First to six'}`));
+      const modeLabel = t.mode === 'partner' ? 'Partner'
+        : t.mode === 'openhand' ? 'Open hand'
+          : 'Cut throat';
+      row.append(el('span', undefined, `${modeLabel} · ${t.format === 'sixlove' ? 'Six love' : 'First to six'}`));
       row.append(el('span', 'muted', `${t.occupiedSeats}/${t.seatCount}`));
       const join = document.createElement('button');
       join.className = 'act ghost';
@@ -64,7 +67,9 @@ export async function openTablesPanel(
 function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HTMLElement {
   const form = el('div', 'row');
   const mode = document.createElement('select');
-  mode.innerHTML = `<option value="partner">Partner — 2 v 2</option><option value="cutthroat">Cut throat</option>`;
+  mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>`
+    + `<option value="openhand">Open hand — partner sees your tiles</option>`
+    + `<option value="cutthroat">Cut throat</option>`;
   const seatCount = document.createElement('select');
   seatCount.innerHTML = `<option value="4">4 players</option><option value="3">3 players</option><option value="2">2 players</option>`;
   const duppy = document.createElement('select');
@@ -75,12 +80,12 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   clock.innerHTML = CLOCK_NAMES.map((c) => `<option value="${c}">${CLOCK_LABELS[c]}</option>`).join('');
   clock.value = 'yard';
 
-  // Partner is inherently a 4-seat, 2-vs-2 format — lock the seat count when
-  // it's selected so the form can never submit an invalid combination. The
-  // server enforces this too (the real gate); this is just so a partner
-  // table doesn't 422 on submit for no visible reason.
+  // Partner AND openhand are both inherently 4-seat, 2-vs-2 formats — lock the
+  // seat count when either is selected so the form can never submit an invalid
+  // combination. The server enforces this too (the real gate); this is just so
+  // a partnered table doesn't 422 on submit for no visible reason.
   const syncSeatCount = () => {
-    if (mode.value === 'partner') {
+    if (mode.value === 'partner' || mode.value === 'openhand') {
       seatCount.value = '4';
       seatCount.disabled = true;
     } else {
@@ -281,7 +286,13 @@ export function liveTableView(
   if (!game.hand) {
     frag.appendChild(startHandPanel(game));
   } else {
-    if (!game.isSpectator) frag.appendChild(myHandPanel(game, rerender));
+    if (!game.isSpectator) {
+      // In openhand the partner's tiles render above your own. Small,
+      // non-interactive, labelled — the panel is information you may act on,
+      // not a hand you play. Missing from every other mode by construction.
+      if (game.partnerTiles) frag.appendChild(partnerHandPanel(game.partnerTiles));
+      frag.appendChild(myHandPanel(game, rerender));
+    }
 
     if (game.hand.status !== 'active' && game.hand.result) {
       frag.appendChild(handResultPanel(game, rerender));
@@ -391,6 +402,19 @@ function countdown(game: OnlineGame, expiresAt: string, rerender: () => void): H
   if (countdownTimer) clearTimeout(countdownTimer);
   if (remaining > 0) countdownTimer = setTimeout(rerender, 1000);
   return wrap;
+}
+
+function partnerHandPanel(tiles: string[]): HTMLElement {
+  const panel = el('div', 'panel partner-hand');
+  panel.append(el('div', 'eyebrow', 'Partner'));
+  const row = el('div', 'hand');
+  for (const tile of tiles) {
+    const node = tileEl(tile);
+    node.classList.add('sm', 'dead');
+    row.appendChild(node);
+  }
+  panel.appendChild(row);
+  return panel;
 }
 
 function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {

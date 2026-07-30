@@ -128,15 +128,19 @@ export interface TableSubscription {
 }
 
 /**
- * Watch a table. Two streams: the public state everyone sees, and your own
- * tiles. RLS means the tiles stream can only ever deliver your row — the
- * privacy is enforced by the database, not by this file being careful.
+ * Watch a table. Two streams: the public state everyone sees, and this seat's
+ * private tiles. RLS decides which `seat_hands` rows a client is allowed to
+ * see — historically only its own, but openhand mode (0016) also lets a seat
+ * read its partner's row. The callback therefore takes the seat_index and the
+ * caller routes: their own row updates `myTiles`, the partner's updates
+ * `partnerTiles`. Reading a row and dropping it is fine; storing partner tiles
+ * into `myTiles` would silently render the wrong hand.
  */
 export function watchTable(
   tableId: string,
   handlers: {
     onPublic?: (hand: PublicHand) => void;
-    onMyTiles?: (handId: string, tiles: TileId[]) => void;
+    onSeatTiles?: (handId: string, seatIndex: number, tiles: TileId[]) => void;
     onSet?: (set: Record<string, unknown>) => void;
     onSeats?: () => void;
   },
@@ -148,7 +152,10 @@ export function watchTable(
       (payload) => handlers.onPublic?.(payload.new as PublicHand))
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'seat_hands' },
-      (payload) => handlers.onMyTiles?.((payload.new as any).hand_id as string, (payload.new as any).tiles as TileId[]))
+      (payload) => handlers.onSeatTiles?.(
+        (payload.new as any).hand_id as string,
+        (payload.new as any).seat_index as number,
+        (payload.new as any).tiles as TileId[]))
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'sets', filter: `table_id=eq.${tableId}` },
       (payload) => handlers.onSet?.(payload.new as Record<string, unknown>))

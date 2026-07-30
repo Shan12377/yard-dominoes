@@ -30,7 +30,10 @@ Deno.serve(handled(async (req) => {
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
   if (!set) {
-    const sides = table.mode === 'partner' ? 2 : table.seat_count;
+    // Paired modes (partner, openhand) score by SIDE, not seat — same
+    // scoreboard shape, one entry per side. Cutthroat scores per seat.
+    const sides = (table.mode === 'partner' || table.mode === 'openhand')
+      ? 2 : table.seat_count;
     const { data } = await db.from('sets').insert({
       table_id: tableId,
       scores: new Array(sides).fill(0),

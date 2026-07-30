@@ -14,7 +14,7 @@ import {
 } from './online.ts';
 import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
-import { legalMoves, sideOf } from '@yard/engine';
+import { isPartnered, legalMoves, sideOf } from '@yard/engine';
 import type { GameMode, Move, TileId } from '@yard/engine';
 
 export interface TableInfo {
@@ -68,6 +68,14 @@ export class OnlineGame {
 
   hand: PublicHand | null = null;
   myTiles: TileId[] = [];
+  /**
+   * The partner's tiles, when the mode grants sight of them. Populated only
+   * for `mode === 'openhand'` and only when the player is seated (a spectator
+   * gets nothing extra). Null in every other case, so a bare read while
+   * rendering a partner or cutthroat table returns nothing to display rather
+   * than an accidental peek.
+   */
+  partnerTiles: TileId[] | null = null;
 
   scores: number[] = [];
   handValue = 1;
@@ -101,12 +109,21 @@ export class OnlineGame {
 
   /** Whichever side just won and may choose to pass or keep the pose. */
   canChoosePose(): boolean {
-    return this.table.mode === 'partner'
+    return isPartnered(this.table.mode)
       && this.hand?.status !== 'active'
       && this.winnerSide === null
       && !this.poseMustBeDoubleSix
       && this.handsPlayed > 0
-      && this.mySide === sideOf(this.poser, 'partner');
+      && this.mySide === sideOf(this.poser, this.table.mode);
+  }
+
+  /**
+   * Seat 0 pairs with 2, 1 with 3, matching `sideOf` for paired modes. Returns
+   * null under cutthroat (no partner) or if the player is a spectator.
+   */
+  partnerSeat(): number | null {
+    if (!isPartnered(this.table.mode) || this.mySeat === null) return null;
+    return this.mySeat ^ 2;
   }
 
   /** Join a table: one parallel read (table + seats + open set), then a
@@ -159,9 +176,7 @@ export class OnlineGame {
     if (hand) {
       game.hand = hand as PublicHand;
       if (!game.isSpectator) {
-        const { data: seatHand } = await conn.from('seat_hands').select('tiles')
-          .eq('hand_id', hand.hand_id).eq('seat_index', game.mySeat!).maybeSingle();
-        game.myTiles = (seatHand?.tiles as TileId[]) ?? [];
+        await game.loadPrivateTiles(hand.hand_id);
       }
     }
 
@@ -253,9 +268,19 @@ export class OnlineGame {
         void this.loadNames();
         this.emit({ type: 'state' });
       },
-      onMyTiles: (handId, tiles) => {
+      onSeatTiles: (handId, seatIndex, tiles) => {
+        // RLS decides which seat_hands rows reach me: my own always, and my
+        // partner's when the mode is openhand. Route by seat_index — writing
+        // partner tiles into `myTiles` is the bug this callback shape exists
+        // to make impossible. A row I do not recognise gets dropped.
         if (handId !== this.hand?.hand_id) return;
-        this.myTiles = tiles;
+        if (seatIndex === this.mySeat) {
+          this.myTiles = tiles;
+        } else if (seatIndex === this.partnerSeat() && this.table.mode === 'openhand') {
+          this.partnerTiles = tiles;
+        } else {
+          return;
+        }
         this.emit({ type: 'state' });
       },
       onSet: (set) => {
@@ -285,11 +310,32 @@ export class OnlineGame {
       .eq('table_id', this.table.id).order('updated_at', { ascending: false }).limit(1).maybeSingle();
     if (data) this.hand = data as PublicHand;
     if (!this.isSpectator && this.hand) {
-      const { data: seatHand } = await db().from('seat_hands').select('tiles')
-        .eq('hand_id', this.hand.hand_id).eq('seat_index', this.mySeat!).maybeSingle();
-      this.myTiles = (seatHand?.tiles as TileId[]) ?? [];
+      await this.loadPrivateTiles(this.hand.hand_id);
     }
     this.emit({ type: 'state' });
+  }
+
+  /**
+   * Read this seat's tiles — and, in openhand, the partner's tiles too.
+   *
+   * One round trip, not two: the extended seat_hands RLS in 0016 lets both
+   * rows come back from a single `.in('seat_index', [me, partner])`, so a
+   * partner-open table pays no extra network cost over an ordinary partner
+   * table. A seat not covered by RLS is simply not returned; there is no
+   * client-side filtering step that could be wrong.
+   */
+  private async loadPrivateTiles(handId: string): Promise<void> {
+    if (this.mySeat === null) return;
+    const partner = this.partnerSeat();
+    const wantOpenhand = this.table.mode === 'openhand' && partner !== null;
+    const seats = wantOpenhand ? [this.mySeat, partner!] : [this.mySeat];
+    const { data } = await db().from('seat_hands').select('seat_index, tiles')
+      .eq('hand_id', handId).in('seat_index', seats);
+    const rows = data ?? [];
+    this.myTiles = (rows.find((r: any) => r.seat_index === this.mySeat)?.tiles as TileId[]) ?? [];
+    this.partnerTiles = wantOpenhand
+      ? (rows.find((r: any) => r.seat_index === partner)?.tiles as TileId[]) ?? null
+      : null;
   }
 
   private resubscribe() {

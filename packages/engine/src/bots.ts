@@ -10,12 +10,22 @@
  * this category, and the only durable answer is an architecture where cheating
  * is not expressible. A duppy cannot peek because there is nowhere for the
  * information to arrive.
+ *
+ * INVARIANT, RESTATED FOR OPEN HAND. `PublicView.partnerHand` is set only when
+ * the mode is `openhand`, where the human in that seat also sees their
+ * partner's tiles. A bot in that mode receiving the field is not cheating — it
+ * is receiving information the rules grant it. Any code path that populates
+ * `partnerHand` in another mode, or reads a *cutthroat* opponent's tiles into
+ * a bot's view under any mode, breaks the invariant. There are two producers
+ * of this field, both in this file, both gated on `isPartnered(mode)` AND
+ * `mode === 'openhand'` — do not add a third without repeating both checks.
  */
 
 import {
   handCount,
   halves,
   isDouble,
+  isPartnered,
   matches,
   nextSeat,
   otherHalf,
@@ -53,9 +63,37 @@ export interface PublicView {
   boneyardSize: number;
   moveLog: Move[];
   poseMustBeDoubleSix: boolean;
+  /**
+   * Present only when `mode === 'openhand'`. `undefined` in every other mode —
+   * this shape is the anti-cheat invariant expressed in the type. A caller
+   * should reach for `partnerHandOf(view)` rather than reading this field
+   * directly, so the mode gate is enforced at every read site.
+   */
+  partnerHand?: TileId[];
+}
+
+/**
+ * The safe read for `partnerHand`: returns the tiles only when the mode grants
+ * them, `null` otherwise. Point it at every strategy site that might one day
+ * want to use partner information; a bare `view.partnerHand` read past a test
+ * that filled the field under the wrong mode would silently leak.
+ */
+export function partnerHandOf(view: PublicView): TileId[] | null {
+  if (view.mode !== 'openhand') return null;
+  return view.partnerHand ?? null;
 }
 
 export function publicView(s: HandState, seat: number): PublicView {
+  // Openhand producer #1 of 2. See the invariant comment at the top of the
+  // file and `partnerHandOf` — a bare partner-hand copy under any other mode
+  // would leak. Cutthroat has no partner concept, so `partnerSeatOf` returns
+  // null there and the field stays undefined.
+  const partnerHand = s.mode === 'openhand'
+    ? (() => {
+        const p = partnerSeatOf(seat, s.seatCount, s.mode);
+        return p === null ? undefined : [...s.hands[p]];
+      })()
+    : undefined;
   return {
     seat,
     seatCount: s.seatCount,
@@ -69,6 +107,7 @@ export function publicView(s: HandState, seat: number): PublicView {
     boneyardSize: s.boneyard.length,
     moveLog: s.moveLog.map((m) => ({ ...m })),
     poseMustBeDoubleSix: s.poseMustBeDoubleSix,
+    ...(partnerHand !== undefined ? { partnerHand } : {}),
   };
 }
 
@@ -129,10 +168,20 @@ function opponentSeats(view: PublicView): number[] {
   return out;
 }
 
+/**
+ * Pairing-only. Openhand pairs 0&2, 1&3 exactly like partner mode, so this
+ * gates on `isPartnered`, not the string 'partner' — a bare comparison would
+ * make an openhand bot think it had no partner and skip every strategy weight
+ * that fed one.
+ */
 function partnerSeat(view: PublicView): number | null {
-  if (view.mode !== 'partner') return null;
-  for (let s = 0; s < view.seatCount; s++) {
-    if (s !== view.seat && sideOf(s, view.mode) === sideOf(view.seat, view.mode)) return s;
+  return partnerSeatOf(view.seat, view.seatCount, view.mode);
+}
+
+function partnerSeatOf(seat: number, seatCount: number, mode: GameMode): number | null {
+  if (!isPartnered(mode)) return null;
+  for (let s = 0; s < seatCount; s++) {
+    if (s !== seat && sideOf(s, mode) === sideOf(seat, mode)) return s;
   }
   return null;
 }
@@ -296,8 +345,19 @@ function rollout(state: HandState, rng: Rng): number | null {
 
 /** Pick a move. This is the only entry point a table needs. */
 export function chooseMove(view: PublicView, level: DuppyLevel, rng: Rng = Math.random): Move {
-  const stub = stateFromDeal(view, view.handSizes.map((n, i) =>
-    i === view.seat ? view.myHand : new Array(n).fill('0-0')));
+  // In openhand the partner's tiles are known — plug them into the stub in the
+  // partner's slot rather than the placeholder '0-0'. Without this the stub is
+  // consistent-looking but false, and a later rollout calling publicView on
+  // that stub would happily set partnerHand from fake tiles. A future bot that
+  // learns to use partnerHand would then be scoring on lies. See the invariant
+  // block at the top of the file — this is the second producer it warns about.
+  const partner = partnerSeat(view);
+  const deal = view.handSizes.map((n, i) => {
+    if (i === view.seat) return view.myHand;
+    if (i === partner && view.partnerHand) return view.partnerHand;
+    return new Array(n).fill('0-0');
+  });
+  const stub = stateFromDeal(view, deal);
   // Legal move generation only needs MY hand and the board, so a stub with
   // placeholder tiles for the others is enough to enumerate my own options.
   stub.turn = view.seat;

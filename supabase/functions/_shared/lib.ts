@@ -177,6 +177,11 @@ export async function persist(
     status: state.status,
     result: state.result,
     turn_expires_at: expires,
+    // Captures the mode this hand was actually dealt under — the openhand RLS
+    // policy on seat_hands (0016) gates on THIS value, not on tables.mode, so
+    // a table's mode being changed mid-set never retroactively reveals or
+    // hides an already-played hand.
+    mode: state.mode,
     updated_at: new Date().toISOString(),
   });
 

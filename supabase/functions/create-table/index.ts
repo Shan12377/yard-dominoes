@@ -9,12 +9,17 @@ Deno.serve(handled(async (req) => {
 
   const seatCount = Number(body.seatCount ?? 4);
   if (![2, 3, 4].includes(seatCount)) throw new HttpError(422, 'seat count must be 2, 3 or 4');
-  // Partner is inherently a 4-seat, 2-vs-2 format — sideOf() would otherwise
-  // split 3 seats into a nonsensical 2-vs-1, and 2 seats make
-  // passPoseToPartner's (poser + 2) % 2 a no-op. The client should already
-  // lock this in the form; this is the real gate.
-  if ((body.mode ?? 'partner') === 'partner' && seatCount !== 4) {
-    throw new HttpError(422, 'partner mode needs exactly 4 seats');
+  // Partner and openhand are both inherently 4-seat, 2-vs-2 formats — sideOf()
+  // would otherwise split 3 seats into a nonsensical 2-vs-1, and 2 seats make
+  // passPoseToPartner's (poser + 2) % 2 a no-op. `isPartnered` in the engine
+  // groups them; the string check here catches an unknown mode too before it
+  // reaches the game_mode enum cast and 500s.
+  const mode = String(body.mode ?? 'partner');
+  if (!['cutthroat', 'partner', 'openhand'].includes(mode)) {
+    throw new HttpError(422, `unknown mode: ${mode}`);
+  }
+  if ((mode === 'partner' || mode === 'openhand') && seatCount !== 4) {
+    throw new HttpError(422, `${mode} mode needs exactly 4 seats`);
   }
 
   if (body.loungeId) {
@@ -31,9 +36,10 @@ Deno.serve(handled(async (req) => {
 
   const { data: table, error } = await db.from('tables').insert({
     join_code: code,
-    mode: body.mode ?? 'partner',
+    mode,
     // Cut throat six love runs to a median of ~196 hands. Never default to it.
-    format: body.format ?? (body.mode === 'cutthroat' ? 'firstToSix' : 'sixlove'),
+    // Openhand is a partnered mode and defaults the same way partner does.
+    format: body.format ?? (mode === 'cutthroat' ? 'firstToSix' : 'sixlove'),
     seat_count: seatCount,
     // The client sends a name, never seconds — otherwise a patched client
     // could start a table with a turn long enough to hold the room hostage.

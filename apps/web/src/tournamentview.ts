@@ -406,7 +406,8 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
 
   const mode = document.createElement('select');
   mode.innerHTML = '<option value="cutthroat">Cut throat</option>'
-    + '<option value="partner">Partner — 2 v 2</option>';
+    + '<option value="partner">Partner — 2 v 2</option>'
+    + '<option value="openhand">Open hand — partner sees your tiles</option>';
 
   const row = el('div', 'row');
   row.append(name, starts, mode);
@@ -418,13 +419,16 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
   go.disabled = state.busy;
   go.onclick = () => void run(async () => {
     if (!starts.value) throw new Error('A tournament needs a start time');
-    const isPartner = mode.value === 'partner';
+    // Both paired modes (partner, openhand) default to sixlove and take four
+    // seats. Openhand also uses sideOf() with 2-vs-2 pairing — see
+    // `isPartnered` in the engine.
+    const paired = mode.value === 'partner' || mode.value === 'openhand';
     await createTournament({
       name: name.value.trim() || 'Sunday tournament',
       mode: mode.value as GameMode,
       // Cut throat six love runs to a median of ~196 hands, so a round would
       // still be going on Tuesday. Never default a bracket to it.
-      format: isPartner ? 'sixlove' : 'firstToSix',
+      format: paired ? 'sixlove' : 'firstToSix',
       seatCount: 4,
       clock: 'yard',
       startsAt: new Date(starts.value).toISOString(),

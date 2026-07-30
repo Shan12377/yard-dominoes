@@ -1,4 +1,4 @@
-import { seatsOfSide, sideCount, sideOf } from './tiles.ts';
+import { isPartnered, seatsOfSide, sideCount, sideOf } from './tiles.ts';
 import type { HandResult, SetOptions, SetState } from './types.ts';
 
 export function createSet(options: Partial<SetOptions> = {}): SetState {
@@ -153,7 +153,8 @@ export function sideName(seat: number, mode: SetState['options']['mode']): numbe
  * hand is dealt, and never when the double-six is forced.
  */
 export function passPoseToPartner(s: SetState): SetState {
-  if (s.options.mode !== 'partner') throw new Error('only partners can pass the pose');
+  // Openhand is a partnered mode, so the pose-pass belongs to it too.
+  if (!isPartnered(s.options.mode)) throw new Error('only partners can pass the pose');
   if (s.poseMustBeDoubleSix || s.handsPlayed === 0) {
     throw new Error('the double-six opens this hand — the pose is not yours to pass');
   }

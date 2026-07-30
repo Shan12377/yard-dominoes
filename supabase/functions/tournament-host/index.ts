@@ -21,7 +21,7 @@ import { drawCutLine } from '../_shared/tournament-queue.ts';
 import { loadQueue, standingFor } from '../_shared/tournament.ts';
 import { clockByName } from '../_shared/engine/clock.ts';
 
-const MODES = ['cutthroat', 'partner'];
+const MODES = ['cutthroat', 'partner', 'openhand'];
 const FORMATS = ['sixlove', 'firstToSix', 'single'];
 /** Mirrors CLOCKS in the engine, and the check constraint in 0015. */
 const CLOCKS = ['speed', 'yard', 'relaxed'];
@@ -62,7 +62,7 @@ Deno.serve(handled(async (req) => {
     if (![2, 3, 4].includes(seatCount)) throw new HttpError(422, 'seat count must be 2, 3 or 4');
     // Same rule create-table enforces: partner is inherently 2-vs-2, and
     // sideOf() would split three seats into a nonsensical 2-vs-1.
-    if (mode === 'partner' && seatCount !== 4) {
+    if ((mode === 'partner' || mode === 'openhand') && seatCount !== 4) {
       throw new HttpError(422, 'partner needs exactly 4 seats');
     }
     if (!body.startsAt) throw new HttpError(422, 'a tournament needs a start time');

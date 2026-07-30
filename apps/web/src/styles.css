@@ -366,6 +366,14 @@ label.field > span {
 .hand .tile.dead { opacity: 0.34; cursor: not-allowed; }
 .hand .tile.chosen { outline: 2px solid var(--gold); outline-offset: 2px; transform: translateY(-8px); }
 
+/* Openhand: partner's tiles above your own. Small enough not to compete with
+ * your own hand for attention; not interactive, so no hover lift. The `.dead`
+ * class carries the low opacity so it visually reads as "look, don't play". */
+.partner-hand { padding: 6px 8px 4px; }
+.partner-hand .hand { padding: 0; gap: 4px; }
+.partner-hand .tile.sm { --w: 22px; --h: 44px; cursor: default; }
+.partner-hand .tile.sm:hover { transform: none; }
+
 .slammed { animation: slam 320ms cubic-bezier(0.2, 0.9, 0.2, 1.2); }
 @keyframes slam {
   0% { transform: translateY(-26px) scale(1.16); }

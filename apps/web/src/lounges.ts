@@ -66,7 +66,9 @@ export interface Lounge {
   slug: string;
   name: string;
   description: string | null;
-  mode: 'cutthroat' | 'partner' | null;
+  // null = any mode welcome. `GameMode` from the engine covers the three
+  // playable modes so a new mode does not need a second edit here.
+  mode: GameMode | null;
   min_tier: Tier;
   capacity: number;
   sort_order: number;

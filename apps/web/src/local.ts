@@ -14,7 +14,7 @@
 import {
   createSet, applyHandResult, deal, legalMoves, applyMove, dealPlan,
   provablyFairShuffle, commit, randomSeed, verifyHand,
-  duppyMove, reviewHand, accuracy, sideOf,
+  duppyMove, reviewHand, accuracy, isPartnered, sideOf,
 } from '@yard/engine';
 import type {
   DuppyLevel, GameMode, HandReview, HandState, Move, SetFormat, SetState, TileId,
@@ -182,7 +182,7 @@ export class LocalGame {
 
   seatLabel(seat: number): string {
     if (seat === this.mySeat) return 'You';
-    if (this.options.mode === 'partner' && sideOf(seat, 'partner') === this.mySide) {
+    if (isPartnered(this.options.mode) && sideOf(seat, this.options.mode) === this.mySide) {
       return 'Partner';
     }
     return `Duppy ${seat}`;

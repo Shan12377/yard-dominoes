@@ -12,7 +12,14 @@ export type Pip = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 /** Canonical tile id, always "low-high", e.g. "0-0", "2-5", "6-6". */
 export type TileId = string;
 
-export type GameMode = 'cutthroat' | 'partner';
+/**
+ * `openhand` is partner mode with one visibility change: each seat sees its
+ * partner's tiles. Everything else about pairing, play order, format, and
+ * scoring is identical to `partner`. Use `isPartnered(mode)` from tiles.ts
+ * anywhere the code branches on "is this a paired game" — a bare
+ * `mode === 'partner'` comparison silently excludes openhand and is a bug.
+ */
+export type GameMode = 'cutthroat' | 'partner' | 'openhand';
 
 /**
  * sixlove     — six consecutive wins while every opponent stays at zero.

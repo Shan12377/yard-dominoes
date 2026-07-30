@@ -546,7 +546,10 @@ function loungeList(rerender: () => void): DocumentFragment {
     const tags = el('div', 'row');
     tags.style.marginTop = '6px';
     if (lounge.mode) {
-      tags.append(el('span', 'gate', lounge.mode === 'partner' ? 'Partners' : 'Cut throat'));
+      const modeTag = lounge.mode === 'partner' ? 'Partners'
+        : lounge.mode === 'openhand' ? 'Open hand'
+          : 'Cut throat';
+      tags.append(el('span', 'gate', modeTag));
     }
     if (lounge.min_tier !== 'guest') {
       tags.append(el('span', `gate ${lounge.min_tier}`, `${TIER_LABEL[lounge.min_tier]} only`));
