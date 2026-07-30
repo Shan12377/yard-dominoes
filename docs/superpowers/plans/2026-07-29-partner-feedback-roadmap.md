@@ -323,17 +323,41 @@ nothing else. Do not promise a date before scoping.
 
 ### 2.3 Tournaments
 
-- [ ] Separate **tournament lounge**.
-- [ ] Sign-up flow: a flashing banner after login, click to enter, countdown
-      from the morning of the event.
-- [ ] **VIP jumps the queue** — a VIP who signs up at 4:30 gets a seat ahead of
-      a regular who signed up at 9am. Per the partner this is *the* reason
-      people buy VIP; it is a stronger pitch than the microphone.
-- [ ] **Host role**: trusted people can run tournaments without any access to
-      coins or billing. Scope the permission narrowly.
-- [ ] Admin can broadcast to the tournament ("intercom").
-- [ ] Cheating penalty: an admin can strip a player's runs.
-- [ ] Sundays are the regular slot. Typical shape is two rounds plus a final.
+**v1 is live in production**, not a plan — see
+[the tournaments debrief](./2026-07-29-tournaments-debrief.md) for the actual
+scope decisions, the queue-rule reasoning, and the recovery-fix history. This
+section is left as the pre-work snapshot below only so the checkboxes have
+somewhere to point; treat the debrief as the source of truth for what shipped
+and why, not this list.
+
+- [x] **Done.** Tournament Yard lounge, seeded by `0015`, `min_tier: 'guest'`
+      (the queue is where VIP pays off, not the room).
+- [x] **Done, minus the flashing.** Countdown banner on the lounge list; no
+      literal flash — see the debrief for the WCAG 2.3.1 reasoning.
+- [x] **Done.** VIP jumps the queue, evaluated at seating time (not signup),
+      via `effective_tier`-equivalent logic in
+      `supabase/functions/_shared/tournament-queue.ts`. 18 tests.
+- [x] **Done.** `profiles.is_host`, zero database privileges, checked
+      server-side in every host action. No new grant, no new role.
+- [x] **Done.** The intercom is a column a host writes, not a forgeable
+      broadcast — see the debrief for why broadcast was rejected.
+- [x] **Done.** `disqualified` strips the event only; ratings untouched
+      pending Dr. Hunter's call on the ambiguity (debrief §4/§11).
+- [x] **Done.** No recurrence scheduler — a host creates each Sunday's row by
+      hand, `rounds` defaults to 3 (two rounds plus a final).
+
+**Verified in production, 2026-07-29**, including the specific bug the
+`clear` fix (commit `1cca7f7`) was built for: created a real tournament,
+opened signups, drew a round, confirmed the "table never started" 409 fires,
+clicked clear, confirmed via direct SQL the table flipped to `abandoned` and
+both signups reset to `signed_up`/`round: null`/`table_id: null`, then drew
+again and it succeeded. All test data removed afterward. A first host
+(`Candy`, a real account) is set — someone can run a tournament today.
+
+Migration `0015` confirmed applied (`20260729212747_tournaments`, last in
+`list_migrations`). `tournament-host` and `tournament-signup` confirmed
+deployed at version 2; `join-table` at version 9 with the tournament-seat
+gate.
 
 ---
 

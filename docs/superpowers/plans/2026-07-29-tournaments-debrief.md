@@ -1,16 +1,24 @@
 # Tournaments — debrief
 
-**Status:** the queue rule is written and tested
-(`supabase/functions/_shared/tournament-queue.ts`). Nothing else is built. No
-migration exists; production is untouched.
+**Status: v1 is LIVE in production.** Migration `0015`
+(`20260729212747_tournaments`) is applied — confirmed via `list_migrations`.
+`tournament-host` and `tournament-signup` are deployed and active at version 2;
+`join-table` is at version 9 with the tournament-seat gate. A first host
+(`Candy`, a real account) is set. Verified end to end against production on
+2026-07-29, including the no-show/`clear` recovery path from §8's addendum:
+drew a round, hit the "table never started" 409, cleared it, confirmed via
+direct SQL the table went `abandoned` and the signups reset, redrew
+successfully. All test data removed afterward.
 **Source of requirements:** Wave 2.3 of
-[the partner feedback roadmap](./2026-07-29-partner-feedback-roadmap.md).
-**Next migration number:** `0015`.
+[the partner feedback roadmap](./2026-07-29-partner-feedback-roadmap.md), which
+now points back here as the source of truth for what shipped.
+**Migration applied:** `0015`.
 
-> **Start here if you are picking this up.** Read §0 and §6, then
-> `tournament-queue.ts` and its tests. The false start recorded in §11 happened
-> because the agent's worktree was branched one commit before this file existed
-> — check you can actually see `tournament-queue.ts` before you write anything.
+> **This document was written before any code existed** and was kept as the
+> working record through the build, including one false start (§10) and one
+> post-ship bug fix (the `clear` action, §8). Sections below that read as
+> forward-looking plan ("do this", "start with") describe what was in fact
+> built, in the order it was built. Read them as history, not a TODO list.
 
 Per the partner, this is *the* reason people buy VIP — a stronger pitch than
 the microphone. Treat the queue rule as the paid promise it is.
@@ -333,20 +341,34 @@ order strands players pointing at a table in no round.
 
 ---
 
-## 9. Definition of done for v1
+## 9. Definition of done for v1 — all done, shipped, verified in production
 
-- [ ] `0015_tournaments.sql`, and the `profiles` UPDATE grant still lists five columns
-- [ ] Tournament lounge seeded
-- [ ] `tournament-signup` Edge Function (sign up / withdraw), server-set timestamp
-- [ ] Host functions: create event, set notice, open/close signups, start, disqualify — each checking `is_host`
+- [x] **Done.** `0015_tournaments.sql`, applied (`20260729212747_tournaments`).
+      `profiles` UPDATE grant confirmed still exactly five columns; `is_host`
+      absent, as designed.
+- [x] **Done.** Tournament Yard lounge seeded.
+- [x] **Done.** `tournament-signup` Edge Function (enter / withdraw / status),
+      server-set `signed_up_at`. Deployed, version 2.
+- [x] **Done.** Host functions in `tournament-host`: create, notice, open/close
+      signups, start (draw), mark (out/disqualified/reinstate), finish, cancel,
+      plus `clear` (added post-ship, §8) — every one checking `is_host`
+      server-side. Deployed, version 2.
 - [x] **Done.** `tournament-queue.ts` + 18 tests — the queue rule and the cut
       line. Three tier bands, `effective_tier` semantics, evaluated at seating
       time. The server computes position; the browser never sorts.
-- [ ] Banner + countdown, no flashing, `prefers-reduced-motion` honoured
-- [ ] Queue position visible to the player, VIPs-ahead-of-you count included
-- [ ] Verified with two real isolated clients, not two tabs — two tabs share a
-      Supabase session. Both spectator and quick-chat verification in Wave 1
-      needed this and it caught things a single client did not.
+- [x] **Done.** Banner + countdown in `countdown.ts`/`tournamentview.ts`, no
+      flashing, `prefers-reduced-motion` honoured.
+- [x] **Done.** Queue position and VIPs-ahead-of-you visible to the player —
+      `Standing` in `_shared/tournament.ts`, 15 tests of its own.
+- [x] **Done — verified in production, 2026-07-29**, including the failure
+      path the `clear` fix exists for: real tournament, real signups, a drawn
+      round, the "table never started" 409 confirmed, `clear` confirmed by
+      direct SQL (table → `abandoned`, both signups → `signed_up`/`null`/
+      `null`), redraw confirmed to succeed. Test data removed afterward. Not
+      run with two simultaneous isolated clients at the same table the way
+      Wave 1's spectator/quick-chat items were — worth doing before a real
+      Sunday with real turnout, since that class of check has caught real bugs
+      here before.
 
 ## 10. The false start, and what it cost
 
