@@ -237,11 +237,62 @@ ship; a nice-to-have.
 
 Preserving the order given, with one dependency-driven reorder called out.
 
-1. **Cross-board server sync + deploy** (`start-hand`/`play-move`/
-   `expire-turns` need the vendored engine copy refreshed and redeployed,
-   same rollout as openhand/French scoring). *Moved ahead of "French
-   phase 3" below it depends on* — phase 3 items can't be verified live
-   until this lands.
+1. **Cross-board server sync + deploy.** Checked a pasted summary of what
+   this needs against the actual code before accepting it — one claim was
+   imprecise, one was under-stated a real bug. Full picture:
+   - **Vendor `types.ts`, `hand.ts`, `bots.ts` into `_shared/engine/`** —
+     confirmed needed. `coach.ts` is *not* actually imported by
+     `start-hand`/`play-move`/`expire-turns` (only `review-hand` uses
+     it) — the claim that it's required was imprecise. Harmless either
+     way since `npm run sync:engine` vendors the whole directory
+     indiscriminately, but noting the correction for accuracy.
+   - **`deno check` the three functions** — genuinely can't do this
+     personally; Deno isn't installed in this environment (confirmed
+     earlier this session). Real gap in what I verified before the
+     openhand/French deploys — those were checked via `npm test` +
+     `tsc` + live API calls instead, which caught real issues but isn't
+     the same thing. Whoever runs this deploy should run it if Deno is
+     available to them.
+   - **`supabase functions deploy play-move start-hand expire-turns`**
+     — confirmed still outstanding. The French-scoring deploy two
+     sessions ago (`start-hand` v10, `play-move` v9, `expire-turns` v10)
+     predates the cross-board commit (`ad1d18b`) — none of the three
+     currently-live functions know about `playcross` or `suitLed` yet.
+   - **The `Board` jsonb data-shape risk — real, verified, worse than
+     the pasted note stated.** `Board`/`CrossBoard` is a discriminated
+     union on `.kind`, but every row written before `ad1d18b` has no
+     `kind` field at all. Read the actual dispatch logic in every
+     function that branches on it, and the codebase is **inconsistent
+     with itself**:
+     - `legalMoves` (`hand.ts`) and `render.ts:154` check
+       `board.kind === 'cross'`, defaulting to linear — **safe**: a
+       legacy row with `kind: undefined` correctly falls through to the
+       linear path.
+     - `cloneBoard` and `openEnds` (both `hand.ts`) check
+       `board.kind === 'linear'`, defaulting to **cross** — **unsafe**:
+       a legacy row hits the cross branch and crashes reading
+       `board.arms.map(...)` on an object that has no `.arms`.
+     - `cloneBoard` runs on every single `applyMove` call (via
+       `clone(prev)`), unconditionally. The moment any function that's
+       still running the pre-cross-board bundle plays a move against an
+       old-shaped board row, or the new bundle deploys while an old row
+       is still active, that hand crashes.
+     - **Checked production directly: zero currently-active hands lack
+       `kind`** (`select count(*) from hands where status='active' and
+       board->>'kind' is null` → 0), so there's no hand in flight that
+       would crash *right this moment*. That's a point-in-time fact,
+       not a guarantee — it only takes one active hand at deploy time.
+     - **Fix, recommended: make `cloneBoard` and `openEnds` use the same
+       safe convention as `legalMoves`/`render.ts`** (`=== 'cross'`,
+       default linear) rather than write a one-time data migration. This
+       is more robust than a backfill — it never breaks again regardless
+       of what any future row is missing, and needs no migration at all.
+       A data migration to backfill `kind: 'linear'` onto historical
+       `hands.board`/`hand_public.board` rows is still reasonable for
+       data hygiene afterward, but isn't load-bearing once the code
+       itself is fixed.
+   - *Moved ahead of "French phase 3" below it depends on* — phase 3
+     items can't be verified live until this lands.
 2. **French phase 3**, now better specified by this audit:
    - Resolve the doubling-trigger open question (§2) — blocks any pass-
      penalty work sharing the same scoring path.
