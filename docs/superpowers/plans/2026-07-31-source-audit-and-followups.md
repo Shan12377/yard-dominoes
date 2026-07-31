@@ -254,21 +254,27 @@ Preserving the order given, with one dependency-driven reorder called out.
 3. **Avatars wiring** — `profiles.avatar` column + grant extension to six
    columns + picker in the profile editor. Art already generated and
    pushed; this is pure plumbing.
-4. **Tournament debrief's 4 open questions** (disqualify scope,
+4. **Bredrins list UI + VIP gate** (§6 correction) — data layer already
+   works (`bredrins` table, RLS, `addBredrin`/`whereAreMyBredrins`); needs
+   a rendered list in a view, an add/remove affordance, and an explicit
+   `effective_tier(p) = 'vip'` check added to the RLS policy, since the
+   current one has none. Same shape of task as avatars wiring, worth
+   doing back to back.
+5. **Tournament debrief's 4 open questions** (disqualify scope,
    host-vs-admin, entry cost, guest-seating-when-full).
-5. **Stripe dashboard** — tick `invoice.paid`, `charge.refunded`,
+6. **Stripe dashboard** — tick `invoice.paid`, `charge.refunded`,
    `charge.dispute.created`. Five minutes, real revenue-continuity risk
    per `billing.md` until done.
-6. **Coin economy** — Stripe IAP, wallet table, spend/refund RPCs,
+7. **Coin economy** — Stripe IAP, wallet table, spend/refund RPCs,
    no-cash-out guardrails. Gates item 2's shuffle.
-7. **Hard end / dead double / key** — plan in §3 above, no blockers,
+8. **Hard end / dead double / key** — plan in §3 above, no blockers,
    can run in parallel with anything else on this list since it touches
    no shared scoring/legality code.
-8. **Cosmetic yard-scene backgrounds** (§7.1) — no blockers, same art
+9. **Cosmetic yard-scene backgrounds** (§7.1) — no blockers, same art
    pipeline as avatars.
-9. **Video presence** (§7.2) — explicitly LAST. Not blocked technically,
-   just lowest priority by instruction: this is a genuinely new cost
-   center and a genuinely new piece of infrastructure, and everything
+10. **VIP-gated video presence** (§7.2) — explicitly LAST. Not blocked
+   technically, just lowest priority by instruction: this is a genuinely
+   new cost center and a genuinely new piece of infrastructure, and everything
    above it is either revenue-protecting, already-scoped, or free to
    build. Do not pull this forward without being asked.
 
@@ -305,7 +311,7 @@ by name:
 |---|---|
 | VIP-exclusive table mic | **Shipped, and structurally better.** `canSpeak()` gate, P2P mesh (`voice.ts`), zero vendor cost — see CLAUDE.md's Voice section. |
 | Skip full lounges | **Shipped.** `lounges.ts:237`, comment: *"the single most-praised JamDom VIP perk, inverted into our gate."* `capacity` soft-cap + VIP bypass, sourced from `0002_lounges_tiers.sql`'s own comment referencing JamDom. |
-| Bredrins list (friends), capped at ~40, only 14 shown, rotates on refresh | **Shipped, and strictly better** — `bredrins` table, comment: *"JamDom's most-loved VIP feature."* No arbitrary cap, no rotation gimmick — shows every bredrin with live per-lounge `last_seen`, all at once. |
+| Bredrins list (friends), capped at ~40, only 14 shown, rotates on refresh | **Correction (2026-07-31): data layer only, not shipped.** `bredrins` table + RLS + `addBredrin`/`whereAreMyBredrins` in `lounges.ts` all work — but grepped every view file and **nothing in the client calls them.** No button, no rendered list, no UI surface at all. Separately, the RLS policy (`using (user_id = auth.uid())`) has **no tier check** — any signed-in Guest could call these today. Whenever the UI gets built, the VIP gate has to be added explicitly; it does not come from the database for free. Originally logged here as "shipped" during the first VIP audit pass — wrong, caught on a follow-up question. |
 | Tournament round-1 priority when a seat opens late | **Shipped, and provably better.** This *is* the substitutes-line mechanism (`tournament-queue.ts`'s `drawCutLine`) — server-authoritative, tested, deterministic. JamDom's version is presumably a human noticing a no-show; ours is a sort key nobody can dispute. |
 | Emoticons for table talk | **Shipped, differently and better-aimed.** `REACTIONS` (6) + `QUICK_CHAT` (8) in `lounges.ts` — patois (`Tek dat`, `Six love`, `KMT`, `DWL`), on-brand flat-vector art per `art-direction.md`, tap-to-send (no typed syntax to fumble on a phone), gender-neutral, and — this is the one JamDom never had — **server-side anti-cheat awareness already designed in**: the code comment explains exactly why `QUICK_CHAT` is broadcast-only and shares one on-screen slot with reactions, so a private "ME/YOU/ANY" signal between partners can't be smuggled through it. |
 | Private messages, one-way if the recipient isn't VIP | **Not built, already correctly planned** — `2026-07-29-partner-feedback-roadmap.md` §2.1 already has *"VIP can send private messages"* + *"nobody seated in a live hand may send or receive one, enforced server-side."* Don't redesign this, just build it — the anti-cheat framing is already right. |
@@ -437,6 +443,31 @@ allowance, and it extends a relationship this app already has (TURN
 today) rather than onboarding LiveKit/Daily from zero. This does not
 change the priority — still last — it just means the "how" is answered
 in advance for whenever "when" changes.
+
+#### Pricing model, decided: bundled into VIP, not a new tier or add-on
+
+Considered and rejected: free at launch (small usage) with a later
+paywall once volume grows. Rejected because taking away or paywalling an
+already-free, already-loved feature is a well-documented churn risk, and
+it sits directly against this product's own stated brand promise
+(CLAUDE.md: *"the incumbent gates basic play behind a paywall... we do
+the opposite deliberately"*) — that promise is about not doing exactly
+this kind of bait-and-switch.
+
+Considered and rejected: a separate paid tier or add-on above VIP.
+Rejected on YAGNI grounds — at the verified pricing above, video's
+marginal cost is small enough (~$0.07/session past a very generous free
+allowance) that it wouldn't meaningfully dent VIP's $69/yr margin at any
+usage level this app is likely to see for a long time. Building a new
+Stripe price, entitlement check, and upsell UI to protect against a cost
+that isn't currently a problem is solving for data that doesn't exist
+yet.
+
+**Decided: video ships as one more thing VIP already includes**, the
+same way the mic already works (*"hearing the yard is free; talking is
+the membership"* — seeing becomes the same kind of membership perk, not
+a new purchase). Revisit only if real usage data later shows the
+marginal cost is actually eating into VIP's margin — not before.
 
 ## 8. Open questions for Dr. Hunter
 
