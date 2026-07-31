@@ -367,12 +367,25 @@ Preserving the order given, with one dependency-driven reorder called out.
    Postgres, saw it render on a real table seat next to three duppies
    (which correctly show none — they have their own art under design.md's
    five tiers). Test account and table cleaned up afterward.
-4. **Bredrins list UI + VIP gate** (§6 correction) — data layer already
-   works (`bredrins` table, RLS, `addBredrin`/`whereAreMyBredrins`); needs
-   a rendered list in a view, an add/remove affordance, and an explicit
-   `effective_tier(p) = 'vip'` check added to the RLS policy, since the
-   current one has none. Same shape of task as avatars wiring, worth
-   doing back to back.
+4. ~~**Bredrins list UI + VIP gate**~~ — **done (2026-07-31).** Migration
+   `0020_bredrins_vip.sql` adds the missing `effective_tier(p) = 'vip'`
+   check to the `bredrins` RLS policy — verified directly: a Guest REST
+   insert now 403s, a VIP insert succeeds. Also found and fixed a second,
+   more serious gap while wiring the view: `whereAreMyBredrins()` tried to
+   embed `lounge_visits` through `bredrins` in one PostgREST `.select()`,
+   but the two tables share no foreign key with each other (both only
+   point at `profiles`) — confirmed via `pg_constraint` — so the query
+   would have errored the instant anything called it. Nothing did, until
+   now. Rewrote as two queries merged client-side. UI: a "Bredrins" panel
+   next to the profile editor (upsell for non-VIP, list + remove for VIP)
+   and a "+ Bredrin" add affordance in the lounge roster, VIP only. Verified
+   live end-to-end via REST as both a Guest (blocked) and a real VIP
+   account (added a second test account, saw "In Yard Gate" render
+   correctly, removed them, confirmed gone from Postgres). The roster
+   "+" button's live two-client click path was not separately exercised —
+   it is structurally identical to the already-proven tier-badge/reaction
+   rendering in the same loop, but flagging the gap rather than claiming
+   more than was tested. Test accounts and data cleaned up afterward.
 5. **Tournament debrief's 4 open questions** (disqualify scope,
    host-vs-admin, entry cost, guest-seating-when-full).
 6. **Stripe dashboard** — tick `invoice.paid`, `charge.refunded`,
