@@ -192,6 +192,11 @@ export const BELTS: Belt[] = [
         id: 'B4L6', title: 'The endgame switch',
         body: 'Around three tiles left, change what you are optimising. Stop racing to go out and start protecting your count, because if it jams it is your own hand that decides it — not your partner\'s.',
       },
+      {
+        id: 'B4L7', title: 'Hard ends, dead doubles, and the key',
+        body: 'Lesson 2 showed you how to count a suit out. Three named reads follow straight from that count, and real tables call all three by name. A HARD END is an open end where only one tile of that suit is still unaccounted for anywhere — whoever holds it is the only player left who can ever answer there. A DEAD DOUBLE is a double sitting in your own hand that the board can no longer reach at all: every other tile of its suit is already gone, and it never comes home. Hold the last tile of two different suits at the same time and you have a KEY — a position nobody at the table can break, because you decide where the board goes in both suits at once. Learn to spot all three on sight and the Coach will start naming them in your own hands.',
+        terms: ['hard end', 'dead double', 'key'],
+      },
     ],
     drills: [
       { id: 'B4D1', kind: 'read-the-pass', prompt: 'He just passed. What do you know?', pass: 8 },

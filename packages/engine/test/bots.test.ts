@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 
 import {
   publicView, chooseMove, duppyMove, suitStrength, voidsFromLog,
-  sampleConsistentDeal, DUPPY_LEVELS, allBoardTiles,
+  sampleConsistentDeal, DUPPY_LEVELS, allBoardTiles, hardEnds, deadDoubles, hasKey,
 } from '../src/bots.ts';
+import type { PublicView } from '../src/bots.ts';
 import { reviewHand, accuracy } from '../src/coach.ts';
 import { deal, legalMoves, applyMove } from '../src/hand.ts';
 import { provablyFairShuffle } from '../src/shuffle.ts';
 import { halves } from '../src/tiles.ts';
 import type { DuppyLevel } from '../src/bots.ts';
-import type { HandState, Move, TileId } from '../src/types.ts';
+import type { AnyBoard, HandState, Move, TileId } from '../src/types.ts';
 
 function rngFrom(seed: number) {
   return () => {
@@ -131,6 +132,148 @@ describe('duppy play', () => {
     assert.deepEqual(suitStrength(['3-3']), [0, 0, 0, 1, 0, 0, 0]);
     assert.deepEqual(suitStrength(['3-4']), [0, 0, 0, 1, 1, 0, 0]);
     assert.deepEqual(suitStrength(['0-6', '6-6']), [1, 0, 0, 0, 0, 0, 2]);
+  });
+});
+
+describe('hard ends, dead doubles and keys — named reads of public board state', () => {
+  // Minimal fields every fixture needs; each test overrides board/myHand.
+  function baseView(overrides: Partial<PublicView>): PublicView {
+    return {
+      seat: 0, seatCount: 4, mode: 'cutthroat', turn: 0,
+      handSizes: [7, 7, 7, 7], boneyardSize: 0, moveLog: [],
+      poseMustBeDoubleSix: false, format: 'sixlove', openingTile: '6-6',
+      myHand: [], board: null,
+      ...overrides,
+    };
+  }
+
+  describe('hardEnds', () => {
+    test('flags an open suit once 6 of its 7 tiles are visible', () => {
+      // Board carries six of suit 3's seven tiles; the seventh (3-3) is
+      // unaccounted — not on the board, not in my hand.
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [
+          { tile: '0-3', crosswise: false }, { tile: '1-3', crosswise: false },
+          { tile: '2-3', crosswise: false }, { tile: '3-4', crosswise: false },
+          { tile: '3-5', crosswise: false }, { tile: '3-6', crosswise: false },
+        ],
+        leftEnd: 0, rightEnd: 3,
+      };
+      const view = baseView({ board, myHand: ['1-2'] });
+      assert.deepEqual(hardEnds(view), [3]);
+    });
+
+    test('does not flag a suit with fewer than 6 tiles visible', () => {
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [{ tile: '0-3', crosswise: false }, { tile: '1-3', crosswise: false }],
+        leftEnd: 0, rightEnd: 3,
+      };
+      const view = baseView({ board, myHand: [] });
+      assert.deepEqual(hardEnds(view), []);
+    });
+
+    test('does not flag a suit that is not currently open, even at 6 seen', () => {
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [
+          { tile: '0-3', crosswise: false }, { tile: '1-3', crosswise: false },
+          { tile: '2-3', crosswise: false }, { tile: '3-4', crosswise: false },
+          { tile: '3-5', crosswise: false }, { tile: '3-6', crosswise: false },
+        ],
+        // Neither end is pip 3, so the suit is scarce but not reachable.
+        leftEnd: 4, rightEnd: 5,
+      };
+      const view = baseView({ board, myHand: [] });
+      assert.deepEqual(hardEnds(view), []);
+    });
+
+    test('reads a cross board the same way as a linear one', () => {
+      const board: AnyBoard = {
+        kind: 'cross',
+        center: '0-0',
+        arms: [{
+          direction: 'right',
+          tiles: [
+            { tile: '0-3', crosswise: false }, { tile: '1-3', crosswise: false },
+            { tile: '2-3', crosswise: false }, { tile: '3-4', crosswise: false },
+            { tile: '3-5', crosswise: false },
+          ],
+          openEnd: 3,
+        }],
+        suitLed: [0],
+      };
+      const view = baseView({ board, myHand: ['3-6'], format: 'french', openingTile: '0-0' });
+      assert.deepEqual(hardEnds(view), [3]);
+    });
+  });
+
+  describe('deadDoubles', () => {
+    test('flags a double once its suit is down to one unaccounted tile and closed', () => {
+      // Board carries five of suit 3's other six tiles; the double itself
+      // is the sixth, and 3-6 is the lone unaccounted tile. Neither open
+      // end is pip 3, so the double cannot be played right now.
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [
+          { tile: '0-3', crosswise: false }, { tile: '1-3', crosswise: false },
+          { tile: '2-3', crosswise: false }, { tile: '3-4', crosswise: false },
+          { tile: '3-5', crosswise: false },
+        ],
+        leftEnd: 1, rightEnd: 2,
+      };
+      const view = baseView({ board, myHand: ['3-3', '0-1'] });
+      assert.deepEqual(deadDoubles(view), ['3-3']);
+    });
+
+    test('does not flag a double whose suit is currently open', () => {
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [
+          { tile: '0-3', crosswise: false }, { tile: '1-3', crosswise: false },
+          { tile: '2-3', crosswise: false }, { tile: '3-4', crosswise: false },
+          { tile: '3-5', crosswise: false },
+        ],
+        // Pip 3 is open here — the double is playable right now, not dead.
+        leftEnd: 3, rightEnd: 2,
+      };
+      const view = baseView({ board, myHand: ['3-3'] });
+      assert.deepEqual(deadDoubles(view), []);
+    });
+  });
+
+  describe('hasKey', () => {
+    test('true once I hold the scarce tile in two different suits at once', () => {
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [
+          { tile: '0-1', crosswise: false }, { tile: '1-1', crosswise: true },
+          { tile: '1-3', crosswise: false }, { tile: '1-4', crosswise: false },
+          { tile: '1-6', crosswise: false },
+          { tile: '0-5', crosswise: false }, { tile: '2-5', crosswise: false },
+          { tile: '3-5', crosswise: false }, { tile: '4-5', crosswise: false },
+          { tile: '5-5', crosswise: true },
+        ],
+        leftEnd: 6, rightEnd: 6,
+      };
+      const view = baseView({ board, myHand: ['1-2', '5-6'] });
+      assert.equal(hasKey(view), true);
+    });
+
+    test('false with only one qualifying suit', () => {
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [
+          { tile: '0-1', crosswise: false }, { tile: '1-1', crosswise: true },
+          { tile: '1-3', crosswise: false }, { tile: '1-4', crosswise: false },
+          { tile: '1-6', crosswise: false },
+        ],
+        leftEnd: 0, rightEnd: 6,
+      };
+      const view = baseView({ board, myHand: ['1-2'] });
+      assert.equal(hasKey(view), false);
+    });
   });
 });
 

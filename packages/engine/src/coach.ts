@@ -17,8 +17,13 @@
 
 import { legalMoves, applyMove, openEnds } from './hand.ts';
 import { handCount, halves, isDouble, sideOf, tileCount } from './tiles.ts';
-import { suitStrength } from './bots.ts';
+import { suitStrength, publicView, hardEnds, deadDoubles, hasKey } from './bots.ts';
 import type { HandState, Move, Pip, TileId } from './types.ts';
+
+/** Table talk, not digits — a Jamaican player calls it "hard six", not "hard 6". */
+const PIP_WORD: Record<Pip, string> = {
+  0: 'blank', 1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six',
+};
 
 export type Grade = 'best' | 'fine' | 'loose' | 'blunder';
 
@@ -170,6 +175,52 @@ function explain(
     return {
       note: 'The board left you nothing to work with here.',
       lesson: null,
+    };
+  }
+
+  // Three named board reads, straight from Belt 4 · Lesson 7. Checked
+  // ahead of the generic control/pips checks below, since spotting one of
+  // these on sight is exactly the difference a stronger player makes.
+
+  // Hard end: the better move played into a suit down to its last
+  // unaccounted tile, and the actual move didn't.
+  const hard = hardEnds(publicView(before, seat));
+  if (hard.length > 0) {
+    const bestHalves = halves((best as any).tile as TileId);
+    const playedHalves = halves((played as any).tile as TileId);
+    const suit = hard.find((p) => bestHalves.includes(p));
+    if (suit !== undefined && !playedHalves.includes(suit)) {
+      return {
+        note:
+          `You had hard ${PIP_WORD[suit]} here — nobody else could answer it. ` +
+          'Play into a hard end the moment you have it; wait, and someone may draw into it.',
+        lesson: 'Belt 4 · Lesson 7',
+      };
+    }
+  }
+
+  // Dead double: the actual move let a double still in your hand go dead —
+  // the better move would have kept it alive a while longer.
+  const deadAfterPlayed = deadDoubles(publicView(afterPlayed, seat));
+  const deadAfterBest = deadDoubles(publicView(afterBest, seat));
+  const newlyDead = deadAfterPlayed.find((t) => !deadAfterBest.includes(t));
+  if (newlyDead) {
+    return {
+      note:
+        `That play let your double-${PIP_WORD[halves(newlyDead)[0]]} go dead — no open end can reach ` +
+        'it now, and every other tile of that suit is already accounted for.',
+      lesson: 'Belt 4 · Lesson 7',
+    };
+  }
+
+  // Key: the better move kept (or reached) the last tile in two different
+  // suits at once — an unbeatable hold — and the actual move gave it up.
+  if (hasKey(publicView(afterBest, seat)) && !hasKey(publicView(afterPlayed, seat))) {
+    return {
+      note:
+        'That move gave up your key — you were holding the last tile in two suits at once, ' +
+        'a position nobody else at the table could break.',
+      lesson: 'Belt 4 · Lesson 7',
     };
   }
 

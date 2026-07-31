@@ -193,6 +193,53 @@ export function voidsFromLog(view: PublicView): Set<Pip>[] {
 }
 
 /**
+ * Suits where exactly one tile is unaccounted for — not on the board, not
+ * in my own hand, so it is somewhere in an opponent's hand or the
+ * boneyard. Jamaican players call an open end like this a "hard end": only
+ * one copy of that suit is left anywhere, so whoever is forced to face it
+ * either holds that lone tile or must pass — nobody else can ever answer
+ * it again. `openEnds()` is shape-agnostic, so this reads a cross board
+ * exactly the same way as a linear one.
+ */
+export function hardEnds(view: PublicView): Pip[] {
+  if (!view.board) return [];
+  const seen = suitsSeen(view);
+  return openEnds(view.board).filter((suit) => seen[suit] === 6);
+}
+
+/**
+ * Doubles in my own hand that cannot be played right now and are unlikely
+ * to open again: every tile of that suit but one unaccounted-for copy is
+ * already visible (on the board or in my hand — the double itself counts
+ * as one of the six), and no currently open end exposes that suit.
+ */
+export function deadDoubles(view: PublicView): TileId[] {
+  const seen = suitsSeen(view);
+  const open = new Set(view.board ? openEnds(view.board) : []);
+  return view.myHand.filter((t) => {
+    const [a, b] = halves(t);
+    if (a !== b) return false; // only doubles can be dead in this sense
+    return seen[a] === 6 && !open.has(a);
+  });
+}
+
+/**
+ * True when my hand holds a tile in two DIFFERENT suits that are each down
+ * to their last unaccounted-for copy — an unbeatable "key" position, since
+ * I effectively control where the board can go in both suits at once.
+ */
+export function hasKey(view: PublicView): boolean {
+  const seen = suitsSeen(view);
+  const mySuits = new Set<Pip>();
+  for (const t of view.myHand) {
+    const [a, b] = halves(t);
+    if (seen[a] === 6) mySuits.add(a);
+    if (seen[b] === 6) mySuits.add(b);
+  }
+  return mySuits.size >= 2;
+}
+
+/**
  * The open pips AFTER this move, regardless of board shape. Bots use this to
  * reason about what suits opponents would face next. Linear boards return two
  * pips; cross boards return however many arms are exposed.
