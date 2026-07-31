@@ -40,22 +40,118 @@ do not reintroduce it by simplifying the webhook.
 
 ## Webhook events to handle
 
-Only `checkout.session.completed` and `customer.subscription.deleted` are wired
-today. A subscription business needs all of these:
+**Status as of 2026-07-31: five of six are wired and verified live** in
+`stripe-webhook/index.ts` — `checkout.session.completed`, `invoice.paid`,
+`customer.subscription.deleted`, `charge.refunded`, `charge.dispute.created`.
+The sixth, `customer.subscription.updated`, is a deliberate gap — see below.
 
-| Event | What it must do |
-|---|---|
-| `checkout.session.completed` | Set tier, store `stripe_customer_id`, write a `payments` row |
-| `invoice.paid` | **Extend `tier_expires_at` to `period_end`.** This is the one that keeps members alive |
-| `invoice.payment_failed` | Do not revoke. Stripe retries for days — see grace period below |
-| `customer.subscription.updated` | Handle upgrade Yardie → VIP and downgrade; tier follows the price id |
-| `customer.subscription.deleted` | Let the paid period run out. Set `tier_expires_at` to `current_period_end`, do not revoke immediately |
-| `charge.refunded` | Revoke immediately. A refunded member is not a member |
-| `charge.dispute.created` | Revoke immediately and flag the account |
+| Event | What it must do | Code | Endpoint (test mode) |
+|---|---|---|---|
+| `checkout.session.completed` | Set tier, store `stripe_customer_id`, write a `payments` row | ✅ | ✅ |
+| `invoice.paid` | **Extend `tier_expires_at` to `period_end`.** This is the one that keeps members alive | ✅ | ✅ (ticked 2026-07-31) |
+| `invoice.payment_failed` | Do not revoke. Stripe retries for days — see grace period below | intentionally unhandled | — |
+| `customer.subscription.updated` | Handle upgrade Yardie → VIP and downgrade; tier follows the price id | ❌ not built | — |
+| `customer.subscription.deleted` | Let the paid period run out. Set `tier_expires_at` to `current_period_end`, do not revoke immediately | ✅ | ✅ |
+| `charge.refunded` | Revoke immediately. A refunded member is not a member | ✅ | ✅ (ticked 2026-07-31) |
+| `charge.dispute.created` | Revoke immediately and flag the account | ✅ | ✅ (ticked 2026-07-31) |
+
+**`customer.subscription.updated` is deliberately not built** — from the
+commit that fixed the other four (`555a84b`): *"pointless until a billing
+portal exists."* There is currently no UI path for a member to change tier
+except buying a new Checkout Session, so there is nothing yet that would fire
+this event. Build it when a self-serve upgrade/downgrade flow ships, not
+before — a handler with no caller is just surface area.
 
 Every handler must be idempotent — Stripe retries on any non-2xx, and will
 happily deliver the same event twice. `payments.stripe_session_id` is unique,
 which covers checkout; use the Stripe event id for the rest.
+
+## History — bugs found and fixed in the money path
+
+Kept here, not just in `git log`, so the next person doesn't rediscover these
+the hard way. All five were found and fixed together in commit `555a84b`
+("close the free-VIP hole and repair the renewal path"), except the last,
+found in this session's audit.
+
+1. **CRITICAL — free VIP.** `0006` granted table-wide `UPDATE` on `profiles`
+   to `authenticated` so RLS could act as the gate — but RLS is row-level
+   only, it never restricts *which columns*. `effective_tier()` reads `tier`
+   and `tier_expires_at`, both were user-writable, so one `PATCH` bought a
+   free membership (verified live: before the fix, a real anonymous member
+   could grant itself VIP until 2099; after, 403/42501). Ratings and
+   `hands_played` were writable too, making the leaderboards fiction, and a
+   member could overwrite *another* member's `stripe_customer_id`, letting
+   their card extend a squatter's term. **Fix:** `0012` replaced the blanket
+   grant with column grants — a member owns `username`, `flag`, `bio`,
+   nothing else. `avatar`, `origin`, `gender` were added to that list later
+   (`0014`, `0019`), `tier` never is.
+2. **Checkout hardcoded a one-year term.** Regardless of which price was
+   actually bought, so a *monthly* price sold twelve months for the price of
+   one. **Fix:** the term now comes from the subscription's own period, read
+   back from Stripe after the session completes.
+3. **`invoice.paid` was never handled at all.** The exact failure this file
+   warns about above, in bold: a membership expires at the end of the term
+   it was bought with and never renews, however much the member keeps
+   paying. **Fix:** handler added, extends `tier_expires_at` to the invoice's
+   period end on every successful payment.
+4. **Cancellation crashed and retried forever.** Stripe moved
+   `current_period_end` off the `Subscription` object onto its *items* in API
+   version `2025-03-31`. Reading the old field read `undefined`,
+   `undefined * 1000` is `NaN`, and `new Date(NaN).toISOString()` throws — so
+   the handler 500'd on every cancellation, Stripe retried indefinitely, the
+   cancellation never applied, and a cancelled member kept access forever.
+   **Fix:** `_shared/billing.ts`'s `subscriptionPeriodEnd()` checks both API
+   layouts, and 14 unit tests in `billing.test.ts` (run by plain `npm test` —
+   Deno is not installed in this environment, so without these the whole
+   money path had no automated check at all) pin the NaN-refusal behavior
+   specifically, by name, so it cannot regress silently.
+5. **Refunds and disputes never revoked access.** `charge.refunded` and
+   `charge.dispute.created` had no handler, so a refunded or disputed member
+   kept their tier. **Fix:** `0011` added `billing_hold`; both events now
+   expire `tier_expires_at` immediately. A Dispute object names only the
+   charge it came from, never the customer, so the handler reads the charge
+   back from Stripe first.
+6. **Dashboard config drift — the code was fixed, the endpoint wasn't
+   listening.** `555a84b` fixed bugs 2–5 above but explicitly flagged at the
+   bottom of its own commit message: *"the endpoint is subscribed only to
+   the original two events... three of these four fixes never fire"* until
+   `invoice.paid`, `charge.refunded` and `charge.dispute.created` were ticked
+   in the Stripe Dashboard. That remained true for two days after the code
+   fix landed. **Fix (2026-07-31):** ticked in the **test-mode** endpoint via
+   the API, then verified live — `stripe trigger` fired real signed test
+   events at the deployed function for all five handled types, all returned
+   200, and a bad-signature probe still correctly got 400. The **live-mode**
+   endpoint has not been created yet (no live key exists in this project) —
+   see the cutover checklist below; do not assume ticking test mode also
+   ticks live mode, they are entirely separate endpoint objects even on the
+   same Stripe account.
+
+## Before flipping test keys to live
+
+None of the five bugs above are specific to test mode — they were all in the
+handler code or the RLS grant, so fixing them once covers both. What does
+**not** carry over automatically from test to live:
+
+- **The webhook endpoint itself.** Test mode and live mode each have their
+  own `webhook_endpoints` list, even pointed at the same URL. Creating and
+  configuring one does nothing to the other. The live endpoint needs its own
+  `enabled_events` set to all five handled types, ticked the same way this
+  session ticked test mode.
+- **`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` on the deployed function**
+  (`supabase secrets set`) must be swapped from `sk_test_…`/`whsec_…(test)`
+  to the live equivalents together, not one at a time — a mismatched pair
+  fails every signature check (400, safe, but silently blocks all payments
+  until noticed).
+- **`STRIPE_PRICE_YARDIE` / `STRIPE_PRICE_VIP`** must point at live-mode
+  price ids. A test price id used with a live key (or vice versa) is
+  rejected by Stripe outright, not silently mischarged — but check anyway,
+  since "outright rejected at checkout" is still a broken signup flow.
+- **`stripe trigger` is test-mode only.** It cannot be used to verify the
+  live endpoint. Live verification means a real low-value purchase (or
+  Stripe's live-mode test clocks, if the account has them) — plan for that
+  deliberately rather than assuming the test-mode pass above covers it.
+- **Enable Stripe Tax** before real money moves — see "things that will bite
+  you" below. Untested in either mode as of this writing.
 
 ## Grace period
 

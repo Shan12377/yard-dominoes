@@ -395,9 +395,21 @@ Preserving the order given, with one dependency-driven reorder called out.
    `tournament-host/index.ts` and `tournament-signup/index.ts` (no rating
    writes, `is_host`-gated, no entry-cost logic, no tier check on signup).
    No code changed.
-6. **Stripe dashboard** — tick `invoice.paid`, `charge.refunded`,
-   `charge.dispute.created`. Five minutes, real revenue-continuity risk
-   per `billing.md` until done.
+6. ~~**Stripe dashboard**~~ — **done, test mode (2026-07-31).** Ticked
+   `invoice.paid`, `charge.refunded`, `charge.dispute.created` on the
+   test-mode webhook endpoint via the Stripe API, then verified live: fired
+   real signed test events at the deployed function for all five handled
+   types (including the two already-enabled ones), all five returned 200,
+   a bad-signature probe still correctly got 400, and the two writes that
+   touched real logic (`customer.subscription.deleted`, a fabricated
+   `checkout.session.completed`) confirmed as safe no-ops against
+   production data — no row matched the synthetic customer id. Full bug
+   history and a test→live cutover checklist now live in `billing.md`
+   ("History — bugs found and fixed" / "Before flipping test keys to
+   live"). **Not done: the live-mode endpoint** — no live key exists in
+   this project yet, and live mode has its own separate `enabled_events`
+   list that this change does not touch. That's the cutover checklist's
+   job when the account actually goes live.
 7. **Coin economy** — Stripe IAP, wallet table, spend/refund RPCs,
    no-cash-out guardrails. Gates item 2's shuffle.
 8. **Hard end / dead double / key** — plan in §3 above, no blockers,
