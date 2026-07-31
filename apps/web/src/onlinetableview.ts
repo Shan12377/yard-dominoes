@@ -5,7 +5,9 @@
 // reads it and calls back into it.
 
 import { OnlineGame } from './onlinetable.ts';
-import { listLoungeTables, reactionLabel, quickChatLabel, type OpenTable } from './lounges.ts';
+import {
+  listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL, type OpenTable, type Avatar,
+} from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
@@ -270,6 +272,17 @@ export function liveTableView(
     const card = el('div', 'seat');
     if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
     const who = el('div', 'who');
+    // Presence without a photo, docs/avatar-set.md. A duppy has its own art
+    // elsewhere (design.md's five tiers) and never picks from this set.
+    if (s.userId && s.avatar) {
+      const img = document.createElement('img');
+      img.className = 'avatar';
+      img.src = avatarUrl(s.avatar as Avatar);
+      img.alt = AVATAR_LABEL[s.avatar as Avatar] ?? '';
+      img.width = 32;
+      img.height = 32;
+      who.appendChild(img);
+    }
     who.append(el('h3', undefined,
       s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`));
     // Yard or foreign, if they said. A duppy is from nowhere.

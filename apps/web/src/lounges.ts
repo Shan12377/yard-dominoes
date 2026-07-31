@@ -131,12 +131,40 @@ export const ORIGIN_LABEL: Record<Origin, string> = {
   foreign: 'Foreign',
 };
 
+/**
+ * Presence without a photo — docs/avatar-set.md. `plain` is the deliberate
+ * default: some players want presence without a character too, not just
+ * without their own face.
+ */
+export type Avatar = 'tam' | 'wrap' | 'granny' | 'straw' | 'hoops' | 'cap' | 'phones' | 'plain';
+
+export const AVATARS: Avatar[] = ['tam', 'wrap', 'granny', 'straw', 'hoops', 'cap', 'phones', 'plain'];
+
+/** What each character is wearing — read aloud by a screen reader in place
+ *  of a filename, and shown as the caption under the picker grid. */
+export const AVATAR_LABEL: Record<Avatar, string> = {
+  tam: 'Knitted tam',
+  wrap: 'Gold head-wrap',
+  granny: 'Curlers and glasses',
+  straw: 'Straw yard hat',
+  hoops: 'Gold hoops',
+  cap: 'Flat cap',
+  phones: 'Headphones',
+  plain: 'Plain',
+};
+
+/** `apps/web/public/avatars/<id>.webp` is the only thing that ever renders one. */
+export function avatarUrl(avatar: Avatar): string {
+  return `/avatars/${avatar}.webp`;
+}
+
 export interface MyProfile {
   id: string;
   username: string;
   tier: Tier;
   origin: Origin | null;
   gender: Gender | null;
+  avatar: Avatar | null;
   /**
    * Runs tournaments. Read here only to decide whether to draw the host
    * controls — it grants nothing. Every host action is an Edge Function that
@@ -150,7 +178,8 @@ export async function myProfile(): Promise<MyProfile | null> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) return null;
   const { data } = await db().from('profiles')
-    .select('id, username, tier, tier_expires_at, origin, gender, is_host').eq('id', auth.user.id).single();
+    .select('id, username, tier, tier_expires_at, origin, gender, avatar, is_host')
+    .eq('id', auth.user.id).single();
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
   return {
@@ -159,6 +188,7 @@ export async function myProfile(): Promise<MyProfile | null> {
     tier: (expired ? 'guest' : data.tier) as Tier,
     origin: (data.origin ?? null) as Origin | null,
     gender: (data.gender ?? null) as Gender | null,
+    avatar: (data.avatar ?? null) as Avatar | null,
     isHost: Boolean(data.is_host),
   };
 }
@@ -173,7 +203,7 @@ export async function myProfile(): Promise<MyProfile | null> {
  * fix, so the caller must show it rather than swallow it.
  */
 export async function saveProfile(
-  patch: { username?: string; origin?: Origin | null; gender?: Gender | null },
+  patch: { username?: string; origin?: Origin | null; gender?: Gender | null; avatar?: Avatar | null },
 ): Promise<void> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) throw new Error('Sign in first');

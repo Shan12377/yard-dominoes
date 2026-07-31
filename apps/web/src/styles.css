@@ -696,6 +696,21 @@ p.small { font-size: 13px; margin: 2px 0 8px; }
 .choices .choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 button.act.small { font-size: 12px; padding: 7px 12px; }
 
+/* The circular portrait worn on a seat — docs/avatar-set.md. */
+.avatar {
+  border-radius: 50%; display: block;
+  border: 2px solid var(--bone-shade);
+  box-shadow: 0 1px 3px rgba(36, 22, 8, 0.35);
+}
+.avatar-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.avatar-choice {
+  padding: 3px; cursor: pointer; line-height: 0;
+  background: var(--sand-hi); border-radius: 50%;
+  border: 2px solid rgba(90, 58, 30, 0.28);
+}
+.avatar-choice[aria-pressed='true'] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-hi); }
+.avatar-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+
 /* ------------------------------------------------------------------ voice
    Hearing the yard is free; talking is the membership. A guest watches the
    room light up as people speak — that is the pitch. */

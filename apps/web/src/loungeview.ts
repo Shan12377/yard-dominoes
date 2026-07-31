@@ -10,10 +10,10 @@ import {
   listLounges, myProfile, canEnter, recentMessages, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
-  saveProfile, ORIGIN_LABEL,
+  saveProfile, ORIGIN_LABEL, AVATARS, AVATAR_LABEL, avatarUrl,
 } from './lounges.ts';
 import type {
-  Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
+  Avatar, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
 } from './lounges.ts';
 import { ensureSignedIn, findActiveSeat } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
@@ -392,6 +392,18 @@ export function originBadge(origin: Origin): HTMLElement {
   return el('span', `badge origin-${origin}`, ORIGIN_LABEL[origin]);
 }
 
+/** The circular portrait worn on a seat. Alt text names the character, not
+ *  the filename — a screen reader should hear "gold head-wrap", not "wrap". */
+export function avatarImg(avatar: Avatar, alt = ''): HTMLImageElement {
+  const img = document.createElement('img');
+  img.className = 'avatar';
+  img.src = avatarUrl(avatar);
+  img.alt = alt;
+  img.width = 32;
+  img.height = 32;
+  return img;
+}
+
 // -------------------------------------------------------------- profile --
 let profileOpen = false;
 let profileError: string | null = null;
@@ -440,6 +452,32 @@ function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
   );
   panel.appendChild(genderRow);
 
+  panel.append(el('label', 'field-label', 'Presence (optional)'));
+  panel.append(el('p', 'muted small',
+    'A character for the seat, if you would rather not show your face. '
+    + '"Plain" is presence without one either.'));
+  let avatar: Avatar | null = me.avatar;
+  const avatarCaption = el('p', 'muted small', avatar ? AVATAR_LABEL[avatar] : 'None chosen');
+  const avatarGrid = el('div', 'avatar-grid');
+  const paintAvatars = () => {
+    for (const btn of Array.from(avatarGrid.children) as HTMLButtonElement[]) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.value === avatar));
+    }
+    avatarCaption.textContent = avatar ? AVATAR_LABEL[avatar] : 'None chosen';
+  };
+  for (const id of AVATARS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-choice';
+    btn.dataset.value = id;
+    btn.setAttribute('aria-label', AVATAR_LABEL[id]);
+    btn.appendChild(avatarImg(id));
+    btn.onclick = () => { avatar = avatar === id ? null : id; paintAvatars(); };
+    avatarGrid.appendChild(btn);
+  }
+  paintAvatars();
+  panel.append(avatarGrid, avatarCaption);
+
   if (profileError) panel.append(el('div', 'banner', profileError));
 
   const save = document.createElement('button');
@@ -451,7 +489,7 @@ function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
     profileError = null;
     rerender();
     try {
-      await saveProfile({ username: name.value, origin, gender });
+      await saveProfile({ username: name.value, origin, gender, avatar });
       // Re-read rather than patching the local copy: the server is the only
       // thing that knows whether the name was actually accepted.
       loungeState.me = await myProfile();
