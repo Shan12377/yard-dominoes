@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { halves } from '@yard/engine';
-import type { Move, Pip, TileId } from '@yard/engine';
+import { halves, deal, legalMoves, applyMove } from '@yard/engine';
+import type { AnyBoard, HandState, Move, Pip, TileId } from '@yard/engine';
 import { boardAfter, decodeHand, encodeHand } from './replay.ts';
 
 function mulberry32(seed: number) {
@@ -147,7 +147,91 @@ test('rubbish in the URL is rejected, never thrown', () => {
 });
 
 test('a tampered board refuses to draw rather than drawing nonsense', () => {
-  // 6-6 posed, then a 1-2 claimed on the left end. It does not touch.
-  const replay = decodeHand('1004P' + 'r' + 'L' + '9')!;
+  // 6-6 posed, then a 1-3 claimed on the left end. It does not touch.
+  // Header is now 5 characters (version+poser+seat+seatCount+format).
+  const replay = decodeHand('10040P' + 'r' + 'L' + '9')!;
   assert.equal(boardAfter(replay, replay.steps.length), null);
+});
+
+/**
+ * A genuinely valid French hand, played through the real engine (deal,
+ * legalMoves, applyMove) rather than hand-rolled — so the move log this
+ * generates is exactly what start-hand/play-move would have produced, and
+ * a mismatch between replay's reconstruction and the real engine's own
+ * board is a real bug, not a fixture artifact.
+ */
+function fakeFrenchHand(rand: () => number): { moves: Move[]; poser: number; finalBoard: AnyBoard | null } {
+  const order: TileId[] = [];
+  for (let a = 0; a <= 6; a++) for (let b = a; b <= 6; b++) order.push(`${a}-${b}`);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+
+  let state: HandState = deal({
+    order, seatCount: 4, mode: 'cutthroat', useBoneyard: false,
+    poseMustBeDoubleSix: true, openingTile: '0-0', format: 'french',
+  });
+  const poser = state.poser;
+
+  let guard = 0;
+  while (state.status === 'active' && guard++ < 200) {
+    const moves = legalMoves(state);
+    if (moves.length === 0) break;
+    const move = moves[Math.floor(rand() * moves.length)];
+    state = applyMove(state, move);
+  }
+  return { moves: state.moveLog, poser, finalBoard: state.board };
+}
+
+test('a French cross-board hand survives the round trip through a URL', () => {
+  const rand = mulberry32(41);
+  for (let i = 0; i < 100; i++) {
+    const { moves, poser } = fakeFrenchHand(rand);
+    const code = encodeHand(moves, poser, 0, 4, 'french');
+    const back = decodeHand(code);
+    assert.ok(back, `seed ${i}: failed to decode "${code}"`);
+    assert.equal(back!.format, 'french');
+    assert.equal(back!.steps.length, moves.length, `seed ${i}: step count`);
+
+    moves.forEach((move, k) => {
+      const step = back!.steps[k];
+      assert.equal(step.kind, move.kind, `seed ${i} step ${k} kind`);
+      assert.equal(step.seat, move.seat, `seed ${i} step ${k} seat`);
+      if ('tile' in move && 'tile' in step) assert.equal(step.tile, move.tile);
+      if (move.kind === 'playcross' && step.kind === 'playcross') {
+        assert.equal(step.arm, move.arm, `seed ${i} step ${k} arm`);
+      }
+    });
+  }
+});
+
+test('boardAfter rebuilds the exact same cross board the real engine produced', () => {
+  const rand = mulberry32(53);
+  for (let i = 0; i < 100; i++) {
+    const { moves, poser, finalBoard } = fakeFrenchHand(rand);
+    if (!finalBoard) continue; // hand never opened (shouldn't happen, but skip not crash)
+    const replay = decodeHand(encodeHand(moves, poser, 0, 4, 'french'))!;
+    const rebuilt = boardAfter(replay, replay.steps.length);
+    assert.ok(rebuilt, `seed ${i}: rebuilt board was null`);
+    // Deep-equal against the real engine's own board — not just "some cross
+    // board", the EXACT same arms, tiles, and suitLed the real hand ended on.
+    assert.deepEqual(rebuilt, finalBoard, `seed ${i}: reconstruction diverged from the real engine`);
+  }
+});
+
+test('a French board grows by exactly one tile per step, chucha included', () => {
+  const rand = mulberry32(7);
+  const { moves, poser } = fakeFrenchHand(rand);
+  const replay = decodeHand(encodeHand(moves, poser, 0, 4, 'french'))!;
+  const sizeOf = (b: AnyBoard | null): number => {
+    if (!b) return 0;
+    return b.kind === 'cross' ? 1 + b.arms.reduce((n, a) => n + a.tiles.length, 0) : b.line.length;
+  };
+  let last = 0;
+  for (let step = 0; step <= replay.steps.length; step++) {
+    const size = sizeOf(boardAfter(replay, step));
+    assert.ok(size === last || size === last + 1, `jumped from ${last} to ${size} at step ${step}`);
+    last = size;
+  }
 });

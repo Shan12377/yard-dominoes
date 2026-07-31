@@ -1,5 +1,11 @@
-import { halves } from '@yard/engine';
-import type { Board, Move, Pip, TileId } from '@yard/engine';
+import { halves, isDouble, otherHalf } from '@yard/engine';
+import type { AnyBoard, CrossArm, CrossBoard, Move, Pip, SetFormat, TileId } from '@yard/engine';
+
+/** Mirrors hand.ts's own ARM_DIRECTIONS. Duplicated rather than imported —
+ *  this file already reimplements place()'s linear logic below rather than
+ *  importing hand.ts internals, since replay works from a decoded step list
+ *  with no seat-hand state, not a live HandState. Same convention here. */
+const ARM_DIRECTIONS: CrossArm['direction'][] = ['right', 'left', 'up', 'down'];
 
 /**
  * Shareable hands.
@@ -29,9 +35,18 @@ const ALPHABET = '0123456789abcdefghijklmnopqr';
 
 const VERSION = '1';
 
+/**
+ * Format matters to `boardAfter` for exactly one decision: does the opening
+ * pose build a cross board or a linear one. Encoded as a single digit in the
+ * header so a decoded replay knows without guessing. Order is arbitrary but
+ * fixed — changing it would break every share link already handed out.
+ */
+const FORMAT_CODES: SetFormat[] = ['sixlove', 'firstToSix', 'single', 'french'];
+
 export type ReplayStep =
   | { kind: 'pose'; seat: number; tile: TileId }
   | { kind: 'play'; seat: number; tile: TileId; end: 'left' | 'right' }
+  | { kind: 'playcross'; seat: number; tile: TileId; arm: number }
   | { kind: 'draw'; seat: number }
   | { kind: 'pass'; seat: number };
 
@@ -40,6 +55,7 @@ export type ReplayStep =
 type StepBody =
   | { kind: 'pose'; tile: TileId }
   | { kind: 'play'; tile: TileId; end: 'left' | 'right' }
+  | { kind: 'playcross'; tile: TileId; arm: number }
   | { kind: 'draw' }
   | { kind: 'pass' };
 
@@ -49,6 +65,8 @@ export interface ReplayHand {
   /** Whose hand this is being shared from, so the replay can say "you". */
   seat: number;
   seatCount: number;
+  /** Only 'french' changes anything here — see FORMAT_CODES. */
+  format: SetFormat;
   steps: ReplayStep[];
 }
 
@@ -69,17 +87,16 @@ function seatsFor(poser: number, seatCount: number, kinds: string[]): number[] {
 }
 
 export function encodeHand(
-  moves: Move[], poser: number, seat: number, seatCount = 4,
+  moves: Move[], poser: number, seat: number, seatCount = 4, format: SetFormat = 'sixlove',
 ): string {
-  let out = VERSION + poser + seat + seatCount;
+  const formatIdx = FORMAT_CODES.indexOf(format);
+  let out = VERSION + poser + seat + seatCount + (formatIdx < 0 ? 0 : formatIdx);
   for (const move of moves) {
     if (move.kind === 'pass') { out += 'X'; continue; }
     if (move.kind === 'draw') { out += 'D'; continue; }
-    // ponytail: French cross plays aren't in the URL encoding yet — shareable
-    // French replays are deferred until cross has a stable encoding.
-    if (move.kind === 'playcross') continue;
     const idx = TILES.indexOf(move.tile);
     if (idx < 0) continue;
+    if (move.kind === 'playcross') { out += move.arm + ALPHABET[idx]; continue; }
     const prefix = move.kind === 'pose' ? 'P' : move.end === 'left' ? 'L' : 'R';
     out += prefix + ALPHABET[idx];
   }
@@ -88,19 +105,27 @@ export function encodeHand(
 
 /** Decode a shared hand. Returns null for anything malformed — never throws. */
 export function decodeHand(code: string): ReplayHand | null {
-  if (!code || code[0] !== VERSION || code.length < 4) return null;
+  if (!code || code[0] !== VERSION || code.length < 5) return null;
   const poser = Number(code[1]);
   const seat = Number(code[2]);
   const seatCount = Number(code[3]);
+  const format = FORMAT_CODES[Number(code[4])];
   if (!Number.isInteger(seatCount) || seatCount < 2 || seatCount > 4) return null;
   if (!Number.isInteger(poser) || poser < 0 || poser >= seatCount) return null;
   if (!Number.isInteger(seat) || seat < 0 || seat >= seatCount) return null;
+  if (!format) return null;
 
   const partial: StepBody[] = [];
-  for (let i = 4; i < code.length; i++) {
+  for (let i = 5; i < code.length; i++) {
     const c = code[i];
     if (c === 'X') { partial.push({ kind: 'pass' }); continue; }
     if (c === 'D') { partial.push({ kind: 'draw' }); continue; }
+    if (c === '0' || c === '1' || c === '2' || c === '3') {
+      const tile = TILES[ALPHABET.indexOf(code[++i] ?? '')];
+      if (!tile) return null;
+      partial.push({ kind: 'playcross', tile, arm: Number(c) });
+      continue;
+    }
     if (c !== 'P' && c !== 'L' && c !== 'R') return null;
     const tile = TILES[ALPHABET.indexOf(code[++i] ?? '')];
     if (!tile) return null;
@@ -112,7 +137,7 @@ export function decodeHand(code: string): ReplayHand | null {
 
   const seats = seatsFor(poser, seatCount, partial.map((p) => p.kind));
   const steps = partial.map((p, i) => ({ ...p, seat: seats[i] })) as ReplayStep[];
-  return { poser, seat, seatCount, steps };
+  return { poser, seat, seatCount, format, steps };
 }
 
 /**
@@ -123,15 +148,56 @@ export function decodeHand(code: string): ReplayHand | null {
  * Returns null when a step does not fit the board, so a hand-edited URL
  * renders nothing rather than a nonsense line.
  */
-export function boardAfter(replay: ReplayHand, count: number): Board | null {
-  let board: Board | null = null;
+export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
+  let board: AnyBoard | null = null;
   for (const step of replay.steps.slice(0, count)) {
     if (step.kind === 'pass' || step.kind === 'draw') continue;
     const [a, b] = halves(step.tile);
+
     if (!board) {
-      board = { kind: 'linear', line: [{ tile: step.tile, crosswise: a === b }], leftEnd: a, rightEnd: b };
+      // French round 1 opens on the chucha specifically — matches
+      // applyMove's own pose branch in hand.ts. Any other pose, even in a
+      // French hand's later rounds, is a linear open.
+      if (replay.format === 'french' && step.kind === 'pose' && step.tile === '0-0') {
+        board = { kind: 'cross', center: step.tile, arms: [], suitLed: [0] };
+      } else {
+        board = { kind: 'linear', line: [{ tile: step.tile, crosswise: a === b }], leftEnd: a, rightEnd: b };
+      }
       continue;
     }
+
+    if (board.kind === 'cross') {
+      // Stable narrowed binding, explicitly typed — `board` itself gets
+      // reassigned below, which defeats plain control-flow narrowing (TS
+      // infers `any` here without the annotation, since `board` is a
+      // reassigned `let` of a union type).
+      const cross: CrossBoard = board;
+      if (step.kind !== 'playcross') return null;
+      const placed = { tile: step.tile, crosswise: a === b };
+      if (step.arm === cross.arms.length) {
+        // Filling phase: the tile must actually carry a blank half, or a
+        // hand-edited URL could claim an impossible arm.
+        if (a !== 0 && b !== 0) return null;
+        const exposed = (a === 0 ? b : a) as Pip;
+        const newArm: CrossArm = { direction: ARM_DIRECTIONS[step.arm], tiles: [placed], openEnd: exposed };
+        const suitLed = isDouble(step.tile) && !cross.suitLed.includes(exposed)
+          ? [...cross.suitLed, exposed] : cross.suitLed;
+        board = { ...cross, arms: [...cross.arms, newArm], suitLed };
+        continue;
+      }
+      const arm = cross.arms[step.arm];
+      if (!arm) return null;
+      let exposed: Pip;
+      try { exposed = otherHalf(step.tile, arm.openEnd); } catch { return null; }
+      const nextArm: CrossArm = { ...arm, tiles: [...arm.tiles, placed], openEnd: exposed };
+      const ledSuit = arm.openEnd;
+      const suitLed = isDouble(step.tile) && !cross.suitLed.includes(ledSuit)
+        ? [...cross.suitLed, ledSuit] : cross.suitLed;
+      const arms = cross.arms.map((a2, i) => i === step.arm ? nextArm : a2);
+      board = { ...cross, arms, suitLed };
+      continue;
+    }
+
     if (step.kind !== 'play') return null;
     const placed = { tile: step.tile, crosswise: a === b };
     const open: Pip = step.end === 'left' ? board.leftEnd : board.rightEnd;

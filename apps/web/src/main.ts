@@ -816,7 +816,7 @@ function handResult(g: LocalGame): HTMLElement | null {
     share.textContent = 'Share this hand';
     share.onclick = async () => {
       const url = shareUrl(
-        encodeHand(g.hand!.moveLog, g.hand!.poser, g.mySeat, g.options.seatCount));
+        encodeHand(g.hand!.moveLog, g.hand!.poser, g.mySeat, g.options.seatCount, g.options.format));
       let copied = false;
       try {
         await navigator.clipboard.writeText(url);
