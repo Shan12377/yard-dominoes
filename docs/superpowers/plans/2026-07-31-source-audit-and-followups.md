@@ -410,8 +410,27 @@ Preserving the order given, with one dependency-driven reorder called out.
    this project yet, and live mode has its own separate `enabled_events`
    list that this change does not touch. That's the cutover checklist's
    job when the account actually goes live.
-7. **Coin economy** — Stripe IAP, wallet table, spend/refund RPCs,
-   no-cash-out guardrails. Gates item 2's shuffle.
+7. ~~**Coin economy**~~ — **wallet/ledger/gifting done (2026-07-31); the
+   shuffle stays gated.** Migrations 0021/0022 ship `coin_ledger` (a
+   ledger, not a stored balance — `coin_balance()` derives it),
+   `grant_coins`/`spend_coins`/`gift_coins` as security-definer RPCs
+   revoked from every client role, a one-time $5/25-coin Stripe pack
+   alongside the existing subscription checkout, and player-to-player
+   gifting with a 20-coin floor. Deliberately NOT shipped: the paid
+   re-shuffle (still gated on Dr. Hunter's pay-to-win call, §2/§8) and a
+   "playback" spend (conflicts with the already-free public replay —
+   flagged, not guessed at). Found and fixed a real bug in this session's
+   own verification, not a user report: the new RPCs were missing the
+   explicit `service_role` grant `commit_move` has, and the webhook wasn't
+   checking `.rpc()`'s returned error — together, a real purchase would
+   have charged a card and granted zero coins with no error anywhere. Full
+   writeup in `billing.md`'s history section. Verified live end-to-end
+   against real Stripe test-mode + production Supabase: a correctly signed
+   purchase event granted coins, a duplicate delivery was a no-op, a real
+   gift moved coins between two accounts, insufficient-funds/self-gift/
+   below-floor all clean-error, a patched-client insert attempt hit RLS
+   403. Test data cleaned up; still gates item 2's French shuffle-at-50,
+   unchanged.
 8. **Hard end / dead double / key** — plan in §3 above, no blockers,
    can run in parallel with anything else on this list since it touches
    no shared scoring/legality code.
