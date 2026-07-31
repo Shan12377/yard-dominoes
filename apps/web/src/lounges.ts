@@ -428,24 +428,70 @@ export async function startCheckout(tier: 'yardie' | 'vip'): Promise<string> {
 }
 
 // --------------------------------------------------------------- bredrins --
+// VIP only — see 0020_bredrins_vip.sql. A Guest or Yardie calling any of
+// these gets an RLS-empty read or a rejected write; the UI is expected to
+// hide the affordance rather than rely on the server error reading well.
+export interface Bredrin {
+  bredrinId: string;
+  username: string;
+  /** Lounge they were last seen in, or null if never seen anywhere. */
+  lounge: string | null;
+  lastSeen: string | null;
+}
+
 export async function addBredrin(bredrinId: string): Promise<void> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) throw new Error('sign in first');
-  await db().from('bredrins').insert({ user_id: auth.user.id, bredrin_id: bredrinId });
+  const { error } = await db().from('bredrins').insert({ user_id: auth.user.id, bredrin_id: bredrinId });
+  // 23505 is the unique violation on (user_id, bredrin_id) — tapping "add"
+  // on somebody already in the list is not a failure the caller needs to see.
+  if (error && error.code !== '23505') throw new Error(error.message);
 }
 
-export async function whereAreMyBredrins(): Promise<{ username: string; lounge: string; last_seen: string }[]> {
+export async function removeBredrin(bredrinId: string): Promise<void> {
+  const { data: auth } = await db().auth.getUser();
+  if (!auth.user) throw new Error('sign in first');
+  const { error } = await db().from('bredrins').delete()
+    .eq('user_id', auth.user.id).eq('bredrin_id', bredrinId);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * One row per bredrin, with their most recent lounge sighting if they have
+ * one. Two queries, not a nested PostgREST embed: `bredrins` and
+ * `lounge_visits` share no foreign key with each other (both merely point
+ * at `profiles`), so a single `.select()` cannot join them — an earlier
+ * version tried exactly that and would have failed the moment it was
+ * actually called, which nothing did until this list got a view.
+ */
+export async function whereAreMyBredrins(): Promise<Bredrin[]> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) return [];
-  const { data, error } = await db().from('bredrins')
-    .select('bredrin_id, profiles!bredrins_bredrin_id_fkey(username), lounge_visits:bredrin_id(lounge_id, last_seen)')
+  const { data: rows, error } = await db().from('bredrins')
+    .select('bredrin_id, profiles!bredrins_bredrin_id_fkey(username)')
     .eq('user_id', auth.user.id);
-  if (error) return [];
-  // Shape loosely; the view layer renders what it gets.
-  return (data as any[]).flatMap((row) =>
-    (row.lounge_visits ?? []).map((v: any) => ({
-      username: row.profiles?.username ?? 'player',
-      lounge: v.lounge_id,
-      last_seen: v.last_seen,
-    })));
+  if (error || !rows?.length) return [];
+
+  const ids = rows.map((r: any) => r.bredrin_id as string);
+  const { data: visits } = await db().from('lounge_visits')
+    .select('user_id, lounge_id, last_seen')
+    .in('user_id', ids)
+    .order('last_seen', { ascending: false });
+  // First row per user_id is the latest, since visits is already ordered.
+  const latest = new Map<string, { lounge_id: string; last_seen: string }>();
+  for (const v of (visits ?? []) as any[]) {
+    if (!latest.has(v.user_id)) latest.set(v.user_id, v);
+  }
+
+  return rows
+    .map((row: any) => {
+      const v = latest.get(row.bredrin_id);
+      return {
+        bredrinId: row.bredrin_id as string,
+        username: row.profiles?.username ?? 'player',
+        lounge: v?.lounge_id ?? null,
+        lastSeen: v?.last_seen ?? null,
+      };
+    })
+    .sort((a, b) => a.username.localeCompare(b.username));
 }

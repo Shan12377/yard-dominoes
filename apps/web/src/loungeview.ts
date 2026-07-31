@@ -11,9 +11,10 @@ import {
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
   saveProfile, ORIGIN_LABEL, AVATARS, AVATAR_LABEL, avatarUrl,
+  addBredrin, removeBredrin, whereAreMyBredrins,
 } from './lounges.ts';
 import type {
-  Avatar, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
+  Avatar, Bredrin, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
 } from './lounges.ts';
 import { ensureSignedIn, findActiveSeat } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
@@ -534,6 +535,96 @@ function choiceRow(
   return row;
 }
 
+// ------------------------------------------------------------- bredrins --
+let bredrinsOpen = false;
+let bredrinsList: Bredrin[] | null = null;
+let bredrinsLoading = false;
+let bredrinsError: string | null = null;
+/** Ids added this session, so a roster "+" swaps to a confirmation without
+ *  waiting on a full bredrins reload. */
+const justAddedBredrin = new Set<string>();
+
+function loadBredrins(rerender: () => void) {
+  bredrinsLoading = true;
+  bredrinsError = null;
+  rerender();
+  void whereAreMyBredrins()
+    .then((list) => { bredrinsList = list; })
+    .catch((err) => { bredrinsError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { bredrinsLoading = false; rerender(); });
+}
+
+/** Roughly how long ago, for a last-seen line — a coarse grain is the useful
+ *  one here, not a live-ticking clock. */
+function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - Date.parse(iso)) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+/**
+ * "Know where your people are" — JamDom's own most-praised VIP feature
+ * (docs/superpowers/plans/2026-07-31-source-audit-and-followups.md §6). The
+ * panel stays visible to everyone who opens it, VIP or not: the lock is
+ * stated here rather than the button simply not existing, the same way a
+ * "VIP only" lounge card stays on screen instead of vanishing.
+ */
+function bredrinsPanel(me: MyProfile, rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Your people'));
+  panel.append(el('h2', undefined, 'Bredrins'));
+
+  if (me.tier !== 'vip') {
+    panel.append(el('p', 'muted',
+      `Know the moment your people walk into a lounge. Part of VIP, ${TIER_PITCH.vip.price}.`));
+    return panel;
+  }
+
+  panel.append(el('p', 'muted',
+    'Add someone from the room list below and you will see which lounge ' +
+    'they are in next time you look.'));
+
+  if (bredrinsError) panel.append(el('div', 'banner', bredrinsError));
+
+  if (bredrinsLoading && !bredrinsList) {
+    panel.append(el('p', 'muted', 'Loading…'));
+  } else if (!bredrinsList || bredrinsList.length === 0) {
+    panel.append(el('p', 'muted', 'No bredrins yet.'));
+  } else {
+    const list = el('div', 'roster');
+    for (const b of bredrinsList) {
+      const line = el('div', 'person');
+      line.append(el('span', undefined, b.username));
+      const where = b.lounge
+        ? loungeState.lounges.find((l) => l.id === b.lounge)?.name ?? 'a lounge'
+        : null;
+      line.append(el('span', 'muted small',
+        where ? `In ${where}` : b.lastSeen ? `Last seen ${timeAgo(b.lastSeen)}` : 'Never seen'));
+      const remove = document.createElement('button');
+      remove.className = 'dismiss';
+      remove.textContent = 'Remove';
+      remove.onclick = () => void (async () => {
+        remove.disabled = true;
+        try {
+          await removeBredrin(b.bredrinId);
+          bredrinsList = (bredrinsList ?? []).filter((x) => x.bredrinId !== b.bredrinId);
+        } catch (err) {
+          bredrinsError = err instanceof Error ? err.message : 'could not remove';
+        } finally {
+          rerender();
+        }
+      })();
+      line.appendChild(remove);
+      list.appendChild(line);
+    }
+    panel.appendChild(list);
+  }
+  return panel;
+}
+
 // ----------------------------------------------------------- lounge list --
 function loungeList(rerender: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
@@ -555,11 +646,21 @@ function loungeList(rerender: () => void): DocumentFragment {
     edit.textContent = profileOpen ? 'Done' : 'Edit profile';
     edit.onclick = () => { profileOpen = !profileOpen; profileError = null; rerender(); };
     you.append(edit);
+    const bredrinsBtn = document.createElement('button');
+    bredrinsBtn.className = 'act ghost small';
+    bredrinsBtn.textContent = bredrinsOpen ? 'Done' : 'Bredrins';
+    bredrinsBtn.onclick = () => {
+      bredrinsOpen = !bredrinsOpen;
+      if (bredrinsOpen && me.tier === 'vip' && !bredrinsList) loadBredrins(rerender);
+      rerender();
+    };
+    you.append(bredrinsBtn);
     head.append(you);
   }
   frag.appendChild(head);
 
   if (me && profileOpen) frag.appendChild(profilePanel(me, rerender));
+  if (me && bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
 
   // Above the lounge cards: the countdown is the thing a player should not be
   // able to miss, and this is the screen they land on.
@@ -712,6 +813,29 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
     line.append(el('span', 'dot'));
     line.append(el('span', undefined, person.username));
     if (person.tier !== 'guest') line.append(tierBadge(person.tier));
+    // Bredrins is the paid "know where your people are" feature — only a
+    // VIP gets the add affordance, and never on their own line.
+    if (loungeState.me?.tier === 'vip' && person.user_id !== loungeState.me.id) {
+      const added = justAddedBredrin.has(person.user_id);
+      const add = document.createElement('button');
+      add.className = 'dismiss';
+      add.textContent = added ? 'Added' : '+ Bredrin';
+      add.disabled = added;
+      add.onclick = () => void (async () => {
+        add.disabled = true;
+        try {
+          await addBredrin(person.user_id);
+          justAddedBredrin.add(person.user_id);
+          bredrinsList = null;
+          if (bredrinsOpen) loadBredrins(rerender);
+        } catch (err) {
+          loungeState.error = err instanceof Error ? err.message : 'could not add';
+        } finally {
+          rerender();
+        }
+      })();
+      line.appendChild(add);
+    }
     if (speaking) {
       const wave = el('span', 'wave');
       wave.setAttribute('aria-label', 'speaking');
