@@ -1,5 +1,5 @@
 import { halves } from '@yard/engine';
-import type { Board, Pip, TileId } from '@yard/engine';
+import type { AnyBoard, Board, CrossBoard, Pip, TileId } from '@yard/engine';
 import { layoutLine, MIN_WIDTH_UNITS, orientLine } from './layout.ts';
 import type { OrientedTile, TilePlacement } from './layout.ts';
 
@@ -144,9 +144,15 @@ export function chooseUnit(
  * with touching halves matching, doubles crosswise in the line, and the line
  * snaking 90° at the table edge. Layout math lives in layout.ts.
  */
-export function renderBoard(host: HTMLElement, board: Board | null, opts: BoardFit = {}) {
+export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: BoardFit = {}) {
   host.innerHTML = '';
-  if (!board || board.line.length === 0) {
+  if (!board) {
+    host.style.gridTemplateColumns = '';
+    host.style.gridTemplateRows = '';
+    return;
+  }
+  if (board.kind === 'cross') return renderCross(host, board, opts);
+  if (board.line.length === 0) {
     host.style.gridTemplateColumns = '';
     host.style.gridTemplateRows = '';
     return;
@@ -170,6 +176,98 @@ export function renderBoard(host: HTMLElement, board: Board | null, opts: BoardF
   });
 }
 
+/**
+ * French cross board. Chucha (0-0) at centre; up to 4 arms extend outward
+ * in fixed order — right (0), left (1), up (2), down (3). Non-doubles lie
+ * along their arm; doubles sit crosswise. Pip halves are ordered so the
+ * touching pips at every junction match — the anchor pip for tiles[i] is
+ * tiles[i-1]'s exposed pip, or 0 (chucha) when i === 0.
+ */
+function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {
+  const box = feltBox();
+  // Each arm's outward span: doubles occupy 2u across their arm axis,
+  // non-doubles occupy 4u. Chucha adds 2u centred at origin.
+  const armSpan = (tiles?: typeof board.arms[number]['tiles']) =>
+    (tiles ?? []).reduce((n, p) => n + (p.crosswise ? 2 : 4), 0);
+  const rightSpan = armSpan(board.arms[0]?.tiles);
+  const leftSpan = armSpan(board.arms[1]?.tiles);
+  const upSpan = armSpan(board.arms[2]?.tiles);
+  const downSpan = armSpan(board.arms[3]?.tiles);
+
+  const totalCols = 2 + leftSpan + rightSpan;
+  const totalRows = 2 + upSpan + downSpan;
+  const centerCol = 1 + leftSpan;
+  const centerRow = 1 + upSpan;
+
+  const wantU = Math.min(
+    Math.floor(box.width / totalCols),
+    Math.floor(box.height / totalRows),
+  );
+  const u = Math.max(MIN_UNIT, Math.min(MAX_UNIT, wantU || MIN_UNIT));
+  host.style.gridTemplateColumns = `repeat(${totalCols}, ${u}px)`;
+  host.style.gridTemplateRows = `repeat(${totalRows}, ${u}px)`;
+
+  const chucha = boardTileFromParts({ tile: board.center, crosswise: true }, 'v', [0, 0]);
+  chucha.style.gridColumn = `${centerCol} / span 2`;
+  chucha.style.gridRow = `${centerRow} / span 2`;
+  host.appendChild(chucha);
+
+  /**
+   * Lay tiles outward along an arm, tracking cumulative offset so crosswise
+   * doubles pack tight against their neighbours. axis is the arm direction;
+   * reverseHalves flips which half faces the chucha vs the outer end.
+   */
+  const placeArm = (
+    tiles: typeof board.arms[number]['tiles'] | undefined,
+    axis: 'h' | 'v',
+    sign: 1 | -1,
+    reverseHalves: boolean,
+  ) => {
+    if (!tiles) return;
+    let offset = 0;
+    let anchor: Pip = 0;
+    tiles.forEach((p) => {
+      const [a, b] = halves(p.tile);
+      const inner: Pip = (a === anchor ? a : b) as Pip;
+      const outer: Pip = (a === anchor ? b : a) as Pip;
+      const faces: [Pip, Pip] = reverseHalves ? [outer, inner] : [inner, outer];
+      const orient = p.crosswise ? (axis === 'h' ? 'v' : 'h') : axis;
+      const alongSpan = p.crosswise ? 2 : 4;
+      const acrossSpan = 2;
+      let col: number;
+      let row: number;
+      let colSpan: number;
+      let rowSpan: number;
+      if (axis === 'h') {
+        col = sign > 0 ? centerCol + 2 + offset : centerCol - alongSpan - offset;
+        row = centerRow;
+        colSpan = alongSpan;
+        rowSpan = acrossSpan;
+      } else {
+        col = centerCol;
+        row = sign > 0 ? centerRow + 2 + offset : centerRow - alongSpan - offset;
+        colSpan = acrossSpan;
+        rowSpan = alongSpan;
+      }
+      const node = boardTileFromParts(p, orient, faces);
+      node.style.gridColumn = `${col} / span ${colSpan}`;
+      node.style.gridRow = `${row} / span ${rowSpan}`;
+      host.appendChild(node);
+      offset += alongSpan;
+      anchor = outer;
+    });
+  };
+
+  placeArm(board.arms[0]?.tiles, 'h', 1, false);   // right
+  placeArm(board.arms[1]?.tiles, 'h', -1, true);   // left
+  placeArm(board.arms[2]?.tiles, 'v', -1, true);   // up
+  placeArm(board.arms[3]?.tiles, 'v', 1, false);   // down
+}
+
+function boardTileFromParts(placed: { tile: TileId; crosswise: boolean }, orient: 'h' | 'v', faces: [Pip, Pip]): HTMLElement {
+  return boardTile({ placed, orient, faces, col: 0, row: 0, colSpan: 0, rowSpan: 0 });
+}
+
 export function backsEl(count: number): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'backs';
@@ -178,7 +276,8 @@ export function backsEl(count: number): HTMLElement {
 }
 
 /** Six pips per side. They light one at a time and go out all together. */
-export function scoreTrack(label: string, score: number, opts: { us?: boolean; bruk?: boolean } = {}) {
+export function scoreTrack(label: string, score: number, opts: { us?: boolean; bruk?: boolean; max?: number } = {}) {
+  const max = opts.max ?? 6;
   const wrap = document.createElement('div');
   wrap.className = 'side-score';
 
@@ -191,7 +290,7 @@ export function scoreTrack(label: string, score: number, opts: { us?: boolean; b
   pips.className = 'pips' + (opts.bruk ? ' bruk' : '');
   for (let i = 0; i < 6; i++) {
     const pip = document.createElement('i');
-    if (i < score) pip.classList.add('lit');
+    if (Math.round(i / 6 * max) < score) pip.classList.add('lit');
     pips.appendChild(pip);
   }
   wrap.appendChild(pips);
@@ -200,6 +299,11 @@ export function scoreTrack(label: string, score: number, opts: { us?: boolean; b
     const note = document.createElement('div');
     note.className = 'under-love';
     note.textContent = 'under love';
+    wrap.appendChild(note);
+  } else if (max > 6) {
+    const note = document.createElement('div');
+    note.className = 'under-love';
+    note.textContent = String(score);
     wrap.appendChild(note);
   }
   return wrap;

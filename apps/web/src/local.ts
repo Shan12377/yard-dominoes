@@ -92,6 +92,7 @@ export class LocalGame {
       poser: this.set.poseMustBeDoubleSix ? undefined : this.set.poser,
       poseMustBeDoubleSix: this.set.poseMustBeDoubleSix || this.options.tournament,
       openingTile: this.options.format === 'french' ? '0-0' : '6-6',
+      format: this.options.format,
     });
     this.dealt = this.hand.hands.map((h) => [...h]);
     this.fairness = {
@@ -170,6 +171,7 @@ export class LocalGame {
       poseMustBeDoubleSix: this.hand.poseMustBeDoubleSix,
       openingTile: this.hand.openingTile,
       poser: this.hand.poser,
+      format: this.hand.format,
     };
     return reviewHand(initial, this.hand.moveLog, this.mySeat);
   }

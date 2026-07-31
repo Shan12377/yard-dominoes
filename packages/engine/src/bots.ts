@@ -33,8 +33,32 @@ import {
   tileCount,
   fullSet,
 } from './tiles.ts';
-import { legalMoves, applyMove, knownVoids } from './hand.ts';
-import type { Board, GameMode, HandState, Move, Pip, TileId } from './types.ts';
+import { legalMoves, applyMove, knownVoids, openEnds } from './hand.ts';
+import type { AnyBoard, GameMode, HandState, Move, Pip, SetFormat, TileId } from './types.ts';
+
+function cloneAnyBoard(board: AnyBoard | null): AnyBoard | null {
+  if (!board) return null;
+  if (board.kind === 'linear') {
+    return {
+      kind: 'linear',
+      line: board.line.map((p) => ({ ...p })),
+      leftEnd: board.leftEnd,
+      rightEnd: board.rightEnd,
+    };
+  }
+  return {
+    kind: 'cross',
+    center: board.center,
+    arms: board.arms.map((a) => ({ ...a, tiles: a.tiles.map((p) => ({ ...p })) })),
+    suitLed: [...board.suitLed],
+  };
+}
+
+/** Every placed tile on either board shape, order-agnostic. */
+export function allBoardTiles(board: AnyBoard): TileId[] {
+  if (board.kind === 'linear') return board.line.map((p) => p.tile);
+  return [board.center, ...board.arms.flatMap((a) => a.tiles.map((p) => p.tile))];
+}
 
 export type DuppyLevel = 'pickney' | 'yard' | 'ranker' | 'don' | 'general';
 
@@ -57,12 +81,14 @@ export interface PublicView {
   seatCount: number;
   mode: GameMode;
   myHand: TileId[];
-  board: Board | null;
+  board: AnyBoard | null;
   turn: number;
   handSizes: number[];
   boneyardSize: number;
   moveLog: Move[];
   poseMustBeDoubleSix: boolean;
+  /** Format is needed so bot stubs re-enter the engine's cross vs linear branches. */
+  format: SetFormat;
   /**
    * Which tile the forced pose must be — 6-6 outside French, 0-0 (chucha)
    * inside French round 1. Legal-move enumeration needs this: the bot's stub
@@ -106,15 +132,14 @@ export function publicView(s: HandState, seat: number): PublicView {
     seatCount: s.seatCount,
     mode: s.mode,
     myHand: [...s.hands[seat]],
-    board: s.board
-      ? { line: s.board.line.map((p) => ({ ...p })), leftEnd: s.board.leftEnd, rightEnd: s.board.rightEnd }
-      : null,
+    board: cloneAnyBoard(s.board),
     turn: s.turn,
     handSizes: s.hands.map((h) => h.length),
     boneyardSize: s.boneyard.length,
     moveLog: s.moveLog.map((m) => ({ ...m })),
     poseMustBeDoubleSix: s.poseMustBeDoubleSix,
     openingTile: s.openingTile,
+    format: s.format,
     ...(partnerHand !== undefined ? { partnerHand } : {}),
   };
 }
@@ -135,7 +160,7 @@ export function suitStrength(hand: TileId[]): number[] {
 /** Tiles of each suit already visible on the board (seven of each exist). */
 export function suitsSeen(view: PublicView): number[] {
   const seen = new Array(7).fill(0);
-  const onBoard = view.board ? view.board.line.map((p) => p.tile) : [];
+  const onBoard = view.board ? allBoardTiles(view.board) : [];
   for (const tile of [...onBoard, ...view.myHand]) {
     const [a, b] = halves(tile);
     seen[a]++;
@@ -149,24 +174,39 @@ export function voidsFromLog(view: PublicView): Set<Pip>[] {
   const voids: Set<Pip>[] = Array.from({ length: view.seatCount }, () => new Set<Pip>());
   for (const m of view.moveLog) {
     if (m.kind === 'pass' && m.ends) {
-      voids[m.seat].add(m.ends[0]);
-      voids[m.seat].add(m.ends[1]);
+      for (const p of m.ends) voids[m.seat].add(p);
     }
   }
   return voids;
 }
 
-function endsAfter(board: Board | null, move: Move): [Pip, Pip] {
+/**
+ * The open pips AFTER this move, regardless of board shape. Bots use this to
+ * reason about what suits opponents would face next. Linear boards return two
+ * pips; cross boards return however many arms are exposed.
+ */
+function endsAfter(board: AnyBoard | null, move: Move): Pip[] {
   if (move.kind === 'pose') {
     const [a, b] = halves(move.tile);
+    if (move.tile === '0-0') return [0];
     return [a as Pip, b as Pip];
   }
-  if (move.kind === 'play' && board) {
+  if (move.kind === 'play' && board && board.kind === 'linear') {
     const anchor = move.end === 'left' ? board.leftEnd : board.rightEnd;
     const exposed = otherHalf(move.tile, anchor);
     return move.end === 'left' ? [exposed, board.rightEnd] : [board.leftEnd, exposed];
   }
-  return board ? [board.leftEnd, board.rightEnd] : [0, 0];
+  if (move.kind === 'playcross' && board && board.kind === 'cross') {
+    if (move.arm === board.arms.length) {
+      const [a, b] = halves(move.tile);
+      const exposed = (a === 0 ? b : a) as Pip;
+      return [...board.arms.map((a) => a.openEnd), exposed];
+    }
+    const arm = board.arms[move.arm];
+    const exposed = otherHalf(move.tile, arm.openEnd);
+    return board.arms.map((a, i) => i === move.arm ? exposed : a.openEnd);
+  }
+  return board ? openEnds(board) : [];
 }
 
 function opponentSeats(view: PublicView): number[] {
@@ -225,16 +265,16 @@ export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLeve
   // Heavy tiles are a liability if the board blocks.
   score += tileCount(tile) * w.shedPips * 0.1;
 
-  const [left, right] = endsAfter(view.board, move);
+  const ends = endsAfter(view.board, move);
   const remaining = view.myHand.filter((t) => t !== tile);
   const strength = suitStrength(remaining);
 
   // Suit control: can I answer the board I am about to leave?
-  score += (strength[left] + strength[right]) * w.control;
+  for (const end of ends) score += strength[end] * w.control;
 
-  // A double leaves the same suit exposed, so it does not advance the board.
+  // A double leaves its own suit exposed, so it does not advance the board.
   // Worth holding while I still control that suit.
-  if (isDouble(tile) && strength[left] > 0) score -= w.holdDouble;
+  if (isDouble(tile) && ends.length > 0 && strength[ends[0]] > 0) score -= w.holdDouble;
 
   if (w.blockOpponents > 0 || w.feedPartner > 0) {
     const voids = voidsFromLog(view);
@@ -243,13 +283,11 @@ export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLeve
 
     // Leaving ends my opponents are void in forces passes.
     for (const opp of opps) {
-      if (voids[opp].has(left)) score += w.blockOpponents;
-      if (voids[opp].has(right)) score += w.blockOpponents;
+      for (const end of ends) if (voids[opp].has(end)) score += w.blockOpponents;
     }
     // Leaving ends my partner is void in strands him.
     if (mate !== null) {
-      if (voids[mate].has(left)) score -= w.feedPartner;
-      if (voids[mate].has(right)) score -= w.feedPartner;
+      for (const end of ends) if (voids[mate].has(end)) score -= w.feedPartner;
     }
   }
 
@@ -257,7 +295,7 @@ export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLeve
     // Seven tiles carry each suit. If I can see six of them and hold the rest,
     // that suit is mine — leaving it open is safe and strands everyone else.
     const seen = suitsSeen(view);
-    for (const end of [left, right]) {
+    for (const end of ends) {
       const unseen = 7 - seen[end];
       if (unseen <= 1 && strength[end] > 0) score += w.exhaustion;
     }
@@ -273,7 +311,7 @@ export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLeve
  * there — WITHOUT ever being told.
  */
 export function sampleConsistentDeal(view: PublicView, rng: Rng): TileId[][] | null {
-  const onBoard = new Set(view.board ? view.board.line.map((p) => p.tile) : []);
+  const onBoard = new Set(view.board ? allBoardTiles(view.board) : []);
   const mine = new Set(view.myHand);
   const pool = fullSet().filter((t) => !onBoard.has(t) && !mine.has(t));
   const voids = voidsFromLog(view);
@@ -319,9 +357,7 @@ function stateFromDeal(view: PublicView, deal: TileId[][]): HandState {
     mode: view.mode,
     hands: deal.map((h) => [...h]),
     boneyard: [],
-    board: view.board
-      ? { line: view.board.line.map((p) => ({ ...p })), leftEnd: view.board.leftEnd, rightEnd: view.board.rightEnd }
-      : null,
+    board: cloneAnyBoard(view.board),
     turn: view.turn,
     consecutivePasses: 0,
     moveLog: [],
@@ -330,6 +366,7 @@ function stateFromDeal(view: PublicView, deal: TileId[][]): HandState {
     poseMustBeDoubleSix: view.poseMustBeDoubleSix,
     openingTile: view.openingTile,
     poser: view.seat,
+    format: view.format,
   };
 }
 

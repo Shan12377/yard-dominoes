@@ -75,6 +75,9 @@ export function encodeHand(
   for (const move of moves) {
     if (move.kind === 'pass') { out += 'X'; continue; }
     if (move.kind === 'draw') { out += 'D'; continue; }
+    // ponytail: French cross plays aren't in the URL encoding yet — shareable
+    // French replays are deferred until cross has a stable encoding.
+    if (move.kind === 'playcross') continue;
     const idx = TILES.indexOf(move.tile);
     if (idx < 0) continue;
     const prefix = move.kind === 'pose' ? 'P' : move.end === 'left' ? 'L' : 'R';
@@ -126,7 +129,7 @@ export function boardAfter(replay: ReplayHand, count: number): Board | null {
     if (step.kind === 'pass' || step.kind === 'draw') continue;
     const [a, b] = halves(step.tile);
     if (!board) {
-      board = { line: [{ tile: step.tile, crosswise: a === b }], leftEnd: a, rightEnd: b };
+      board = { kind: 'linear', line: [{ tile: step.tile, crosswise: a === b }], leftEnd: a, rightEnd: b };
       continue;
     }
     if (step.kind !== 'play') return null;
@@ -135,8 +138,8 @@ export function boardAfter(replay: ReplayHand, count: number): Board | null {
     const exposed: Pip | null = a === open ? b : b === open ? a : null;
     if (exposed === null) return null;
     board = step.end === 'left'
-      ? { line: [placed, ...board.line], leftEnd: exposed, rightEnd: board.rightEnd }
-      : { line: [...board.line, placed], leftEnd: board.leftEnd, rightEnd: exposed };
+      ? { kind: 'linear', line: [placed, ...board.line], leftEnd: exposed, rightEnd: board.rightEnd }
+      : { kind: 'linear', line: [...board.line, placed], leftEnd: board.leftEnd, rightEnd: exposed };
   }
   return board;
 }

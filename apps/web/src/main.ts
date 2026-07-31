@@ -215,6 +215,7 @@ function chrome(): HTMLElement {
  * demonstrating itself before anyone taps a thing.
  */
 const DEMO_BOARD: Board = {
+  kind: 'linear',
   line: [
     { tile: '2-4', crosswise: false },
     { tile: '4-5', crosswise: false },
@@ -592,15 +593,16 @@ function scoreboard(g: LocalGame): HTMLElement {
   const panel = el('div', 'panel');
   const board = el('div', 'scoreboard');
 
+  const trackOpts = { bruk: g.lastResultBruk, max: g.set.options.target };
   if (isPartnered(g.options.mode)) {
     board.append(
-      scoreTrack('You & partner', g.set.scores[g.mySide], { us: true, bruk: g.lastResultBruk }),
-      scoreTrack('Them', g.set.scores[1 - g.mySide], { bruk: g.lastResultBruk }),
+      scoreTrack('You & partner', g.set.scores[g.mySide], { us: true, ...trackOpts }),
+      scoreTrack('Them', g.set.scores[1 - g.mySide], trackOpts),
     );
   } else {
     g.set.scores.forEach((score, seat) => {
       board.append(scoreTrack(g.seatLabel(seat), score, {
-        us: seat === g.mySeat, bruk: g.lastResultBruk,
+        us: seat === g.mySeat, ...trackOpts,
       }));
     });
   }

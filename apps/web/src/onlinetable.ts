@@ -15,7 +15,7 @@ import {
 import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
 import { isPartnered, legalMoves, sideOf } from '@yard/engine';
-import type { GameMode, Move, TileId } from '@yard/engine';
+import type { GameMode, Move, SetFormat, TileId } from '@yard/engine';
 
 export interface TableInfo {
   id: string;
@@ -252,7 +252,12 @@ export class OnlineGame {
         // Both are true for my own move too, which is what we want: one knock
         // per tile, whoever played it.
         const prev = this.hand;
-        const laid = (h: PublicHand | null) => h?.board?.line.length ?? 0;
+        const laid = (h: PublicHand | null) => {
+          const b = h?.board;
+          if (!b) return 0;
+          if (b.kind === 'linear') return b.line.length;
+          return 1 + b.arms.reduce((n, a) => n + a.tiles.length, 0);
+        };
         if (prev && hand.hand_id === prev.hand_id) {
           if (laid(hand) > laid(prev)) sfx.play('knock');
         } else if (laid(hand) === 0) {
@@ -368,6 +373,7 @@ export class OnlineGame {
       // without persisting yet another column.
       openingTile: this.table.format === 'french' ? '0-0' : '6-6',
       poser: this.poser,
+      format: this.table.format as SetFormat,
     });
   }
 

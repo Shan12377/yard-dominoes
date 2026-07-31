@@ -30,8 +30,10 @@ export type GameMode = 'cutthroat' | 'partner' | 'openhand';
  *               pip count to their own running total (doubles left in hand
  *               double that hand's score). First seat to hit target loses;
  *               winner is the seat with the lowest score at that moment. The
- *               chucha (0-0) opens round 1. Cross-shaped board and coin-tied
- *               shuffle-at-50 are deferred — see french debrief.
+ *               chucha (0-0) opens round 1 and sits at the centre of a
+ *               4-armed cross board (see CrossBoard below) — this REPLACES
+ *               the earlier linear-French shim. Coin-tied shuffle-at-50 and
+ *               the +10 pass penalty are still deferred to phase 3.
  */
 export type SetFormat = 'sixlove' | 'firstToSix' | 'single' | 'french';
 
@@ -44,23 +46,62 @@ export interface PlacedTile {
 }
 
 export interface Board {
+  kind: 'linear';
   /** Tiles in physical order, left end first. */
   line: PlacedTile[];
   leftEnd: Pip;
   rightEnd: Pip;
 }
 
+/**
+ * One arm of a French cross board, extending outward from the centre tile.
+ * Arms are fixed at right (0), left (1), up (2), down (3) in fill order.
+ * openEnd is the pip currently exposed at the far end of the arm.
+ */
+export interface CrossArm {
+  direction: 'right' | 'left' | 'up' | 'down';
+  tiles: PlacedTile[];
+  openEnd: Pip;
+}
+
+/**
+ * French cross board. The chucha (0-0) sits in the centre; up to 4 arms
+ * extend outward, one per blank corner of the chucha.
+ *
+ * suitLed tracks which suits' doubles have been played anywhere on the board.
+ * Once a suit's double is down, non-doubles of that suit are legal on any arm
+ * whose openEnd matches. Until then only the double itself can play on such
+ * an arm — this is the "doubles run tings" rule. Blank (0) starts in the set
+ * because the chucha IS the double-blank.
+ */
+export interface CrossBoard {
+  kind: 'cross';
+  center: TileId;
+  arms: CrossArm[];
+  suitLed: Pip[];
+}
+
+export type AnyBoard = Board | CrossBoard;
+
 export type Move =
   | { kind: 'pose'; seat: number; tile: TileId }
   | { kind: 'play'; seat: number; tile: TileId; end: End }
+  /**
+   * French cross-board play. arm is an index into CrossBoard.arms. During the
+   * filling phase (arms.length < 4) arm equals arms.length — the engine
+   * appends a new arm attached to the chucha. Post-fill arm is 0..3.
+   */
+  | { kind: 'playcross'; seat: number; tile: TileId; arm: number }
   | { kind: 'draw'; seat: number; tile: TileId }
   /**
    * `ends` is stamped by the engine when the pass is applied. A pass is the
    * highest-value inference in the game — it proves the passer held nothing
    * matching either open end at that moment — so we record the evidence on
-   * the move rather than reconstructing it by replaying the board.
+   * the move rather than reconstructing it by replaying the board. For a
+   * cross-board pass, `ends` is a list of the currently open pips across
+   * however many arms exist (0-4).
    */
-  | { kind: 'pass'; seat: number; ends?: [Pip, Pip] };
+  | { kind: 'pass'; seat: number; ends?: Pip[] };
 
 export type HandStatus = 'active' | 'domino' | 'blocked';
 
@@ -88,7 +129,13 @@ export interface HandState {
   /** Tiles held, indexed by seat. */
   hands: TileId[][];
   boneyard: TileId[];
-  board: Board | null;
+  board: AnyBoard | null;
+  /**
+   * Only used for French. The engine needs to know the format to build a
+   * CrossBoard on the chucha pose and to branch legalMoves/applyMove on cross
+   * rules. Defaults are set in deal().
+   */
+  format: SetFormat;
   /** Seat to act. */
   turn: number;
   /** Consecutive passes; equals seatCount when the board is blocked. */

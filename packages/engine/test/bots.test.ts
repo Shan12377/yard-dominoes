@@ -163,14 +163,16 @@ describe('the coach', () => {
       mode: 'partner',
       hands: [['3-4', '3-5'], ['4-4'], ['5-5'], ['6-6']],
       boneyard: [],
-      board: { line: [{ tile: '3-3', crosswise: true }], leftEnd: 3, rightEnd: 3 },
+      board: { kind: 'linear', line: [{ tile: '3-3', crosswise: true }], leftEnd: 3, rightEnd: 3 },
       turn: 0,
       consecutivePasses: 0,
       moveLog: [],
       status: 'active',
       result: null,
       poseMustBeDoubleSix: false,
+      openingTile: '6-6',
       poser: 0,
+      format: 'sixlove',
     };
 
     let h = applyMove(initial, { kind: 'play', seat: 0, tile: '3-4', end: 'right' });
@@ -199,14 +201,16 @@ describe('the coach', () => {
       mode: 'partner',
       hands: [['0-1'], ['1-2'], ['2-3'], ['3-4']],
       boneyard: [],
-      board: { line: [{ tile: '0-0', crosswise: true }], leftEnd: 0, rightEnd: 0 },
+      board: { kind: 'linear', line: [{ tile: '0-0', crosswise: true }], leftEnd: 0, rightEnd: 0 },
       turn: 0,
       consecutivePasses: 0,
       moveLog: [],
       status: 'active',
       result: null,
       poseMustBeDoubleSix: false,
+      openingTile: '6-6',
       poser: 0,
+      format: 'sixlove',
     };
     let h = applyMove(initial, { kind: 'play', seat: 0, tile: '0-1', end: 'left' });
     const review = reviewHand(initial, h.moveLog, 0);

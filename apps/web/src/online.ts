@@ -9,7 +9,7 @@
 
 /// <reference types="vite/client" />
 import { createClient, type SupabaseClient, type RealtimeChannel, FunctionsHttpError } from '@supabase/supabase-js';
-import type { Board, ClockName, GameMode, Move, TileId } from '@yard/engine';
+import type { AnyBoard, ClockName, GameMode, Move, TileId } from '@yard/engine';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -112,7 +112,7 @@ export interface PublicHand {
   hand_id: string;
   commitment: string;
   server_seed: string | null;
-  board: Board | null;
+  board: AnyBoard | null;
   turn: number;
   hand_sizes: number[];
   boneyard_size: number;

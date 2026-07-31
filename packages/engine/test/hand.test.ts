@@ -21,6 +21,7 @@ import type { Board, HandState, Pip, TileId } from '../src/types.ts';
 /** Build a hand mid-play with explicit holdings and a chosen pair of open ends. */
 function makeHand(hands: TileId[][], leftEnd: Pip, rightEnd: Pip, turn = 0): HandState {
   const board: Board = {
+    kind: 'linear',
     line: [{ tile: `${leftEnd}-${rightEnd}`, crosswise: leftEnd === rightEnd }],
     leftEnd,
     rightEnd,
@@ -37,7 +38,9 @@ function makeHand(hands: TileId[][], leftEnd: Pip, rightEnd: Pip, turn = 0): Han
     status: 'active',
     result: null,
     poseMustBeDoubleSix: false,
+    openingTile: '6-6',
     poser: 0,
+    format: 'sixlove',
   };
 }
 

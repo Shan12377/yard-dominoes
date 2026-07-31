@@ -15,7 +15,7 @@
  * that names the mistake, play better.
  */
 
-import { legalMoves, applyMove } from './hand.ts';
+import { legalMoves, applyMove, openEnds } from './hand.ts';
 import { handCount, halves, isDouble, sideOf, tileCount } from './tiles.ts';
 import { suitStrength } from './bots.ts';
 import type { HandState, Move, Pip, TileId } from './types.ts';
@@ -60,7 +60,7 @@ interface Budget { nodes: number; limit: number; exhausted: boolean }
 
 function memoKey(s: HandState): string {
   const hands = s.hands.map((h) => [...h].sort().join(',')).join('|');
-  const ends = s.board ? `${s.board.leftEnd}/${s.board.rightEnd}` : 'x';
+  const ends = s.board ? openEnds(s.board).join('/') : 'x';
   return `${hands}#${ends}#${s.turn}#${s.consecutivePasses}`;
 }
 
@@ -132,16 +132,15 @@ function gradeFor(loss: number): Grade {
   return 'blunder';
 }
 
-function endsOf(s: HandState): [Pip, Pip] | null {
-  return s.board ? [s.board.leftEnd, s.board.rightEnd] : null;
+function endsOf(s: HandState): Pip[] | null {
+  return s.board ? openEnds(s.board) : null;
 }
 
 function voidsAt(s: HandState, seatCount: number): Set<Pip>[] {
   const voids: Set<Pip>[] = Array.from({ length: seatCount }, () => new Set<Pip>());
   for (const m of s.moveLog) {
     if (m.kind === 'pass' && m.ends) {
-      voids[m.seat].add(m.ends[0]);
-      voids[m.seat].add(m.ends[1]);
+      for (const p of m.ends) voids[m.seat].add(p);
     }
   }
   return voids;
@@ -196,9 +195,10 @@ function explain(
 
     const remainingBest = before.hands[seat].filter((t) => t !== (best as any).tile);
     const remainingPlayed = before.hands[seat].filter((t) => t !== (played as any).tile);
-    const controlBest = suitStrength(remainingBest)[bestEnds[0]] + suitStrength(remainingBest)[bestEnds[1]];
-    const controlPlayed =
-      suitStrength(remainingPlayed)[playedEnds[0]] + suitStrength(remainingPlayed)[playedEnds[1]];
+    const strBest = suitStrength(remainingBest);
+    const strPlayed = suitStrength(remainingPlayed);
+    const controlBest = bestEnds.reduce<number>((sum, e) => sum + strBest[e], 0);
+    const controlPlayed = playedEnds.reduce<number>((sum, e) => sum + strPlayed[e], 0);
     if (controlBest > controlPlayed) {
       return {
         note:
