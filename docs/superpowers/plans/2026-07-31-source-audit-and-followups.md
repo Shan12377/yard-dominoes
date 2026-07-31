@@ -237,7 +237,7 @@ ship; a nice-to-have.
 
 Preserving the order given, with one dependency-driven reorder called out.
 
-1. **Cross-board server sync + deploy.** Checked a pasted summary of what
+1. **✅ DONE (2026-07-31) — Cross-board server sync + deploy.** Checked a pasted summary of what
    this needs against the actual code before accepting it — one claim was
    imprecise, one was under-stated a real bug. Full picture:
    - **Vendor `types.ts`, `hand.ts`, `bots.ts` into `_shared/engine/`** —
@@ -293,6 +293,37 @@ Preserving the order given, with one dependency-driven reorder called out.
        itself is fixed.
    - *Moved ahead of "French phase 3" below it depends on* — phase 3
      items can't be verified live until this lands.
+
+   **Completion note (2026-07-31).** All six unsafe-discriminator instances
+   fixed with regression tests (`hand.ts` ×3, `bots.ts` ×2, `onlinetable.ts`
+   ×1 — the exhaustive grep found two more than the original review caught:
+   `allBoardTiles` in `bots.ts` and `laid()` in `onlinetable.ts`). Beyond
+   that, found and fixed the actual blocker this whole item existed to
+   unblock: `toState()` in `lib.ts` and `start-hand`'s `deal()` call both
+   computed `openingTile` correctly but never set `HandState.format` on the
+   object they built — meaning `applyMove`'s `s.format === 'french'` check
+   was always false server-side, so a chucha pose would have built a plain
+   linear board with a forced 0-0 open, silently wrong rather than crashing.
+   `local.ts` (offline play) already had this right, which is why the
+   original browser verification looked correct — it never touched the
+   server.
+
+   Deployed `start-hand` (v11), `play-move` (v10), `expire-turns` (v11).
+   Verified with two full real 4-client games through the live functions
+   (not mocked) using the engine's own `legalMoves()` for move selection:
+   one ending in a domino win, one ending blocked — deliberately different
+   resolution paths. Confirmed directly from `hand_public.board`: null
+   after deal, correctly built to `kind: "cross"` with 4 arms after the
+   fill phase, stayed `"cross"` through every subsequent `play-move` call,
+   doubles-lead-suit enforced for real for 21 real moves in the second run.
+   Independently recomputed French scoring matched `sets.scores` exactly
+   both times. All test accounts and tables cleaned up afterward; database
+   verified back to baseline (0 French tables, 0 leftover profiles).
+
+   Not done as part of this: the data-hygiene migration backfilling
+   `kind: 'linear'` onto historical rows (explicitly optional per the note
+   above — the code fix alone is sufficient and this is unlikely to matter now).
+
 2. **French phase 3**, now better specified by this audit:
    - Resolve the doubling-trigger open question (§2) — blocks any pass-
      penalty work sharing the same scoring path.
