@@ -15,7 +15,7 @@ import {
   verifyHand,
   randomSeed,
 } from '../src/shuffle.ts';
-import { deal, legalMoves, applyMove, knownVoids } from '../src/hand.ts';
+import { deal, legalMoves, applyMove, knownVoids, openEnds } from '../src/hand.ts';
 import type { Board, HandState, Pip, TileId } from '../src/types.ts';
 
 /** Build a hand mid-play with explicit holdings and a chosen pair of open ends. */
@@ -285,6 +285,28 @@ describe('legality', () => {
     assert.equal(after.turn, 0, 'still your play after drawing');
     assert.ok(after.hands[0].includes('0-6'));
     assert.equal(after.boneyard.length, 0);
+  });
+});
+
+describe('legacy board rows — no `kind` field, written before the cross board shipped', () => {
+  // Every hands.board / hand_public.board row from before the cross-board
+  // commit has no `kind` tag at all: it's `undefined`, not `'linear'`. Both
+  // openEnds and cloneBoard (via applyMove) must treat a missing kind as
+  // linear, not cross — the historical shape is the default, not the
+  // exceptional case. Cast through `as any` because a real linear Board
+  // always carries `kind: 'linear'`; this is deliberately simulating the
+  // one shape TypeScript won't let you construct honestly: what's actually
+  // sitting in rows written before this field existed.
+  const legacyBoard = { line: [{ tile: '3-4', crosswise: false }], leftEnd: 3, rightEnd: 4 } as any;
+
+  test('openEnds reads a legacy board as linear, not cross', () => {
+    assert.deepEqual(openEnds(legacyBoard), [3, 4]);
+  });
+
+  test('a move against a legacy board does not throw reading board.arms', () => {
+    const h = makeHand([['3-4'], ['1-1'], ['2-2'], ['5-5']], 3, 4, 0);
+    h.board = legacyBoard;
+    assert.doesNotThrow(() => applyMove(h, { kind: 'play', seat: 0, tile: '3-4', end: 'left' }));
   });
 });
 

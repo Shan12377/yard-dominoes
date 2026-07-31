@@ -27,30 +27,46 @@ import type {
 
 const ARM_DIRECTIONS: CrossArm['direction'][] = ['right', 'left', 'up', 'down'];
 
-/** Deep-copy either board shape; null passes through. */
+/**
+ * Deep-copy either board shape; null passes through.
+ *
+ * Checks `=== 'cross'` and falls back to linear, NOT the other way round.
+ * Every `hands.board`/`hand_public.board` row written before the cross
+ * board shipped has no `kind` field at all — `undefined`. Checking
+ * `=== 'linear'` and defaulting to cross would send every such legacy row
+ * into the cross branch, which reads `board.arms` off an object that
+ * doesn't have one and throws. Linear is the historical shape; it must be
+ * the default a missing tag falls back to, not the exceptional case.
+ */
 function cloneBoard(board: AnyBoard | null): AnyBoard | null {
   if (!board) return null;
-  if (board.kind === 'linear') {
+  if (board.kind === 'cross') {
     return {
-      kind: 'linear',
-      line: board.line.map((p) => ({ ...p })),
-      leftEnd: board.leftEnd,
-      rightEnd: board.rightEnd,
+      kind: 'cross',
+      center: board.center,
+      arms: board.arms.map((a) => ({ ...a, tiles: a.tiles.map((p) => ({ ...p })) })),
+      suitLed: [...board.suitLed],
     };
   }
   return {
-    kind: 'cross',
-    center: board.center,
-    arms: board.arms.map((a) => ({ ...a, tiles: a.tiles.map((p) => ({ ...p })) })),
-    suitLed: [...board.suitLed],
+    kind: 'linear',
+    line: board.line.map((p) => ({ ...p })),
+    leftEnd: board.leftEnd,
+    rightEnd: board.rightEnd,
   };
 }
 
-/** Every currently-open pip on the board, regardless of board shape. */
+/**
+ * Every currently-open pip on the board, regardless of board shape.
+ *
+ * Same legacy-data hazard as `cloneBoard` — checks `=== 'cross'` and
+ * defaults to linear, so a pre-cross-board row (no `kind` field) reads
+ * its real `leftEnd`/`rightEnd` instead of crashing on a missing `arms`.
+ */
 export function openEnds(board: AnyBoard): Pip[] {
-  return board.kind === 'linear'
-    ? [board.leftEnd, board.rightEnd]
-    : board.arms.map((a) => a.openEnd);
+  return board.kind === 'cross'
+    ? board.arms.map((a) => a.openEnd)
+    : [board.leftEnd, board.rightEnd];
 }
 
 export interface DealInput {
@@ -361,7 +377,12 @@ export function applyMove(prev: HandState, move: Move): HandState {
       break;
     }
     case 'play': {
-      if (!s.board || s.board.kind !== 'linear') throw new Error('play requires linear board');
+      // `=== 'cross'`, not `!== 'linear'` — a legacy board row (no `kind`
+      // field, every row written before the cross board shipped) must fall
+      // through to linear here too, matching legalMoves' dispatch. The
+      // exact-match guard would reject a legal 'play' move against every
+      // pre-existing hand with "play requires linear board".
+      if (!s.board || s.board.kind === 'cross') throw new Error('play requires linear board');
       s.hands[move.seat] = s.hands[move.seat].filter((t) => t !== move.tile);
       s.board = place(s.board, move.tile, move.end);
       s.consecutivePasses = 0;
