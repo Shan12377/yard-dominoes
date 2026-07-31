@@ -265,7 +265,90 @@ Preserving the order given, with one dependency-driven reorder called out.
    can run in parallel with anything else on this list since it touches
    no shared scoring/legality code.
 
-## 5. Open questions for Dr. Hunter
+## 6. VIP membership — what JamDom actually ships, and where Yard should exceed it
+
+Third source, same folder: "JamDom.com VIP Features Video Tutorial"
+(2012, `youtube.com/watch?v=DvZMEhPEqd0`). Watched directly with Playwright
+— navigated to the video, seeked the underlying `<video>` element to the
+emoticon-catalog segment, and screenshotted it, because the auto-caption
+transcript alone couldn't show what the actual emoticon picker looks like.
+Screenshots at `../../../jamdom-vip-emoticons-{1,2,3}.png` (the project
+parent folder — same place this session's other verification screenshots
+already live, e.g. `01-home-390.png`).
+
+Genuinely useful finding: the emoticon feature is a fixed catalog of ~25
+named emotions ("Angry", "Big Smile", "Blush", "Confused", "Cool",
+"Crossed", "Disappointed", "Sad", "Sarcastic", "Scary", "Sleepy", more
+below the fold), each triggered by a typed colon-command (`:d`, `:(`,
+`:@`, `(h)`...) or manual copy-paste from a table, rendered as a small
+static bear-mascot face — and **every emotion ships in separate MALE and
+FEMALE art**, a binary the player doesn't choose, it's inferred from their
+account. That's the whole feature: 2005-era MSN Messenger emoticons,
+reskinned as bears, gender-locked, typed by exact command string with no
+autocomplete or error feedback if you fumble the syntax.
+
+### Checked against what's already shipped — most of this is already done, and already better
+
+Before proposing anything, I checked the current codebase, because
+`0002_lounges_tiers.sql` and `lounges.ts` turned out to already be built
+*directly against JamDom's VIP feature list*, with comments citing JamDom
+by name:
+
+| JamDom VIP feature (2012) | Yard's status |
+|---|---|
+| VIP-exclusive table mic | **Shipped, and structurally better.** `canSpeak()` gate, P2P mesh (`voice.ts`), zero vendor cost — see CLAUDE.md's Voice section. |
+| Skip full lounges | **Shipped.** `lounges.ts:237`, comment: *"the single most-praised JamDom VIP perk, inverted into our gate."* `capacity` soft-cap + VIP bypass, sourced from `0002_lounges_tiers.sql`'s own comment referencing JamDom. |
+| Bredrins list (friends), capped at ~40, only 14 shown, rotates on refresh | **Shipped, and strictly better** — `bredrins` table, comment: *"JamDom's most-loved VIP feature."* No arbitrary cap, no rotation gimmick — shows every bredrin with live per-lounge `last_seen`, all at once. |
+| Tournament round-1 priority when a seat opens late | **Shipped, and provably better.** This *is* the substitutes-line mechanism (`tournament-queue.ts`'s `drawCutLine`) — server-authoritative, tested, deterministic. JamDom's version is presumably a human noticing a no-show; ours is a sort key nobody can dispute. |
+| Emoticons for table talk | **Shipped, differently and better-aimed.** `REACTIONS` (6) + `QUICK_CHAT` (8) in `lounges.ts` — patois (`Tek dat`, `Six love`, `KMT`, `DWL`), on-brand flat-vector art per `art-direction.md`, tap-to-send (no typed syntax to fumble on a phone), gender-neutral, and — this is the one JamDom never had — **server-side anti-cheat awareness already designed in**: the code comment explains exactly why `QUICK_CHAT` is broadcast-only and shares one on-screen slot with reactions, so a private "ME/YOU/ANY" signal between partners can't be smuggled through it. |
+| Private messages, one-way if the recipient isn't VIP | **Not built, already correctly planned** — `2026-07-29-partner-feedback-roadmap.md` §2.1 already has *"VIP can send private messages"* + *"nobody seated in a live hand may send or receive one, enforced server-side."* Don't redesign this, just build it — the anti-cheat framing is already right. |
+| "Bling out" your profile page — custom HTML/CSS, self-hosted music, staff help required if you can't code it yourself | **Deliberately not chasing this.** Free-form CSS/JS injection on a page other players load is a real security hole (stored XSS), and "email us on Facebook for help" doesn't scale. The profile editor (avatar picker, `bio`, `origin`, `flag`, `gender` — see `0012`/`0014` migrations) already gives real self-expression without arbitrary code execution. This is JamDom's weakest VIP feature, not a bar to clear. |
+
+### Genuinely new — not covered anywhere yet
+
+1. **VIP Corner ("yearbook of VIPs with profile pictures")** — a static
+   photo wall. Yard's `Red Carpet` lounge is already named for exactly
+   this slot but nothing renders there yet. Proposal: a live wall, not a
+   photo gallery — avatar (already built), current status (in a hand /
+   in a lounge / away), and a stat line (current streak, or per-style
+   rank once that ships). Static yearbook energy, live-data execution.
+2. **Personalized greeting** — a custom recorded audio line per VIP,
+   "takes a couple of weeks" because a human records it by hand. The
+   product already has a library of real recorded patois lines
+   (`raw/*.m4a` — `six-love.m4a` etc.) used for hand-result audio.
+   Proposal: let a VIP **pick** a signature win-line from a small curated
+   set at signup — instant, not a multi-week manual queue — rather than
+   promising a bespoke recording per person, which doesn't scale past a
+   few hundred VIPs anyway.
+3. **Player search across lounges** — JamDom's version: type a name, hit
+   search, get told if they're online. Yard already has live Realtime
+   presence per lounge (that's how the roster renders today). Proposal:
+   a single search box that queries presence across every lounge at
+   once and jumps you there — strictly more than JamDom's per-lounge
+   manual click-through, and cheap given the presence infra already
+   exists.
+4. **First-priority access to new features/lounges "for a week"** — the
+   schema already has the exact primitive this needs (`lounges.min_tier`,
+   same pattern as VIP-only lounges). Low priority, cheap later: gate a
+   brand-new lounge or feature at `min_tier: 'vip'` for its first week,
+   then open it. Not worth building ahead of having a second feature to
+   actually gate.
+
+### What NOT to build
+
+The colon-command emoticon picker itself (typed `:d`, autocomplete, etc.)
+is not worth chasing on its own terms — `REACTIONS`/`QUICK_CHAT` already
+beat it for this product's actual primary surface (portrait phone,
+thumb-reachable buttons beat typed syntax every time, per `client.md`'s
+"portrait phone is the primary target"). The only place a typed, colon-
+triggered picker would add anything is inside **free-text chat**, which
+isn't built yet either (`2026-07-29-partner-feedback-roadmap.md` §2.1).
+When that lands, a `:` -triggered autocomplete over the existing
+`REACTIONS`/`QUICK_CHAT` catalog (not a new 25-entry emoticon set) is the
+right scope — reuse the vocabulary that's already on-brand rather than
+importing generic emoji, which `art-direction.md` explicitly rejects.
+
+## 7. Open questions for Dr. Hunter
 
 1. The doubling trigger (§2) — one-sentence answer needed before touching
    French scoring again.
