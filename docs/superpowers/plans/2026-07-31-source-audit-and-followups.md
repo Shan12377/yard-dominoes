@@ -264,6 +264,13 @@ Preserving the order given, with one dependency-driven reorder called out.
 7. **Hard end / dead double / key** — plan in §3 above, no blockers,
    can run in parallel with anything else on this list since it touches
    no shared scoring/legality code.
+8. **Cosmetic yard-scene backgrounds** (§7.1) — no blockers, same art
+   pipeline as avatars.
+9. **Video presence** (§7.2) — explicitly LAST. Not blocked technically,
+   just lowest priority by instruction: this is a genuinely new cost
+   center and a genuinely new piece of infrastructure, and everything
+   above it is either revenue-protecting, already-scoped, or free to
+   build. Do not pull this forward without being asked.
 
 ## 6. VIP membership — what JamDom actually ships, and where Yard should exceed it
 
@@ -366,9 +373,10 @@ called at runtime). Gate: `apps/web` already has the profile-editor
 surface (`172cbe5`) to hang a picker off of, same pattern as the avatar
 picker planned in §6.
 
-### 7.2 Deferred — actual video presence
+### 7.2 Deferred (explicitly LAST) — actual video presence
 
-**Not rejected, explicitly deferred pending its own cost analysis.** The
+**Not rejected — deferred by direct instruction, dead last in the
+priority order (§4 item 9).** The
 existing "voice is a peer-to-peer mesh, never an SFU" decision in
 CLAUDE.md was scoped to *audio specifically* — it was never a video
 decision. The reasoning does not transfer cleanly:
@@ -398,6 +406,37 @@ server cost for the effect itself) — the blocker was never the
 background-replacement feature, it's the underlying video transport
 economics. Scope any future work as "can we afford video transport at
 all," not "can we afford background blur."
+
+#### Real pricing, checked live against both vendors' own current docs (2026-07-31) — not estimated from memory
+
+The question was specifically "what's the most cost-efficient way to do
+this without lag." Fetched both vendors' pricing pages directly rather
+than trust a summary:
+
+| | **LiveKit Cloud** | **Cloudflare Realtime (Calls)** |
+|---|---|---|
+| Billing unit | Per participant-minute | Per GB egress |
+| Rate | Free: 5,000 min/mo. Ship ($50/mo): 150,000 min included, then $0.0005/min. | $0.05/GB egress. **1,000 GB free/mo**, pooled with TURN. |
+| Source | [livekit.com/pricing](https://livekit.com/pricing) | [developers.cloudflare.com/realtime/pricing](https://developers.cloudflare.com/realtime/pricing/) |
+
+Worked example (my estimate, not vendor-published): a 4-seat table, 30
+minutes, all four on video at ~500kbps/stream — deliberately modest
+resolution, since nobody needs to read fine print off a domino table,
+which is itself most of the cost lever:
+
+- **LiveKit**: 4 × 30 = 120 participant-minutes/session → free tier
+  covers ~41 sessions/month before any charge; ~$0.06/session beyond it.
+- **Cloudflare**: SFU only bills Cloudflare→client egress (upload TO
+  Cloudflare is free) — 4 recipients × 3 incoming streams × 30 min ≈
+  1.35GB/session → free tier covers **~740 sessions/month**, ~18× more
+  headroom than LiveKit's free tier, ~$0.07/session beyond it.
+
+**Recommendation if this is ever built: Cloudflare, not a new vendor.**
+Same per-unit economics once past free, dramatically bigger free
+allowance, and it extends a relationship this app already has (TURN
+today) rather than onboarding LiveKit/Daily from zero. This does not
+change the priority — still last — it just means the "how" is answered
+in advance for whenever "when" changes.
 
 ## 8. Open questions for Dr. Hunter
 
