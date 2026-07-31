@@ -331,8 +331,28 @@ Preserving the order given, with one dependency-driven reorder called out.
    - True mid-set elimination at 100 (currently the set just ends; a
      real elimination model lets remaining players keep playing).
    - Coin-tied shuffle at 50 — blocked on the coin economy (item 6).
-   - Cross-aware pass inference, replay URL encoding, anti-clockwise turn
-     order for French specifically.
+   - ~~Cross-aware pass inference~~ — **already correct, no work needed.**
+     `openEnds()` in `hand.ts` is shape-agnostic (reads `board.arms[].openEnd`
+     for cross, `leftEnd`/`rightEnd` for linear) and pass-stamping in
+     `applyMove` calls it directly, so `knownVoids()` already infers voids
+     correctly against a cross board. Confirmed by reading the code, not
+     assumed from the earlier debrief's "deferred" label.
+   - ~~Anti-clockwise turn order for French~~ — **already correct, no work
+     needed.** `applyMove` advances turn via the single shared
+     `nextSeat(seat, seatCount)` in `tiles.ts` (`(seat + 1) % seatCount`),
+     format-agnostic and called unconditionally — there is no separate
+     French turn-order path to get wrong.
+   - **Replay URL encoding — done (2026-07-31).** `encodeHand`/`decodeHand`
+     in `apps/web/src/replay.ts` now thread a `format` digit through the
+     share-link header so a French hand's opening pose decodes to a chucha
+     cross rather than a linear line; `boardAfter` reconstructs the cross
+     board move-by-move (mirrors `hand.ts`'s `placeCross()`). Verified two
+     ways: unit-fuzzed against the real engine (`deal`/`legalMoves`/
+     `applyMove`) across 100 random French hands — the rebuilt board
+     deep-equals the engine's own final board every time — and live in a
+     browser, where a genuinely engine-generated French hand's share URL
+     rendered a correct cross (center + radiating arms) through the real
+     production `renderBoard()`.
 3. **Avatars wiring** — `profiles.avatar` column + grant extension to six
    columns + picker in the profile editor. Art already generated and
    pushed; this is pure plumbing.
