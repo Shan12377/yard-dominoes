@@ -1,12 +1,18 @@
-// Stripe webhook. The ONLY writer to profiles.tier and payments.
+// Stripe webhook. The ONLY writer to profiles.tier, payments and coin_ledger
+// purchase/refund rows.
 //
 // Env: STRIPE_WEBHOOK_SECRET, STRIPE_SECRET_KEY. Set verify_jwt = false for
 // this function (Stripe cannot send a Supabase JWT).
 //
-// Enable exactly these events on the endpoint in the Stripe dashboard:
-//   checkout.session.completed      — first payment: grants the tier
+// Enable exactly these events on the endpoint in the Stripe dashboard —
+// test mode and live mode each have their own endpoint and event list, so
+// ticking one does nothing to the other (see billing.md's cutover
+// checklist):
+//   checkout.session.completed      — first payment: grants the tier, or coins
 //   invoice.paid                    — every renewal: extends the tier
 //   customer.subscription.deleted   — cancelled: stops renewing
+//   charge.refunded                 — revoke immediately
+//   charge.dispute.created          — revoke immediately, flag the account
 // `invoice.paid` is not optional. Without it a membership expires at the end
 // of the term it was bought with and never renews, however much the member
 // keeps paying. `invoice.payment_failed` deliberately has no handler: Stripe
