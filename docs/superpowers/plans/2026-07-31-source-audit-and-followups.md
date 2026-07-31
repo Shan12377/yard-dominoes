@@ -353,9 +353,20 @@ Preserving the order given, with one dependency-driven reorder called out.
      browser, where a genuinely engine-generated French hand's share URL
      rendered a correct cross (center + radiating arms) through the real
      production `renderBoard()`.
-3. **Avatars wiring** — `profiles.avatar` column + grant extension to six
-   columns + picker in the profile editor. Art already generated and
-   pushed; this is pure plumbing.
+3. ~~**Avatars wiring**~~ — **done (2026-07-31).** Migration `0019_avatar.sql`
+   adds `profiles.avatar` (nullable, checked against the eight ids in
+   `docs/avatar-set.md`) and extends the column grant to six
+   (`username, flag, bio, origin, gender, avatar`) — applied to production
+   and verified directly: exactly six columns writable, `tier` still not
+   among them. Picker wired into the profile editor (`loungeview.ts`,
+   next to origin/gender) and threaded through the live-table seat cache
+   (`onlinetable.ts`) so it actually renders on the seat card, matching the
+   roadmap's "must be a real option, not a fallback" bar — a picker with
+   nowhere to show its result isn't wired up, it's decoration. Verified
+   live: picked an avatar in the browser, confirmed it persisted to
+   Postgres, saw it render on a real table seat next to three duppies
+   (which correctly show none — they have their own art under design.md's
+   five tiers). Test account and table cleaned up afterward.
 4. **Bredrins list UI + VIP gate** (§6 correction) — data layer already
    works (`bredrins` table, RLS, `addBredrin`/`whereAreMyBredrins`); needs
    a rendered list in a view, an add/remove affordance, and an explicit
