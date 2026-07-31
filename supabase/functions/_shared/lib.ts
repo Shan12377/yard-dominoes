@@ -119,6 +119,11 @@ export function toState(row: HandRow, seatCount: number, mode: GameMode, format:
   return {
     seatCount,
     mode,
+    // Required on HandState — without it, applyMove's pose branch
+    // (`s.format === 'french'`) is always false server-side even for a real
+    // French table, so a chucha pose builds a linear board instead of a
+    // cross one. openingTile alone isn't enough; this was missing here.
+    format,
     hands: row.hands,
     boneyard: row.boneyard,
     board: row.board,

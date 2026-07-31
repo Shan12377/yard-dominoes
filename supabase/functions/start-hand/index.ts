@@ -80,6 +80,9 @@ Deno.serve(handled(async (req) => {
     // pose_must_be_double_six flag stays TRUE for that first hand (createSet
     // sets it), and openingTile switches from 6-6 to 0-0 for French.
     openingTile: table.format === 'french' ? '0-0' : '6-6',
+    // Required so the pose branch in applyMove can tell a chucha pose is
+    // French and build a cross board — openingTile alone doesn't do this.
+    format: table.format,
   });
 
   const { data: handRow, error: handError } = await db.from('hands').insert({
