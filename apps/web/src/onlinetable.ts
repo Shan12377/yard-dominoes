@@ -255,8 +255,12 @@ export class OnlineGame {
         const laid = (h: PublicHand | null) => {
           const b = h?.board;
           if (!b) return 0;
-          if (b.kind === 'linear') return b.line.length;
-          return 1 + b.arms.reduce((n, a) => n + a.tiles.length, 0);
+          // `=== 'cross'`, not `=== 'linear'` — a hand_public row from before
+          // the cross board shipped has no `kind` at all and must fall
+          // through to linear, or `b.arms` is read off an object that never
+          // had one.
+          if (b.kind === 'cross') return 1 + b.arms.reduce((n, a) => n + a.tiles.length, 0);
+          return b.line.length;
         };
         if (prev && hand.hand_id === prev.hand_id) {
           if (laid(hand) > laid(prev)) sfx.play('knock');

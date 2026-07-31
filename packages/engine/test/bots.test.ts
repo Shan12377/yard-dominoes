@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   publicView, chooseMove, duppyMove, suitStrength, voidsFromLog,
-  sampleConsistentDeal, DUPPY_LEVELS,
+  sampleConsistentDeal, DUPPY_LEVELS, allBoardTiles,
 } from '../src/bots.ts';
 import { reviewHand, accuracy } from '../src/coach.ts';
 import { deal, legalMoves, applyMove } from '../src/hand.ts';
@@ -244,5 +244,30 @@ describe('academy', () => {
     const { BELTS } = await import('../src/academy.ts');
     const ids = BELTS.flatMap((b) => b.lessons.map((l) => l.id));
     assert.equal(new Set(ids).size, ids.length);
+  });
+});
+
+describe('legacy board rows — no `kind` field, written before the cross board shipped', () => {
+  // Same hazard as hand.ts's own regression test, exercised through bots.ts's
+  // separate cloneAnyBoard/allBoardTiles copies. `as any` because a real
+  // linear Board always carries kind: 'linear' — this simulates what's
+  // actually sitting in every row from before that field existed.
+  const legacyBoard = { line: [{ tile: '2-5', crosswise: false }], leftEnd: 2, rightEnd: 5 } as any;
+
+  test('allBoardTiles reads a legacy board as linear, not cross', () => {
+    assert.deepEqual(allBoardTiles(legacyBoard), ['2-5']);
+  });
+
+  test('publicView (via cloneAnyBoard) does not throw on a legacy board', async () => {
+    const h = await freshHand();
+    h.board = legacyBoard;
+    assert.doesNotThrow(() => publicView(h, 0));
+  });
+
+  test('a duppy can still choose a move against a legacy board', async () => {
+    const h = await freshHand();
+    h.board = legacyBoard;
+    h.poseMustBeDoubleSix = false;
+    assert.doesNotThrow(() => duppyMove(h, 'yard', rngFrom(1)));
   });
 });

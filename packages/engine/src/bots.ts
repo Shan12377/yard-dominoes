@@ -36,28 +36,40 @@ import {
 import { legalMoves, applyMove, knownVoids, openEnds } from './hand.ts';
 import type { AnyBoard, GameMode, HandState, Move, Pip, SetFormat, TileId } from './types.ts';
 
+// Same legacy-data hazard as cloneBoard in hand.ts (separate copy here since
+// hand.ts's isn't exported) — check `=== 'cross'` and default to linear, so
+// a row written before the cross board shipped (no `kind` field) doesn't
+// crash reading `.arms` off an object that never had one.
 function cloneAnyBoard(board: AnyBoard | null): AnyBoard | null {
   if (!board) return null;
-  if (board.kind === 'linear') {
+  if (board.kind === 'cross') {
     return {
-      kind: 'linear',
-      line: board.line.map((p) => ({ ...p })),
-      leftEnd: board.leftEnd,
-      rightEnd: board.rightEnd,
+      kind: 'cross',
+      center: board.center,
+      arms: board.arms.map((a) => ({ ...a, tiles: a.tiles.map((p) => ({ ...p })) })),
+      suitLed: [...board.suitLed],
     };
   }
   return {
-    kind: 'cross',
-    center: board.center,
-    arms: board.arms.map((a) => ({ ...a, tiles: a.tiles.map((p) => ({ ...p })) })),
-    suitLed: [...board.suitLed],
+    kind: 'linear',
+    line: board.line.map((p) => ({ ...p })),
+    leftEnd: board.leftEnd,
+    rightEnd: board.rightEnd,
   };
 }
 
-/** Every placed tile on either board shape, order-agnostic. */
+/**
+ * Every placed tile on either board shape, order-agnostic.
+ *
+ * `=== 'cross'`, not `=== 'linear'` — same legacy-data hazard as
+ * `cloneAnyBoard` above: a board with no `kind` field must fall through to
+ * linear, or `board.arms` is read off an object that never had one.
+ */
 export function allBoardTiles(board: AnyBoard): TileId[] {
-  if (board.kind === 'linear') return board.line.map((p) => p.tile);
-  return [board.center, ...board.arms.flatMap((a) => a.tiles.map((p) => p.tile))];
+  if (board.kind === 'cross') {
+    return [board.center, ...board.arms.flatMap((a) => a.tiles.map((p) => p.tile))];
+  }
+  return board.line.map((p) => p.tile);
 }
 
 export type DuppyLevel = 'pickney' | 'yard' | 'ranker' | 'don' | 'general';
