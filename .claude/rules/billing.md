@@ -125,6 +125,27 @@ found in this session's audit.
    see the cutover checklist below; do not assume ticking test mode also
    ticks live mode, they are entirely separate endpoint objects even on the
    same Stripe account.
+7. **A security-definer function missing its `service_role` grant, and an
+   RPC error nobody was checking — together, a completely invisible
+   failure.** Found building the coin economy (0021/0022), same file
+   pattern as bug 6: `revoke all on function ... from public, anon,
+   authenticated` strips the function's *default* PUBLIC-inherited grant —
+   which `service_role` normally rides on too, unless it holds an explicit
+   grant of its own. `commit_move` (0003) has one; the new coin functions
+   didn't, so `serviceClient()` calling them from an Edge Function failed
+   every time. That alone would have been loud — except the webhook's
+   `await db.rpc('grant_coins', ...)` wasn't checking the returned
+   `{ error }`, supabase-js doesn't throw on it, so the call failed and
+   `stripe-webhook` still answered `200 { received: true }`. A real coin
+   purchase would have charged a card and granted nothing, forever, with no
+   error anywhere. **Fix:** `0022` adds the explicit `service_role` grant;
+   the webhook now checks and `console.error`s every RPC error rather than
+   discarding it. **The lesson for the next security-definer function:**
+   check `pg_proc.proacl` for an explicit `service_role` entry — a bare
+   `revoke ... from public, anon, authenticated` is not enough on its own —
+   and always destructure `{ error }` from a Supabase RPC call. Caught only
+   because this session tested the real deployed function end-to-end
+   instead of trusting the 200.
 
 ## Before flipping test keys to live
 
