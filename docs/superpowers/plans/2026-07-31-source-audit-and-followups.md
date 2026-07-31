@@ -431,9 +431,40 @@ Preserving the order given, with one dependency-driven reorder called out.
    below-floor all clean-error, a patched-client insert attempt hit RLS
    403. Test data cleaned up; still gates item 2's French shuffle-at-50,
    unchanged.
-8. **Hard end / dead double / key** — plan in §3 above, no blockers,
-   can run in parallel with anything else on this list since it touches
-   no shared scoring/legality code.
+8. **✅ DONE (2026-07-31) — Hard end / dead double / key.** Built exactly
+   as specified in §3: `hardEnds`/`deadDoubles`/`hasKey` added to
+   `bots.ts`, all derived from the same `suitsSeen()` count Lesson 2
+   already teaches. Worked out the precise mechanics from first
+   principles rather than trusting the plan doc's test-case prose
+   literally — `seen[suit] === 6` means one tile of that suit is
+   unaccounted for *somewhere else* (an opponent's hand or the
+   boneyard), not "I hold the 7th" as §3's phrasing implied; if I held
+   it, `seen` would read 7. Implemented the code exactly as specified,
+   corrected only the test/comment prose to match the actual mechanics.
+   8 new tests in `bots.test.ts`, all passing. Coach's `explain()` now
+   checks all three ahead of the generic control/pips heuristics, tied
+   to a new Belt 4 · Lesson 7 (checked the existing lesson list first —
+   an earlier draft collided with the lesson already at that slot).
+   Academy lesson references resolve positionally by array index, so
+   the new lesson was appended, never inserted mid-array.
+
+   Deployed the updated `bots.ts`/`coach.ts` to all four functions that
+   vendor the engine (`play-move`, `start-hand`, `expire-turns`,
+   `review-hand`). While gathering files for that redeploy, found a
+   separate, previously-undetected bug in `review-hand/index.ts`: its
+   own hand-rolled `HandState` literal was missing `format`/
+   `openingTile` — the exact bug class already fixed once this session
+   in `toState()` (item 1), reproduced independently here because this
+   function builds its own literal instead of going through `toState()`.
+   Would crash the Coach's server-side review on any forced-pose hand
+   (tournament, French, post-bruk). No finished hands exist in
+   production yet to reproduce against directly, so verified by
+   replaying a real French hand through the engine with and without the
+   fix: the buggy reconstruction throws the predicted `illegal move`
+   error on the logged pose, the fixed one replays clean. Fixed and
+   deployed as part of the same batch, committed separately since it's
+   an unrelated discovery. `npm test` (211 passing), `npm run
+   typecheck`, and `get_advisors(security)` all clean after. Pushed.
 9. **Cosmetic yard-scene backgrounds** (§7.1) — no blockers, same art
    pipeline as avatars.
 10. **VIP-gated video presence** (§7.2) — explicitly LAST. Not blocked
