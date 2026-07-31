@@ -495,3 +495,48 @@ export async function whereAreMyBredrins(): Promise<Bredrin[]> {
     })
     .sort((a, b) => a.username.localeCompare(b.username));
 }
+
+// -------------------------------------------------------------- coins --
+// Coins never cash out — money in, utility only. See
+// docs/superpowers/plans/2026-07-29-partner-feedback-roadmap.md,
+// "Settled decisions": this is what keeps the whole economy out of a
+// licensing regime, and it is load-bearing. Nothing in this client may ever
+// surface a way to convert a coin back into money.
+
+/**
+ * Enforced server-side in `gift_coins` (0021_coin_economy.sql) — this copy
+ * is for disabling the UI early, not the actual rule. Change both together.
+ */
+export const MIN_GIFT_COINS = 20;
+
+/** The only pack today: $5 for 25 coins. A plain client-side label — the
+ *  price itself lives in Stripe, never duplicated here. */
+export const COIN_PACK_LABEL = '25 coins — $5';
+
+export async function myCoinBalance(): Promise<number> {
+  const { data: auth } = await db().auth.getUser();
+  if (!auth.user) return 0;
+  const { data } = await db().rpc('coin_balance', { p_user_id: auth.user.id });
+  return typeof data === 'number' ? data : Number(data ?? 0);
+}
+
+/** Kick off a Stripe checkout for the one coin pack. Resolves to a redirect
+ *  URL, same shape as `startCheckout`. */
+export async function buyCoins(): Promise<string> {
+  const { data, error } = await db().functions.invoke('checkout', { body: { coins: 'coins25' } });
+  if (error) throw new Error(error.message);
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return (data as { url: string }).url;
+}
+
+/**
+ * Send coins to another player. The floor and every other rule are
+ * enforced again server-side in `gift_coins` — this just relays the RPC's
+ * own error message rather than inventing a second copy of the rules.
+ */
+export async function giftCoins(toUserId: string, amount: number): Promise<number> {
+  const { data, error } = await db().functions.invoke('gift-coins', { body: { toUserId, amount } });
+  if (error) throw new Error(error.message);
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return (data as { balance: number }).balance;
+}

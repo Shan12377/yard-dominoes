@@ -711,6 +711,12 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 .avatar-choice[aria-pressed='true'] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-hi); }
 .avatar-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 
+.coin-balance {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 28px; font-weight: 700; color: var(--gold-deep);
+  margin: 4px 0 12px;
+}
+
 /* ------------------------------------------------------------------ voice
    Hearing the yard is free; talking is the membership. A guest watches the
    room light up as people speak — that is the pitch. */

@@ -12,6 +12,7 @@ import {
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
   saveProfile, ORIGIN_LABEL, AVATARS, AVATAR_LABEL, avatarUrl,
   addBredrin, removeBredrin, whereAreMyBredrins,
+  MIN_GIFT_COINS, COIN_PACK_LABEL, myCoinBalance, buyCoins, giftCoins,
 } from './lounges.ts';
 import type {
   Avatar, Bredrin, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
@@ -625,6 +626,68 @@ function bredrinsPanel(me: MyProfile, rerender: () => void): HTMLElement {
   return panel;
 }
 
+// ---------------------------------------------------------------- coins --
+// Never cash out — money in, utility only. See lounges.ts's coins section
+// for why that single rule keeps this out of a licensing regime.
+let coinsOpen = false;
+let coinBalance: number | null = null;
+let coinBusy = false;
+let coinError: string | null = null;
+
+function loadCoinBalance(rerender: () => void) {
+  void myCoinBalance().then((n) => { coinBalance = n; rerender(); });
+}
+
+function coinsPanel(rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Coins'));
+  panel.append(el('h2', undefined, 'Yours to spend'));
+  panel.append(el('p', 'muted',
+    'Never cash out — money in, utility only. Send some to a bredrin, or ' +
+    'just carry a little weight.'));
+
+  panel.append(el('div', 'coin-balance', coinBalance === null ? '…' : String(coinBalance)));
+
+  if (coinError) panel.append(el('div', 'banner', coinError));
+
+  const buy = document.createElement('button');
+  buy.className = 'act';
+  buy.textContent = coinBusy ? 'Opening checkout…' : `Buy ${COIN_PACK_LABEL}`;
+  buy.disabled = coinBusy;
+  buy.onclick = () => void (async () => {
+    coinBusy = true; coinError = null; rerender();
+    try {
+      window.location.href = await buyCoins();
+    } catch (err) {
+      coinError = err instanceof Error ? err.message : 'checkout unavailable';
+      coinBusy = false;
+      rerender();
+    }
+  })();
+  panel.appendChild(buy);
+  return panel;
+}
+
+/** The "gift N coins" affordance dropped into a roster line. Fixed at the
+ *  floor — a full amount picker is more UI than "pure social flex" needs. */
+function giftButton(toUserId: string, rerender: () => void): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.className = 'dismiss';
+  btn.textContent = `+${MIN_GIFT_COINS} coins`;
+  btn.title = `Send ${MIN_GIFT_COINS} coins`;
+  btn.onclick = () => void (async () => {
+    btn.disabled = true;
+    try {
+      coinBalance = await giftCoins(toUserId, MIN_GIFT_COINS);
+    } catch (err) {
+      loungeState.error = err instanceof Error ? err.message : 'could not send coins';
+    } finally {
+      rerender();
+    }
+  })();
+  return btn;
+}
+
 // ----------------------------------------------------------- lounge list --
 function loungeList(rerender: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
@@ -655,12 +718,22 @@ function loungeList(rerender: () => void): DocumentFragment {
       rerender();
     };
     you.append(bredrinsBtn);
+    const coinsBtn = document.createElement('button');
+    coinsBtn.className = 'act ghost small';
+    coinsBtn.textContent = coinsOpen ? 'Done' : (coinBalance === null ? 'Coins' : `${coinBalance} coins`);
+    coinsBtn.onclick = () => {
+      coinsOpen = !coinsOpen;
+      if (coinsOpen && coinBalance === null) loadCoinBalance(rerender);
+      rerender();
+    };
+    you.append(coinsBtn);
     head.append(you);
   }
   frag.appendChild(head);
 
   if (me && profileOpen) frag.appendChild(profilePanel(me, rerender));
   if (me && bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
+  if (me && coinsOpen) frag.appendChild(coinsPanel(rerender));
 
   // Above the lounge cards: the countdown is the thing a player should not be
   // able to miss, and this is the screen they land on.
@@ -835,6 +908,10 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
         }
       })();
       line.appendChild(add);
+    }
+    // Gifting is open to anyone with the coins, not a tier perk.
+    if (loungeState.me && person.user_id !== loungeState.me.id) {
+      line.appendChild(giftButton(person.user_id, rerender));
     }
     if (speaking) {
       const wave = el('span', 'wave');

@@ -1,4 +1,4 @@
-// POST /checkout  { tier: 'yardie' | 'vip' }
+// POST /checkout  { tier: 'yardie' | 'vip' } | { coins: 'coins25' }
 //
 // Creates a Stripe Checkout session. Because we are web-first with no app
 // store, this is a plain card payment — no 30% platform cut, no IAP rules,
@@ -6,21 +6,26 @@
 // deposit at a bank branch and email the receipt.
 //
 // Env needed: STRIPE_SECRET_KEY, STRIPE_PRICE_YARDIE, STRIPE_PRICE_VIP,
-// SITE_URL. Set with `supabase secrets set`.
+// STRIPE_PRICE_COINS25, SITE_URL. Set with `supabase secrets set`.
 
 import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
 
-const PRICES: Record<string, string | undefined> = {
+const TIER_PRICES: Record<string, string | undefined> = {
   yardie: Deno.env.get('STRIPE_PRICE_YARDIE'),
   vip: Deno.env.get('STRIPE_PRICE_VIP'),
 };
 
+// Coin packs. One today ($5 -> 25 coins, per the confirmed spec) — a plain
+// map so a second pack is a one-line addition, not a schema change.
+const COIN_PACKS: Record<string, { price: string | undefined; coins: number }> = {
+  coins25: { price: Deno.env.get('STRIPE_PRICE_COINS25'), coins: 25 },
+};
+
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
-  const { tier } = await req.json() as { tier: 'yardie' | 'vip' };
-  const price = PRICES[tier];
+  const body = await req.json() as { tier?: 'yardie' | 'vip'; coins?: string };
   const key = Deno.env.get('STRIPE_SECRET_KEY');
-  if (!price || !key) throw new HttpError(503, 'payments are not configured yet');
+  if (!key) throw new HttpError(503, 'payments are not configured yet');
 
   const db = serviceClient();
   const { data: profile } = await db.from('profiles')
@@ -32,21 +37,41 @@ Deno.serve(handled(async (req) => {
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').trim();
 
   const params = new URLSearchParams({
-    mode: 'subscription',
-    'line_items[0][price]': price,
-    'line_items[0][quantity]': '1',
-    success_url: `${siteUrl}/?upgraded=${tier}`,
-    cancel_url: `${siteUrl}/?upgrade=cancelled`,
     client_reference_id: user.id,
     'metadata[user_id]': user.id,
-    'metadata[tier]': tier,
+  });
+  if (profile?.stripe_customer_id) params.set('customer', profile.stripe_customer_id);
+
+  if (body.coins) {
+    // Coins are a one-time purchase, never a subscription — there is no
+    // recurring "coin membership". mode: 'payment', not 'subscription'.
+    const pack = COIN_PACKS[body.coins];
+    if (!pack?.price) throw new HttpError(503, 'payments are not configured yet');
+    params.set('mode', 'payment');
+    params.set('line_items[0][price]', pack.price);
+    params.set('line_items[0][quantity]', '1');
+    params.set('success_url', `${siteUrl}/?coins=${pack.coins}`);
+    params.set('cancel_url', `${siteUrl}/?coins=cancelled`);
+    params.set('metadata[product]', 'coins');
+    params.set('metadata[coins]', String(pack.coins));
+  } else if (body.tier) {
+    const tier = body.tier;
+    const price = TIER_PRICES[tier];
+    if (!price) throw new HttpError(503, 'payments are not configured yet');
+    params.set('mode', 'subscription');
+    params.set('line_items[0][price]', price);
+    params.set('line_items[0][quantity]', '1');
+    params.set('success_url', `${siteUrl}/?upgraded=${tier}`);
+    params.set('cancel_url', `${siteUrl}/?upgrade=cancelled`);
+    params.set('metadata[tier]', tier);
     // Session metadata does not reach the subscription, and renewal invoices
     // carry the subscription's. Without this a renewal a year from now can
     // only be traced back to a member by customer id.
-    'subscription_data[metadata][user_id]': user.id,
-    'subscription_data[metadata][tier]': tier,
-  });
-  if (profile?.stripe_customer_id) params.set('customer', profile.stripe_customer_id);
+    params.set('subscription_data[metadata][user_id]', user.id);
+    params.set('subscription_data[metadata][tier]', tier);
+  } else {
+    throw new HttpError(400, 'nothing to buy');
+  }
 
   const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',

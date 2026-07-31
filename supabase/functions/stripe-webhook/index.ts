@@ -82,7 +82,24 @@ Deno.serve(async (req) => {
     const session = event.data.object;
     const userId = session.metadata?.user_id ?? session.client_reference_id;
     const tier = session.metadata?.tier;
-    if (userId && (tier === 'yardie' || tier === 'vip')) {
+
+    // Coins are a one-time payment, never a subscription — handled first and
+    // separately, since a coin session carries none of the subscription
+    // fields (session.subscription, subscription_data) the tier branch reads.
+    if (userId && session.metadata?.product === 'coins') {
+      const coins = Number(session.metadata?.coins);
+      if (Number.isInteger(coins) && coins > 0) {
+        // grant_coins is idempotent on this session id, so a Stripe retry of
+        // this same event is a safe no-op rather than a double grant. Errors
+        // are logged rather than swallowed — an RPC failure here is a paid
+        // coin purchase that silently granted nothing, which must be
+        // diagnosable from the function logs, not invisible.
+        const { error: grantError } = await db.rpc('grant_coins', {
+          p_user_id: userId, p_amount: coins, p_kind: 'purchase', p_reference: session.id,
+        });
+        if (grantError) console.error('grant_coins failed', grantError);
+      }
+    } else if (userId && (tier === 'yardie' || tier === 'vip')) {
       // Was a hardcoded year. A monthly price therefore bought twelve months
       // for one, and cancelling after the first payment kept the other eleven.
       const subId = typeof session.subscription === 'string' ? session.subscription : null;
