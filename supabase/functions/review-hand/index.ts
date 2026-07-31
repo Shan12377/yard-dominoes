@@ -3,7 +3,7 @@
 // The Coach. Runs only on a finished hand, because it needs the full deal —
 // which is exactly why it can be exact where a live hint never could be.
 
-import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
+import { handled, json, requireUser, serviceClient, HttpError, openingTileForFormat } from '../_shared/lib.ts';
 import { reviewHand, accuracy } from '../_shared/engine/coach.ts';
 import type { HandState } from '../_shared/engine/types.ts';
 
@@ -27,6 +27,15 @@ Deno.serve(handled(async (req) => {
     .eq('hand_id', handId).eq('user_id', user.id).maybeSingle();
   if (cached.data) return json({ ok: true, review: cached.data.review, cached: true });
 
+  // format/openingTile are required on HandState — without them, applyMove's
+  // pose branch (`s.format === 'french'`) is always false and, worse, a
+  // forced-open hand's legalMoves() checks `hand.includes(s.openingTile)`
+  // against `undefined`, finds nothing, and reviewHand's replay throws the
+  // instant it hits that pose. This is the exact same bug `toState()` in
+  // lib.ts had (fixed 2026-07-31, see the source-audit plan's item 1) —
+  // reproduced here because this function builds its own HandState literal
+  // instead of going through toState().
+  const format = table!.format;
   const initial: HandState = {
     seatCount: table!.seat_count,
     mode: table!.mode,
@@ -40,6 +49,8 @@ Deno.serve(handled(async (req) => {
     result: null,
     poseMustBeDoubleSix: hand.pose_must_be_double_six,
     poser: hand.poser,
+    format,
+    openingTile: openingTileForFormat(format),
   };
 
   const review = reviewHand(initial, hand.move_log, seat);
