@@ -386,8 +386,15 @@ Preserving the order given, with one dependency-driven reorder called out.
    it is structurally identical to the already-proven tier-badge/reaction
    rendering in the same loop, but flagging the gap rather than claiming
    more than was tested. Test accounts and data cleaned up afterward.
-5. **Tournament debrief's 4 open questions** (disqualify scope,
-   host-vs-admin, entry cost, guest-seating-when-full).
+5. ~~**Tournament debrief's 4 open questions**~~ — **answered (2026-07-31),
+   see `2026-07-29-tournaments-debrief.md` §11.** Disqualify strips the
+   tournament result only, never rating; host (not admin) disqualifies,
+   scoped to their own event; entry is free; a guest gets the substitutes
+   line, same as everyone else. All four answers matched what was already
+   built while the questions were open — verified directly in
+   `tournament-host/index.ts` and `tournament-signup/index.ts` (no rating
+   writes, `is_host`-gated, no entry-cost logic, no tier check on signup).
+   No code changed.
 6. **Stripe dashboard** — tick `invoice.paid`, `charge.refunded`,
    `charge.dispute.created`. Five minutes, real revenue-continuity risk
    per `billing.md` until done.
@@ -599,9 +606,8 @@ marginal cost is actually eating into VIP's margin — not before.
 
 1. The doubling trigger (§2) — one-sentence answer needed before touching
    French scoring again.
-2. Everything already open from the tournament debrief (unchanged,
-   listed for completeness): disqualify scope, host-vs-admin, entry cost,
-   guest-seating-when-full.
+2. ~~Tournament debrief's 4 open questions~~ — answered 2026-07-31, see §4
+   item 5 above and `2026-07-29-tournaments-debrief.md` §11.
 3. Video presence (§7.2) — worth commissioning a real cost model, or
    staying audio-only indefinitely? Not urgent; flagging so it's a
    deliberate choice rather than a default nobody revisits.

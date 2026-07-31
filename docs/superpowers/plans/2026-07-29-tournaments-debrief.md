@@ -410,12 +410,27 @@ which of its assumptions were wrong.
 planning document exists cannot follow it. Rebase the worktree onto `main`
 before starting, and check the plan file is actually present.
 
-## 11. Open questions for Dr. Hunter
+## 11. Open questions for Dr. Hunter — answered 2026-07-31
 
-1. Does "strip a player's runs" mean the tournament result only, or rating
-   points too? (§4 — defaulting to the smaller one.)
-2. Can a host disqualify, or admin only?
-3. Is there an entry cost? Nothing above assumes one, and coins do not exist
-   yet (Wave 3).
-4. Does a guest with no membership get a seat at all if VIPs and yardies fill
-   the tables, or is the substitutes line the honest answer?
+1. **Tournament result only.** Disqualification strips the signup from that
+   event's bracket/queue; `profiles.rating_partner`/`rating_cutthroat` are
+   never touched. This was already the built default (§4) — confirmed
+   correct, no code change needed: `tournament-host/index.ts` writes only
+   `tournament_signups.status`, nowhere near the rating columns.
+2. **The host, in their own tournament.** Already built exactly this way —
+   `tournament-host/index.ts:52-53` gates every action on the caller's own
+   `profiles.is_host`, a privilege-free flag (§4). No admin role exists or
+   is needed.
+3. **Free to enter.** No entry-cost logic exists anywhere in
+   `tournament-signup`/`tournament-host` or `tournament-queue.ts` — already
+   matches. Entry cost stays off the table until the coin economy (wave 3)
+   is actually being built, not decided in the abstract now.
+4. **The substitutes line is the honest answer.** Already how it works:
+   `tournament-signup/index.ts` has no tier check at all, so a guest signs
+   up freely and the queue ordering (§6) seats them if turnout allows past
+   higher-tier players — the same mechanism that sells VIP's "front of the
+   substitutes line".
+
+All four questions turned out to already match what was built defensively
+while they were open — nothing here required a code change, only closing
+the question out.
