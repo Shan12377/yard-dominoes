@@ -611,3 +611,33 @@ marginal cost is actually eating into VIP's margin — not before.
 3. Video presence (§7.2) — worth commissioning a real cost model, or
    staying audio-only indefinitely? Not urgent; flagging so it's a
    deliberate choice rather than a default nobody revisits.
+4. **What are the actual rules of "Across the Table"?** JamDom tracks
+   exactly six tournament styles — confirmed by pulling a real player
+   profile page (`jamdom.com/profiles/jammin-guest-P`, which breaks stats
+   out per style): 4-Player Cut Throat, 3-Player Cut Throat, Partners,
+   Open-Hand Partners, French, and Across-the-Table. We have five of six —
+   only Across-the-Table is missing.
+
+   It is NOT simply "doubles played crosswise" — that convention is
+   universal to every Jamaican domino style and we already implement it
+   everywhere (the `crosswise` flag on `Board.line`), so it makes no sense
+   as its own stat category next to Partners/Cut Throat/French. Checked
+   pagat.com's Caribbean dominoes reference (a solid third-party source
+   that names Partner, Cut Throat, French, and several Puerto Rican/Haitian
+   variants) — it has no entry for "Across the Table" at all. This looks
+   like a genuinely proprietary JamDom ruleset, undocumented anywhere
+   outside their own site, which is exactly why `CLAUDE.md` already flags
+   it: *"French and Across-the-table are deliberately unbuilt pending a
+   Jamaican consultant."* (That line is now half-stale — French has since
+   been built. Across-the-Table has not; grepped the repo and it has zero
+   spec work anywhere, unlike French.) Do not guess at this from web
+   research — get the actual rules from Dr. Hunter before building
+   anything.
+
+   **Separately, not blocked on the above:** JamDom also runs three themed
+   tournament events — confirmed via `jamdom.com/memberships/standard.php`
+   directly: Battle of the Sexes, Team vs Team, and Couples' Tournament.
+   These are not new game rules, just pairing/branding on top of Partners
+   (Battle of the Sexes could use the `gender` field already on
+   `profiles`). Cheap to build later, no consultant needed — logged here
+   as a backlog idea, not scheduled.
