@@ -1,5 +1,15 @@
 # French — scoping debrief (2026-07-30)
 
+> **Update 2026-07-31:** the actual JamDom.com tutorial video (not just Dr.
+> Hunter's recollection) has since been checked line by line against what
+> shipped. See
+> [2026-07-31-source-audit-and-followups.md](2026-07-31-source-audit-and-followups.md)
+> — the cross-board mechanic is confirmed correct, but the doubles-double
+> scoring rule below (line 22-24) has an unresolved open question: does
+> doubling trigger per-seat (what's shipped) or table-wide off the
+> winner's final tile? Do not touch the scoring code until that's
+> answered.
+
 Follow-up to the openhand debrief pattern. The instruction was "now do the
 french." I spent the session researching the actual rules (pagat.com, plus
 what Dr. Hunter typed) rather than shipping code, because French isn't the

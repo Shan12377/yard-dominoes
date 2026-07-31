@@ -1,0 +1,274 @@
+# Source audit — JamDom.com tutorials — and the follow-through plan (2026-07-31)
+
+Two primary sources checked against the shipped engine: JamDom.com's own
+"How to Play Cutthroat" and "How to Play French" YouTube tutorials, both
+saved as clippings at `~/Clinical Research 2026/Clippings - Youtube - UMPJE
+- Pharmacy Decoder/Clippings/`. Full transcripts read end to end, cross-
+checked line by line against `packages/engine/src/{hand,set,types}.ts`.
+
+Why this matters: the French cross-board work (`ad1d18b`) was built from
+Dr. Hunter's typed recollection plus pagat.com, per the debrief — not from
+this video. This is the first time the actual JamDom tutorial (the same
+product Yard is positioned against) has been checked line by line against
+what shipped.
+
+## 1. Cutthroat — audit result: no bugs found
+
+Checked point by point in the prior turn: 4 players/7 tiles, double-six
+poses a fresh set (bruk correctly forces it, matching `set.test.ts:59`
+regardless of tournament flag), winner poses next with any tile, six-love
+scoring and bruk, blocked-hand lowest-count resolution, anti-clockwise
+play, "straight six" = `firstToSix`. Every one matches. The only
+divergence — JamDom defaults cutthroat to six-love, we default to
+`firstToSix` — is the already-documented, bench-tested CLAUDE.md decision,
+not a bug. Not reopening it.
+
+**No action needed on cutthroat.**
+
+## 2. French — audit result: core mechanic confirmed correct, one real open question, one concrete spec upgrade
+
+### Confirmed correct (verified against `hand.ts` directly, not just described)
+
+- **Fill phase.** "You play double blank, the next four plays must be a
+  blank, around all four corners." `crossLegalPlays` fill branch: legal iff
+  `a === 0 || b === 0` — any tile carrying a blank half, exactly as
+  described. ✓
+- **Doubles-lead-suit.** "The double must always lead any suit — the only
+  play possible... you cannot play on a suit unless the double is played."
+  `crossLegalPlays` post-fill: `isSuitDouble || isSuitLed`, and `placeCross`
+  adds to `suitLed` only when a double is played, keyed on the arm's
+  open-end suit *before* the play. This is exactly the mechanic. ✓
+- **Chucha opens round 1, race to 100, winner scores 0.** All confirmed
+  live in the real 4-client verification from two sessions ago (server
+  scoring matched an independent recomputation exactly:
+  `[30, 54, 0, 8]`).
+
+**No bug in what's shipped.** The core cross-board legality logic is
+correct as built, independent of Dr. Hunter's recollection — two different
+sources converged on the same rule.
+
+### Open question — do NOT resolve by guessing (real stakes: this touches live scoring code)
+
+The video's doubling rule, verbatim from the transcript (auto-generated
+captions, genuinely ambiguous):
+
+> "if somebody wins with a double whatever you hold in your hand doubles
+> ... this is why my score is now 95 ... and if I had happen to lose with
+> a double I would double up as well ... so it's mighty win with a double
+> and you lose with a double then your double doubles your score"
+
+Two readings are both plausible from this text:
+
+1. **What's shipped today:** each seat's own score doubles iff *that seat*
+   personally still holds a double when the hand ends
+   (`doublesRemaining[seat]` in `hand.ts:297`, matches `set.test.ts` and
+   Dr. Hunter's original spec).
+2. **A different rule the video may be describing:** if the *winner's*
+   final/winning tile was itself a double, *every other seat's* remaining
+   score doubles for that hand — a table-wide trigger, not a per-seat one.
+   Under this reading a seat could get doubled even holding zero doubles
+   themselves, because someone else won by playing one.
+
+These produce different numbers on real hands. The live verification two
+sessions ago only proved *internal consistency* (client math matched
+server math) — both sides used reading #1, so it can't distinguish the two
+readings.
+
+**Do not change the scoring code from this transcript alone.** Next step:
+either re-watch the video's 6:28–6:56 segment with audio (captions are
+unreliable there — "whatever you hold in your hand doubles" could easily
+be a mangled "whatever [double] you hold in your hand" instead of a
+table-wide trigger), or ask Dr. Hunter directly: *"if I win by playing a
+double as my last tile, does everyone else's remaining hand double, or
+only the people who are themselves still holding a double?"* One sentence
+answers it. Flagging as open rather than shipping either guess.
+
+### Concrete spec upgrade — the pass-penalty, now with an exact trigger
+
+The debrief listed "+10 pass penalty" as a deferred one-liner with no
+mechanic. The video gives the actual mechanic, twice, consistently:
+
+- **Invalid pass** (you pass while you actually had a legal play):
+  **+10**, applied immediately, not at hand end.
+- **Three consecutive real passes** (your own turn comes around three
+  times in a row with no legal play, i.e. you're shut out on every open
+  end/arm three turns running): **+10**, also immediate.
+- These are two *separate* triggers, not one. Confirmed by the narrator
+  hitting the second one on-screen: three real, non-blockable passes in a
+  row → score jumps by exactly 10, stacking with the eventual hand-end
+  pip total.
+
+This is now specific enough to build, once the doubling question above is
+settled (both live in the same scoring code path).
+
+## 3. Hard end / dead double / key — implementation plan
+
+Not new engine *rules* — nothing here changes legality or scoring. These
+are three named, derivable properties of public board state that real
+Jamaican players use to read a board, currently unexposed anywhere in
+`academy.ts`, `coach.ts`, or `leaks.ts`. Confirmed present in *both*
+videos — this is universal terminology across cutthroat and French, not
+mode-specific, so it belongs in a shared location, not duplicated per
+mode.
+
+One of the three (hard-end detection) already exists as an **unnamed
+inline heuristic** inside `bots.ts`'s `scoreMove` exhaustion block:
+
+```ts
+// bots.ts, current scoreMove()
+if (w.exhaustion > 0) {
+  const seen = suitsSeen(view);
+  for (const end of [left, right]) {
+    const unseen = 7 - seen[end];
+    if (unseen <= 1 && strength[end] > 0) score += w.exhaustion;
+  }
+}
+```
+
+The plan is to extract this into a named, tested, reusable function and
+add the two siblings it doesn't yet have.
+
+### 3.1 New pure functions — `packages/engine/src/bots.ts`
+
+Add alongside the existing `suitsSeen`/`voidsFromLog` (same file, because
+Coach already imports from `bots.ts`, and these read the same
+`PublicView` those do):
+
+```ts
+/**
+ * Suits where only ONE tile is unaccounted for (not on the board, not in
+ * my hand) — meaning if I hold that last tile, I am the only player who
+ * can ever answer that end again. "Hard end" in Jamaican play.
+ */
+export function hardEnds(view: PublicView): Pip[] {
+  const seen = suitsSeen(view);
+  const open = openEnds(view.board); // needs importing from hand.ts, or
+                                       // duplicate the tiny open-end read
+  return open.filter((suit) => seen[suit] === 6);
+}
+
+/**
+ * Doubles in my own hand that can never be played again: every other
+ * tile of that suit is already visible (board + my hand), AND no
+ * currently open end exposes that suit right now.
+ */
+export function deadDoubles(view: PublicView): TileId[] {
+  const seen = suitsSeen(view);
+  const open = new Set(openEnds(view.board));
+  return view.myHand.filter((t) => {
+    const [a, b] = halves(t);
+    if (a !== b) return false; // only doubles can be dead in this sense
+    return seen[a] === 6 && !open.has(a as Pip);
+  });
+}
+
+/**
+ * True when my remaining hand holds the sole last tile of two DIFFERENT
+ * suits simultaneously — an unbeatable position ("key").
+ */
+export function hasKey(view: PublicView): boolean {
+  const seen = suitsSeen(view);
+  const mySuits = new Set<Pip>();
+  for (const t of view.myHand) {
+    const [a, b] = halves(t);
+    if (seen[a] === 6) mySuits.add(a);
+    if (seen[b] === 6) mySuits.add(b);
+  }
+  return mySuits.size >= 2;
+}
+```
+
+Cross-board note: `openEnds()` already exists in `hand.ts` (added for the
+French work) and returns every open pip regardless of board shape — reuse
+it rather than reading `board.leftEnd`/`rightEnd` directly, so these three
+functions work unmodified for both linear and cross boards.
+
+### 3.2 Tests — `packages/engine/test/bots.test.ts`
+
+Six cases minimum, mirroring the existing `suitsSeen`/`voidsFromLog` test
+style:
+- `hardEnds` returns the suit when 6 of 7 are seen and I hold the 7th.
+- `hardEnds` returns empty when the 7th tile is still genuinely unseen
+  (could be an opponent's or the boneyard's).
+- `deadDoubles` returns a double once its 6 siblings are all visible and
+  no open end currently shows that suit.
+- `deadDoubles` does NOT flag a double whose suit is currently open (it's
+  playable right now, not dead).
+- `hasKey` true with two qualifying suits, false with only one.
+- Cross-board case: `hardEnds`/`deadDoubles` work off `openEnds()` and
+  don't special-case `board.kind`.
+
+### 3.3 Coach wiring — `packages/engine/src/coach.ts`
+
+Coach already grades a move Best/Fine/Loose/Blunder and attaches a
+plain-language explanation. Extend the per-move annotation: when the
+position that was just played from had a live hard end, dead double, or
+key available (self or opponent), name it in the explanation using the
+Jamaican term, e.g. *"you had hard six here — nobody else could answer
+it"* or *"your double-four went dead two plays ago — no more fours are
+coming."* This is copy-generation off the three functions above, not new
+grading logic; the existing `scoreMove`/rollout grading is untouched.
+
+### 3.4 Academy — one new lesson
+
+Per `academy.ts`'s existing belt structure (referenced by string ids like
+"Belt 4 · Lesson 1" — renumbering forbidden per `engine.md`), add ONE new
+lesson introducing all three terms together, since the video presents them
+as a connected reading skill, not three separate topics. Use the
+engine-rendered board-diagram pipeline already established in
+`design.md`'s "Teaching art" section (`packages/engine`-driven script →
+SVG into `public/art/boards/`) — build the actual hard-end/dead-double/key
+position with the real engine and render it, never hand-drawn or
+AI-generated, so it's accurate by construction. Suggested slot: Belt 4
+(the belt already covers `knownVoids`-derived inference per the README's
+Coach description), as the natural next lesson after voids.
+
+### 3.5 Scope boundary
+
+Explicitly NOT touching: `legalMoves`, `applyMove`, `applyHandResult`,
+scoring, or bot move-selection weights. `scoreMove`'s existing exhaustion
+heuristic can *optionally* be refactored to call `hardEnds()` instead of
+its inline duplicate once the function exists, purely as a dedup — that
+refactor is safe because the underlying math (`7 - seen[end] <= 1 &&
+strength[end] > 0`) is unchanged, just named. Not required for this to
+ship; a nice-to-have.
+
+## 4. Priority order — working through the punch list
+
+Preserving the order given, with one dependency-driven reorder called out.
+
+1. **Cross-board server sync + deploy** (`start-hand`/`play-move`/
+   `expire-turns` need the vendored engine copy refreshed and redeployed,
+   same rollout as openhand/French scoring). *Moved ahead of "French
+   phase 3" below it depends on* — phase 3 items can't be verified live
+   until this lands.
+2. **French phase 3**, now better specified by this audit:
+   - Resolve the doubling-trigger open question (§2) — blocks any pass-
+     penalty work sharing the same scoring path.
+   - Pass penalty: two triggers, both +10, both immediate (§2).
+   - True mid-set elimination at 100 (currently the set just ends; a
+     real elimination model lets remaining players keep playing).
+   - Coin-tied shuffle at 50 — blocked on the coin economy (item 6).
+   - Cross-aware pass inference, replay URL encoding, anti-clockwise turn
+     order for French specifically.
+3. **Avatars wiring** — `profiles.avatar` column + grant extension to six
+   columns + picker in the profile editor. Art already generated and
+   pushed; this is pure plumbing.
+4. **Tournament debrief's 4 open questions** (disqualify scope,
+   host-vs-admin, entry cost, guest-seating-when-full).
+5. **Stripe dashboard** — tick `invoice.paid`, `charge.refunded`,
+   `charge.dispute.created`. Five minutes, real revenue-continuity risk
+   per `billing.md` until done.
+6. **Coin economy** — Stripe IAP, wallet table, spend/refund RPCs,
+   no-cash-out guardrails. Gates item 2's shuffle.
+7. **Hard end / dead double / key** — plan in §3 above, no blockers,
+   can run in parallel with anything else on this list since it touches
+   no shared scoring/legality code.
+
+## 5. Open questions for Dr. Hunter
+
+1. The doubling trigger (§2) — one-sentence answer needed before touching
+   French scoring again.
+2. Everything already open from the tournament debrief (unchanged,
+   listed for completeness): disqualify scope, host-vs-admin, entry cost,
+   guest-seating-when-full.
