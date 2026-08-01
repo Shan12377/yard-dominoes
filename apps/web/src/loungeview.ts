@@ -27,6 +27,7 @@ import type { VoiceRoom } from './voice.ts';
 import { canShowVideo, joinVideo, CAMERA_TRACK_NAME } from './video.ts';
 import { fileReport, listReports, resolveReport, dismissReport, listAdmins, grantAdmin, revokeAdmin } from './reports.ts';
 import type { Report, Admin } from './reports.ts';
+import { photoUrl, uploadMyPhoto, removeMyPhoto } from './photo.ts';
 import type { VideoRoom, RemotePeer } from './video.ts';
 import { loadTournament, stopTournamentClock, tournamentPanel } from './tournamentview.ts';
 
@@ -539,10 +540,113 @@ let profileSaving = false;
  * question has a default and neither is ever inferred — not from a name, not
  * from a voice, not from an IP.
  */
+// ----------------------------------------------------------------- photo --
+// "Rank badge and profile photo" has been sold in TIER_PITCH.yardie since
+// lounges.ts existed, with nothing to upload one until now. Live the moment
+// it uploads, no review queue — the existing report-a-player flow is the
+// moderation path, same as for any other conduct problem.
+let photoBusy = false;
+let photoError: string | null = null;
+let photoVersion = 0;
+/** null = not yet checked. Set by the preview <img>'s own load/error, since
+ *  there is no has_photo column to ask instead — see photo.ts. */
+let photoExists: boolean | null = null;
+
+function photoSection(me: MyProfile, rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('label', 'field-label', 'Profile photo (optional)'));
+
+  if (me.tier === 'guest') {
+    section.append(el('p', 'muted small',
+      `A real photo instead of a preset character — part of Yardie, ${TIER_PITCH.yardie.price}.`));
+    return section;
+  }
+
+  section.append(el('p', 'muted small',
+    'Shown wherever your seat card is, live the moment you upload it. The ' +
+    'report button is the safety net if someone puts up something bad.'));
+
+  if (photoError) section.append(el('div', 'banner small', photoError));
+
+  const img = document.createElement('img');
+  img.className = 'photo-preview';
+  img.alt = '';
+  img.width = 96;
+  img.height = 96;
+  img.src = `${photoUrl(me.id)}?v=${photoVersion}`;
+  img.onload = () => { if (photoExists !== true) { photoExists = true; rerender(); } };
+  img.onerror = () => {
+    img.style.display = 'none';
+    if (photoExists !== false) { photoExists = false; rerender(); }
+  };
+  section.appendChild(img);
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.style.display = 'none';
+  input.onchange = () => void (async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    photoBusy = true;
+    photoError = null;
+    rerender();
+    try {
+      await uploadMyPhoto(file);
+      photoVersion += 1;
+      photoExists = true;
+    } catch (err) {
+      photoError = err instanceof Error ? err.message : 'could not upload';
+    } finally {
+      photoBusy = false;
+      rerender();
+    }
+  })();
+
+  const pick = document.createElement('button');
+  pick.type = 'button';
+  pick.className = 'act ghost small';
+  pick.textContent = photoBusy ? 'Uploading…' : 'Upload photo';
+  pick.disabled = photoBusy;
+  pick.onclick = () => input.click();
+
+  const row = el('div', 'row');
+  row.append(pick, input);
+
+  if (photoExists) {
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'act ghost small';
+    remove.textContent = 'Remove';
+    remove.disabled = photoBusy;
+    remove.onclick = () => void (async () => {
+      photoBusy = true;
+      photoError = null;
+      rerender();
+      try {
+        await removeMyPhoto();
+        photoVersion += 1;
+        photoExists = false;
+      } catch (err) {
+        photoError = err instanceof Error ? err.message : 'could not remove';
+      } finally {
+        photoBusy = false;
+        rerender();
+      }
+    })();
+    row.appendChild(remove);
+  }
+
+  section.appendChild(row);
+  return section;
+}
+
 function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
   panel.append(el('div', 'eyebrow', 'Your profile'));
   panel.append(el('h2', undefined, 'Who yuh be'));
+
+  panel.appendChild(photoSection(me, rerender));
 
   const name = document.createElement('input');
   name.className = 'field';

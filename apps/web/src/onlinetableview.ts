@@ -12,6 +12,7 @@ import {
 import { createTable, joinTable } from './online.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { fileReport } from './reports.ts';
+import { photoUrl } from './photo.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 
@@ -363,15 +364,26 @@ export function liveTableView(
       card.style.backgroundPosition = 'center';
     }
     const who = el('div', 'who');
-    // Presence without a photo, docs/avatar-set.md. A duppy has its own art
-    // elsewhere (design.md's five tiers) and never picks from this set.
-    if (s.userId && s.avatar) {
+    // A real uploaded photo first, falling back to the preset character —
+    // photo.ts has no has_photo flag to check, so this is genuinely a try:
+    // the browser's own onerror is what "no photo" looks like. A duppy has
+    // its own art elsewhere (design.md's five tiers) and never picks from
+    // either set.
+    if (s.userId) {
       const img = document.createElement('img');
       img.className = 'avatar';
-      img.src = avatarUrl(s.avatar as Avatar);
-      img.alt = AVATAR_LABEL[s.avatar as Avatar] ?? '';
       img.width = 32;
       img.height = 32;
+      img.alt = s.avatar ? (AVATAR_LABEL[s.avatar as Avatar] ?? '') : '';
+      img.src = photoUrl(s.userId);
+      img.onerror = () => {
+        if (s.avatar) {
+          img.onerror = null;
+          img.src = avatarUrl(s.avatar as Avatar);
+        } else {
+          img.remove();
+        }
+      };
       who.appendChild(img);
     }
     who.append(el('h3', undefined,

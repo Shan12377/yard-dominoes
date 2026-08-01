@@ -726,6 +726,16 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 .avatar-choice[aria-pressed='true'] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-hi); }
 .avatar-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 
+/* A real uploaded photo — same circular treatment as .avatar, larger, and
+   object-fit as a safety net even though photo.ts already center-crops to a
+   square before upload. */
+.photo-preview {
+  width: 96px; height: 96px; object-fit: cover;
+  border-radius: 50%; display: block; margin-bottom: 4px;
+  border: 2px solid var(--bone-shade);
+  box-shadow: 0 1px 3px rgba(36, 22, 8, 0.35);
+}
+
 .background-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 .background-choice {
   padding: 3px; cursor: pointer; line-height: 0;
