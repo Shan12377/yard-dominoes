@@ -789,3 +789,57 @@ marginal cost is actually eating into VIP's margin — not before.
    (Battle of the Sexes could use the `gender` field already on
    `profiles`). Cheap to build later, no consultant needed — logged here
    as a backlog idea, not scheduled.
+
+## 9. Skill rating — replacing dead scaffolding, not a JamDom port
+
+Not part of the original punch list — came up 2026-08-01 after checking
+JamDom's own public "Ranks Tutorial" video series (parts 2-4 of 4; part 1
+missing from the saved clippings, likely just terminology setup) against
+what this codebase actually has.
+
+**JamDom's system, distilled:** four connection/quit/idle penalties
+feeding a run-rate or quit-rate; players split into four hard-walled rank
+divisions by play frequency crossed with penalty rate, each division
+owning a fixed rank *range* nothing in a lower division can ever cross
+regardless of skill; within a division, a hand-tuned score
+(`frequency * loveRatio * diverseLoveRatio`, where diverseLoveRatio
+specifically catches farming a weak alt account — they show catching and
+deleting one live on camera).
+
+**What this codebase actually had:** `rating_partner`/`rating_cutthroat`
+existed as Elo-seeded columns (1200 default) — but grepping every Edge
+Function found zero writers, and no client code reads them either. Dead
+scaffolding, not a working system.
+
+**Built instead of porting JamDom's mechanism:** Glicko (Glickman 1995,
+not Glicko-2) — every player carries a rating AND a ratings deviation
+(RD, how much to trust it). A new account's high RD makes its rating
+swing hard until proven, which solves the exact "lucky streak shouldn't
+reach #1" problem JamDom's frequency wall solves, without a hard division
+ceiling that can permanently cap a genuinely better player below a worse
+one just for being in the wrong bucket. `packages/engine/src/rating.ts`
+is the pure math, pinned against Glickman's own published worked example
+(not just internal consistency). `_shared/rating-update.ts` is the
+domino-specific glue — cutthroat rates the winner against every loser
+individually and each loser only against the winner; partner rates each
+player against the average of the opposing side. Wired into the same
+post-persist block in `play-move`/`expire-turns` that already advances
+`sets`/`tables`. Duppy-mixed tables are never rated — no profile, no
+rating, no free inflation from beating bots.
+
+Verified live against production with two real 4-human games (not
+mocked): a domino win that didn't decide the SET correctly left ratings
+untouched; a set-deciding hand moved the winner 1200→1500 (RD
+350→228, more evidence from three opponents) and all three losers
+identically 1200→1038 (RD 350→290, symmetric single-opponent
+evidence) — exactly the asymmetric construction the code implements.
+13 new unit tests, `npm test` 224 passing. Test accounts and tables
+cleaned up after.
+
+Not done: no leaderboard UI yet (none existed before this either — the
+old columns had no reader at all). No time-based RD growth for
+inactivity (Glickman's own "Step 1b") — RD only ever tightens toward a
+floor of 30 as a player proves themselves, it doesn't widen back out
+from not playing; a deliberate scope cut, not an oversight, since this
+app has no pressing "stale rating from an inactive account" problem yet.
+
