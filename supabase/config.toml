@@ -18,6 +18,19 @@ site_url = "http://localhost:5173"
 additional_redirect_urls = ["http://localhost:5173"]
 enable_anonymous_sign_ins = true   # guest play, so Facebook is never required
 
+# The client never offers email/password signup — sign-in is anonymous or
+# Apple/Google OAuth only (online.ts). Leaving the email provider's signup
+# open anyway lets someone bypass the client entirely and hit
+# POST /auth/v1/signup directly with a disposable address. Since the product
+# has no legitimate use for email signup, close it outright rather than
+# chase an ever-growing disposable-domain blocklist.
+[auth.email]
+enable_signup = false
+# Belt-and-suspenders: if signup is ever re-enabled by mistake, still
+# require a confirmed inbox rather than activating disposable addresses
+# on the spot.
+enable_confirmations = true
+
 [auth.external.apple]
 enabled = false
 [auth.external.google]

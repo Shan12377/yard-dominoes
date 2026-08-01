@@ -64,6 +64,22 @@ Any new writer to `hands` must go through `commit_move`.
   add a new numbered one.
 - `pg_cron` must be enabled in the dashboard before `expire-turns` will fire.
 
+## Auth
+
+- The client only ever signs a user in two ways: anonymous
+  (`signInAnonymously`) or Apple/Google OAuth (`online.ts`). There is no
+  email/password signup anywhere in the app, by product design.
+- `[auth.email] enable_signup = false` in `config.toml` closes the email
+  provider's signup outright rather than trying to blocklist disposable
+  domains — that's a fight with no end state, and this product has no
+  legitimate use for email signup to begin with. If a real email flow is
+  ever added, use a `before-user-created` Postgres auth hook to gate it
+  (Supabase's own pattern for this), not a client-side check.
+- `config.toml` is authoritative for local dev. The hosted project's Auth
+  provider settings live separately (Dashboard → Authentication →
+  Providers → Email, or `supabase config push`) — confirm they match
+  before relying on this file alone to describe production behavior.
+
 ## Testing locally
 
 `supabase db reset` then `npm run fn:serve`. Test RLS by querying as an
