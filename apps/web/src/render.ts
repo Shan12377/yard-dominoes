@@ -87,8 +87,8 @@ export interface BoardBox { width: number; height: number }
 /** What the felt actually offers: app column capped at 940, felt at 64vh. */
 function feltBox(): BoardBox {
   return {
-    width: Math.min(window.innerWidth, 940) - 32 - CHROME_X,
-    height: Math.min(window.innerHeight * 0.64, 560) - CHROME_Y,
+    width: Math.min(window.innerWidth, 1200) - 32 - CHROME_X,
+    height: Math.min(window.innerHeight * 0.72, 680) - CHROME_Y,
   };
 }
 

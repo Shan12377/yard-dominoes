@@ -5,6 +5,7 @@
 // reads it and calls back into it.
 
 import { OnlineGame } from './onlinetable.ts';
+import type { SeatInfo } from './onlinetable.ts';
 import {
   listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL, backgroundUrl,
   type OpenTable, type Avatar, type Background,
@@ -13,6 +14,7 @@ import { createTable, joinTable } from './online.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
+import { seatPosition } from './seatlayout.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 
@@ -298,6 +300,59 @@ function reportButton(userId: string, tableId: string, rerender: () => void): HT
   return wrap;
 }
 
+function seatCard(
+  s: SeatInfo, game: OnlineGame, rerender: () => void, social?: TableSocial,
+): HTMLElement {
+  const card = el('div', 'seat');
+  if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
+  // Cosmetic only — plan §7.1. A faint backdrop behind the seat's own
+  // content, never anything that could compete with tile/turn legibility.
+  if (s.userId && s.background) {
+    card.style.backgroundImage = `linear-gradient(rgba(255,251,240,0.86), rgba(255,251,240,0.86)), url(${backgroundUrl(s.background as Background)})`;
+    card.style.backgroundSize = 'cover';
+    card.style.backgroundPosition = 'center';
+  }
+  const who = el('div', 'who');
+  // A real uploaded photo first, falling back to the preset character —
+  // photo.ts has no has_photo flag to check, so this is genuinely a try:
+  // the browser's own onerror is what "no photo" looks like. A duppy has
+  // its own art elsewhere (design.md's five tiers) and never picks from
+  // either set.
+  if (s.userId) {
+    const img = document.createElement('img');
+    img.className = 'avatar';
+    img.width = 32;
+    img.height = 32;
+    img.alt = s.avatar ? (AVATAR_LABEL[s.avatar as Avatar] ?? '') : '';
+    img.src = photoUrl(s.userId);
+    img.onerror = () => {
+      if (s.avatar) {
+        img.onerror = null;
+        img.src = avatarUrl(s.avatar as Avatar);
+      } else {
+        img.remove();
+      }
+    };
+    who.appendChild(img);
+  }
+  who.append(el('h3', undefined,
+    s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`));
+  // Yard or foreign, if they said. A duppy is from nowhere.
+  if (s.origin === 'yardie' || s.origin === 'foreign') {
+    who.append(el('span', `badge origin-${s.origin}`,
+      s.origin === 'yardie' ? 'Yardie' : 'Foreign'));
+  }
+  card.appendChild(who);
+  const count = game.hand?.hand_sizes[s.seatIndex] ?? 0;
+  card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
+  if (s.seatIndex !== game.mySeat) card.append(backsEl(count));
+  decorateSeat(card, s.userId, social);
+  if (s.userId && s.seatIndex !== game.mySeat) {
+    card.appendChild(reportButton(s.userId, game.table.id, rerender));
+  }
+  return card;
+}
+
 export function liveTableView(
   game: OnlineGame,
   rerender: () => void,
@@ -342,68 +397,28 @@ export function liveTableView(
   }
   frag.appendChild(board);
 
+  const cross = el('div', 'table-cross');
+
+  const feltSlot = el('div', 'felt-slot');
   const felt = el('div', 'table-felt');
   const line = el('div', 'line');
   renderBoard(line, game.hand?.board ?? null);
   felt.appendChild(line);
-  frag.appendChild(felt);
-
+  feltSlot.appendChild(felt);
   if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
-    frag.appendChild(countdown(game, game.hand.turn_expires_at, rerender));
+    feltSlot.appendChild(countdown(game, game.hand.turn_expires_at, rerender));
   }
+  cross.appendChild(feltSlot);
 
-  const seatsRow = el('div', 'seats');
   game.seats.forEach((s) => {
-    const card = el('div', 'seat');
-    if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
-    // Cosmetic only — plan §7.1. A faint backdrop behind the seat's own
-    // content, never anything that could compete with tile/turn legibility.
-    if (s.userId && s.background) {
-      card.style.backgroundImage = `linear-gradient(rgba(255,251,240,0.86), rgba(255,251,240,0.86)), url(${backgroundUrl(s.background as Background)})`;
-      card.style.backgroundSize = 'cover';
-      card.style.backgroundPosition = 'center';
-    }
-    const who = el('div', 'who');
-    // A real uploaded photo first, falling back to the preset character —
-    // photo.ts has no has_photo flag to check, so this is genuinely a try:
-    // the browser's own onerror is what "no photo" looks like. A duppy has
-    // its own art elsewhere (design.md's five tiers) and never picks from
-    // either set.
-    if (s.userId) {
-      const img = document.createElement('img');
-      img.className = 'avatar';
-      img.width = 32;
-      img.height = 32;
-      img.alt = s.avatar ? (AVATAR_LABEL[s.avatar as Avatar] ?? '') : '';
-      img.src = photoUrl(s.userId);
-      img.onerror = () => {
-        if (s.avatar) {
-          img.onerror = null;
-          img.src = avatarUrl(s.avatar as Avatar);
-        } else {
-          img.remove();
-        }
-      };
-      who.appendChild(img);
-    }
-    who.append(el('h3', undefined,
-      s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`));
-    // Yard or foreign, if they said. A duppy is from nowhere.
-    if (s.origin === 'yardie' || s.origin === 'foreign') {
-      who.append(el('span', `badge origin-${s.origin}`,
-        s.origin === 'yardie' ? 'Yardie' : 'Foreign'));
-    }
-    card.appendChild(who);
-    const count = game.hand?.hand_sizes[s.seatIndex] ?? 0;
-    card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
-    if (s.seatIndex !== game.mySeat) card.append(backsEl(count));
-    decorateSeat(card, s.userId, social);
-    if (s.userId && s.seatIndex !== game.mySeat) {
-      card.appendChild(reportButton(s.userId, game.table.id, rerender));
-    }
-    seatsRow.appendChild(card);
+    const slot = seatPosition(s.seatIndex, game.mySeat, game.table.seatCount);
+    if (!slot) return;
+    const wrap = el('div', `seat-slot seat-slot-${slot}`);
+    wrap.appendChild(seatCard(s, game, rerender, social));
+    cross.appendChild(wrap);
   });
-  frag.appendChild(seatsRow);
+
+  frag.appendChild(cross);
 
   if (!game.hand) {
     frag.appendChild(startHandPanel(game));

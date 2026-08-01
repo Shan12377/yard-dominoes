@@ -298,11 +298,35 @@ label.field > span {
     0 14px 34px rgba(90, 58, 30, 0.28);
   padding: 14px 12px;
   min-height: 96px;
-  max-height: min(64vh, 560px);
+  max-height: min(72vh, 680px);
   overflow: auto;
   display: flex; align-items: center;
   scrollbar-width: thin;
 }
+
+/* ------------------------------------------------------------ table-cross
+   Seats surround the felt instead of stacking below it — spec
+   docs/superpowers/specs/2026-08-01-table-layout-design.md §2. Named grid
+   areas rather than raw row/column numbers: the same four class names
+   (seat-slot-top/left/right/bottom) work whether 2, 3, or 4 of them are
+   filled, and an unfilled slot (e.g. "top" on a 3-seat table) simply has no
+   child — the grid area still exists but renders empty, no gap to patch. */
+.table-cross {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 3fr) minmax(120px, 1fr);
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    ".    top    ."
+    "left felt   right"
+    ".    bottom .";
+  gap: 10px;
+  align-items: center;
+}
+.felt-slot { grid-area: felt; min-width: 0; }
+.seat-slot-top { grid-area: top; }
+.seat-slot-left { grid-area: left; }
+.seat-slot-right { grid-area: right; }
+.seat-slot-bottom { grid-area: bottom; }
 
 /* renderBoard() in render.ts sets grid-template-columns/rows and each tile's
    grid-column/grid-row as inline styles — the line snakes around the felt
@@ -389,7 +413,6 @@ label.field > span {
 }
 
 /* ---------------------------------------------------------------- seating */
-.seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .seat {
   border: 1px solid rgba(36, 22, 8, 0.14); border-radius: var(--r);
   padding: 10px 12px; background: var(--sand-hi);
