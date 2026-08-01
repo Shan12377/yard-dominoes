@@ -11,6 +11,7 @@ import { duppyMove } from '../_shared/engine/bots.ts';
 import type { Move } from '../_shared/engine/types.ts';
 import { afterTurn, allowance, usedBy } from '../_shared/engine/clock.ts';
 import type { Clock } from '../_shared/engine/clock.ts';
+import { applyRatingUpdates } from '../_shared/apply-rating.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -96,6 +97,7 @@ Deno.serve(handled(async (req) => {
 
     if (next.winnerSide !== null) {
       await db.from('tables').update({ status: 'finished' }).eq('id', table!.id);
+      await applyRatingUpdates(db, table!.mode, seatUsers, next.winnerSide);
     }
     return json({ ok: true, handOver: true, set: next });
   }

@@ -10,6 +10,7 @@ import { legalMoves, applyMove } from '../_shared/engine/hand.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
 import { allowance } from '../_shared/engine/clock.ts';
+import { applyRatingUpdates } from '../_shared/apply-rating.ts';
 
 Deno.serve(handled(async () => {
   const db = serviceClient();
@@ -70,6 +71,7 @@ Deno.serve(handled(async () => {
 
       if (next.winnerSide !== null) {
         await db.from('tables').update({ status: 'finished' }).eq('id', table!.id);
+        await applyRatingUpdates(db, table!.mode, seats!.map((s: any) => s.user_id), next.winnerSide);
       }
     }
   }

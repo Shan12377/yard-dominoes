@@ -9,3 +9,4 @@ export * from './academy.ts';
 export * from './talk.ts';
 export * from './leaks.ts';
 export * from './clock.ts';
+export * from './rating.ts';
