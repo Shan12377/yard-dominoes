@@ -151,6 +151,23 @@ export function registerServiceWorker(onUpdateReady: () => void) {
 
 let updateApplied = false;
 
+/**
+ * User-triggered version of the same check the visibilitychange listener
+ * above does automatically. Exists because "is there a refresh button" is a
+ * reasonable thing for a player to want on an installed app that has no
+ * browser chrome to pull-to-refresh with — belt-and-suspenders alongside the
+ * automatic check, not a replacement for it. Resolves 'checked' once the
+ * browser has re-fetched and diffed sw.js; if that turns anything up, the
+ * normal `onUpdateReady` callback still fires and `updateBar()` picks it up.
+ */
+export async function checkForUpdate(): Promise<'checked' | 'unsupported'> {
+  if (!('serviceWorker' in navigator)) return 'unsupported';
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return 'unsupported';
+  await reg.update();
+  return 'checked';
+}
+
 /** Apply a pending update. Only call between hands. */
 export function applyUpdate() {
   if (!waitingWorker) return;

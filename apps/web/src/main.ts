@@ -22,7 +22,7 @@ import * as sfx from './sfx.ts';
 import { applyFelt, FELTS, felt, setFelt } from './felt.ts';
 import {
   platform, promptInstall, watchInstallability, registerServiceWorker,
-  applyUpdate, updatePending, IOS_STEPS,
+  applyUpdate, updatePending, checkForUpdate, IOS_STEPS,
 } from './pwa.ts';
 
 import {
@@ -1177,8 +1177,42 @@ function legalFooter(): HTMLElement {
     link.onclick = () => { view = id; render(); };
     foot.appendChild(link);
   }
+  foot.appendChild(checkForUpdateLink());
   foot.appendChild(el('span', undefined, `© ${new Date().getFullYear()} Beat Di Table`));
   return foot;
+}
+
+let checkingUpdate = false;
+let checkedUpToDate = false;
+
+/**
+ * A manual "is there anything new" control, for an installed app with no
+ * browser chrome to pull-to-refresh with. The automatic check on
+ * visibilitychange (pwa.ts) covers the common case; this is the visible
+ * escape hatch for "I don't want to wait, check right now."
+ */
+function checkForUpdateLink(): HTMLElement {
+  const link = document.createElement('button');
+  link.className = 'linky';
+  link.textContent = checkingUpdate ? 'Checking…' : checkedUpToDate ? "You're up to date" : 'Check for updates';
+  link.disabled = checkingUpdate;
+  link.onclick = () => void (async () => {
+    checkingUpdate = true;
+    checkedUpToDate = false;
+    render();
+    await checkForUpdate();
+    // `reg.update()` resolving only means the browser finished comparing
+    // sw.js byte-for-byte — if it differs, installing the new worker and
+    // firing the event that flips updatePending() true happens
+    // asynchronously afterward, not before. Give that a moment before
+    // trusting a negative result, or a genuine update can land a beat after
+    // this already told the player they were up to date.
+    await new Promise((r) => setTimeout(r, 1200));
+    checkingUpdate = false;
+    checkedUpToDate = !updatePending();
+    render();
+  })();
+  return link;
 }
 
 function pending(message: string): HTMLElement {
