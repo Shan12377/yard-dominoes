@@ -465,8 +465,24 @@ Preserving the order given, with one dependency-driven reorder called out.
    deployed as part of the same batch, committed separately since it's
    an unrelated discovery. `npm test` (211 passing), `npm run
    typecheck`, and `get_advisors(security)` all clean after. Pushed.
-9. **Cosmetic yard-scene backgrounds** (§7.1) — no blockers, same art
-   pipeline as avatars.
+9. **✅ DONE (2026-08-01) — Cosmetic yard-scene backgrounds.** Three
+   scenes (midday, evening string-lights, rain on the zinc) instead of
+   avatars' single-character template — art-direction.md's icon
+   template explicitly forbids scenery (rule 4), so these followed
+   design.md's Illustration register instead: `yard-band.svg`'s
+   four-colour flat vector, dancehall-flyer-silhouette style, generated
+   via a new `gen_backgrounds.py` (mirrors `gen_avatars.py`). Reviewed
+   the generated set before wiring anything up — flat vector, on-palette,
+   women actively at the table in every scene, no text, no postcard-
+   tropical cliché. Stored as an id on `profiles.background` (never a
+   URL, same reasoning as `avatar`), picked from the profile editor via
+   the same picker pattern as avatars, worn as a low-opacity backdrop on
+   a seat card — no new real-time infra, purely decorative over data
+   every seat already carries. Verified live: picker saves, the human
+   seat shows the chosen scene faintly behind its content, duppy seats
+   stay plain, tile/turn text stays fully legible. `npm test` (211
+   passing), typecheck, and build all clean; bundle still two chunks per
+   `client.md`. Test table and account cleaned up after.
 10. **VIP-gated video presence** (§7.2) — explicitly LAST. Not blocked
    technically, just lowest priority by instruction: this is a genuinely
    new cost center and a genuinely new piece of infrastructure, and everything
