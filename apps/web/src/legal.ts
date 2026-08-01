@@ -34,7 +34,7 @@ export const ENTITY = {
 } as const;
 
 export const PRODUCT = 'Beat Di Table';
-export const LAST_UPDATED = '29 July 2026';
+export const LAST_UPDATED = '1 August 2026';
 
 /** COPPA's line. Below this, no chat, no voice, no tables with strangers. */
 export const AGE_FLOOR = 13;
@@ -188,10 +188,14 @@ export function termsView(): HTMLElement {
         + 'social features, we delete the account and anything attached to it.'],
 
       ['This is a game, not gambling',
-        'There is no wagering, no cash prizes, no chips, no coins, and no way to '
-        + 'convert anything here into money. A membership buys features. It does '
-        + 'not buy an advantage in a hand, and it never will — the tiles do not '
-        + 'know who paid.'],
+        'There is no wagering, no cash prizes, and no stakes on any hand. A '
+        + 'membership buys features. It does not buy an advantage in a hand, and '
+        + 'it never will — the tiles do not know who paid.',
+        'Coins are a virtual currency you can buy and gift to other players. They '
+        + 'never affect the deal, the rules, or the tiles you are given, and they '
+        + 'cannot be cashed out, sold, or converted back into money by you or by '
+        + `us — they only ever move from a purchase, or from one player's balance `
+        + 'to another\'s.'],
 
       ['Fair dealing',
         'Every deal is provably fair: we commit to a shuffle before it happens '
@@ -214,6 +218,9 @@ export function termsView(): HTMLElement {
         + 'any time.',
         'Cancelling stops the next renewal. It does not end the period you have '
         + 'already paid for — you keep what you bought until it runs out.',
+        'Coins are a one-time purchase, not a subscription. Once spent or gifted '
+        + 'they cannot be reversed, but an unused balance from a payment made in '
+        + 'error is refundable the same way a membership charge is.',
         'If something is broken, or you were charged in error, or you changed '
         + `your mind within 14 days and have barely used it, write to ${ENTITY.email} `
         + 'and we will refund you. We would rather refund a person than argue '
@@ -248,8 +255,9 @@ export function privacyView(): HTMLElement {
         + 'browser and are never uploaded.',
         'If you go online, you get an anonymous account automatically — no email, '
         + 'no password, no name. Attached to it are a username if you choose one, '
-        + 'your game results and ratings, chat you send in a lounge, and which '
-        + 'lounge you last visited.',
+        + 'your game results and ratings, chat you send in a lounge, which lounge '
+        + 'you last visited, and a coin balance if you have ever bought or been '
+        + 'given coins.',
         'If you buy a membership, our payment processor holds your card details. '
         + 'We never see or store a card number. We keep a record that a payment '
         + 'happened, for what, and when — that is a financial record we are '
@@ -272,12 +280,27 @@ export function privacyView(): HTMLElement {
         + 'grant permission — guests can hear a room without ever being asked '
         + 'for a microphone at all.'],
 
+      ['Video is different from voice, honestly stated',
+        'Video is a members-only feature, off by default, that shows the table '
+        + 'who you are while you play. Your camera is never switched on unless '
+        + 'you turn video on yourself and grant permission — nobody is ever shown '
+        + 'without asking first.',
+        'Unlike voice, video is NOT sent directly between players. It is relayed '
+        + 'through a video infrastructure provider so it stays smooth on a phone '
+        + 'connection, the same way a video call through any modern app works. '
+        + 'That provider carries the encrypted video to reach the other seats and '
+        + 'does not store or record it — we do not record it either, and nothing '
+        + 'about a video call is kept once the hand or your camera ends.',
+        'Turning your camera off, or leaving the table, stops your video '
+        + 'immediately for everyone else.'],
+
       ['Who else touches the data',
         'We use a small number of companies to run the service, and only for '
         + 'that: a database and authentication provider, a payment processor, a '
-        + 'web host, and a connection-relay service for voice. Each of them may '
-        + 'process what is strictly needed to do their part. None of them are '
-        + 'allowed to use it for their own purposes.',
+        + 'web host, a connection-relay service for voice, and a video '
+        + 'infrastructure provider for members who turn video on. Each of them '
+        + 'may process what is strictly needed to do their part. None of them '
+        + 'are allowed to use it for their own purposes.',
         'Some of these companies are in the United States. If you are in the UK '
         + 'or the EU, your information may therefore be handled outside your '
         + 'country under the standard safeguards those countries require.'],
@@ -297,8 +320,11 @@ export function privacyView(): HTMLElement {
       ['How long we keep it',
         'Game and account data stays while the account exists. Chat messages are '
         + 'kept so a room still reads sensibly when you return, and are removed '
-        + 'with the account. Payment records are kept for as long as tax and '
-        + 'accounting rules require, which is longer than everything else.'],
+        + 'with the account. The coin ledger — purchases and gifts — is kept the '
+        + 'same way a bank statement is, so a balance can always be reconstructed '
+        + 'and disputed if something looks wrong. Payment records are kept for as '
+        + 'long as tax and accounting rules require, which is longer than '
+        + 'everything else.'],
 
       ['Your rights over it',
         'You can ask for a copy of what we hold, ask us to correct it, or ask us '
