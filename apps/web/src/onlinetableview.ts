@@ -606,6 +606,17 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     panel.appendChild(next);
   } else if (game.winnerSide !== null) {
     panel.append(el('p', 'muted', 'Set over.'));
+    // Absent for a spectator, a duppy-mixed table (never rated), or while
+    // the server's write is still catching up to this broadcast — see
+    // onlinetable.ts's loadRatingAfter. Nothing shown beats a fabricated +0.
+    if (game.ratingBefore !== null && game.ratingAfter !== null) {
+      const delta = game.ratingAfter - game.ratingBefore;
+      if (delta !== 0) {
+        const sign = delta > 0 ? '+' : '';
+        panel.append(el('p', `rating-delta ${delta > 0 ? 'up' : 'down'}`,
+          `Rating ${sign}${delta} — now ${game.ratingAfter}`));
+      }
+    }
   }
   return panel;
 }

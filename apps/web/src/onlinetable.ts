@@ -89,6 +89,22 @@ export class OnlineGame {
   winnerSide: number | null = null;
   sixLove = false;
 
+  /**
+   * Rating transparency — the "+23" a set-deciding hand is worth, read off
+   * the same columns `_shared/apply-rating.ts` writes. `ratingBefore` is
+   * this seat's rating snapshotted at table-open; `ratingAfter` is filled in
+   * only once `winnerSide` actually decides the set (see `onSet` below), so
+   * a hand that merely ends without deciding the set shows nothing. Stays
+   * null on a duppy-mixed table, where nothing is ever rated, or for a
+   * spectator, who has no rating of their own to show.
+   */
+  ratingBefore: number | null = null;
+  ratingAfter: number | null = null;
+
+  private ratingColumn(): 'rating_partner' | 'rating_cutthroat' {
+    return this.table.mode === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
+  }
+
   private myUserId: string | null = null;
   private sub: TableSubscription | null = null;
   private listeners: ((e: OnlineEvent) => void)[] = [];
@@ -175,14 +191,22 @@ export class OnlineGame {
       game.winnerSide = set.winner_side; game.sixLove = set.six_love;
     }
 
-    const { data: hand } = await conn.from('hand_public').select('*')
-      .eq('table_id', tableId).order('updated_at', { ascending: false }).limit(1).maybeSingle();
+    const ratingColumn = game.ratingColumn();
+    const [handRes, ratingRes] = await Promise.all([
+      conn.from('hand_public').select('*')
+        .eq('table_id', tableId).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+      game.isSpectator
+        ? Promise.resolve({ data: null as any })
+        : conn.from('profiles').select(ratingColumn).eq('id', game.myUserId!).maybeSingle(),
+    ]);
+    const hand = handRes.data;
     if (hand) {
       game.hand = hand as PublicHand;
       if (!game.isSpectator) {
         await game.loadPrivateTiles(hand.hand_id);
       }
     }
+    if (ratingRes.data) game.ratingBefore = (ratingRes.data as any)[ratingColumn] ?? null;
 
     game.subscribe();
     document.addEventListener('visibilitychange', game.visListener);
@@ -309,14 +333,43 @@ export class OnlineGame {
         // Only on the edge into six love — `sets` rows update on every hand,
         // and a flag that is already true must not re-fire the sound.
         if (!this.sixLove && set.six_love) sfx.play('sixLove');
+        const justDecided = this.winnerSide === null && set.winner_side !== null;
         this.scores = set.scores as number[]; this.handValue = set.hand_value as number;
         this.poser = set.poser as number; this.poseMustBeDoubleSix = set.pose_must_be_double_six as boolean;
         this.handsPlayed = set.hands_played as number; this.winnerSide = set.winner_side as number | null;
         this.sixLove = set.six_love as boolean;
+        if (justDecided && !this.isSpectator) void this.loadRatingAfter();
         this.emit({ type: 'state' });
       },
       onSeats: () => { void this.refetchSeats(); },
     });
+  }
+
+  /**
+   * The rating write (`_shared/apply-rating.ts`) happens server-side after
+   * the `sets` row that triggers this method's caller already committed and
+   * broadcast — so reading `profiles` the instant `winnerSide` flips can
+   * land before the write does. Retry a few times rather than trust the
+   * first read: a duppy-mixed table (never rated) and "the write just
+   * hasn't landed yet" look identical after one failed read, and only the
+   * first one should end in silence.
+   */
+  private async loadRatingAfter(): Promise<void> {
+    const userId = this.myUserId;
+    if (userId === null || this.ratingBefore === null) return;
+    const column = this.ratingColumn();
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 400));
+      const { data } = await db().from('profiles').select(column).eq('id', userId).maybeSingle();
+      const value = data ? ((data as any)[column] as number | undefined) ?? null : null;
+      if (value !== null && value !== this.ratingBefore) {
+        this.ratingAfter = value;
+        this.emit({ type: 'state' });
+        return;
+      }
+    }
+    // Unchanged after retries — a duppy-mixed table, most likely. Showing
+    // nothing here is more honest than a fabricated "+0".
   }
 
   private async refetchSeats() {
