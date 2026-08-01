@@ -176,17 +176,42 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
   });
 }
 
+interface CrossLayout {
+  totalCols: number;
+  totalRows: number;
+  /**
+   * Unlike TilePlacement's col/row (0-based, +1'd at DOM-application time —
+   * see renderBoard's linear path), these are 1-based CSS grid line numbers,
+   * applied directly. The cross board's centring math reads more clearly
+   * that way, since the chucha's own position (centerCol/centerRow) is
+   * naturally a 1-based grid line to begin with.
+   */
+  placements: TilePlacement[];
+}
+
 /**
- * French cross board. Chucha (0-0) at centre; up to 4 arms extend outward
- * in fixed order — right (0), left (1), up (2), down (3). Non-doubles lie
- * along their arm; doubles sit crosswise. Pip halves are ordered so the
- * touching pips at every junction match — the anchor pip for tiles[i] is
- * tiles[i-1]'s exposed pip, or 0 (chucha) when i === 0.
+ * French cross board, pure layout math — same split as chooseUnit/layoutLine
+ * for the linear board, so this is unit-testable without a DOM.
+ *
+ * Chucha (0-0) at centre; up to 4 arms extend outward in fixed order —
+ * right (0), left (1), up (2), down (3). Non-doubles lie along their arm and
+ * occupy a 4×2 footprint (long side along the arm); doubles lie CROSSWISE —
+ * jutting out to both sides, a 2×4 or 4×2 footprint with the long side
+ * perpendicular to the arm. Pip halves are ordered so the touching pips at
+ * every junction match — the anchor pip for tiles[i] is tiles[i-1]'s exposed
+ * pip, or 0 (chucha) when i === 0.
+ *
+ * The grid gets a uniform 1-unit buffer beyond what the arms' own along-axis
+ * spans require, on every side. Without it, a crosswise tile near the base
+ * of an arm needs to request a column or row 1 short of centerCol/centerRow
+ * to stay centred on its arm's band, which goes negative — off the explicit
+ * grid — whenever the OPPOSITE arm hasn't grown that far yet. The buffer
+ * means that column/row always exists, regardless of how lopsided the board
+ * currently is.
  */
-function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {
-  const box = feltBox();
-  // Each arm's outward span: doubles occupy 2u across their arm axis,
-  // non-doubles occupy 4u. Chucha adds 2u centred at origin.
+export function crossPlacements(board: CrossBoard): CrossLayout {
+  // Each arm's outward span: doubles occupy 2u along their arm axis (their
+  // short side), non-doubles occupy 4u (their long side).
   const armSpan = (tiles?: typeof board.arms[number]['tiles']) =>
     (tiles ?? []).reduce((n, p) => n + (p.crosswise ? 2 : 4), 0);
   const rightSpan = armSpan(board.arms[0]?.tiles);
@@ -194,23 +219,17 @@ function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {
   const upSpan = armSpan(board.arms[2]?.tiles);
   const downSpan = armSpan(board.arms[3]?.tiles);
 
-  const totalCols = 2 + leftSpan + rightSpan;
-  const totalRows = 2 + upSpan + downSpan;
-  const centerCol = 1 + leftSpan;
-  const centerRow = 1 + upSpan;
+  const totalCols = 4 + leftSpan + rightSpan;
+  const totalRows = 4 + upSpan + downSpan;
+  const centerCol = 2 + leftSpan;
+  const centerRow = 2 + upSpan;
 
-  const wantU = Math.min(
-    Math.floor(box.width / totalCols),
-    Math.floor(box.height / totalRows),
-  );
-  const u = Math.max(MIN_UNIT, Math.min(MAX_UNIT, wantU || MIN_UNIT));
-  host.style.gridTemplateColumns = `repeat(${totalCols}, ${u}px)`;
-  host.style.gridTemplateRows = `repeat(${totalRows}, ${u}px)`;
-
-  const chucha = boardTileFromParts({ tile: board.center, crosswise: true }, 'v', [0, 0]);
-  chucha.style.gridColumn = `${centerCol} / span 2`;
-  chucha.style.gridRow = `${centerRow} / span 2`;
-  host.appendChild(chucha);
+  const placements: TilePlacement[] = [{
+    placed: { tile: board.center, crosswise: true },
+    orient: 'v',
+    faces: [0, 0],
+    col: centerCol, row: centerRow, colSpan: 2, rowSpan: 2,
+  }];
 
   /**
    * Lay tiles outward along an arm, tracking cumulative offset so crosswise
@@ -232,27 +251,29 @@ function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {
       const outer: Pip = (a === anchor ? b : a) as Pip;
       const faces: [Pip, Pip] = reverseHalves ? [outer, inner] : [inner, outer];
       const orient = p.crosswise ? (axis === 'h' ? 'v' : 'h') : axis;
+      // A crosswise tile's footprint SWAPS which dimension is long: 2 units
+      // along the arm (its short side), 4 units across it (its long side,
+      // now perpendicular) — centred on the arm's normal 2-unit band, hence
+      // the 1-unit shift back on the across axis.
       const alongSpan = p.crosswise ? 2 : 4;
-      const acrossSpan = 2;
+      const acrossSpan = p.crosswise ? 4 : 2;
+      const acrossShift = p.crosswise ? 1 : 0;
       let col: number;
       let row: number;
       let colSpan: number;
       let rowSpan: number;
       if (axis === 'h') {
         col = sign > 0 ? centerCol + 2 + offset : centerCol - alongSpan - offset;
-        row = centerRow;
+        row = centerRow - acrossShift;
         colSpan = alongSpan;
         rowSpan = acrossSpan;
       } else {
-        col = centerCol;
+        col = centerCol - acrossShift;
         row = sign > 0 ? centerRow + 2 + offset : centerRow - alongSpan - offset;
         colSpan = acrossSpan;
         rowSpan = alongSpan;
       }
-      const node = boardTileFromParts(p, orient, faces);
-      node.style.gridColumn = `${col} / span ${colSpan}`;
-      node.style.gridRow = `${row} / span ${rowSpan}`;
-      host.appendChild(node);
+      placements.push({ placed: p, orient, faces, col, row, colSpan, rowSpan });
       offset += alongSpan;
       anchor = outer;
     });
@@ -262,10 +283,28 @@ function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {
   placeArm(board.arms[1]?.tiles, 'h', -1, true);   // left
   placeArm(board.arms[2]?.tiles, 'v', -1, true);   // up
   placeArm(board.arms[3]?.tiles, 'v', 1, false);   // down
+
+  return { totalCols, totalRows, placements };
 }
 
-function boardTileFromParts(placed: { tile: TileId; crosswise: boolean }, orient: 'h' | 'v', faces: [Pip, Pip]): HTMLElement {
-  return boardTile({ placed, orient, faces, col: 0, row: 0, colSpan: 0, rowSpan: 0 });
+function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {
+  const box = feltBox();
+  const { totalCols, totalRows, placements } = crossPlacements(board);
+
+  const wantU = Math.min(
+    Math.floor(box.width / totalCols),
+    Math.floor(box.height / totalRows),
+  );
+  const u = Math.max(MIN_UNIT, Math.min(MAX_UNIT, wantU || MIN_UNIT));
+  host.style.gridTemplateColumns = `repeat(${totalCols}, ${u}px)`;
+  host.style.gridTemplateRows = `repeat(${totalRows}, ${u}px)`;
+
+  placements.forEach((p) => {
+    const node = boardTile(p);
+    node.style.gridColumn = `${p.col} / span ${p.colSpan}`;
+    node.style.gridRow = `${p.row} / span ${p.rowSpan}`;
+    host.appendChild(node);
+  });
 }
 
 export function backsEl(count: number): HTMLElement {

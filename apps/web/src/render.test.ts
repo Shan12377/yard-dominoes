@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
-import type { Board, Pip, PlacedTile } from '@yard/engine';
+import type { Board, CrossBoard, Pip, PlacedTile } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { chooseUnit, rowsOf } from './render.ts';
+import { chooseUnit, crossPlacements, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -119,4 +119,78 @@ test('the width cap is respected even when there is room to be bigger', () => {
   const { placements } = chooseUnit(line, DESKTOP, { maxUnits: 16 });
   const across = Math.max(...placements.map((p) => p.col + p.colSpan));
   assert.ok(across <= 16, `capped at 16 units, laid out ${across}`);
+});
+
+// ------------------------------------------------------------ cross board --
+// A crosswise double used to get the same 2x2 footprint as an inline tile —
+// a 4x2 (or 2x4) domino squeezed into half its own width, which is exactly
+// what "why some looks squeezed" was pointing at. These pin the fixed shape:
+// a crosswise tile's footprint SWAPS which dimension is long (2 along the
+// arm, 4 across it), centred on the arm's normal band.
+
+function emptyCrossBoard(): CrossBoard {
+  return { kind: 'cross', center: '0-0', arms: [], suitLed: [] };
+}
+
+/** One arm, one tile, everything else empty. */
+function crossBoardWithOneTile(
+  armIndex: 0 | 1 | 2 | 3, tile: string, crosswise: boolean,
+): CrossBoard {
+  const arms: CrossBoard['arms'] = [
+    { direction: 'right', tiles: [], openEnd: 0 },
+    { direction: 'left', tiles: [], openEnd: 0 },
+    { direction: 'up', tiles: [], openEnd: 0 },
+    { direction: 'down', tiles: [], openEnd: 0 },
+  ];
+  arms[armIndex] = { ...arms[armIndex], tiles: [{ tile, crosswise }] };
+  return { kind: 'cross', center: '0-0', arms, suitLed: [] };
+}
+
+test('an empty cross board centres the chucha with room to spare on every side', () => {
+  const { totalCols, totalRows, placements } = crossPlacements(emptyCrossBoard());
+  assert.equal(placements.length, 1);
+  const chucha = placements[0];
+  assert.equal(chucha.colSpan, 2);
+  assert.equal(chucha.rowSpan, 2);
+  // Centred: equal buffer on both sides, not flush against one edge.
+  assert.equal(chucha.col - 1, totalCols - (chucha.col + chucha.colSpan - 1));
+  assert.equal(chucha.row - 1, totalRows - (chucha.row + chucha.rowSpan - 1));
+});
+
+test('a non-double lies along its arm: long side matches the arm direction', () => {
+  const right = crossPlacements(crossBoardWithOneTile(0, '0-3', false)).placements[1];
+  assert.equal(right.colSpan, 4, 'a horizontal-arm single should be wide');
+  assert.equal(right.rowSpan, 2, 'and no taller than the line it sits on');
+
+  const up = crossPlacements(crossBoardWithOneTile(2, '0-3', false)).placements[1];
+  assert.equal(up.colSpan, 2, 'a vertical-arm single should be narrow');
+  assert.equal(up.rowSpan, 4, 'and as long as the arm it lies along');
+});
+
+test('a double lies crosswise: long side is PERPENDICULAR to the arm, not squeezed to a single-tile footprint', () => {
+  const right = crossPlacements(crossBoardWithOneTile(0, '3-3', true)).placements[1];
+  assert.equal(right.colSpan, 2, 'crosswise in a horizontal arm: narrow along it');
+  assert.equal(right.rowSpan, 4, 'crosswise in a horizontal arm: wide across it');
+
+  const up = crossPlacements(crossBoardWithOneTile(2, '3-3', true)).placements[1];
+  assert.equal(up.colSpan, 4, 'crosswise in a vertical arm: wide across it');
+  assert.equal(up.rowSpan, 2, 'crosswise in a vertical arm: narrow along it');
+});
+
+test('a crosswise double is centred on its arm\'s own band, not flush to one side', () => {
+  // The chucha's band is [chucha.col, chucha.col + 1] — a crosswise tile
+  // across-span of 4 centred on that band starts exactly 1 unit earlier.
+  const { placements } = crossPlacements(crossBoardWithOneTile(2, '3-3', true));
+  const [chucha, up] = placements;
+  assert.equal(up.col, chucha.col - 1);
+});
+
+test('a crosswise double never requests a column or row below the grid start, even when the opposite arm is still empty', () => {
+  for (const armIndex of [0, 1, 2, 3] as const) {
+    const { placements } = crossPlacements(crossBoardWithOneTile(armIndex, '3-3', true));
+    for (const p of placements) {
+      assert.ok(p.col >= 1, `arm ${armIndex}: col ${p.col} is off the explicit grid`);
+      assert.ok(p.row >= 1, `arm ${armIndex}: row ${p.row} is off the explicit grid`);
+    }
+  }
 });

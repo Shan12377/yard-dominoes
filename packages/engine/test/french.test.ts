@@ -62,6 +62,14 @@ describe('French scoring', () => {
     assert.equal(next.winnerSide, null);
   });
 
+  it('the chucha is forced round 1 only — round 2 opens free, led by round 1\'s winner', () => {
+    const s = createSet({ format: 'french', mode: 'cutthroat', seatCount: 4 });
+    assert.equal(s.poseMustBeDoubleSix, true, 'round 1 starts forced onto the chucha');
+    const next = applyHandResult(s, scoringResult([0, 12, 8, 15], [false, false, false, false], 2));
+    assert.equal(next.poseMustBeDoubleSix, false, 'round 2 is not forced onto the chucha');
+    assert.equal(next.poser, 2, 'round 1\'s winner poses round 2, free to lead any tile');
+  });
+
   it('sixlove behavior is not disturbed: partner set still bruks under the sixlove rule', () => {
     const s: SetState = { ...createSet({ format: 'sixlove', mode: 'partner', seatCount: 4 }), scores: [4, 0] };
     const next = applyHandResult(s, {
