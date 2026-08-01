@@ -51,3 +51,19 @@ export const resolveReport = (reportId: string) =>
 
 export const dismissReport = (reportId: string) =>
   call<{ ok: true }>('report-admin', { action: 'dismiss', reportId });
+
+export interface Admin {
+  id: string;
+  username: string;
+}
+
+export const listAdmins = () => call<{ admins: Admin[] }>('report-admin', { action: 'list-admins' })
+  .then((r) => r.admins);
+
+/** Throws with a friendly message ("no player called...") straight from the
+ *  function — nothing to translate client-side. */
+export const grantAdmin = (username: string) =>
+  call<{ username: string; already?: boolean }>('report-admin', { action: 'grant-admin', username });
+
+export const revokeAdmin = (userId: string) =>
+  call<{ ok: true }>('report-admin', { action: 'revoke-admin', userId });

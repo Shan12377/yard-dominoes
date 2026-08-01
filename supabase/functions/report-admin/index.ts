@@ -39,5 +39,45 @@ Deno.serve(handled(async (req) => {
     return json({ ok: true, status });
   }
 
+  // Lets an existing admin hand the role on without anyone running SQL —
+  // the whole point of building this function was to get is_admin out of
+  // "ask Claude to run a query" and into a panel a non-technical host can use.
+  if (action === 'list-admins') {
+    const { data, error } = await db.from('profiles')
+      .select('id, username').eq('is_admin', true).order('username');
+    if (error) throw new HttpError(500, error.message);
+    return json({ ok: true, admins: data });
+  }
+
+  if (action === 'grant-admin') {
+    const username = String(body.username ?? '').trim();
+    if (!username) throw new HttpError(422, 'which username?');
+    const { data: target, error: findError } = await db.from('profiles')
+      .select('id, username, is_admin').ilike('username', username).maybeSingle();
+    if (findError) throw new HttpError(500, findError.message);
+    if (!target) throw new HttpError(404, `no player called "${username}"`);
+    if (target.is_admin) return json({ ok: true, username: target.username, already: true });
+    const { error } = await db.from('profiles').update({ is_admin: true }).eq('id', target.id);
+    if (error) throw new HttpError(500, error.message);
+    return json({ ok: true, username: target.username });
+  }
+
+  if (action === 'revoke-admin') {
+    const userId = String(body.userId ?? '');
+    if (!userId) throw new HttpError(422, 'which admin?');
+    // Never let the panel revoke its own last door — that would put is_admin
+    // back to SQL-only, exactly the thing this function exists to avoid.
+    if (userId === user.id) {
+      const { count } = await db.from('profiles')
+        .select('id', { count: 'exact', head: true }).eq('is_admin', true);
+      if ((count ?? 0) <= 1) {
+        throw new HttpError(409, "you're the only admin — make someone else admin first");
+      }
+    }
+    const { error } = await db.from('profiles').update({ is_admin: false }).eq('id', userId);
+    if (error) throw new HttpError(500, error.message);
+    return json({ ok: true });
+  }
+
   throw new HttpError(400, `unknown action: ${action}`);
 }));

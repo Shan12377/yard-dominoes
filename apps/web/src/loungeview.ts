@@ -25,8 +25,8 @@ import { el } from './render.ts';
 import { canSpeak, joinVoice } from './voice.ts';
 import type { VoiceRoom } from './voice.ts';
 import { canShowVideo, joinVideo, CAMERA_TRACK_NAME } from './video.ts';
-import { fileReport, listReports, resolveReport, dismissReport } from './reports.ts';
-import type { Report } from './reports.ts';
+import { fileReport, listReports, resolveReport, dismissReport, listAdmins, grantAdmin, revokeAdmin } from './reports.ts';
+import type { Report, Admin } from './reports.ts';
 import type { VideoRoom, RemotePeer } from './video.ts';
 import { loadTournament, stopTournamentClock, tournamentPanel } from './tournamentview.ts';
 
@@ -796,6 +796,103 @@ function loadReports(rerender: () => void) {
     .finally(() => { reportsLoading = false; rerender(); });
 }
 
+// Who else can review reports. A grant/revoke UI so is_admin stops being a
+// SQL-only knob — the entire reason to build report-admin's grant-admin/
+// revoke-admin actions was to get this out of "ask someone to run a query."
+let adminsList: Admin[] | null = null;
+let adminsLoading = false;
+let adminsError: string | null = null;
+let adminsBusy = false;
+let grantUsername = '';
+
+function loadAdmins(rerender: () => void) {
+  adminsLoading = true;
+  adminsError = null;
+  rerender();
+  void listAdmins()
+    .then((list) => { adminsList = list; })
+    .catch((err) => { adminsError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { adminsLoading = false; rerender(); });
+}
+
+function adminsSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('h3', undefined, 'Admins'));
+
+  if (adminsError) section.append(el('div', 'banner small', adminsError));
+
+  if (adminsLoading && !adminsList) {
+    section.append(el('p', 'muted small', 'Loading…'));
+    return section;
+  }
+
+  const list = el('div', 'roster');
+  for (const a of adminsList ?? []) {
+    const line = el('div', 'person');
+    line.append(el('span', undefined, a.username));
+    const remove = document.createElement('button');
+    remove.className = 'dismiss';
+    remove.textContent = 'Remove';
+    remove.disabled = adminsBusy;
+    remove.onclick = () => void (async () => {
+      adminsBusy = true;
+      adminsError = null;
+      rerender();
+      try {
+        await revokeAdmin(a.id);
+        adminsList = (adminsList ?? []).filter((x) => x.id !== a.id);
+      } catch (err) {
+        adminsError = err instanceof Error ? err.message : 'could not remove';
+      } finally {
+        adminsBusy = false;
+        rerender();
+      }
+    })();
+    line.appendChild(remove);
+    list.appendChild(line);
+  }
+  section.appendChild(list);
+
+  const form = el('div', 'row');
+  const input = document.createElement('input');
+  input.placeholder = 'username';
+  input.value = grantUsername;
+  input.oninput = () => { grantUsername = input.value; };
+  form.appendChild(input);
+
+  const add = document.createElement('button');
+  add.className = 'act small';
+  add.textContent = adminsBusy ? 'Adding…' : 'Make admin';
+  add.disabled = adminsBusy;
+  add.onclick = () => void (async () => {
+    const username = grantUsername.trim();
+    if (!username) return;
+    adminsBusy = true;
+    adminsError = null;
+    rerender();
+    try {
+      const result = await grantAdmin(username);
+      grantUsername = '';
+      if (!result.already) {
+        adminsList = [...(adminsList ?? []), { id: '', username: result.username }]
+          .sort((x, y) => x.username.localeCompare(y.username));
+        // The temporary id is fine here — the next loadAdmins() (panel
+        // reopen) replaces it with the real one; Remove just isn't wired
+        // for this row until then.
+      }
+    } catch (err) {
+      adminsError = err instanceof Error ? err.message : 'could not add';
+    } finally {
+      adminsBusy = false;
+      rerender();
+    }
+  })();
+  form.appendChild(add);
+  section.appendChild(form);
+
+  return section;
+}
+
 function reportsPanel(rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
   panel.append(el('div', 'eyebrow', 'Admin'));
@@ -805,46 +902,47 @@ function reportsPanel(rerender: () => void): HTMLElement {
 
   if (reportsLoading && !reportsList) {
     panel.append(el('p', 'muted', 'Loading…'));
-    return panel;
-  }
-  const open = (reportsList ?? []).filter((r) => r.status === 'open');
-  if (open.length === 0) {
-    panel.append(el('p', 'muted', 'Nothing open.'));
-    return panel;
+  } else {
+    const open = (reportsList ?? []).filter((r) => r.status === 'open');
+    if (open.length === 0) {
+      panel.append(el('p', 'muted', 'Nothing open.'));
+    } else {
+      const list = el('div', 'roster');
+      for (const r of open) {
+        const line = el('div', 'person');
+        const who = `${r.reporter?.username ?? 'someone'} reported ${r.reported?.username ?? 'someone'}`;
+        line.append(el('span', undefined, who));
+        line.append(el('p', 'muted small', r.reason));
+        line.append(el('span', 'muted small', timeAgo(r.created_at)));
+
+        const act = (label: string, fn: (id: string) => Promise<unknown>) => {
+          const b = document.createElement('button');
+          b.className = 'dismiss';
+          b.textContent = label;
+          b.disabled = reportsBusy;
+          b.onclick = () => void (async () => {
+            reportsBusy = true;
+            rerender();
+            try {
+              await fn(r.id);
+              reportsList = (reportsList ?? []).map((x) => x.id === r.id ? { ...x, status: label === 'Resolve' ? 'resolved' as const : 'dismissed' as const } : x);
+            } catch (err) {
+              reportsError = err instanceof Error ? err.message : 'could not update';
+            } finally {
+              reportsBusy = false;
+              rerender();
+            }
+          })();
+          return b;
+        };
+        line.append(act('Resolve', resolveReport), act('Dismiss', dismissReport));
+        list.appendChild(line);
+      }
+      panel.appendChild(list);
+    }
   }
 
-  const list = el('div', 'roster');
-  for (const r of open) {
-    const line = el('div', 'person');
-    const who = `${r.reporter?.username ?? 'someone'} reported ${r.reported?.username ?? 'someone'}`;
-    line.append(el('span', undefined, who));
-    line.append(el('p', 'muted small', r.reason));
-    line.append(el('span', 'muted small', timeAgo(r.created_at)));
-
-    const act = (label: string, fn: (id: string) => Promise<unknown>) => {
-      const b = document.createElement('button');
-      b.className = 'dismiss';
-      b.textContent = label;
-      b.disabled = reportsBusy;
-      b.onclick = () => void (async () => {
-        reportsBusy = true;
-        rerender();
-        try {
-          await fn(r.id);
-          reportsList = (reportsList ?? []).map((x) => x.id === r.id ? { ...x, status: label === 'Resolve' ? 'resolved' as const : 'dismissed' as const } : x);
-        } catch (err) {
-          reportsError = err instanceof Error ? err.message : 'could not update';
-        } finally {
-          reportsBusy = false;
-          rerender();
-        }
-      })();
-      return b;
-    };
-    line.append(act('Resolve', resolveReport), act('Dismiss', dismissReport));
-    list.appendChild(line);
-  }
-  panel.appendChild(list);
+  panel.appendChild(adminsSection(rerender));
   return panel;
 }
 
@@ -956,6 +1054,7 @@ function loungeList(rerender: () => void): DocumentFragment {
       reportsBtn.onclick = () => {
         reportsOpen = !reportsOpen;
         if (reportsOpen && !reportsList) loadReports(rerender);
+        if (reportsOpen && !adminsList) loadAdmins(rerender);
         rerender();
       };
       you.append(reportsBtn);
