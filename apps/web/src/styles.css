@@ -578,7 +578,10 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   margin-bottom: 16px;
 }
 .hero-copy { display: grid; gap: 10px; justify-items: start; max-width: 520px; }
-.hero-copy .eyebrow { color: rgba(255, 251, 240, 0.72); }
+.hero-copy .eyebrow {
+  font-size: 15px; font-weight: 700; letter-spacing: 0.14em;
+  color: var(--gold-hi);
+}
 .hero-copy h2 {
   font-family: var(--signage);
   font-size: clamp(27px, 6vw, 46px);
