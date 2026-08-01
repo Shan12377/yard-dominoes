@@ -343,6 +343,14 @@ export const REACTIONS = [
   { id: 'six-love', label: 'Six love' },
   { id: 'hold-dat', label: 'Hold dat' },
   { id: 'cho-man', label: 'Cho man' },
+  // Fill emotional gaps against JamDom's VIP emoticon set (shock, disbelief,
+  // unbothered confidence, boredom, sarcasm) — named in patois, not
+  // translated from their generic labels. See scripts/gen_reactions.py.
+  { id: 'lawd', label: 'Lawd!' },
+  { id: 'yuh-mad', label: 'Yuh mad?' },
+  { id: 'cool-runnings', label: 'Cool runnings' },
+  { id: 'mi-tired', label: 'Mi tired' },
+  { id: 'big-up', label: 'Big up yuhself' },
 ] as const;
 
 /**

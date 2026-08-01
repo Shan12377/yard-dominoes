@@ -14,6 +14,7 @@
     "fn:serve": "npm run sync:engine && npx supabase functions serve",
     "fn:deploy": "npm run sync:engine && npx supabase functions deploy",
     "gen:avatars": "python3 scripts/gen_avatars.py",
-    "gen:backgrounds": "python3 scripts/gen_backgrounds.py"
+    "gen:backgrounds": "python3 scripts/gen_backgrounds.py",
+    "gen:reactions": "python3 scripts/gen_reactions.py"
   }
 }

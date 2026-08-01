@@ -65,6 +65,52 @@ anywhere in the image. The expression is <DESCRIBE IT HERE>.
 Generated with OpenAI `gpt-image-1` at 1024×1024, medium quality, then scaled
 to 128px WebP.
 
+## Reaction tiles — a second template, not a variant of the first
+
+**The table-talk reactions (`REACTIONS` in `lounges.ts`) do NOT use the
+character template above.** They were built to it in spirit but not in
+practice, and this section exists because that gap caused real generation
+failures when the set was extended — write it down once here rather than
+rediscover it by trial and error again.
+
+A reaction tile is a real domino tile, split by its own spine:
+
+- **Top half:** a conventional flat cartoon face — eyebrows, eyes, a mouth —
+  drawn as bold flat shapes. **Not** pip-holes standing in for eyes; that's
+  the avatar template's trick, not this one's.
+- **Bottom half:** a genuine domino pip count, arranged like a real domino
+  face (1 through 6, or blank).
+- Same cream body (`#FDF6E3`), thick dark ink outline (`#241608`), solid
+  flat forest green background (`#146B3A`), flat 2D vector only — no
+  gradients, no gloss, no 3D, no photorealism, no scenery. Same "reads at 64
+  pixels, no text ever" rules as the character template.
+
+**Two failure modes hit while extending this set, both worth naming so the
+next attempt skips them:**
+
+1. **The model defaults to a stray gold pip if gold is mentioned as an
+   available accent at all**, even when told the exception is
+   `six-love`-only. Fix: tell it gold may accent the FACE (an iris, a mouth
+   highlight — this is what gives the set its warmth, see `tek-dat` and
+   `hold-dat`), but state separately and explicitly that **pips are always
+   solid black ink, no exceptions, full stop** — don't rely on "except X"
+   phrasing, restate the pip rule as an unconditional default.
+2. **A "blank" tile (no pips) reliably grows a soft glow/halo/vignette**
+   around itself, as if the model is compensating for the empty space. Fix:
+   explicitly rule out glow, halo, light bloom, vignette, and gradient by
+   name in the same sentence that asks for a blank tile — don't assume "flat
+   vector" earlier in the prompt is enough to suppress it.
+
+Full working prompt, `scripts/gen_reactions.py`'s `BASE` plus a per-reaction
+line describing the face and the pip count (or "blank"). Same
+`gpt-image-1`, 1024×1024, medium quality, scaled to 128px WebP as the
+character template — only the subject and the pip-colour rule differ.
+
+New reaction names are Jamaican expressions picked to fill a real emotional
+gap, never a translation of a generic emoticon-set label. If a competitor's
+emoticon picker is ever used as a checklist again, borrow the *coverage*
+(what emotions are missing), never the *names*.
+
 ## People in illustrations
 
 Yard's illustrations must show **women at the table, playing and winning** —
