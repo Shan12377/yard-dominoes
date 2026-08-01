@@ -110,6 +110,17 @@ export function registerServiceWorker(onUpdateReady: () => void) {
           }
         });
       });
+
+      // An installed PWA — iOS especially — is usually SUSPENDED on the way
+      // to the background, not reloaded, so tapping the home-screen icon to
+      // come back often never re-runs `load` at all. Without this, a player
+      // who last force-quit the app weeks ago is the only one who ever sees
+      // an update: everyone else just resumes the same page forever. This
+      // only asks the browser to re-fetch and diff sw.js — it never applies
+      // anything by itself. `applyUpdate()` still refuses mid-hand either way.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void reg.update();
+      });
     }).catch(() => {
       // No worker means no offline shell. The app still works.
     });
