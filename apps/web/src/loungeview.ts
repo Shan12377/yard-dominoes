@@ -1167,6 +1167,13 @@ function loungeList(rerender: () => void): DocumentFragment {
       you.append(reportsBtn);
     }
     head.append(you);
+    // "i am vip, where do i upload pic?" — the photo lives inside Edit
+    // profile, same panel as name/origin/avatar, with nothing on this
+    // screen pointing there first. One line is enough; it isn't worth a
+    // banner for something that's one tap away once you know where to look.
+    if (myTier !== 'guest' && !profileOpen) {
+      head.append(el('p', 'muted small', 'Add your profile photo under Edit profile.'));
+    }
   }
   frag.appendChild(head);
 
