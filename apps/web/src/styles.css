@@ -756,6 +756,25 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   50% { transform: scaleY(1); }
 }
 
+/* ------------------------------------------------------------------ video
+   VIP-gated, table-scoped — bundled the way the mic is bundled into Yardie.
+   The tile sits as a corner overlay on the seat card so it never disturbs
+   the tile-count/turn layout that actually matters for play. */
+.video-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(36, 22, 8, 0.10);
+  font-size: 13px;
+}
+.video-bar .muted { font-size: 12.5px; }
+.seat-video {
+  position: absolute; top: 6px; right: 6px;
+  width: 56px; height: 56px; border-radius: 50%;
+  object-fit: cover; border: 2px solid var(--bone-shade);
+  box-shadow: 0 1px 4px rgba(36, 22, 8, 0.4);
+  background: var(--forest-lo);
+}
+
 /* ------------------------------------------------------------------ tiers */
 .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .tier-card {

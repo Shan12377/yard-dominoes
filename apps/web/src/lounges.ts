@@ -94,6 +94,17 @@ export interface PresenceEntry {
    */
   voice?: boolean;
   /**
+   * Publishing video right now. Unlike `voice`, this is not just a mesh
+   * roster key — it is also the signal that tells other seats a Cloudflare
+   * Realtime session exists to pull a track from. `videoSessionId` and
+   * `videoTrackName` are only meaningful when this is true.
+   */
+  video?: boolean;
+  /** This seat's own Cloudflare Realtime session, once video is on. */
+  videoSessionId?: string;
+  /** The trackName Cloudflare knows this seat's camera track by. */
+  videoTrackName?: string;
+  /**
    * The table this person currently has open, or absent for anyone sitting in
    * the lounge itself. A yard game has an audience — people lean on the table
    * and watch, and knowing they are there is most of what makes it feel like a
@@ -318,6 +329,9 @@ export interface LoungeRoom {
   channel: RealtimeChannel;
   /** Re-announce yourself, e.g. when you pick up or put down the mic. */
   setVoice: (voice: boolean) => void;
+  /** Re-announce your Cloudflare Realtime session so peers know to pull it,
+   *  or clear it (pass nulls) when video stops. */
+  setVideo: (video: boolean, sessionId?: string, trackName?: string) => void;
   /** The table you are watching, or null back in the lounge. */
   setTable: (tableId: string | null) => void;
   leave: () => void;
@@ -446,6 +460,8 @@ export function enterLounge(
   return {
     channel,
     setVoice: (voice: boolean) => announce({ voice }),
+    setVideo: (video: boolean, sessionId?: string, trackName?: string) =>
+      announce({ video, videoSessionId: sessionId, videoTrackName: trackName }),
     setTable: (table: string | null) => announce({ table }),
     leave: () => { void db().removeChannel(channel); },
   };

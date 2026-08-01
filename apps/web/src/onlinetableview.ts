@@ -178,6 +178,9 @@ export interface TableSocial {
   /** The reaction each person last threw, by user id. */
   reactions: Map<string, string>;
   voicePanel: HTMLElement | null;
+  videoPanel?: HTMLElement | null;
+  /** Pulled video streams, keyed by user id — VIP-gated, table-scoped. */
+  videoStreams?: Map<string, MediaStream>;
   reactionBar: HTMLElement | null;
   quickChatBar?: HTMLElement | null;
   /** Everyone with this table open, seated players included. */
@@ -195,6 +198,17 @@ function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSo
     wave.setAttribute('aria-label', 'speaking');
     for (let i = 0; i < 3; i++) wave.appendChild(document.createElement('i'));
     card.appendChild(wave);
+  }
+
+  const stream = social.videoStreams?.get(userId);
+  if (stream) {
+    const video = document.createElement('video');
+    video.className = 'seat-video';
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = true; // this is a picture, not a second audio path — voice already carries sound
+    video.srcObject = stream;
+    card.appendChild(video);
   }
 
   // Reactions and quick chat share this one slot, so a person is only ever
@@ -246,6 +260,7 @@ export function liveTableView(
   // Voice sits at the top, where a persistent control belongs — it is a state
   // you are in, not an action you take mid-hand.
   if (social?.voicePanel) frag.appendChild(social.voicePanel);
+  if (social?.videoPanel) frag.appendChild(social.videoPanel);
 
   const board = el('div', 'scoreboard');
   if (game.table.mode === 'partner') {

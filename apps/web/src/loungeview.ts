@@ -18,12 +18,14 @@ import {
 import type {
   Avatar, Background, Bredrin, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
 } from './lounges.ts';
-import { ensureSignedIn, findActiveSeat } from './online.ts';
+import { ensureSignedIn, findActiveSeat, videoSessionCall } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
 import { openTablesPanel, joinByCodeField, liveTableView } from './onlinetableview.ts';
 import { el } from './render.ts';
 import { canSpeak, joinVoice } from './voice.ts';
 import type { VoiceRoom } from './voice.ts';
+import { canShowVideo, joinVideo, CAMERA_TRACK_NAME } from './video.ts';
+import type { VideoRoom, RemotePeer } from './video.ts';
 import { loadTournament, stopTournamentClock, tournamentPanel } from './tournamentview.ts';
 
 /**
@@ -57,12 +59,17 @@ interface LoungeState {
   speaking: Set<string>;
   /** The reaction each person last threw, by user id. */
   reactions: Map<string, string>;
+  video: VideoRoom | null;
+  videoJoining: boolean;
+  /** Keyed by user id — decorateSeat reads this to attach a <video> tile. */
+  videoStreams: Map<string, MediaStream>;
 }
 
 export const loungeState: LoungeState = {
   lounges: [], me: null, current: null, roster: [], messages: [],
   room: null, error: null, loading: false, onlineGame: null,
   voice: null, voiceJoining: false, speaking: new Set(), reactions: new Map(),
+  video: null, videoJoining: false, videoStreams: new Map(),
 };
 
 /** Timers clearing each reaction, so one person spamming cannot pile them up. */
@@ -171,6 +178,11 @@ async function openLounge(lounge: Lounge, rerender: () => void) {
         // joined voice get dialled. Safe on every sync — it diffs.
         loungeState.voice?.syncRoster(
           roster.filter((p) => p.voice).map((p) => p.user_id));
+        // Video is scoped to the table you're actually seated at, not the
+        // whole lounge — a spectator's video presence would never carry a
+        // valid session anyway (the server gate requires a seat), but there
+        // is no reason to even try pulling someone not at your own table.
+        if (loungeState.video) loungeState.video.syncPeers(videoPeersFrom(roster));
         rerender();
       },
       onMessage: (msg) => { loungeState.messages = [...loungeState.messages, msg]; rerender(); },
@@ -289,6 +301,24 @@ function quickChatBar(rerender: () => void): HTMLElement {
 }
 
 /**
+ * Everyone else's video worth pulling right now: on video, at the table you
+ * are seated at, not you. The server independently re-checks that
+ * `videoSessionId` actually belongs to a seat at your table before ever
+ * calling Cloudflare (video-session's 'pull' action) — this filter is only
+ * about not wasting a round trip on someone it would reject anyway.
+ */
+function videoPeersFrom(roster: PresenceEntry[]): RemotePeer[] {
+  const myTable = loungeState.onlineGame?.table.id;
+  const me = loungeState.me;
+  if (!myTable || !me) return [];
+  return roster
+    .filter((p): p is PresenceEntry & { videoSessionId: string; videoTrackName: string } =>
+      Boolean(p.video && p.table === myTable && p.videoSessionId && p.videoTrackName)
+      && p.user_id !== me.id)
+    .map((p) => ({ userId: p.user_id, sessionId: p.videoSessionId, trackName: p.videoTrackName }));
+}
+
+/**
  * Join table voice. Requires a tap: browsers only hand over a microphone (and
  * only start audio playback) in response to a real gesture.
  */
@@ -377,6 +407,91 @@ function voicePanel(rerender: () => void): HTMLElement {
     loungeState.voice = null;
     loungeState.speaking = new Set();
     loungeState.room?.setVoice(false);
+    rerender();
+  };
+  panel.append(leave);
+  return panel;
+}
+
+/**
+ * Join table video. Requires a tap, same as voice — a camera only turns on in
+ * response to a real gesture. Table-scoped only: `loungeState.onlineGame`
+ * must exist, since video is bundled into VIP for the 4-seat table you're
+ * actually playing at, not the lounge lobby (plan §7.2's pricing math is
+ * specifically a 4-seat session, not a whole room of spectators).
+ */
+async function startVideo(rerender: () => void) {
+  const { me, room, onlineGame } = loungeState;
+  if (!me || !room || !onlineGame || loungeState.video || loungeState.videoJoining) return;
+
+  loungeState.videoJoining = true;
+  rerender();
+  try {
+    const video = await joinVideo(onlineGame.table.id, videoSessionCall, {
+      onStream: (userId, stream) => {
+        const next = new Map(loungeState.videoStreams);
+        if (stream) next.set(userId, stream); else next.delete(userId);
+        loungeState.videoStreams = next;
+        rerender();
+      },
+      onError: (message) => { loungeState.error = message; rerender(); },
+    });
+    loungeState.video = video;
+    if (video) {
+      // Announce before syncing peers, same ordering voice uses — peers
+      // already on video hear that we arrived and pull us back on their own
+      // next presence sync.
+      room.setVideo(true, video.sessionId() ?? undefined, CAMERA_TRACK_NAME);
+      video.syncPeers(videoPeersFrom(loungeState.roster));
+    }
+  } catch (err) {
+    loungeState.error = err instanceof Error ? err.message : 'video could not start';
+  } finally {
+    loungeState.videoJoining = false;
+    rerender();
+  }
+}
+
+/**
+ * Seeing the yard is a VIP benefit — bundled the same way talking is bundled
+ * into Yardie, and gated server-side (video-session Edge Function) as well
+ * as here, since unlike the mic each session costs real Cloudflare usage.
+ */
+function videoPanel(rerender: () => void): HTMLElement | null {
+  const me = loungeState.me;
+  if (!me || !loungeState.onlineGame) return null;
+  const panel = el('div', 'video-bar');
+  const video = loungeState.video;
+
+  if (!video) {
+    if (!canShowVideo(me.tier)) {
+      panel.append(el('span', 'muted', 'VIP members see the table.'));
+      return panel;
+    }
+    const join = document.createElement('button');
+    join.className = 'act ghost';
+    join.textContent = loungeState.videoJoining ? 'Opening the camera…' : 'Show video';
+    join.disabled = loungeState.videoJoining;
+    join.onclick = () => void startVideo(rerender);
+    panel.append(join);
+    return panel;
+  }
+
+  const toggle = document.createElement('button');
+  toggle.className = 'act ghost';
+  toggle.textContent = video.cameraOff() ? 'Turn camera on' : 'Turn camera off';
+  toggle.setAttribute('aria-pressed', String(!video.cameraOff()));
+  toggle.onclick = () => { video.setCameraOff(!video.cameraOff()); rerender(); };
+  panel.append(toggle);
+
+  const leave = document.createElement('button');
+  leave.className = 'dismiss';
+  leave.textContent = 'Leave video';
+  leave.onclick = () => {
+    video.leave();
+    loungeState.video = null;
+    loungeState.videoStreams = new Map();
+    loungeState.room?.setVideo(false);
     rerender();
   };
   panel.append(leave);
@@ -997,11 +1112,22 @@ export function loungesView(rerender: () => void): DocumentFragment | HTMLElemen
       loungeState.onlineGame = null;
       // Back to the lounge — stop appearing in this table's watcher list.
       loungeState.room?.setTable(null);
+      // Video is table-scoped, unlike voice: leaving the table you were
+      // showing video AT means there is nothing left to publish to or pull
+      // from, so it tears down here rather than lingering like voice does.
+      if (loungeState.video) {
+        loungeState.video.leave();
+        loungeState.video = null;
+        loungeState.videoStreams = new Map();
+        loungeState.room?.setVideo(false);
+      }
       rerender();
     }, {
       speaking: loungeState.speaking,
       reactions: loungeState.reactions,
       voicePanel: voicePanel(rerender),
+      videoPanel: videoPanel(rerender),
+      videoStreams: loungeState.videoStreams,
       reactionBar: reactionBar(rerender),
       quickChatBar: quickChatBar(rerender),
       watching: loungeState.roster.filter(

@@ -107,6 +107,11 @@ export const playMove = (handId: string, move: Move) =>
 export const requestReview = (handId: string) =>
   call<{ review: unknown; accuracy: number }>('review-hand', { handId });
 
+/** video.ts is injected this rather than importing online.ts directly, so
+ *  it has no Supabase client dependency of its own. */
+export const videoSessionCall = (action: string, body: Record<string, unknown>) =>
+  call<any>('video-session', { action, ...body });
+
 /** The redacted state every seat is allowed to see. */
 export interface PublicHand {
   hand_id: string;
