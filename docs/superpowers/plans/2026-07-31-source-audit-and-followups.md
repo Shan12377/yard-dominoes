@@ -483,13 +483,54 @@ Preserving the order given, with one dependency-driven reorder called out.
    stay plain, tile/turn text stays fully legible. `npm test` (211
    passing), typecheck, and build all clean; bundle still two chunks per
    `client.md`. Test table and account cleaned up after.
-10. **VIP-gated video presence** (§7.2) — explicitly LAST. Not blocked
-   technically, just lowest priority by instruction: this is a genuinely
-   new cost center and a genuinely new piece of infrastructure, and everything
-   above it is either revenue-protecting, already-scoped, or free to
-   build. Do not pull this forward without being asked. **Confirmed by
-   user (2026-08-01): build this when its turn in the list actually
-   comes up — not sooner, not skipped.**
+10. **✅ DONE (2026-08-01) — VIP-gated video presence, via Cloudflare
+   Realtime.** Built per §7.2's decisions (Cloudflare, bundled into VIP)
+   once the user set up a Cloudflare Realtime app and provided
+   `CLOUDFLARE_REALTIME_APP_ID`/`CLOUDFLARE_REALTIME_APP_SECRET`.
+   Architecturally NOT `voice.ts`'s P2P mesh — Cloudflare Realtime is an
+   SFU, so every seat holds one `RTCPeerConnection` to Cloudflare, never
+   one per peer. New `video-session` Edge Function is the only thing
+   holding the App Secret, proxying every session/track/renegotiate call
+   and re-checking VIP + actually-seated on each one — unlike the mic
+   (free, client-side-only gate is fine per `voice.md`), each video
+   session costs real Cloudflare usage, so this gate had to be
+   server-side from the start. `seats.video_session_id` (migration 0025)
+   is the authority the pull action checks against, never the
+   client-broadcast presence copy — closes a real cross-table privacy
+   gap a patched client could otherwise probe. Cloudflare's HTTP API
+   shape was verified against their own OpenAPI schema rather than
+   assumed from memory before writing any code against it.
+
+   Live-verified against the real Cloudflare API with a real seated VIP
+   test account: `create` returns a genuine session and persists it
+   correctly; the VIP gate, the seated gate, and the pull gate (a
+   fabricated remote session id) all reject with 403 exactly as
+   designed. **Not proven: a full two-browser video call** — this
+   environment cannot grant a fake camera to a headless browser (a
+   `getUserMedia` call hung rather than erroring), so the
+   push/pull/renegotiate SDP plumbing is verified by careful reading of
+   Cloudflare's schema plus the one-sided `create` test, not by an
+   actual live call. Documented precisely what's proven vs
+   reasoned-through in the new `.claude/rules/video.md`, matching
+   `voice.md`'s "two tabs is not two players, prove it with two real
+   accounts" discipline — that live two-client test is the one thing
+   still owed here.
+
+   Asked explicitly what could fail and closed what was cheap to close:
+   a stray gold pip and a stream with zero video tracks are now handled
+   before touching the `RTCPeerConnection`; a `track.onended` handler
+   catches a camera dying mid-session (unplugged, permission revoked in
+   background) instead of leaving a frozen tile up; `leave-seat` now
+   clears `video_session_id` unconditionally, since a crashed tab never
+   calls the video panel's own "Leave video" button but does reliably
+   go through seat vacancy. Documented two risks left deliberately
+   unengineered (a revoked VIP tier doesn't cut an already-flowing
+   stream; two tabs on the same seat can orphan one Cloudflare session)
+   with the reasoning for why, in `video.md`'s "known accepted risks."
+
+   `npm test` (211 passing), typecheck, and build all clean; bundle
+   still two chunks per `client.md`. Test table and account cleaned up
+   after.
 11. **⏸ DEFERRED, low priority (2026-08-01) — one manual dashboard step
    for the email-signup fix.** Code/config side is already done: the
    client never offered email/password signup, but `config.toml` had
