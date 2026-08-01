@@ -483,6 +483,20 @@ Preserving the order given, with one dependency-driven reorder called out.
    stay plain, tile/turn text stays fully legible. `npm test` (211
    passing), typecheck, and build all clean; bundle still two chunks per
    `client.md`. Test table and account cleaned up after.
+
+   **Addendum (2026-08-01):** two more scenes added on request — beach
+   and rum shop. "Beach" was a real tension worth naming: design.md
+   explicitly bans "travel-brochure beach" treatment (empty turquoise
+   water, sunset gradients, tourist iconography), but that rule is about
+   *treatment*, not the subject — `yard-band.svg` already has palms in
+   it. Resolved by depicting an actual domino game happening on the
+   sand (people playing, sea reduced to a background shape, no empty
+   vista or resort furniture), same flat-vector register as the rest of
+   the set. Rum shop was proposed independently as arguably the single
+   most iconic real Jamaican domino venue, more so than the beach.
+   Migration `0026` widened the check constraint to five ids. Verified
+   live: both new options render in the picker alongside the original
+   three.
 10. **✅ DONE (2026-08-01) — VIP-gated video presence, via Cloudflare
    Realtime.** Built per §7.2's decisions (Cloudflare, bundled into VIP)
    once the user set up a Cloudflare Realtime app and provided
