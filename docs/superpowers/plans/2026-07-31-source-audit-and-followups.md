@@ -916,3 +916,52 @@ same dead-scaffolding pattern as the old rating columns), and a
 top-level nav link to tournament info. The user was only asked to
 prioritize among them, not to drop the other three.
 
+## 11. Working through the remaining three, in order
+
+The user asked for the three deferred items from §10, plus one new
+gap they surfaced themselves: `is_admin` was SQL-only, which defeated
+the point of building a review panel Candy can actually use. Ordered
+cheapest/safest first.
+
+**Self-service admin grants.** `report-admin` gets `list-admins`,
+`grant-admin` (by username, case-insensitive, idempotent) and
+`revoke-admin`, with a guard against an admin revoking their own last
+door — that would put `is_admin` right back to SQL-only. Verified
+live: granted, listed, granted again (idempotent), granted an unknown
+name (404), revoked while a second admin existed. Did not live-test
+the "can't revoke your only admin" guard itself, since exercising it
+for real would have meant briefly stripping Candy's admin in
+production — confident in the count-check by inspection instead.
+
+**Tournament info on a top-level nav.** Turned out to already be
+built, and deliberately not as a sixth tab —
+`tournamentview.ts`'s own comment explains why: a tournament plays
+inside an ordinary lounge, so a separate tab would advertise a room
+that already has a door. `nextTournament()` reads globally, and
+`tournamentPanel()` renders at the top of the Lounges screen the
+moment that (always-present) nav tab is clicked, before any specific
+lounge is picked. No code changed for this item — building a nav tab
+or a landing-page teaser would have been new surface on top of an
+already-considered design, not something asked for.
+
+**Rating +/- shown after a hand.** `OnlineGame` (onlinetable.ts)
+snapshots the player's own rating at table-open, then on the
+`sets`-row transition into a decided `winnerSide`, retries reading the
+same column `apply-rating.ts` writes — the write lands after the
+realtime broadcast that triggers the read, so a single read can be
+stale, and a duppy-mixed table (never rated) looks identical to "the
+write hasn't landed yet" after one failed attempt. `handResultPanel`
+shows "Rating +N — now M" in forest green or blood red. Verified live
+in an actual browser, not just typecheck: two test accounts played a
+real 2-seat single-format game over direct API calls while one
+account's real Supabase session sat in an open Playwright tab,
+subscribed the whole time — the deciding move landed from a separate
+process and "Rating -162 — now 1038" appeared with no reload, matching
+the exact loser pattern (1200→1038) proven when the rating system
+itself was built.
+
+Photo upload is next and is being treated separately — it is the
+first feature in this codebase to host user-submitted images with no
+moderation pipeline, which is a real product decision, not an
+implementation detail.
+
