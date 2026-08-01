@@ -27,8 +27,13 @@ Deno.serve(handled(async (req) => {
     .select('*').eq('table_id', tableId).eq('user_id', user.id).maybeSingle();
   if (!seat) throw new HttpError(403, 'you are not seated at this table');
 
+  // Clears video_session_id too — a departing seat cannot still be
+  // publishing video, and a duppy never can. Closes the gap left by a
+  // player who never explicitly hit "Leave video" (tab close, crash):
+  // this is the one seat-lifecycle path reliably reached on the way out,
+  // so it is where stale video state actually gets swept up.
   const { error: seatError } = await db.from('seats')
-    .update({ user_id: null, duppy_level: 'yard', connected_at: null })
+    .update({ user_id: null, duppy_level: 'yard', connected_at: null, video_session_id: null })
     .eq('table_id', tableId).eq('seat_index', seat.seat_index);
   if (seatError) throw new HttpError(500, seatError.message);
 

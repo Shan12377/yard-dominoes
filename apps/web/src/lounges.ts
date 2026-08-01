@@ -173,14 +173,16 @@ export function avatarUrl(avatar: Avatar): string {
  * Cosmetic yard-scene backdrop, worn behind a seat card — plan §7.1. Purely
  * decorative, no new real-time infra, generated once by `gen_backgrounds.py`.
  */
-export type Background = 'midday' | 'evening' | 'rain';
+export type Background = 'midday' | 'evening' | 'rain' | 'beach' | 'rumshop';
 
-export const BACKGROUNDS: Background[] = ['midday', 'evening', 'rain'];
+export const BACKGROUNDS: Background[] = ['midday', 'evening', 'rain', 'beach', 'rumshop'];
 
 export const BACKGROUND_LABEL: Record<Background, string> = {
   midday: 'Midday yard',
   evening: 'Evening string-lights',
   rain: 'Rain on the zinc',
+  beach: 'Beach game',
+  rumshop: 'Rum shop',
 };
 
 /** `apps/web/public/backgrounds/<id>.webp` is the only thing that ever renders one. */

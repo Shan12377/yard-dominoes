@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the 3 cosmetic yard-scene backgrounds, plan section 7.1.
+"""Generate the cosmetic yard-scene backgrounds, plan section 7.1.
 
 Local, one-shot generation script — never called at runtime. Reads
 OPENAI_API_KEY from .env.local (never committed, never a VITE_ var), calls
@@ -64,6 +64,25 @@ BACKGROUNDS = {
         "Rain is rendered as thin flat gold-tinted diagonal lines against "
         "the ink sky. A puddle on the concrete reflects warm light. The "
         "domino table stays dry and sheltered underneath the roof."
+    ),
+    "beach": (
+        "A Caribbean beach scene, midday. Real coconut palms lean over a "
+        "small domino table set up directly on the sand, with two or three "
+        "people actively playing — one mid-slam, tile striking the table, "
+        "another laughing. The sea is a flat simple shape at the edge of "
+        "frame, not the subject of the image. This must read as a real "
+        "domino game that happens to be on a beach, NOT a travel-brochure "
+        "postcard: no empty horizon shot, no umbrella drinks, no beach "
+        "chairs, no sunset gradient, nobody merely lounging."
+    ),
+    "rumshop": (
+        "The classic Jamaican rum shop: a small roadside bar with a "
+        "corrugated zinc roof, painted in bold blocks of the palette "
+        "colours, a hand-painted shutter or door. A domino table is set up "
+        "just outside under the shop's awning, two or three people playing, "
+        "one slamming a tile down hard. This is a real, lived-in "
+        "neighbourhood spot, not a tourist bar or resort — weathered paint, "
+        "a plastic crate for a stool, nothing polished."
     ),
 }
 
