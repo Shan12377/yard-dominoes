@@ -1067,7 +1067,7 @@ function coinsPanel(rerender: () => void): HTMLElement {
   panel.append(el('div', 'eyebrow', 'Coins'));
   panel.append(el('h2', undefined, 'Yours to spend'));
   panel.append(el('p', 'muted',
-    'Never cash out — money in, utility only. Send some to a bredrin, or ' +
+    'Never cash out — money in, utility only. Buy a bredrin a drink, or ' +
     'just carry a little weight.'));
 
   panel.append(el('div', 'coin-balance', coinBalance === null ? '…' : String(coinBalance)));
@@ -1092,19 +1092,22 @@ function coinsPanel(rerender: () => void): HTMLElement {
   return panel;
 }
 
-/** The "gift N coins" affordance dropped into a roster line. Fixed at the
+/** The "gift N coins" affordance dropped into a roster line, framed the way
+ *  the gesture actually reads at a yard table — you buy a bredrin a drink,
+ *  you don't "send them coins". No further detail than that: this is one
+ *  word doing real work, not a menu of what's in the glass. Fixed at the
  *  floor — a full amount picker is more UI than "pure social flex" needs. */
 function giftButton(toUserId: string, rerender: () => void): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.className = 'dismiss';
-  btn.textContent = `+${MIN_GIFT_COINS} coins`;
-  btn.title = `Send ${MIN_GIFT_COINS} coins`;
+  btn.textContent = `Buy a drink — ${MIN_GIFT_COINS} coins`;
+  btn.title = `Buy a drink — ${MIN_GIFT_COINS} coins`;
   btn.onclick = () => void (async () => {
     btn.disabled = true;
     try {
       coinBalance = await giftCoins(toUserId, MIN_GIFT_COINS);
     } catch (err) {
-      loungeState.error = err instanceof Error ? err.message : 'could not send coins';
+      loungeState.error = err instanceof Error ? err.message : 'could not buy that drink';
     } finally {
       rerender();
     }

@@ -42,7 +42,7 @@ export const TIER_PITCH: Record<Tier, { price: string; points: string[] }> = {
   yardie: {
     price: '$24 / year',
     points: [
-      'Rank badge and profile photo',
+      'Profile photo',
       'Weekly tournament entry',
       'Belts four and five — the tracking and tournament craft',
       'Rankers Row lounge',
