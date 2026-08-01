@@ -960,8 +960,23 @@ process and "Rating -162 — now 1038" appeared with no reload, matching
 the exact loser pattern (1200→1038) proven when the rating system
 itself was built.
 
-Photo upload is next and is being treated separately — it is the
-first feature in this codebase to host user-submitted images with no
-moderation pipeline, which is a real product decision, not an
-implementation detail.
+**Profile photo upload.** Asked the user directly how to moderate it,
+since this is the first feature in the codebase hosting user-submitted
+images — chose live-immediately, using the existing report-a-player
+flow as the safety net rather than building a review queue. New
+`profile-photos` storage bucket (migration 0030), public read, write
+restricted by RLS to a Yardie+ member's own folder — never gated
+client-side alone. No new `has_photo` column: `photo.ts` derives a
+deterministic public URL and the client falls back to the preset
+avatar on the image's own `onerror`, since a flag column would only
+ever be a stale cache of what the bucket already knows. Verified live:
+a guest's upload 403s, a Yardie's succeeds and is publicly readable,
+one Yardie can't write into another's folder, delete removes the row —
+then the real flow end to end in a browser: an actual file through the
+file picker, the preview rendering, and the same photo showing up on a
+live seat card. Only the photo half of "Rank badge and profile photo"
+is built; no rank badge exists anywhere yet.
+
+All four items from this punch list are now done, live-verified, and
+pushed.
 
