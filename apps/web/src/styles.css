@@ -711,6 +711,16 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 .avatar-choice[aria-pressed='true'] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-hi); }
 .avatar-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 
+.background-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.background-choice {
+  padding: 3px; cursor: pointer; line-height: 0;
+  background: var(--sand-hi); border-radius: var(--r);
+  border: 2px solid rgba(90, 58, 30, 0.28);
+}
+.background-choice img { display: block; border-radius: calc(var(--r) - 2px); }
+.background-choice[aria-pressed='true'] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-hi); }
+.background-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+
 .coin-balance {
   font-family: var(--mono); font-variant-numeric: tabular-nums;
   font-size: 28px; font-weight: 700; color: var(--gold-deep);

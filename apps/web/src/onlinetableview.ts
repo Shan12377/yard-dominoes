@@ -6,7 +6,8 @@
 
 import { OnlineGame } from './onlinetable.ts';
 import {
-  listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL, type OpenTable, type Avatar,
+  listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL, backgroundUrl,
+  type OpenTable, type Avatar, type Background,
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
@@ -271,6 +272,13 @@ export function liveTableView(
   game.seats.forEach((s) => {
     const card = el('div', 'seat');
     if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
+    // Cosmetic only — plan §7.1. A faint backdrop behind the seat's own
+    // content, never anything that could compete with tile/turn legibility.
+    if (s.userId && s.background) {
+      card.style.backgroundImage = `linear-gradient(rgba(255,251,240,0.86), rgba(255,251,240,0.86)), url(${backgroundUrl(s.background as Background)})`;
+      card.style.backgroundSize = 'cover';
+      card.style.backgroundPosition = 'center';
+    }
     const who = el('div', 'who');
     // Presence without a photo, docs/avatar-set.md. A duppy has its own art
     // elsewhere (design.md's five tiers) and never picks from this set.

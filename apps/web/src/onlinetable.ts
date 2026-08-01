@@ -50,6 +50,8 @@ export interface SeatInfo {
   origin: string | null;
   /** One of the eight ids in docs/avatar-set.md, or null for no character. */
   avatar: string | null;
+  /** One of midday/evening/rain, or null for the plain seat card. */
+  background: string | null;
   duppyLevel: string | null;
   /** Unspent seconds this seat carries into its next turn. Server-owned. */
   timeBank: number;
@@ -202,7 +204,10 @@ export class OnlineGame {
    * so a stale entry corrects itself within a hand or two without a second
    * Realtime subscription just to watch profiles.
    */
-  private names = new Map<string, { username: string; origin: string | null; avatar: string | null; fetchedAt: number }>();
+  private names = new Map<string, {
+    username: string; origin: string | null; avatar: string | null;
+    background: string | null; fetchedAt: number;
+  }>();
 
   private applySeats(rows: any[]) {
     this.seats = rows.map((s) => ({
@@ -211,6 +216,7 @@ export class OnlineGame {
       username: s.user_id ? this.names.get(s.user_id)?.username ?? null : null,
       origin: s.user_id ? this.names.get(s.user_id)?.origin ?? null : null,
       avatar: s.user_id ? this.names.get(s.user_id)?.avatar ?? null : null,
+      background: s.user_id ? this.names.get(s.user_id)?.background ?? null : null,
       duppyLevel: s.duppy_level,
       timeBank: s.time_bank ?? 0,
     }));
@@ -230,19 +236,22 @@ export class OnlineGame {
     const now = Date.now();
     const due = staleUserIds(this.seats.map((s) => s.userId), this.names, now);
     if (due.length === 0) return;
-    const { data } = await db().from('profiles').select('id, username, origin, avatar').in('id', due);
+    const { data } = await db().from('profiles').select('id, username, origin, avatar, background').in('id', due);
     if (!data?.length) return;
     for (const row of data) {
       this.names.set(row.id as string, {
         username: row.username as string,
         origin: (row.origin ?? null) as string | null,
         avatar: (row.avatar ?? null) as string | null,
+        background: (row.background ?? null) as string | null,
         fetchedAt: now,
       });
     }
     this.seats = this.seats.map((s) => {
       const known = s.userId ? this.names.get(s.userId) : undefined;
-      return known ? { ...s, username: known.username, origin: known.origin, avatar: known.avatar } : s;
+      return known
+        ? { ...s, username: known.username, origin: known.origin, avatar: known.avatar, background: known.background }
+        : s;
     });
     this.emit({ type: 'state' });
   }

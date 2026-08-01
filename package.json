@@ -13,6 +13,7 @@
     "db:reset": "npx supabase db reset",
     "fn:serve": "npm run sync:engine && npx supabase functions serve",
     "fn:deploy": "npm run sync:engine && npx supabase functions deploy",
-    "gen:avatars": "python3 scripts/gen_avatars.py"
+    "gen:avatars": "python3 scripts/gen_avatars.py",
+    "gen:backgrounds": "python3 scripts/gen_backgrounds.py"
   }
 }

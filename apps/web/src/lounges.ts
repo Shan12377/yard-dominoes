@@ -158,6 +158,25 @@ export function avatarUrl(avatar: Avatar): string {
   return `/avatars/${avatar}.webp`;
 }
 
+/**
+ * Cosmetic yard-scene backdrop, worn behind a seat card — plan §7.1. Purely
+ * decorative, no new real-time infra, generated once by `gen_backgrounds.py`.
+ */
+export type Background = 'midday' | 'evening' | 'rain';
+
+export const BACKGROUNDS: Background[] = ['midday', 'evening', 'rain'];
+
+export const BACKGROUND_LABEL: Record<Background, string> = {
+  midday: 'Midday yard',
+  evening: 'Evening string-lights',
+  rain: 'Rain on the zinc',
+};
+
+/** `apps/web/public/backgrounds/<id>.webp` is the only thing that ever renders one. */
+export function backgroundUrl(background: Background): string {
+  return `/backgrounds/${background}.webp`;
+}
+
 export interface MyProfile {
   id: string;
   username: string;
@@ -165,6 +184,7 @@ export interface MyProfile {
   origin: Origin | null;
   gender: Gender | null;
   avatar: Avatar | null;
+  background: Background | null;
   /**
    * Runs tournaments. Read here only to decide whether to draw the host
    * controls — it grants nothing. Every host action is an Edge Function that
@@ -178,7 +198,7 @@ export async function myProfile(): Promise<MyProfile | null> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) return null;
   const { data } = await db().from('profiles')
-    .select('id, username, tier, tier_expires_at, origin, gender, avatar, is_host')
+    .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host')
     .eq('id', auth.user.id).single();
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
@@ -189,6 +209,7 @@ export async function myProfile(): Promise<MyProfile | null> {
     origin: (data.origin ?? null) as Origin | null,
     gender: (data.gender ?? null) as Gender | null,
     avatar: (data.avatar ?? null) as Avatar | null,
+    background: (data.background ?? null) as Background | null,
     isHost: Boolean(data.is_host),
   };
 }
@@ -203,7 +224,10 @@ export async function myProfile(): Promise<MyProfile | null> {
  * fix, so the caller must show it rather than swallow it.
  */
 export async function saveProfile(
-  patch: { username?: string; origin?: Origin | null; gender?: Gender | null; avatar?: Avatar | null },
+  patch: {
+    username?: string; origin?: Origin | null; gender?: Gender | null;
+    avatar?: Avatar | null; background?: Background | null;
+  },
 ): Promise<void> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) throw new Error('Sign in first');

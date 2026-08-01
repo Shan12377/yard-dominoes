@@ -11,11 +11,12 @@ import {
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
   saveProfile, ORIGIN_LABEL, AVATARS, AVATAR_LABEL, avatarUrl,
+  BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl,
   addBredrin, removeBredrin, whereAreMyBredrins,
   MIN_GIFT_COINS, COIN_PACK_LABEL, myCoinBalance, buyCoins, giftCoins,
 } from './lounges.ts';
 import type {
-  Avatar, Bredrin, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
+  Avatar, Background, Bredrin, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
 } from './lounges.ts';
 import { ensureSignedIn, findActiveSeat } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
@@ -480,6 +481,37 @@ function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
   paintAvatars();
   panel.append(avatarGrid, avatarCaption);
 
+  panel.append(el('label', 'field-label', 'Seat backdrop (optional)'));
+  panel.append(el('p', 'muted small',
+    'A cosmetic scene worn behind your seat card. Nobody else\'s tiles or '
+    + 'turn get any harder to read — it just sits at the back.'));
+  let background: Background | null = me.background;
+  const backgroundCaption = el('p', 'muted small', background ? BACKGROUND_LABEL[background] : 'None chosen');
+  const backgroundGrid = el('div', 'background-grid');
+  const paintBackgrounds = () => {
+    for (const btn of Array.from(backgroundGrid.children) as HTMLButtonElement[]) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.value === background));
+    }
+    backgroundCaption.textContent = background ? BACKGROUND_LABEL[background] : 'None chosen';
+  };
+  for (const id of BACKGROUNDS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'background-choice';
+    btn.dataset.value = id;
+    btn.setAttribute('aria-label', BACKGROUND_LABEL[id]);
+    const img = document.createElement('img');
+    img.src = backgroundUrl(id);
+    img.alt = '';
+    img.width = 96;
+    img.height = 64;
+    btn.appendChild(img);
+    btn.onclick = () => { background = background === id ? null : id; paintBackgrounds(); };
+    backgroundGrid.appendChild(btn);
+  }
+  paintBackgrounds();
+  panel.append(backgroundGrid, backgroundCaption);
+
   if (profileError) panel.append(el('div', 'banner', profileError));
 
   const save = document.createElement('button');
@@ -491,7 +523,7 @@ function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
     profileError = null;
     rerender();
     try {
-      await saveProfile({ username: name.value, origin, gender, avatar });
+      await saveProfile({ username: name.value, origin, gender, avatar, background });
       // Re-read rather than patching the local copy: the server is the only
       // thing that knows whether the name was actually accepted.
       loungeState.me = await myProfile();
