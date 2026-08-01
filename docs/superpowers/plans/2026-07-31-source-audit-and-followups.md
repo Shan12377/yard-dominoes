@@ -487,7 +487,22 @@ Preserving the order given, with one dependency-driven reorder called out.
    technically, just lowest priority by instruction: this is a genuinely
    new cost center and a genuinely new piece of infrastructure, and everything
    above it is either revenue-protecting, already-scoped, or free to
-   build. Do not pull this forward without being asked.
+   build. Do not pull this forward without being asked. **Confirmed by
+   user (2026-08-01): build this when its turn in the list actually
+   comes up — not sooner, not skipped.**
+11. **⏸ DEFERRED, low priority (2026-08-01) — one manual dashboard step
+   for the email-signup fix.** Code/config side is already done: the
+   client never offered email/password signup, but `config.toml` had
+   no `[auth.email]` block, so the platform default (signup enabled)
+   was presumably still live, letting someone bypass the client and
+   hit `POST /auth/v1/signup` directly with a disposable address.
+   Fixed in `config.toml` (`enable_signup = false`) and documented in
+   `.claude/rules/supabase.md`'s new Auth section. **What's left, and
+   it's a human-only step — no CLI/API access to this from an agent in
+   this environment:** confirm the hosted project actually matches, via
+   Supabase Dashboard → Authentication → Providers → Email → turn off
+   "Allow new users to sign up." User said this is not a priority right
+   now; do the dashboard step whenever convenient, no rush.
 
 ## 6. VIP membership — what JamDom actually ships, and where Yard should exceed it
 
