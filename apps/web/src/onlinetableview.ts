@@ -11,6 +11,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
+import { fileReport } from './reports.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 
@@ -229,6 +230,73 @@ function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSo
   card.appendChild(img);
 }
 
+// ---------------------------------------------------------------- reports --
+// The terms of service promise a report button — this is it. Filing needs a
+// tableId, which only exists here at the table, not in the lounge roster
+// (loungeview.ts's giftButton lives there and has no such context). Module
+// state, same reasoning as the chat draft in loungeview.ts: a render must
+// never wipe out what someone is mid-way through typing.
+let reportOpenFor: string | null = null;
+let reportReason = '';
+let reportBusy = false;
+let reportError: string | null = null;
+const reportSentFor = new Set<string>();
+
+function reportButton(userId: string, tableId: string, rerender: () => void): HTMLElement {
+  const wrap = el('div', 'report');
+  if (reportSentFor.has(userId)) {
+    wrap.append(el('span', 'muted small', 'Reported'));
+    return wrap;
+  }
+
+  const toggle = document.createElement('button');
+  toggle.className = 'act ghost small';
+  toggle.textContent = reportOpenFor === userId ? 'Cancel' : 'Report';
+  toggle.onclick = () => {
+    reportOpenFor = reportOpenFor === userId ? null : userId;
+    reportReason = '';
+    reportError = null;
+    rerender();
+  };
+  wrap.appendChild(toggle);
+
+  if (reportOpenFor !== userId) return wrap;
+
+  const form = el('div', 'report-form');
+  const textarea = document.createElement('textarea');
+  textarea.placeholder = 'What happened?';
+  textarea.rows = 2;
+  textarea.value = reportReason;
+  textarea.oninput = () => { reportReason = textarea.value; };
+  form.appendChild(textarea);
+
+  if (reportError) form.appendChild(el('div', 'banner small', reportError));
+
+  const submit = document.createElement('button');
+  submit.className = 'act small';
+  submit.textContent = reportBusy ? 'Sending…' : 'Send report';
+  submit.disabled = reportBusy;
+  submit.onclick = () => void (async () => {
+    reportBusy = true;
+    reportError = null;
+    rerender();
+    try {
+      await fileReport(userId, tableId, reportReason);
+      reportSentFor.add(userId);
+      reportOpenFor = null;
+      reportReason = '';
+    } catch (err) {
+      reportError = err instanceof Error ? err.message : 'could not send';
+    } finally {
+      reportBusy = false;
+      rerender();
+    }
+  })();
+  form.appendChild(submit);
+  wrap.appendChild(form);
+  return wrap;
+}
+
 export function liveTableView(
   game: OnlineGame,
   rerender: () => void,
@@ -318,6 +386,9 @@ export function liveTableView(
     card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
     if (s.seatIndex !== game.mySeat) card.append(backsEl(count));
     decorateSeat(card, s.userId, social);
+    if (s.userId && s.seatIndex !== game.mySeat) {
+      card.appendChild(reportButton(s.userId, game.table.id, rerender));
+    }
     seatsRow.appendChild(card);
   });
   frag.appendChild(seatsRow);

@@ -216,7 +216,7 @@ button.ghost:hover { border-color: var(--gold-deep); color: var(--gold-deep); }
 /* A stock <select> is the single most dated thing a page can show — the OS
    chevron and system focus ring are exactly the 2009 look we are running away
    from. appearance:none takes the control back; the chevron below is ours. */
-select, input {
+select, input, textarea {
   font-family: var(--body); font-size: 14px; font-weight: 600;
   background: linear-gradient(180deg, #FFFDF4, var(--sand-hi));
   color: var(--ink);
@@ -236,12 +236,13 @@ select {
   background-position: right 13px center, 0 0;
   background-size: 11px auto, auto;
 }
-select:hover, input:hover { border-color: rgba(143, 102, 0, 0.55); }
-select:focus-visible, input:focus-visible {
+select:hover, input:hover, textarea:hover { border-color: rgba(143, 102, 0, 0.55); }
+select:focus-visible, input:focus-visible, textarea:focus-visible {
   outline: none;
   border-color: var(--gold-deep);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(224, 164, 0, 0.32);
 }
+textarea { resize: vertical; font-weight: 500; }
 
 /* min-width:0 matters: a grid/flex item defaults to min-content, and a select's
    min-content is its LONGEST option — "Ranker — remembers who passed" pushed
@@ -404,6 +405,10 @@ label.field > span {
   border: 1px solid rgba(36,22,8,0.3); display: block;
 }
 .passed { color: var(--blood); font-family: var(--mono); font-size: 11px; }
+
+.seat .report { margin-top: 8px; }
+.seat .report-form { display: grid; gap: 6px; margin-top: 6px; }
+.seat .report-form textarea { font-size: 12.5px; padding: 8px 10px; width: 100%; }
 
 /* What the duppy just said. Patois, in its own voice, not a system message —
    so it reads as a person at the table rather than a notification. */

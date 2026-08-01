@@ -25,6 +25,8 @@ import { el } from './render.ts';
 import { canSpeak, joinVoice } from './voice.ts';
 import type { VoiceRoom } from './voice.ts';
 import { canShowVideo, joinVideo, CAMERA_TRACK_NAME } from './video.ts';
+import { fileReport, listReports, resolveReport, dismissReport } from './reports.ts';
+import type { Report } from './reports.ts';
 import type { VideoRoom, RemotePeer } from './video.ts';
 import { loadTournament, stopTournamentClock, tournamentPanel } from './tournamentview.ts';
 
@@ -773,6 +775,79 @@ function bredrinsPanel(me: MyProfile, rerender: () => void): HTMLElement {
   return panel;
 }
 
+// -------------------------------------------------------------- reports --
+// Admin-only review queue. The report button itself lives at the table
+// (onlinetableview.ts) — this is the other end of the terms of service's
+// "There is a report button — use it, and we will look" promise, which
+// had no way to actually look until now.
+let reportsOpen = false;
+let reportsList: Report[] | null = null;
+let reportsLoading = false;
+let reportsError: string | null = null;
+let reportsBusy = false;
+
+function loadReports(rerender: () => void) {
+  reportsLoading = true;
+  reportsError = null;
+  rerender();
+  void listReports()
+    .then((list) => { reportsList = list; })
+    .catch((err) => { reportsError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { reportsLoading = false; rerender(); });
+}
+
+function reportsPanel(rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Admin'));
+  panel.append(el('h2', undefined, 'Reports'));
+
+  if (reportsError) panel.append(el('div', 'banner', reportsError));
+
+  if (reportsLoading && !reportsList) {
+    panel.append(el('p', 'muted', 'Loading…'));
+    return panel;
+  }
+  const open = (reportsList ?? []).filter((r) => r.status === 'open');
+  if (open.length === 0) {
+    panel.append(el('p', 'muted', 'Nothing open.'));
+    return panel;
+  }
+
+  const list = el('div', 'roster');
+  for (const r of open) {
+    const line = el('div', 'person');
+    const who = `${r.reporter?.username ?? 'someone'} reported ${r.reported?.username ?? 'someone'}`;
+    line.append(el('span', undefined, who));
+    line.append(el('p', 'muted small', r.reason));
+    line.append(el('span', 'muted small', timeAgo(r.created_at)));
+
+    const act = (label: string, fn: (id: string) => Promise<unknown>) => {
+      const b = document.createElement('button');
+      b.className = 'dismiss';
+      b.textContent = label;
+      b.disabled = reportsBusy;
+      b.onclick = () => void (async () => {
+        reportsBusy = true;
+        rerender();
+        try {
+          await fn(r.id);
+          reportsList = (reportsList ?? []).map((x) => x.id === r.id ? { ...x, status: label === 'Resolve' ? 'resolved' as const : 'dismissed' as const } : x);
+        } catch (err) {
+          reportsError = err instanceof Error ? err.message : 'could not update';
+        } finally {
+          reportsBusy = false;
+          rerender();
+        }
+      })();
+      return b;
+    };
+    line.append(act('Resolve', resolveReport), act('Dismiss', dismissReport));
+    list.appendChild(line);
+  }
+  panel.appendChild(list);
+  return panel;
+}
+
 // ---------------------------------------------------------------- coins --
 // Never cash out — money in, utility only. See lounges.ts's coins section
 // for why that single rule keeps this out of a licensing regime.
@@ -874,6 +949,17 @@ function loungeList(rerender: () => void): DocumentFragment {
       rerender();
     };
     you.append(coinsBtn);
+    if (me.isAdmin) {
+      const reportsBtn = document.createElement('button');
+      reportsBtn.className = 'act ghost small';
+      reportsBtn.textContent = reportsOpen ? 'Done' : 'Reports';
+      reportsBtn.onclick = () => {
+        reportsOpen = !reportsOpen;
+        if (reportsOpen && !reportsList) loadReports(rerender);
+        rerender();
+      };
+      you.append(reportsBtn);
+    }
     head.append(you);
   }
   frag.appendChild(head);
@@ -881,6 +967,7 @@ function loungeList(rerender: () => void): DocumentFragment {
   if (me && profileOpen) frag.appendChild(profilePanel(me, rerender));
   if (me && bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
   if (me && coinsOpen) frag.appendChild(coinsPanel(rerender));
+  if (me && me.isAdmin && reportsOpen) frag.appendChild(reportsPanel(rerender));
 
   // Above the lounge cards: the countdown is the thing a player should not be
   // able to miss, and this is the screen they land on.

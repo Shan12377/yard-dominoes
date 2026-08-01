@@ -75,14 +75,16 @@ BACKGROUNDS = {
         "postcard: no empty horizon shot, no umbrella drinks, no beach "
         "chairs, no sunset gradient, nobody merely lounging."
     ),
-    "rumshop": (
-        "The classic Jamaican rum shop: a small roadside bar with a "
-        "corrugated zinc roof, painted in bold blocks of the palette "
-        "colours, a hand-painted shutter or door. A domino table is set up "
-        "just outside under the shop's awning, two or three people playing, "
-        "one slamming a tile down hard. This is a real, lived-in "
-        "neighbourhood spot, not a tourist bar or resort — weathered paint, "
-        "a plastic crate for a stool, nothing polished."
+    "shop": (
+        "The classic Jamaican corner shop: a small roadside shop building "
+        "with a corrugated zinc roof, painted in bold blocks of the "
+        "palette colours, a hand-painted shutter or door, a serving window. "
+        "A domino table is set up just outside under the shop's awning, "
+        "two or three people playing, one slamming a tile down hard. This "
+        "is a real, lived-in neighbourhood spot, not a tourist bar or "
+        "resort — weathered paint, a plastic crate for a stool, nothing "
+        "polished. No alcohol bottles, signage, or branding of any kind "
+        "visible anywhere in the scene."
     ),
 }
 

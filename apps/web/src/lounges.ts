@@ -173,16 +173,16 @@ export function avatarUrl(avatar: Avatar): string {
  * Cosmetic yard-scene backdrop, worn behind a seat card — plan §7.1. Purely
  * decorative, no new real-time infra, generated once by `gen_backgrounds.py`.
  */
-export type Background = 'midday' | 'evening' | 'rain' | 'beach' | 'rumshop';
+export type Background = 'midday' | 'evening' | 'rain' | 'beach' | 'shop';
 
-export const BACKGROUNDS: Background[] = ['midday', 'evening', 'rain', 'beach', 'rumshop'];
+export const BACKGROUNDS: Background[] = ['midday', 'evening', 'rain', 'beach', 'shop'];
 
 export const BACKGROUND_LABEL: Record<Background, string> = {
   midday: 'Midday yard',
   evening: 'Evening string-lights',
   rain: 'Rain on the zinc',
   beach: 'Beach game',
-  rumshop: 'Rum shop',
+  shop: 'Corner shop',
 };
 
 /** `apps/web/public/backgrounds/<id>.webp` is the only thing that ever renders one. */
@@ -205,13 +205,20 @@ export interface MyProfile {
    * gets a panel full of buttons that all answer 403.
    */
   isHost: boolean;
+  /**
+   * Reviews player conduct reports. Same non-privilege as isHost — grants
+   * nothing by itself, report-admin re-checks it server-side on every call.
+   * Deliberately a separate flag from isHost: running a tournament and
+   * reading conduct reports are different trust levels.
+   */
+  isAdmin: boolean;
 }
 
 export async function myProfile(): Promise<MyProfile | null> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) return null;
   const { data } = await db().from('profiles')
-    .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host')
+    .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin')
     .eq('id', auth.user.id).single();
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
@@ -224,6 +231,7 @@ export async function myProfile(): Promise<MyProfile | null> {
     avatar: (data.avatar ?? null) as Avatar | null,
     background: (data.background ?? null) as Background | null,
     isHost: Boolean(data.is_host),
+    isAdmin: Boolean(data.is_admin),
   };
 }
 

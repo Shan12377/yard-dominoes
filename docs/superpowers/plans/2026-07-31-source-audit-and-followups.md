@@ -485,18 +485,27 @@ Preserving the order given, with one dependency-driven reorder called out.
    `client.md`. Test table and account cleaned up after.
 
    **Addendum (2026-08-01):** two more scenes added on request — beach
-   and rum shop. "Beach" was a real tension worth naming: design.md
+   and a corner shop. "Beach" was a real tension worth naming: design.md
    explicitly bans "travel-brochure beach" treatment (empty turquoise
    water, sunset gradients, tourist iconography), but that rule is about
    *treatment*, not the subject — `yard-band.svg` already has palms in
    it. Resolved by depicting an actual domino game happening on the
    sand (people playing, sea reduced to a background shape, no empty
    vista or resort furniture), same flat-vector register as the rest of
-   the set. Rum shop was proposed independently as arguably the single
-   most iconic real Jamaican domino venue, more so than the beach.
-   Migration `0026` widened the check constraint to five ids. Verified
-   live: both new options render in the picker alongside the original
-   three.
+   the set. The corner shop was proposed independently as arguably the
+   single most iconic real Jamaican domino venue, more so than the
+   beach. Migration `0026` widened the check constraint to five ids.
+   Verified live: both new options render in the picker alongside the
+   original three.
+
+   **Addendum (2026-08-01):** renamed `rumshop` → `shop` / "Rum shop" →
+   "Corner shop" (migration `0028`) — the image itself never showed the
+   word or any alcohol imagery, but the id/label did, and the game
+   itself carries no age floor (only lounges/chat/voice do), so a
+   teenager can reach this picker. Zero profiles had picked it yet, so a
+   clean rename. `gen_backgrounds.py`'s prompt also now explicitly rules
+   out alcohol bottles/signage/branding, so a future regeneration stays
+   clean on its own rather than relying on the label alone.
 10. **✅ DONE (2026-08-01) — VIP-gated video presence, via Cloudflare
    Realtime.** Built per §7.2's decisions (Cloudflare, bundled into VIP)
    once the user set up a Cloudflare Realtime app and provided
@@ -842,4 +851,68 @@ inactivity (Glickman's own "Step 1b") — RD only ever tightens toward a
 floor of 30 as a player proves themselves, it doesn't widen back out
 from not playing; a deliberate scope cut, not an oversight, since this
 app has no pressing "stale rating from an inactive account" problem yet.
+
+## 10. Reports admin — the terms' promised report button, finally answered
+
+The user asked to research how JamDom handles rankings/photos/reports/
+transparency and given four real gaps (rating +/- display, profile
+photos, a reports review UI, tournament visibility), asked for the
+admin panel first. Investigation found half of "the admin panel" was
+already built: `tournament-host` (329 lines) is a complete, non-technical
+host UI — create/notice/open/close/mark/clear/start/finish/queue, all
+gated on `profiles.is_host`, all wired to `tournaments.ts` and
+`tournamentview.ts`'s `hostControls()`. The real gap was narrower: the
+`reports` table existed with RLS letting a player read their own filed
+reports, but nothing ever let anyone file one from the UI, and nothing
+let an admin read anyone else's — despite `legal.ts`'s terms literally
+promising "There is a report button — use it, and we will look."
+
+Built as two halves, matching how they're actually used:
+
+- **Filing** (`apps/web/src/reports.ts`'s `fileReport`) is a plain
+  client-side insert, same shape as `sendMessage` — `reports`' own RLS
+  policy (0001) already scopes `reporter_id = auth.uid()`. No Edge
+  Function needed. The button lives on the table, not the lounge
+  roster: `onlinetableview.ts`'s `reportButton()` sits on each seat
+  card and needs `tableId`, which only exists at the table
+  (`loungeview.ts`'s `giftButton` lives in the lounge roster and has no
+  such context — checked before building, to place this correctly the
+  first time).
+- **Reviewing** (`supabase/functions/report-admin`) needs to read
+  *everyone's* reports, which RLS never allowed, so it's a service-role
+  Edge Function on the same pattern as `tournament-host`: one gate at
+  the top (`profiles.is_admin`), nothing below it runs until it passes.
+  `is_admin` is a new flag (migration `0029`), deliberately **separate**
+  from `is_host` — reading player-conduct reports and running Sunday
+  brackets are different trust levels, and folding a second admin
+  feature into `is_host` the moment one showed up would have been real
+  scope creep of that flag. The review panel lives in
+  `loungeview.ts` (`reportsPanel()`), gated on `me.isAdmin`, listing
+  open reports with reporter/reported usernames and Resolve/Dismiss
+  actions.
+
+Verified live against production, not mocked: signed up three real
+anonymous accounts (reporter, reported, reviewer), filed a report via a
+direct REST insert mirroring `fileReport`'s exact call shape, confirmed
+`report-admin` correctly 403s the reviewer before granting `is_admin`,
+granted it, confirmed `list` now returns the report with both
+usernames joined in, called `resolve`, and confirmed the status
+persisted as `resolved` on a second `list`. All three test accounts and
+the test report deleted afterward. `npm test` still 224 passing,
+`typecheck` clean, `build` still two chunks (main chunk 29.46 kB
+gzipped, well under the ~50 kB budget `client.md` sets).
+
+Production `is_admin` grant: given to the same account that already
+holds `is_host` (`Candy`) — the user's explicit call, made when asked
+directly rather than assumed, even though the code was written keeping
+the two flags independent for exactly this kind of case where a future
+tournament host and a future report-reviewer might not be the same
+person.
+
+Not done: the other three gaps from the same research pass — rating
++/- shown live during play, real profile-photo upload (advertised in
+VIP pitch copy in `lounges.ts`, never built — a second instance of the
+same dead-scaffolding pattern as the old rating columns), and a
+top-level nav link to tournament info. The user was only asked to
+prioritize among them, not to drop the other three.
 
