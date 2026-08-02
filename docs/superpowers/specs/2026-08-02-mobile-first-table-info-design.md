@@ -26,7 +26,7 @@ Table's live table to a JamDom screenshot:
 
 1. JamDom shows a live, scrolling turn-by-turn log ("Turn #15 - Player 2
    PASSES!"). Beat Di Table has the underlying data
-   (`game.hand.moveLog`, already synced from the server, already used by
+   (`game.hand.move_log`, already synced from the server, already used by
    the Coach/local-review feature) but has never rendered it as a live
    panel during an online hand.
 2. JamDom shows each player's remaining tile count as a row of blank
@@ -68,7 +68,7 @@ future pass doesn't silently redo this work:
 ### 1. Move log panel
 
 A new `moveLogPanel(game: OnlineGame): HTMLElement` in
-`onlinetableview.ts`, built from `game.hand.moveLog` (type `Move[]`,
+`onlinetableview.ts`, built from `game.hand.move_log` (type `Move[]`,
 already present on `OnlineGame`) plus `game.seats` for names. Newest
 entry at the bottom, auto-scrolled into view on update — same pattern
 `chatPanel` in `loungeview.ts` already uses for its own log.
@@ -80,17 +80,26 @@ into the DOM-building code:
 function describeMoveLine(move: Move, seats: SeatInfo[], mySeat: number | null): string
 ```
 
-Rules:
-- A play: `"<Name> played <tile>"`, e.g. `"Duppy 3 played 4-4"`.
-- A pass: `"<Name> passed"`.
+`Move`'s actual union (`packages/engine/src/types.ts`) has five kinds, not
+just play/pass — `pose`, `play`, `playcross` (French cross-board), `draw`,
+`pass`. Rules, covering all five:
+- `pose`: `"<Name> posed <tile>"`.
+- `play` or `playcross`: `"<Name> played <tile>"` — the arm/cross distinction
+  is irrelevant to the log text, both are just "played".
+- `draw`: `"<Name> drew a tile"`.
+- `pass`: `"<Name> passed"`.
 - The mover's own seat shows `"You"` instead of their name when
   `move.seat === mySeat`.
 - In partner mode, the partner's seat shows `"Partner"` instead of their
   username — matches the existing convention in `scoreTrack`'s "You &
   partner" / "Them" labeling elsewhere on this same screen, so the log
   doesn't introduce a naming convention nothing else on the page uses.
-- Every other seat shows its actual display name (username, or `Duppy N`
-  for a bot seat, matching what seat cards already show).
+- Every other seat shows its actual display name — `s.username ?? \`Seat
+  ${s.seatIndex}\`` for a human, or `` `Duppy · ${s.duppyLevel}` `` for a bot
+  seat, the exact expression `standingsPanel` and `seatCard` already use
+  (`onlinetableview.ts:350` and `:542`) — a third inline copy matches how
+  this codebase already handles it rather than introducing a premature
+  shared helper for a two-line expression.
 
 Text only, no tile graphic — chosen explicitly over a richer version with
 a small rendered tile next to each line, because each graphical line
@@ -145,10 +154,10 @@ seat strip already uses to shrink the avatar (`.table-cross .seat
 
 ## Testing
 
-- `describeMoveLine()`: unit tests covering a play, a pass, the viewer's
-  own move (`"You"`), a partner's move in partner mode (`"Partner"`),
-  and an opponent's move (their actual name) — five cases, each a
-  one-line assertion, no DOM involved.
+- `describeMoveLine()`: unit tests covering all five `Move` kinds (pose,
+  play, playcross, draw, pass), the viewer's own move (`"You"`), a
+  partner's move in partner mode (`"Partner"`), and a duppy's move
+  (`"Duppy · <level>"`) — no DOM involved.
 - Tab wiring and mobile CSS: live-browser verification at both a desktop
   width and 390px (this app's stated primary test width per
   `design.md`), same as every other piece of the table-layout redesign
