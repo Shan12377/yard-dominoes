@@ -62,7 +62,13 @@ export async function signInWithProvider(provider: 'apple' | 'google') {
  * until that link is clicked.
  */
 export async function secureAccount(email: string, password: string): Promise<void> {
-  const { error } = await client().auth.updateUser({ email, password });
+  // Explicit, rather than trusting the dashboard's Site URL to be current —
+  // a stale one silently sends the confirmation link to localhost. This
+  // matches signInWithProvider's redirectTo below.
+  const { error } = await client().auth.updateUser(
+    { email, password },
+    { emailRedirectTo: window.location.origin },
+  );
   if (error) throw error;
 }
 
