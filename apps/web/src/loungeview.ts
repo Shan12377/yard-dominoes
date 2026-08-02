@@ -452,6 +452,15 @@ async function startVideo(rerender: () => void) {
       // next presence sync.
       room.setVideo(true, video.sessionId() ?? undefined, CAMERA_TRACK_NAME);
       video.syncPeers(videoPeersFrom(loungeState.roster));
+      // Self-preview: your own seat card gets the same treatment a pulled
+      // peer's does, keyed by your own id — decorateSeat doesn't need to
+      // know this stream never touched the network.
+      const local = video.localStream();
+      if (local) {
+        const next = new Map(loungeState.videoStreams);
+        next.set(me.id, local);
+        loungeState.videoStreams = next;
+      }
     }
   } catch (err) {
     loungeState.error = err instanceof Error ? err.message : 'video could not start';

@@ -59,6 +59,11 @@ export interface VideoRoom {
    *  same shape as voice.ts's syncRoster. Fire-and-forget: pulls happen one at
    *  a time internally so they never collide on the shared PeerConnection. */
   syncPeers: (peers: RemotePeer[]) => void;
+  /** Your own outgoing camera, for a local self-preview tile — never touches
+   *  the network itself, the RTCPeerConnection above already carries the
+   *  track to Cloudflare. Null once left; reflects setCameraOff's disabled
+   *  track same as everyone else's pulled copy of you would. */
+  localStream: () => MediaStream | null;
   leave: () => void;
 }
 
@@ -215,6 +220,7 @@ export async function joinVideo(
         pullQueue = pullQueue.then(() => pullOne(peer));
       }
     },
+    localStream: () => (left ? null : camera),
     leave() {
       left = true;
       for (const t of camera.getTracks()) t.stop();
