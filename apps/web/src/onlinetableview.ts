@@ -15,6 +15,7 @@ import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
+import { describeMoveLine } from './movelog.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 
@@ -242,7 +243,7 @@ function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSo
 // .table-rail), a phone shows one at a time behind tabs. Module state, not
 // per-render, so the choice survives a re-render the same way reportOpenFor
 // and the chat draft already do.
-let activeRailTab: 'chat' | 'watchers' | 'standings' = 'chat';
+let activeRailTab: 'chat' | 'watchers' | 'standings' | 'log' = 'chat';
 
 // ---------------------------------------------------------------- reports --
 // The terms of service promise a report button — this is it. Filing needs a
@@ -442,6 +443,7 @@ export function liveTableView(
     { id: 'chat', label: 'Chat' },
     { id: 'watchers', label: 'Watching' },
     { id: 'standings', label: 'Standings' },
+    { id: 'log', label: 'Log' },
   ];
   for (const { id, label } of tabDefs) {
     const btn = document.createElement('button');
@@ -467,6 +469,10 @@ export function liveTableView(
   standings.classList.add('rail-section', 'rail-section-standings');
   standings.classList.toggle('rail-section-active', activeRailTab === 'standings');
   rail.appendChild(standings);
+  const log = moveLogPanel(game);
+  log.classList.add('rail-section', 'rail-section-log');
+  log.classList.toggle('rail-section-active', activeRailTab === 'log');
+  rail.appendChild(log);
   room.appendChild(rail);
 
   frag.appendChild(room);
@@ -546,6 +552,28 @@ function standingsPanel(game: OnlineGame): HTMLElement {
     });
   }
   panel.appendChild(list);
+  return panel;
+}
+
+/** Turn-by-turn history for the current hand — JamDom shows this as a
+ *  live scrolling log; game.hand.move_log already carries everything
+ *  needed, just never rendered during an online hand until now. */
+function moveLogPanel(game: OnlineGame): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Log'));
+  const list = el('div', 'move-log');
+  const moves = game.hand?.move_log ?? [];
+  if (moves.length === 0) {
+    list.append(el('div', 'muted', 'No moves yet.'));
+  } else {
+    const partnered = isPartnered(game.table.mode);
+    for (const move of moves) {
+      const line = describeMoveLine(move, game.seats, game.mySeat, partnered, game.mySide);
+      list.append(el('div', 'move-log-line', line));
+    }
+  }
+  panel.appendChild(list);
+  requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
   return panel;
 }
 

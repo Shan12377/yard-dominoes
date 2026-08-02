@@ -352,6 +352,9 @@ label.field > span {
 .standing-row { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; }
 .standing-row .seat-score { font-size: 15px; }
 
+.move-log { display: grid; gap: 4px; max-height: 300px; overflow-y: auto; }
+.move-log-line { font-size: 13px; }
+
 /* renderBoard() in render.ts sets grid-template-columns/rows and each tile's
    grid-column/grid-row as inline styles — the line snakes around the felt
    like a real table, so the grid's shape is different every render. Cells are
