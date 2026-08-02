@@ -763,6 +763,20 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
    Yardie TIER, and the two mean completely different things. */
 .badge.origin-yardie { border-color: var(--forest); color: var(--forest); }
 .badge.origin-foreign { border-color: var(--wood-hi); color: var(--wood); }
+.badge.online { border-color: var(--forest); color: var(--forest-hi); }
+
+/* A name that opens something (the player profile card) rather than a real
+   link — same visual weight as body text, just enough affordance to read
+   as tappable, without the roster looking like a page of hyperlinks. */
+.link-plain {
+  background: none; border: none; padding: 0; font: inherit; color: inherit;
+  cursor: pointer; text-decoration: underline; text-decoration-color: transparent;
+  transition: text-decoration-color 0.15s ease;
+}
+.link-plain:hover, .link-plain:focus-visible { text-decoration-color: currentColor; }
+
+.profile-card .row { justify-content: space-between; align-items: center; }
+.profile-card h2 { margin: 0 0 4px; }
 
 /* A seat's name line: who they are, then where they play from. */
 .seat .who { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

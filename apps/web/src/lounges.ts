@@ -212,13 +212,15 @@ export interface MyProfile {
    * reading conduct reports are different trust levels.
    */
   isAdmin: boolean;
+  /** Optional, player-typed — never inferred from IP/GPS. Null if unset. */
+  location: string | null;
 }
 
 export async function myProfile(): Promise<MyProfile | null> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) return null;
   const { data } = await db().from('profiles')
-    .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin')
+    .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin, location')
     .eq('id', auth.user.id).single();
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
@@ -232,6 +234,53 @@ export async function myProfile(): Promise<MyProfile | null> {
     background: (data.background ?? null) as Background | null,
     isHost: Boolean(data.is_host),
     isAdmin: Boolean(data.is_admin),
+    location: (data.location ?? null) as string | null,
+  };
+}
+
+/** Read-only card for someone else's profile — never includes anything
+ *  privileged (no isAdmin/isHost, no tier_expires_at). Ratings/hands/etc
+ *  are already public per "profiles are readable by everyone" RLS. */
+export interface PublicProfile {
+  id: string;
+  username: string;
+  tier: Tier;
+  origin: Origin | null;
+  avatar: Avatar | null;
+  location: string | null;
+  createdAt: string;
+  ratingPartner: number;
+  ratingCutthroat: number;
+  rdPartner: number;
+  rdCutthroat: number;
+  handsPlayed: number;
+  sixLovesGiven: number;
+  sixLovesTaken: number;
+}
+
+export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
+  const { data } = await db().from('profiles')
+    .select(`id, username, tier, tier_expires_at, origin, avatar, location, created_at,
+      rating_partner, rating_cutthroat, rd_partner, rd_cutthroat,
+      hands_played, six_loves_given, six_loves_taken`)
+    .eq('id', userId).single();
+  if (!data) return null;
+  const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
+  return {
+    id: data.id,
+    username: data.username,
+    tier: (expired ? 'guest' : data.tier) as Tier,
+    origin: (data.origin ?? null) as Origin | null,
+    avatar: (data.avatar ?? null) as Avatar | null,
+    location: (data.location ?? null) as string | null,
+    createdAt: data.created_at,
+    ratingPartner: data.rating_partner,
+    ratingCutthroat: data.rating_cutthroat,
+    rdPartner: data.rd_partner,
+    rdCutthroat: data.rd_cutthroat,
+    handsPlayed: data.hands_played,
+    sixLovesGiven: data.six_loves_given,
+    sixLovesTaken: data.six_loves_taken,
   };
 }
 
@@ -247,7 +296,7 @@ export async function myProfile(): Promise<MyProfile | null> {
 export async function saveProfile(
   patch: {
     username?: string; origin?: Origin | null; gender?: Gender | null;
-    avatar?: Avatar | null; background?: Background | null;
+    avatar?: Avatar | null; background?: Background | null; location?: string | null;
   },
 ): Promise<void> {
   const { data: auth } = await db().auth.getUser();
@@ -258,6 +307,11 @@ export async function saveProfile(
       throw new Error('A name is between 2 and 24 characters');
     }
     patch = { ...patch, username: name };
+  }
+  if (patch.location !== undefined) {
+    const loc = patch.location?.trim() || null;
+    if (loc && loc.length > 60) throw new Error('Location is a bit long — 60 characters max');
+    patch = { ...patch, location: loc };
   }
   const { error } = await db().from('profiles').update(patch).eq('id', auth.user.id);
   if (error) {

@@ -14,9 +14,11 @@ import {
   BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl,
   addBredrin, removeBredrin, whereAreMyBredrins,
   MIN_GIFT_COINS, COIN_PACK_LABEL, myCoinBalance, buyCoins, giftCoins,
+  fetchPublicProfile,
 } from './lounges.ts';
 import type {
   Avatar, Background, Bredrin, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
+  PublicProfile,
 } from './lounges.ts';
 import {
   ensureSignedIn, findActiveSeat, videoSessionCall,
@@ -682,6 +684,18 @@ function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
   );
   panel.appendChild(originRow);
 
+  panel.append(el('label', 'field-label', 'Location (optional)'));
+  panel.append(el('p', 'muted small',
+    'So a bredrin nearby can spot you and link up. Entirely your call — '
+    + 'leave it blank and nobody sees a location on your card.'));
+  const location = document.createElement('input');
+  location.className = 'field';
+  location.value = me.location ?? '';
+  location.maxLength = 60;
+  location.placeholder = 'e.g. Kingston, JA or Brooklyn, NY';
+  location.setAttribute('aria-label', 'Location');
+  panel.append(location);
+
   panel.append(el('label', 'field-label', 'Call me (optional)'));
   let gender: Gender | null = me.gender;
   const genderRow = choiceRow(
@@ -759,7 +773,7 @@ function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
     profileError = null;
     rerender();
     try {
-      await saveProfile({ username: name.value, origin, gender, avatar, background });
+      await saveProfile({ username: name.value, origin, gender, avatar, background, location: location.value });
       // Re-read rather than patching the local copy: the server is the only
       // thing that knows whether the name was actually accepted.
       loungeState.me = await myProfile();
@@ -802,6 +816,123 @@ function choiceRow(
   }
   paint();
   return row;
+}
+
+// ------------------------------------------------------- player profile --
+// A read-only card for someone ELSE's profile, opened by tapping their name
+// in a lounge roster. "Online now" only ever means "present in this same
+// room right now" — there is no global presence tracker, and building one
+// just for this card isn't worth it when the honest, cheap answer is
+// already sitting in loungeState.roster.
+let viewingProfileId: string | null = null;
+let viewingProfile: PublicProfile | null = null;
+let viewingProfileLoading = false;
+let viewingProfileError: string | null = null;
+
+function openPlayerProfile(userId: string, rerender: () => void) {
+  viewingProfileId = userId;
+  viewingProfile = null;
+  viewingProfileError = null;
+  viewingProfileLoading = true;
+  rerender();
+  void fetchPublicProfile(userId).then((p) => {
+    if (viewingProfileId !== userId) return; // they closed/opened another before this landed
+    viewingProfile = p;
+    viewingProfileError = p ? null : 'could not load that profile';
+    viewingProfileLoading = false;
+    rerender();
+  }).catch((err) => {
+    if (viewingProfileId !== userId) return;
+    viewingProfileError = err instanceof Error ? err.message : 'could not load that profile';
+    viewingProfileLoading = false;
+    rerender();
+  });
+}
+
+function closePlayerProfile(rerender: () => void) {
+  viewingProfileId = null;
+  viewingProfile = null;
+  viewingProfileError = null;
+  rerender();
+}
+
+const MEMBER_SINCE = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' });
+/** Glicko RD starts at 350 and narrows with real games — still near that
+ *  means the number hasn't been tested yet, so label it rather than let a
+ *  brand-new account's placeholder rating read as earned. */
+const PROVISIONAL_RD = 300;
+
+function ratingLine(label: string, rating: number, rd: number): HTMLElement {
+  const row = el('div', 'row');
+  row.append(el('span', 'muted', label));
+  row.append(el('span', 'mono', String(rating)));
+  if (rd >= PROVISIONAL_RD) row.append(el('span', 'muted small', '(provisional)'));
+  return row;
+}
+
+function playerProfileCard(rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel profile-card');
+  const top = el('div', 'spread');
+  top.append(el('div', 'eyebrow', 'Player'));
+  const close = document.createElement('button');
+  close.className = 'act ghost small';
+  close.textContent = 'Close';
+  close.onclick = () => closePlayerProfile(rerender);
+  top.appendChild(close);
+  panel.appendChild(top);
+
+  if (viewingProfileLoading) {
+    panel.append(el('p', 'muted', 'Loading…'));
+    return panel;
+  }
+  if (viewingProfileError || !viewingProfile) {
+    panel.append(el('div', 'banner', viewingProfileError ?? 'could not load that profile'));
+    return panel;
+  }
+
+  const p = viewingProfile;
+  const head = el('div', 'row');
+  if (p.tier !== 'guest') {
+    const img = document.createElement('img');
+    img.className = 'photo-preview';
+    img.alt = '';
+    img.width = 64;
+    img.height = 64;
+    img.src = photoUrl(p.id);
+    img.onerror = () => { img.style.display = 'none'; };
+    head.appendChild(img);
+  } else if (p.avatar) {
+    head.appendChild(avatarImg(p.avatar, ''));
+  }
+  const names = el('div');
+  names.append(el('h2', undefined, p.username));
+  const badges = el('div', 'row');
+  if (p.tier !== 'guest') badges.append(tierBadge(p.tier));
+  if (p.origin) badges.append(originBadge(p.origin));
+  const online = loungeState.roster.some((r) => r.user_id === p.id);
+  if (online) badges.append(el('span', 'badge online', 'Online now'));
+  names.appendChild(badges);
+  head.appendChild(names);
+  panel.appendChild(head);
+
+  if (p.location) panel.append(el('p', 'muted small', `📍 ${p.location}`));
+  panel.append(el('p', 'muted small', `Playing since ${MEMBER_SINCE.format(new Date(p.createdAt))}`));
+
+  const stats = el('div', 'stack');
+  stats.appendChild(ratingLine('Partner rating', p.ratingPartner, p.rdPartner));
+  stats.appendChild(ratingLine('Cut throat rating', p.ratingCutthroat, p.rdCutthroat));
+  const hands = el('div', 'row');
+  hands.append(el('span', 'muted', 'Hands played'), el('span', 'mono', String(p.handsPlayed)));
+  stats.appendChild(hands);
+  if (p.sixLovesGiven || p.sixLovesTaken) {
+    const sixes = el('div', 'row');
+    sixes.append(el('span', 'muted', 'Six love — given / taken'),
+      el('span', 'mono', `${p.sixLovesGiven} / ${p.sixLovesTaken}`));
+    stats.appendChild(sixes);
+  }
+  panel.appendChild(stats);
+
+  return panel;
 }
 
 // ------------------------------------------------------------- bredrins --
@@ -1531,7 +1662,11 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
     const speaking = loungeState.speaking.has(person.user_id);
     if (speaking) line.classList.add('speaking');
     line.append(el('span', 'dot'));
-    line.append(el('span', undefined, person.username));
+    const nameBtn = document.createElement('button');
+    nameBtn.className = 'link-plain';
+    nameBtn.textContent = person.username;
+    nameBtn.onclick = () => openPlayerProfile(person.user_id, rerender);
+    line.append(nameBtn);
     if (person.tier !== 'guest') line.append(tierBadge(person.tier));
     // Bredrins is the paid "know where your people are" feature — only a
     // VIP gets the add affordance, and never on their own line.
@@ -1580,6 +1715,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
     roster.appendChild(line);
   }
   rosterPanel.appendChild(roster);
+  if (viewingProfileId) rosterPanel.appendChild(playerProfileCard(rerender));
 
   grid.append(chat, rosterPanel);
   frag.appendChild(grid);
