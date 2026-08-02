@@ -421,6 +421,11 @@ label.field > span {
 .seat.partner { border-left: 3px solid var(--forest-hi); }
 .seat h3 { font-size: 14px; font-family: var(--body); font-weight: 800; }
 .seat .meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.seat .seat-score {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 18px; font-weight: 700; color: var(--gold-deep);
+  margin-top: 2px;
+}
 .backs { display: flex; gap: 2px; margin-top: 6px; }
 .backs i {
   width: 9px; height: 18px; border-radius: 2px;

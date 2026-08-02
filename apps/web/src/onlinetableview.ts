@@ -15,7 +15,7 @@ import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
-import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS } from '@yard/engine';
+import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 
 /** Surface a failed request inline, next to whatever control triggered it —
@@ -345,6 +345,9 @@ function seatCard(
   card.appendChild(who);
   const count = game.hand?.hand_sizes[s.seatIndex] ?? 0;
   card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
+  const scoreIndex = isPartnered(game.table.mode) ? sideOf(s.seatIndex, game.table.mode) : s.seatIndex;
+  const score = game.scores[scoreIndex] ?? 0;
+  card.append(el('div', 'seat-score', String(score)));
   if (s.seatIndex !== game.mySeat) card.append(backsEl(count));
   decorateSeat(card, s.userId, social);
   if (s.userId && s.seatIndex !== game.mySeat) {
