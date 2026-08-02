@@ -158,6 +158,16 @@ p { line-height: 1.55; }
     0 8px 20px -10px rgba(90, 58, 30, 0.30);
 }
 
+/* A just-paid member's one chance to secure the account before it's easy to
+   forget — gold border earns its keep here, same accent the rest of the
+   design system reserves for wins and primary actions. */
+.upgrade-prompt { border-color: var(--gold); box-shadow:
+  inset 0 1px 0 rgba(255, 255, 255, 0.95),
+  0 0 0 1px var(--gold-hi),
+  0 8px 20px -10px rgba(90, 58, 30, 0.30);
+}
+.upgrade-prompt .act.ghost { margin-left: 8px; }
+
 /* ------------------------------------------------------------- the front door
    Everything a first-time visitor sees before they sit down speaks in the
    poster voice — Bungee, the same face as the hero. The interface voice
@@ -443,11 +453,19 @@ label.field > span {
   font-size: 18px; font-weight: 700; color: var(--gold-deep);
   margin-top: 2px;
 }
-.backs { display: flex; gap: 2px; margin-top: 6px; }
+.backs { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+/* A face-down tile, same object language as .tile (top-light gradient, a
+   darker bottom edge for thickness, a soft shadow) — a blank domino lying
+   on the table, not an abstract tick. Sized up from the old 9x18px ticks
+   specifically because they read as too small/abstract to recognize as
+   tiles at a glance; this keeps .tile's 1:2 proportion at roughly double
+   the visual weight. */
 .backs i {
-  width: 9px; height: 18px; border-radius: 2px;
-  background: linear-gradient(160deg, var(--wood-hi), var(--wood));
-  border: 1px solid rgba(36,22,8,0.3); display: block;
+  width: 18px; height: 36px; border-radius: 4px; display: block;
+  background: linear-gradient(168deg, var(--wood-hi), var(--wood) 70%);
+  box-shadow:
+    0 3px 0 rgba(36, 22, 8, 0.55),
+    0 4px 6px rgba(0, 0, 0, 0.35);
 }
 .passed { color: var(--blood); font-family: var(--mono); font-size: 11px; }
 

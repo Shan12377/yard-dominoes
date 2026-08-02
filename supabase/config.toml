@@ -18,17 +18,18 @@ site_url = "http://localhost:5173"
 additional_redirect_urls = ["http://localhost:5173"]
 enable_anonymous_sign_ins = true   # guest play, so Facebook is never required
 
-# The client never offers email/password signup — sign-in is anonymous or
-# Apple/Google OAuth only (online.ts). Leaving the email provider's signup
-# open anyway lets someone bypass the client entirely and hit
-# POST /auth/v1/signup directly with a disposable address. Since the product
-# has no legitimate use for email signup, close it outright rather than
-# chase an ever-growing disposable-domain blocklist.
+# Reopened 2026-08-02 for online.ts's secureAccount()/signInWithPassword() —
+# converting an EXISTING signed-in anonymous session to a permanent one, so
+# a paying Yardie/VIP (or an admin flag) doesn't get permanently lost the
+# moment a browser is cleared or a phone is swapped. Never a cold "create an
+# account with just an email" form, and never required to play. See
+# .claude/rules/supabase.md's Auth section for the full history — this was
+# closed outright before, and reopening it was a deliberate, narrow
+# tradeoff, not an accident to revert without reading that first.
 [auth.email]
-enable_signup = false
-# Belt-and-suspenders: if signup is ever re-enabled by mistake, still
-# require a confirmed inbox rather than activating disposable addresses
-# on the spot.
+enable_signup = true
+# Still require a confirmed inbox before an email actually attaches —
+# closes the door on someone claiming an address they don't own.
 enable_confirmations = true
 
 [auth.external.apple]

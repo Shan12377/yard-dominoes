@@ -94,6 +94,10 @@ Deno.serve(handled(async (req) => {
       pose_must_be_double_six: next.poseMustBeDoubleSix, playoff: next.playoff,
       hands_played: next.handsPlayed, winner_side: next.winnerSide, six_love: next.sixLove,
     }).eq('id', row.set_id);
+    // Site-wide tally (site_stats.total_hands_played) is kept by a database
+    // trigger on this same write — see migration 0032 — rather than a second
+    // call from here, so any future path that bumps sets.hands_played is
+    // covered automatically instead of needing to remember this RPC too.
 
     if (next.winnerSide !== null) {
       await db.from('tables').update({ status: 'finished' }).eq('id', table!.id);

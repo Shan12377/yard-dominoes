@@ -66,19 +66,48 @@ Any new writer to `hands` must go through `commit_move`.
 
 ## Auth
 
-- The client only ever signs a user in two ways: anonymous
-  (`signInAnonymously`) or Apple/Google OAuth (`online.ts`). There is no
-  email/password signup anywhere in the app, by product design.
-- `[auth.email] enable_signup = false` in `config.toml` closes the email
-  provider's signup outright rather than trying to blocklist disposable
-  domains — that's a fight with no end state, and this product has no
-  legitimate use for email signup to begin with. If a real email flow is
-  ever added, use a `before-user-created` Postgres auth hook to gate it
-  (Supabase's own pattern for this), not a client-side check.
-- `config.toml` is authoritative for local dev. The hosted project's Auth
-  provider settings live separately (Dashboard → Authentication →
-  Providers → Email, or `supabase config push`) — confirm they match
-  before relying on this file alone to describe production behavior.
+- The client signs a user in three ways: anonymous (`signInAnonymously`),
+  Apple/Google OAuth, or — as of 2026-08-02 — email/password via
+  `online.ts`'s `secureAccount()`/`signInWithPassword()`. Email/password was
+  closed outright for a long time (see history below); it was reopened for a
+  specific, narrow reason and should stay narrow.
+- **What "narrow" means:** `secureAccount()` is reachable only from a player
+  who is already signed in and already has an account — it converts an
+  existing anonymous session to a permanent one (same user id, so
+  `tier`/`is_admin`/`is_host`/every stat carries over unchanged), it is never
+  a cold "create a new account with just an email" form, and it is never
+  required to play. If a change ever makes email signup reachable by someone
+  who is NOT already an existing signed-in session (a logged-out landing
+  page with an email field, for instance), that is a different, wider
+  feature than what was approved here and needs its own decision.
+- **Why it was reopened:** a paying Yardie/VIP's `profiles.tier` is keyed to
+  one anonymous session in one browser, exactly like every other anonymous
+  account — clear that browser, switch phones, or reinstall, and the
+  membership they paid for is gone with no self-service way back. That is a
+  worse gap than the abuse risk email signup was originally closed against,
+  so the tradeoff was made deliberately, with eyes open to the abuse
+  surface, not by accident. `loungeview.ts`'s `upgradePrompt()` nudges a
+  fresh Yardie/VIP purchase (`?upgraded=yardie|vip` off the Stripe success
+  redirect, previously read by nothing on the client) toward securing the
+  account right after paying, when it's least likely to be forgotten.
+- **Original reasoning, still worth knowing:** `enable_signup = false` closed
+  the email provider outright rather than trying to blocklist disposable
+  domains — a fight with no end state — on the premise that the product had
+  no legitimate use for email signup. That premise held right up until a
+  real admin account got permanently locked out of `is_admin`/`is_host` by
+  clearing a browser, with no way back in short of a raw SQL grant to a
+  *different* account. If abuse shows up (throwaway emails farming coins,
+  dodging a ban), the fix is tightening `secureAccount()`'s reachability
+  (rate limiting, requiring a minimum account age, a `before-user-created`
+  Postgres auth hook) — not re-closing the gate and reintroducing the
+  lockout risk this was built to fix.
+- `config.toml`'s `[auth.email] enable_signup` must read `true` — it was
+  quietly diverging from the hosted dashboard (which had already been
+  flipped on to make `secureAccount()` work) until both were reconciled
+  together. `config.toml` is authoritative for local dev; the hosted
+  project's Auth provider settings live separately (Dashboard →
+  Authentication → Providers → Email, or `supabase config push`) — confirm
+  they still match before trusting this file alone to describe production.
 
 ## Testing locally
 

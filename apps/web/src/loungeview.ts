@@ -108,6 +108,16 @@ function showReaction(userId: string, id: string, rerender: () => void) {
 let draft = '';
 let draftCaret = 0;
 
+/**
+ * A paid tier lives on `profiles.tier`, keyed to whatever account was signed
+ * in at checkout — same fragile, one-browser-only anonymous session as
+ * everything else, except now there's real money behind it. Stripe already
+ * redirects success here as `?upgraded=yardie|vip` (checkout/index.ts); until
+ * now nothing on the client ever read it. Set once per successful checkout,
+ * cleared on dismiss or once the account is secured.
+ */
+let justUpgradedTier: Tier | null = null;
+
 /** Load lounges and profile. Safe to call repeatedly. */
 export async function loadLounges(rerender: () => void) {
   if (!loungesAvailable || loungeState.loading) return;
@@ -119,6 +129,17 @@ export async function loadLounges(rerender: () => void) {
     loungeState.me = me;
     loungeState.isAnonymous = anon;
     loungeState.error = null;
+
+    if (anon) {
+      const params = new URLSearchParams(window.location.search);
+      const upgraded = params.get('upgraded');
+      if (upgraded === 'yardie' || upgraded === 'vip') {
+        justUpgradedTier = upgraded;
+        params.delete('upgraded');
+        const rest = params.toString();
+        history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
+      }
+    }
 
     // Additive, and never allowed to take the lounges down with it: before the
     // tournament migration is applied these queries 404, and a player must
@@ -1281,6 +1302,41 @@ let accountPasswordDraft = '';
 let accountPasswordCaret = 0;
 let accountFocusedField: 'email' | 'password' | null = null;
 
+/**
+ * The moment a Yardie/VIP purchase is most likely to get secured: right
+ * after paying, while it's front of mind, rather than buried in Edit
+ * profile where nobody thinks to look until it's already too late. Not a
+ * modal — client.md's rule against interrupting a live hand doesn't apply
+ * here (this only ever shows on the Lounges screen right after a Stripe
+ * redirect), but it should still be dismissable, not forced.
+ */
+function upgradePrompt(tier: Tier, rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel upgrade-prompt');
+  panel.append(el('div', 'eyebrow', `Welcome to ${TIER_LABEL[tier]}`));
+  panel.append(el('p', undefined,
+    `You just paid for ${TIER_LABEL[tier]} — but this browser is still a guest session underneath `
+    + 'it. Secure it with an email and password so a cleared browser or a new phone never costs you '
+    + 'what you paid for.'));
+  const secure = document.createElement('button');
+  secure.className = 'act';
+  secure.textContent = 'Secure my account';
+  secure.onclick = () => {
+    justUpgradedTier = null;
+    accountOpen = true;
+    accountMode = 'secure';
+    accountError = null;
+    accountMessage = null;
+    rerender();
+  };
+  panel.appendChild(secure);
+  const dismiss = document.createElement('button');
+  dismiss.className = 'act ghost small';
+  dismiss.textContent = 'Not now';
+  dismiss.onclick = () => { justUpgradedTier = null; rerender(); };
+  panel.appendChild(dismiss);
+  return panel;
+}
+
 function accountPanel(rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
   const secure = accountMode === 'secure';
@@ -1350,6 +1406,10 @@ function accountPanel(rerender: () => void): HTMLElement {
         await secureAccount(addr, pass);
         accountMessage = `Check ${addr} for a confirmation link to finish.`;
         accountPasswordDraft = '';
+        // Not fully secured until the confirmation link is clicked (still
+        // anonymous till then), but the prompt has done its job — no reason
+        // to keep nagging once they've started.
+        justUpgradedTier = null;
       } else {
         await signInWithPassword(addr, pass);
         // The Supabase session has already swapped accounts at this point.
@@ -1489,6 +1549,9 @@ function loungeList(rerender: () => void): DocumentFragment {
   }
   frag.appendChild(head);
 
+  if (me && justUpgradedTier && loungeState.isAnonymous && !accountOpen) {
+    frag.appendChild(upgradePrompt(justUpgradedTier, rerender));
+  }
   if (me && profileOpen) frag.appendChild(profilePanel(me, rerender));
   if (me && bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
   if (me && coinsOpen) frag.appendChild(coinsPanel(rerender));
