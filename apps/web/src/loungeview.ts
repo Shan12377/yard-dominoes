@@ -1445,6 +1445,7 @@ export function loungesView(rerender: () => void): DocumentFragment | HTMLElemen
       watching: loungeState.roster.filter(
         (p) => p.table === loungeState.onlineGame!.table.id,
       ),
+      chatPanel: loungeState.current ? chatPanel(loungeState.current, rerender) : null,
     }));
     return frag;
   }

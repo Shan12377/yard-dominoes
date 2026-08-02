@@ -189,6 +189,11 @@ export interface TableSocial {
   quickChatBar?: HTMLElement | null;
   /** Everyone with this table open, seated players included. */
   watching?: { user_id: string; username: string }[];
+  /** The lounge's live chat, prebuilt by loungeview.ts (same reasoning as
+   *  voicePanel/videoPanel — this module cannot import loungeview.ts).
+   *  Null when the table has no lounge context (e.g. a direct join-code
+   *  attach with no lounge ever opened). */
+  chatPanel?: HTMLElement | null;
 }
 
 /** Speaking ring and thrown reaction on a seat, keyed by the player's user id.
@@ -421,7 +426,17 @@ export function liveTableView(
     cross.appendChild(wrap);
   });
 
-  frag.appendChild(cross);
+  const room = el('div', 'table-room');
+  room.appendChild(cross);
+
+  const rail = el('div', 'table-rail');
+  if (social?.chatPanel) rail.appendChild(social.chatPanel);
+  const crowd = watchersPanel(game, social);
+  if (crowd) rail.appendChild(crowd);
+  rail.appendChild(standingsPanel(game));
+  room.appendChild(rail);
+
+  frag.appendChild(room);
 
   if (!game.hand) {
     frag.appendChild(startHandPanel(game));
@@ -438,9 +453,6 @@ export function liveTableView(
       frag.appendChild(handResultPanel(game, rerender));
     }
   }
-
-  const crowd = watchersPanel(game, social);
-  if (crowd) frag.appendChild(crowd);
 
   // Reactions and quick chat sit last, beside the hand — thumb reach, and free
   // for guests. Spectators get them too: heckling from the side of the yard is
@@ -472,6 +484,33 @@ function watchersPanel(game: OnlineGame, social?: TableSocial): HTMLElement | nu
     const who = el('span', 'watcher', p.username);
     if (social.speaking.has(p.user_id)) who.classList.add('speaking');
     list.appendChild(who);
+  }
+  panel.appendChild(list);
+  return panel;
+}
+
+/** One line per seat/side, for the rail — a glanceable summary that does
+ *  not require finding the right position in the cross to compare scores. */
+function standingsPanel(game: OnlineGame): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Standings'));
+  const list = el('div', 'standings');
+  if (isPartnered(game.table.mode)) {
+    const labels = ['You & partner', 'Them'];
+    for (let side = 0; side < 2; side++) {
+      const line = el('div', 'standing-row');
+      line.append(el('span', undefined, side === (game.mySide ?? 0) ? labels[0] : labels[1]));
+      line.append(el('span', 'seat-score', String(game.scores[side] ?? 0)));
+      list.appendChild(line);
+    }
+  } else {
+    game.seats.forEach((s) => {
+      const line = el('div', 'standing-row');
+      const label = s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`;
+      line.append(el('span', undefined, label));
+      line.append(el('span', 'seat-score', String(game.scores[s.seatIndex] ?? 0)));
+      list.appendChild(line);
+    });
   }
   panel.appendChild(list);
   return panel;

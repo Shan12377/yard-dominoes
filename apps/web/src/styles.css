@@ -328,6 +328,13 @@ label.field > span {
 .seat-slot-right { grid-area: right; }
 .seat-slot-bottom { grid-area: bottom; }
 
+/* Desktop: cross + rail side by side. Collapses in Task 6's mobile pass. */
+.table-room { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+.table-rail { display: grid; gap: 12px; }
+.standings { display: grid; gap: 6px; margin-top: 4px; }
+.standing-row { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; }
+.standing-row .seat-score { font-size: 15px; }
+
 /* renderBoard() in render.ts sets grid-template-columns/rows and each tile's
    grid-column/grid-row as inline styles — the line snakes around the felt
    like a real table, so the grid's shape is different every render. Cells are
