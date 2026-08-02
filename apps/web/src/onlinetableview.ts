@@ -238,6 +238,12 @@ function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSo
   card.appendChild(img);
 }
 
+// Mobile only — desktop shows all three rail sections at once (Task 5's
+// .table-rail), a phone shows one at a time behind tabs. Module state, not
+// per-render, so the choice survives a re-render the same way reportOpenFor
+// and the chat draft already do.
+let activeRailTab: 'chat' | 'watchers' | 'standings' = 'chat';
+
 // ---------------------------------------------------------------- reports --
 // The terms of service promise a report button — this is it. Filing needs a
 // tableId, which only exists here at the table, not in the lounge roster
@@ -430,10 +436,37 @@ export function liveTableView(
   room.appendChild(cross);
 
   const rail = el('div', 'table-rail');
-  if (social?.chatPanel) rail.appendChild(social.chatPanel);
+
+  const tabs = el('div', 'rail-tabs');
+  const tabDefs: { id: typeof activeRailTab; label: string }[] = [
+    { id: 'chat', label: 'Chat' },
+    { id: 'watchers', label: 'Watching' },
+    { id: 'standings', label: 'Standings' },
+  ];
+  for (const { id, label } of tabDefs) {
+    const btn = document.createElement('button');
+    btn.className = 'rail-tab' + (activeRailTab === id ? ' active' : '');
+    btn.textContent = label;
+    btn.onclick = () => { activeRailTab = id; rerender(); };
+    tabs.appendChild(btn);
+  }
+  rail.appendChild(tabs);
+
+  if (social?.chatPanel) {
+    social.chatPanel.classList.add('rail-section', 'rail-section-chat');
+    social.chatPanel.classList.toggle('rail-section-active', activeRailTab === 'chat');
+    rail.appendChild(social.chatPanel);
+  }
   const crowd = watchersPanel(game, social);
-  if (crowd) rail.appendChild(crowd);
-  rail.appendChild(standingsPanel(game));
+  if (crowd) {
+    crowd.classList.add('rail-section', 'rail-section-watchers');
+    crowd.classList.toggle('rail-section-active', activeRailTab === 'watchers');
+    rail.appendChild(crowd);
+  }
+  const standings = standingsPanel(game);
+  standings.classList.add('rail-section', 'rail-section-standings');
+  standings.classList.toggle('rail-section-active', activeRailTab === 'standings');
+  rail.appendChild(standings);
   room.appendChild(rail);
 
   frag.appendChild(room);

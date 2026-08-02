@@ -331,6 +331,11 @@ label.field > span {
 /* Desktop: cross + rail side by side. Collapses in Task 6's mobile pass. */
 .table-room { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
 .table-rail { display: grid; gap: 12px; }
+/* The tab strip only makes sense once the rail's three sections can't all
+   show at once — mobile's @media block below turns it back on. Without
+   this, the tab buttons render with no styling at all above 700px, where
+   the point of .table-rail is that every section is already visible. */
+.rail-tabs { display: none; }
 .standings { display: grid; gap: 6px; margin-top: 4px; }
 .standing-row { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; }
 .standing-row .seat-score { font-size: 15px; }
@@ -684,7 +689,48 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .gate.vip { border-color: var(--gold); background: rgba(224, 164, 0, 0.14); color: var(--gold-deep); }
 
 .room { display: grid; grid-template-columns: 1fr 240px; gap: 14px; }
-@media (max-width: 700px) { .room { grid-template-columns: 1fr; } }
+@media (max-width: 700px) {
+  .room { grid-template-columns: 1fr; }
+
+  .table-room { grid-template-columns: 1fr; }
+
+  /* Board first, uncontested — the spec's top priority for mobile. */
+  .table-cross {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-areas:
+      "felt felt felt felt"
+      "bottom left right top";
+  }
+  .felt-slot { min-height: 0; }
+
+  /* Compact horizontal strip: all seats in one glance, no tall cards. */
+  .seat-slot-top, .seat-slot-left, .seat-slot-right, .seat-slot-bottom {
+    min-width: 0;
+  }
+  .table-cross .seat {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px;
+  }
+  .table-cross .seat .who { flex-direction: row; align-items: center; gap: 4px; }
+  .table-cross .seat .avatar { width: 22px; height: 22px; }
+  .table-cross .seat h3 { font-size: 11px; }
+  .table-cross .seat .meta { display: none; }
+  .table-cross .seat .backs { display: none; }
+  .table-cross .seat .origin-yardie, .table-cross .seat .origin-foreign { display: none; }
+  .table-cross .seat .seat-score { font-size: 13px; margin-top: 0; margin-left: auto; }
+  .table-cross .seat .report { display: none; }
+
+  /* Rail becomes tabs: one section visible at a time. */
+  .rail-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .rail-tab {
+    flex: 1; padding: 8px; border-radius: var(--r);
+    border: 1px solid rgba(90, 58, 30, 0.28); background: var(--sand-hi);
+    font-family: var(--body); font-weight: 700; font-size: 12.5px;
+  }
+  .rail-tab.active { background: var(--gold); border-color: var(--gold-deep); }
+  .rail-section { display: none; }
+  .rail-section-active { display: block; }
+}
 
 .chat-log {
   display: grid; gap: 8px; max-height: 340px; overflow-y: auto;
