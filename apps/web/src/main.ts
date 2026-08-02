@@ -269,6 +269,17 @@ function stopNagging() {
   nagTimer = 0;
 }
 
+/** Back to the setup screen — same reset whether a set just finished
+ *  ("New set") or a player wants out mid-hand ("Leave"). Local play against
+ *  duppies has nobody to strand, unlike the online table, so there is no
+ *  reason to gate this on the hand being over. */
+function leaveLocalGame() {
+  game = null; review = null; reviewOpen = false;
+  stopNagging();
+  talk = new Map(); shareLink = null;
+  render();
+}
+
 /**
  * Every other line here is triggered by a move. This one is triggered by the
  * absence of one, so it needs its own timer — and local play has no turn clock
@@ -591,6 +602,16 @@ function lobby(): HTMLElement {
 // ----------------------------------------------------------------- table --
 function scoreboard(g: LocalGame): HTMLElement {
   const panel = el('div', 'panel');
+
+  const top = el('div', 'spread');
+  top.append(el('div', 'eyebrow', 'Practice'));
+  const leave = document.createElement('button');
+  leave.className = 'act ghost small';
+  leave.textContent = 'Leave';
+  leave.onclick = () => leaveLocalGame();
+  top.appendChild(leave);
+  panel.appendChild(top);
+
   const board = el('div', 'scoreboard');
 
   const trackOpts = { bruk: g.lastResultBruk, max: g.set.options.target };
@@ -796,11 +817,7 @@ function handResult(g: LocalGame): HTMLElement | null {
     const again = document.createElement('button');
     again.className = 'act';
     again.textContent = 'New set';
-    again.onclick = () => {
-      game = null; review = null; reviewOpen = false;
-      stopNagging();
-      talk = new Map(); shareLink = null; render();
-    };
+    again.onclick = () => leaveLocalGame();
     row.appendChild(again);
   }
 
