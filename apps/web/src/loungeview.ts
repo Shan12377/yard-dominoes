@@ -1302,17 +1302,37 @@ function loungeList(rerender: () => void): DocumentFragment {
       };
       you.append(reportsBtn);
     }
-    const accountBtn = document.createElement('button');
-    accountBtn.className = 'act ghost small';
-    accountBtn.textContent = accountOpen ? 'Done' : (loungeState.isAnonymous ? 'Secure account' : 'Account');
-    accountBtn.onclick = () => {
-      accountOpen = !accountOpen;
+    // Two entry points act like tabs onto the same panel — opening one while
+    // the other's mode is showing switches mode rather than closing it;
+    // only clicking the currently-active one closes the panel.
+    const openAccount = (mode: 'secure' | 'signin') => {
+      const alreadyActive = accountOpen && accountMode === mode;
+      accountOpen = !alreadyActive;
+      accountMode = mode;
       accountError = null;
       accountMessage = null;
-      accountMode = loungeState.isAnonymous ? 'secure' : 'signin';
       rerender();
     };
+    const defaultMode = loungeState.isAnonymous ? 'secure' : 'signin';
+    const accountBtn = document.createElement('button');
+    accountBtn.className = 'act ghost small';
+    accountBtn.textContent = (accountOpen && accountMode === defaultMode)
+      ? 'Done'
+      : (loungeState.isAnonymous ? 'Secure account' : 'Account');
+    accountBtn.onclick = () => openAccount(defaultMode);
     you.append(accountBtn);
+    // A fresh browser always lands on a brand-new guest session — "Sign in"
+    // to an account secured elsewhere was previously reachable only by
+    // opening "Secure account" first and finding a toggle link buried
+    // inside it. A player who already knows they have an account and just
+    // wants back in should see that option up front, not one layer deep.
+    if (loungeState.isAnonymous) {
+      const signInBtn = document.createElement('button');
+      signInBtn.className = 'act ghost small';
+      signInBtn.textContent = (accountOpen && accountMode === 'signin') ? 'Done' : 'Sign in';
+      signInBtn.onclick = () => openAccount('signin');
+      you.append(signInBtn);
+    }
     head.append(you);
     // "i am vip, where do i upload pic?" — the photo lives inside Edit
     // profile, same panel as name/origin/avatar, with nothing on this
@@ -1323,7 +1343,8 @@ function loungeList(rerender: () => void): DocumentFragment {
     }
     if (loungeState.isAnonymous && !accountOpen) {
       head.append(el('p', 'muted small',
-        'This is a guest session tied to this browser — Secure account keeps it from being lost.'));
+        'This is a guest session tied to this browser. Secure account keeps it from being '
+        + 'lost, or Sign in if you already secured one elsewhere.'));
     }
   }
   frag.appendChild(head);
