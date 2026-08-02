@@ -1232,35 +1232,17 @@ function loungeList(rerender: () => void): DocumentFragment {
   return frag;
 }
 
-// ------------------------------------------------------------- the room --
-function room(lounge: Lounge, rerender: () => void): DocumentFragment {
-  const frag = document.createDocumentFragment();
-
-  const head = el('div', 'panel');
-  const top = el('div', 'spread');
-  const titles = el('div');
-  titles.append(el('div', 'eyebrow', 'Lounge'), el('h2', undefined, lounge.name));
-  const back = document.createElement('button');
-  back.className = 'act ghost';
-  back.textContent = 'Leave';
-  back.onclick = () => { leaveCurrentLounge(); rerender(); };
-  top.append(titles, back);
-  head.appendChild(top);
-  if (lounge.description) head.append(el('p', 'muted', lounge.description));
-  frag.appendChild(head);
-
-  const tablesPanel = document.createElement('div');
-  void openTablesPanel(lounge.id, (tableId) => void attachTable(tableId, rerender),
-    rerender).then((panel) => {
-    tablesPanel.replaceWith(panel);
-  });
-  frag.appendChild(tablesPanel);
-
-  const grid = el('div', 'room');
-
-  // --- chat ---------------------------------------------------------------
-  const chatPanel = el('div', 'panel');
-  chatPanel.append(el('div', 'eyebrow', 'Table talk'));
+/**
+ * The lounge's live chat, extracted so the live table view (which cannot
+ * import this module — see TableSocial's doc comment in onlinetableview.ts
+ * for why) can render the same panel while a hand is in progress. The
+ * underlying channel and message list (loungeState.messages) are unchanged
+ * either way — this only changes where the panel gets rendered, never
+ * subscribes twice.
+ */
+export function chatPanel(lounge: Lounge, rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Table talk'));
 
   const log = el('div', 'chat-log');
   if (loungeState.messages.length === 0) {
@@ -1275,7 +1257,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
     })));
     log.appendChild(line);
   }
-  chatPanel.appendChild(log);
+  panel.appendChild(log);
   requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
   // Cap the rendered history; an all-day lounge otherwise grows without bound.
   if (loungeState.messages.length > 200) {
@@ -1314,10 +1296,40 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   send.onclick = () => void submit();
   input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); void submit(); } };
   form.append(input, send);
-  chatPanel.appendChild(form);
+  panel.appendChild(form);
+  return panel;
+}
 
-  chatPanel.appendChild(voicePanel(rerender));
-  chatPanel.appendChild(reactionBar(rerender));
+// ------------------------------------------------------------- the room --
+function room(lounge: Lounge, rerender: () => void): DocumentFragment {
+  const frag = document.createDocumentFragment();
+
+  const head = el('div', 'panel');
+  const top = el('div', 'spread');
+  const titles = el('div');
+  titles.append(el('div', 'eyebrow', 'Lounge'), el('h2', undefined, lounge.name));
+  const back = document.createElement('button');
+  back.className = 'act ghost';
+  back.textContent = 'Leave';
+  back.onclick = () => { leaveCurrentLounge(); rerender(); };
+  top.append(titles, back);
+  head.appendChild(top);
+  if (lounge.description) head.append(el('p', 'muted', lounge.description));
+  frag.appendChild(head);
+
+  const tablesPanel = document.createElement('div');
+  void openTablesPanel(lounge.id, (tableId) => void attachTable(tableId, rerender),
+    rerender).then((panel) => {
+    tablesPanel.replaceWith(panel);
+  });
+  frag.appendChild(tablesPanel);
+
+  const grid = el('div', 'room');
+
+  // --- chat ---------------------------------------------------------------
+  const chat = chatPanel(lounge, rerender);
+  chat.appendChild(voicePanel(rerender));
+  chat.appendChild(reactionBar(rerender));
 
   // --- roster -------------------------------------------------------------
   const rosterPanel = el('div', 'panel');
@@ -1381,7 +1393,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   }
   rosterPanel.appendChild(roster);
 
-  grid.append(chatPanel, rosterPanel);
+  grid.append(chat, rosterPanel);
   frag.appendChild(grid);
   return frag;
 }
