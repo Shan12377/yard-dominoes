@@ -1384,7 +1384,13 @@ function loungeList(rerender: () => void): DocumentFragment {
       tags.append(el('span', 'gate', modeTag));
     }
     if (lounge.min_tier !== 'guest') {
-      tags.append(el('span', `gate ${lounge.min_tier}`, `${TIER_LABEL[lounge.min_tier]} only`));
+      // "Yardie only" reads as excluding VIP, but canEnter() gates on tier
+      // RANK — VIP clears every lower floor too. "+" says so; VIP itself has
+      // nothing above it, so its own tag stays exact as "VIP only".
+      const label = lounge.min_tier === 'vip'
+        ? `${TIER_LABEL.vip} only`
+        : `${TIER_LABEL[lounge.min_tier]}+`;
+      tags.append(el('span', `gate ${lounge.min_tier}`, label));
     }
     left.append(tags);
 
