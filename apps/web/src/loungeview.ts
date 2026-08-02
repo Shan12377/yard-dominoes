@@ -18,7 +18,10 @@ import {
 import type {
   Avatar, Background, Bredrin, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
 } from './lounges.ts';
-import { ensureSignedIn, findActiveSeat, videoSessionCall } from './online.ts';
+import {
+  ensureSignedIn, findActiveSeat, videoSessionCall,
+  secureAccount, signInWithPassword, isAnonymousUser,
+} from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
 import { openTablesPanel, joinByCodeField, liveTableView } from './onlinetableview.ts';
 import { el } from './render.ts';
@@ -66,13 +69,15 @@ interface LoungeState {
   videoJoining: boolean;
   /** Keyed by user id — decorateSeat reads this to attach a <video> tile. */
   videoStreams: Map<string, MediaStream>;
+  /** True for a guest session with no email/password attached yet. */
+  isAnonymous: boolean;
 }
 
 export const loungeState: LoungeState = {
   lounges: [], me: null, current: null, roster: [], messages: [],
   room: null, error: null, loading: false, onlineGame: null,
   voice: null, voiceJoining: false, speaking: new Set(), reactions: new Map(),
-  video: null, videoJoining: false, videoStreams: new Map(),
+  video: null, videoJoining: false, videoStreams: new Map(), isAnonymous: true,
 };
 
 /** Timers clearing each reaction, so one person spamming cannot pile them up. */
@@ -107,9 +112,10 @@ export async function loadLounges(rerender: () => void) {
   loungeState.loading = true;
   try {
     await ensureSignedIn();
-    const [lounges, me] = await Promise.all([listLounges(), myProfile()]);
+    const [lounges, me, anon] = await Promise.all([listLounges(), myProfile(), isAnonymousUser()]);
     loungeState.lounges = lounges;
     loungeState.me = me;
+    loungeState.isAnonymous = anon;
     loungeState.error = null;
 
     // Additive, and never allowed to take the lounges down with it: before the
@@ -1115,6 +1121,136 @@ function giftButton(toUserId: string, rerender: () => void): HTMLButtonElement {
   return btn;
 }
 
+// --------------------------------------------------------------- account --
+// A guest session lives in one browser's storage only — clear it, switch
+// devices, or reinstall, and it's gone with nothing to sign back into. This
+// is the optional, never-a-wall way out: attach a real email + password to
+// the account you already have, or sign into one you secured earlier.
+let accountOpen = false;
+let accountMode: 'secure' | 'signin' = 'secure';
+let accountBusy = false;
+let accountError: string | null = null;
+let accountMessage: string | null = null;
+// render() rebuilds this panel's DOM on every keystroke elsewhere on the
+// lounge screen (the tournament countdown reruns rerender() on its own
+// timer — see tournamentview.ts's scheduleTick). Same fix as the chat
+// draft above: hold the values and caret outside the DOM and restore them.
+let accountEmailDraft = '';
+let accountEmailCaret = 0;
+let accountPasswordDraft = '';
+let accountPasswordCaret = 0;
+let accountFocusedField: 'email' | 'password' | null = null;
+
+function accountPanel(rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel');
+  const secure = accountMode === 'secure';
+  panel.append(el('div', 'eyebrow', 'Account'));
+  panel.append(el('h2', undefined, secure ? 'Secure this account' : 'Sign in'));
+  panel.append(el('p', 'muted small', secure
+    ? 'Keeps your name, tiles played, and anything else tied to this account '
+      + 'reachable from any device — not just this browser.'
+    : 'Switch this browser to an account you already secured.'));
+
+  const email = document.createElement('input');
+  email.type = 'email';
+  email.className = 'field';
+  email.autocomplete = 'email';
+  email.setAttribute('aria-label', 'Email');
+  email.placeholder = 'you@example.com';
+  email.value = accountEmailDraft;
+  email.oninput = () => {
+    accountEmailDraft = email.value;
+    accountEmailCaret = email.selectionStart ?? accountEmailDraft.length;
+  };
+  email.onfocus = () => { accountFocusedField = 'email'; };
+  panel.append(el('label', 'field-label', 'Email'), email);
+
+  const password = document.createElement('input');
+  password.type = 'password';
+  password.className = 'field';
+  password.autocomplete = secure ? 'new-password' : 'current-password';
+  password.setAttribute('aria-label', 'Password');
+  password.placeholder = secure ? 'At least 8 characters' : 'Your password';
+  password.value = accountPasswordDraft;
+  password.oninput = () => {
+    accountPasswordDraft = password.value;
+    accountPasswordCaret = password.selectionStart ?? accountPasswordDraft.length;
+  };
+  password.onfocus = () => { accountFocusedField = 'password'; };
+  panel.append(el('label', 'field-label', 'Password'), password);
+
+  // Restore focus and caret only to whichever field was actually being typed
+  // in — otherwise both fields' focus() calls fight and the wrong one wins.
+  if (accountFocusedField === 'email') {
+    requestAnimationFrame(() => { email.focus(); email.setSelectionRange(accountEmailCaret, accountEmailCaret); });
+  } else if (accountFocusedField === 'password') {
+    requestAnimationFrame(() => {
+      password.focus();
+      password.setSelectionRange(accountPasswordCaret, accountPasswordCaret);
+    });
+  }
+
+  if (accountError) panel.append(el('div', 'banner small', accountError));
+  if (accountMessage) panel.append(el('div', 'muted small', accountMessage));
+
+  const submit = document.createElement('button');
+  submit.className = 'act';
+  submit.textContent = accountBusy
+    ? (secure ? 'Securing…' : 'Signing in…')
+    : (secure ? 'Secure account' : 'Sign in');
+  submit.disabled = accountBusy;
+  submit.onclick = () => void (async () => {
+    const addr = email.value.trim();
+    const pass = password.value;
+    if (!addr || !pass) { accountError = 'email and password are both needed'; rerender(); return; }
+    if (secure && pass.length < 8) { accountError = 'password needs at least 8 characters'; rerender(); return; }
+    accountBusy = true; accountError = null; accountMessage = null; rerender();
+    try {
+      if (secure) {
+        await secureAccount(addr, pass);
+        accountMessage = `Check ${addr} for a confirmation link to finish.`;
+        accountPasswordDraft = '';
+      } else {
+        await signInWithPassword(addr, pass);
+        // The Supabase session has already swapped accounts at this point.
+        // Clear the outgoing profile immediately rather than leaving it on
+        // screen — under lounges.ts's tier badge, showing the WRONG
+        // account's name/tier while the real session has moved on is worse
+        // than a brief blank, given this app's history with admin flags.
+        loungeState.me = null;
+        rerender();
+        loungeState.me = await myProfile();
+        loungeState.isAnonymous = await isAnonymousUser();
+        accountOpen = false;
+        accountEmailDraft = '';
+        accountPasswordDraft = '';
+        accountFocusedField = null;
+      }
+    } catch (err) {
+      accountError = err instanceof Error ? err.message : 'could not reach the account';
+    } finally {
+      accountBusy = false;
+      rerender();
+    }
+  })();
+  panel.appendChild(submit);
+
+  const switchMode = document.createElement('button');
+  switchMode.className = 'act ghost small';
+  switchMode.textContent = secure
+    ? 'Already secured an account? Sign in instead.'
+    : 'New here? Secure this account instead.';
+  switchMode.onclick = () => {
+    accountMode = secure ? 'signin' : 'secure';
+    accountError = null;
+    accountMessage = null;
+    rerender();
+  };
+  panel.appendChild(switchMode);
+
+  return panel;
+}
+
 // ----------------------------------------------------------- lounge list --
 function loungeList(rerender: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
@@ -1166,6 +1302,17 @@ function loungeList(rerender: () => void): DocumentFragment {
       };
       you.append(reportsBtn);
     }
+    const accountBtn = document.createElement('button');
+    accountBtn.className = 'act ghost small';
+    accountBtn.textContent = accountOpen ? 'Done' : (loungeState.isAnonymous ? 'Secure account' : 'Account');
+    accountBtn.onclick = () => {
+      accountOpen = !accountOpen;
+      accountError = null;
+      accountMessage = null;
+      accountMode = loungeState.isAnonymous ? 'secure' : 'signin';
+      rerender();
+    };
+    you.append(accountBtn);
     head.append(you);
     // "i am vip, where do i upload pic?" — the photo lives inside Edit
     // profile, same panel as name/origin/avatar, with nothing on this
@@ -1174,6 +1321,10 @@ function loungeList(rerender: () => void): DocumentFragment {
     if (myTier !== 'guest' && !profileOpen) {
       head.append(el('p', 'muted small', 'Add your profile photo under Edit profile.'));
     }
+    if (loungeState.isAnonymous && !accountOpen) {
+      head.append(el('p', 'muted small',
+        'This is a guest session tied to this browser — Secure account keeps it from being lost.'));
+    }
   }
   frag.appendChild(head);
 
@@ -1181,6 +1332,7 @@ function loungeList(rerender: () => void): DocumentFragment {
   if (me && bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
   if (me && coinsOpen) frag.appendChild(coinsPanel(rerender));
   if (me && me.isAdmin && reportsOpen) frag.appendChild(reportsPanel(rerender));
+  if (me && accountOpen) frag.appendChild(accountPanel(rerender));
 
   // Above the lounge cards: the countdown is the thing a player should not be
   // able to miss, and this is the screen they land on.

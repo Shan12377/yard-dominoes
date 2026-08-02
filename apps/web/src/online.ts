@@ -52,6 +52,32 @@ export async function signInWithProvider(provider: 'apple' | 'google') {
   if (error) throw error;
 }
 
+/**
+ * A guest session lives in one browser's storage — clear it, and the account
+ * (and anything staff-granted on it, like is_admin) is gone with no way back
+ * in. This attaches a real email + password to the CURRENT session, keeping
+ * the same user id — profile, tier, and any admin/host grant all carry over
+ * unchanged. Supabase emails a confirmation link to the new address before
+ * the account actually stops being anonymous; `isAnonymousUser()` stays true
+ * until that link is clicked.
+ */
+export async function secureAccount(email: string, password: string): Promise<void> {
+  const { error } = await client().auth.updateUser({ email, password });
+  if (error) throw error;
+}
+
+/** Switch the current browser session to an already-secured account. */
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  const { error } = await client().auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
+/** True for a guest session never attached to a real email. */
+export async function isAnonymousUser(): Promise<boolean> {
+  const { data } = await client().auth.getUser();
+  return data.user?.is_anonymous ?? true;
+}
+
 export class ConflictError extends Error {
   constructor() { super('someone else moved first'); }
 }
