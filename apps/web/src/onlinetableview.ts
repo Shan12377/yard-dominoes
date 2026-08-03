@@ -434,7 +434,7 @@ export function liveTableView(
     }
   });
   if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
-    feltSlot.appendChild(countdown(game, game.hand.turn_expires_at, rerender));
+    feltSlot.appendChild(countdown(game, game.hand.turn_expires_at));
   }
   // Docked directly under the felt so the board and the player's own hand
   // are always visible together — this used to be a separate panel
@@ -630,9 +630,21 @@ function startHandPanel(game: OnlineGame): HTMLElement {
  * count — a client whose tab was asleep would otherwise show time it no longer
  * has.
  */
-function countdown(game: OnlineGame, expiresAt: string, rerender: () => void): HTMLElement {
-  const left = (Date.parse(expiresAt) - Date.now()) / 1000;
-  const remaining = Math.max(0, Math.floor(left));
+/**
+ * Ticks itself via direct DOM mutation instead of calling the app's full
+ * rerender() every second. It used to call rerender() on a 1s setTimeout,
+ * which — since render() rebuilds the entire #app tree on every call —
+ * tore down and recreated every element on the page once a second during
+ * any active turn, table video included. A <video> element with a live
+ * MediaStream doesn't survive that quietly: losing and reattaching
+ * srcObject every second reads as the feed visibly shaking/stuttering,
+ * which is exactly what a real user reported. The countdown's own tick
+ * never needed anything else on the page to change in step with it — the
+ * actual "turn expired, a duppy plays" transition already arrives
+ * separately, pushed by the server over realtime, which rerenders on its
+ * own when it lands.
+ */
+function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
   const turn = game.hand?.turn ?? null;
   const bank = turn === null ? 0 : Math.round(game.seats[turn]?.timeBank ?? 0);
   const base = game.table?.turnSeconds ?? 0;
@@ -640,27 +652,36 @@ function countdown(game: OnlineGame, expiresAt: string, rerender: () => void): H
 
   const wrap = el('div', 'panel clock');
   const head = el('div', 'clock-head');
-  head.append(el('span', 'clock-left', remaining > 0 ? `${remaining}s` : 'Time'));
-  head.append(el('span', 'muted', remaining > 0
-    ? (game.isMyTurn() ? 'to play' : 'for this seat')
-    : 'up — a duppy plays this seat'));
+  const left = el('span', 'clock-left');
+  const status = el('span', 'muted');
+  head.append(left, status);
   // Only worth explaining when the bank is actually doing something.
-  if (bank > 0 && remaining > 0) {
-    head.append(el('span', 'clock-bank', `${base}s + ${bank}s banked`));
-  }
+  const bankLabel = bank > 0 ? el('span', 'clock-bank', `${base}s + ${bank}s banked`) : null;
+  if (bankLabel) head.append(bankLabel);
   wrap.appendChild(head);
 
   const track = el('div', 'clock-track');
   const fill = el('div', 'clock-fill');
-  fill.style.width = `${Math.min(100, (remaining / allowed) * 100)}%`;
-  // Urgency is earned by the last few seconds, not by a colour that shouts
-  // through the whole turn.
-  if (remaining <= 5) fill.classList.add('urgent');
   track.appendChild(fill);
   wrap.appendChild(track);
 
-  if (countdownTimer) clearTimeout(countdownTimer);
-  if (remaining > 0) countdownTimer = setTimeout(rerender, 1000);
+  function tick() {
+    const remaining = Math.max(0, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000));
+    left.textContent = remaining > 0 ? `${remaining}s` : 'Time';
+    status.textContent = remaining > 0
+      ? (game.isMyTurn() ? 'to play' : 'for this seat')
+      : 'up — a duppy plays this seat';
+    if (bankLabel) bankLabel.style.display = remaining > 0 ? '' : 'none';
+    fill.style.width = `${Math.min(100, (remaining / allowed) * 100)}%`;
+    // Urgency is earned by the last few seconds, not by a colour that
+    // shouts through the whole turn.
+    fill.classList.toggle('urgent', remaining > 0 && remaining <= 5);
+
+    if (countdownTimer) clearTimeout(countdownTimer);
+    if (remaining > 0) countdownTimer = setTimeout(tick, 1000);
+  }
+  tick();
+
   return wrap;
 }
 
