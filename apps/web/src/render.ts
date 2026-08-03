@@ -79,6 +79,11 @@ export interface BoardFit {
   maxUnits?: number;
   /** Pin the unit instead of fitting, for boards whose box is not the felt. */
   unit?: number;
+  /** The real box to lay the line out inside, measured by the caller from
+   *  the actual attached DOM element. Falls back to feltBox()'s
+   *  window-based guess when omitted (main.ts's local play, the hero demo,
+   *  and the very first render before the felt has been measured). */
+  box?: BoardBox;
 }
 
 /** The box the grid has to live inside, in CSS pixels. */
@@ -158,7 +163,7 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
     return;
   }
 
-  const { u, placements } = chooseUnit(orientLine(board), feltBox(), opts);
+  const { u, placements } = chooseUnit(orientLine(board), opts.box ?? feltBox(), opts);
 
   const maxCol = Math.max(...placements.map((p) => p.col + p.colSpan));
   const minRow = Math.min(...placements.map((p) => p.row));
