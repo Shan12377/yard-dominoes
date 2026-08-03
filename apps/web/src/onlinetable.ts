@@ -15,7 +15,8 @@ import {
 import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
 import { isPartnered, legalMoves, sideOf } from '@yard/engine';
-import type { GameMode, Move, SetFormat, TileId } from '@yard/engine';
+import type { AnyBoard, GameMode, Move, SetFormat, TileId } from '@yard/engine';
+import { predictMyMove } from './predict.ts';
 
 export interface TableInfo {
   id: string;
@@ -72,6 +73,15 @@ export class OnlineGame {
 
   hand: PublicHand | null = null;
   myTiles: TileId[] = [];
+  /**
+   * Set the instant play() is called, cleared the moment real data arrives
+   * (either the realtime broadcast in subscribe()'s onPublic, or a failure/
+   * conflict in play() itself) — never anything a caller sets directly.
+   * Only ever predicts MY OWN move; see predict.ts for why nothing beyond
+   * it can be predicted client-side.
+   */
+  predictedBoard: AnyBoard | null = null;
+  predictedMyTiles: TileId[] | null = null;
   /**
    * The partner's tiles, when the mode grants sight of them. Populated only
    * for `mode === 'openhand'` and only when the player is seated (a spectator
@@ -308,6 +318,11 @@ export class OnlineGame {
           sfx.play('shuffle');
         }
         this.hand = hand;
+        // Real data has arrived — whatever was predicted in play() is either
+        // already confirmed by this or superseded by it, either way this is
+        // the truth now.
+        this.predictedBoard = null;
+        this.predictedMyTiles = null;
         // Piggybacks the staleness sweep on a move that was already going to
         // redraw the table — see the comment on `names` for why this exists
         // instead of a dedicated subscription.
@@ -448,12 +463,40 @@ export class OnlineGame {
   }
 
   async play(move: Move): Promise<void> {
-    if (!this.hand) return;
+    if (!this.hand || this.mySeat === null) return;
+    // Show my own tile landing immediately — legalMovesForMe() already
+    // proved this move legal, so predictMyMove() only ever fails closed
+    // (see predict.ts), never shows something that turns out wrong.
+    const prediction = predictMyMove({
+      seatCount: this.table.seatCount,
+      mode: this.table.mode,
+      format: this.table.format as SetFormat,
+      myTiles: this.myTiles,
+      mySeat: this.mySeat,
+      handSizes: this.hand.hand_sizes,
+      boneyardSize: this.hand.boneyard_size,
+      board: this.hand.board,
+      moveLog: this.hand.move_log,
+      status: this.hand.status as 'active' | 'domino' | 'blocked',
+      result: this.hand.result as any,
+      poseMustBeDoubleSix: this.poseMustBeDoubleSix,
+      poser: this.poser,
+    }, move);
+    if (prediction) {
+      this.predictedBoard = prediction.board;
+      this.predictedMyTiles = prediction.myTiles;
+      this.emit({ type: 'state' });
+    }
     try {
       await apiPlayMove(this.hand.hand_id, move);
     } catch (err) {
+      // The real state never changed, so the prediction must not linger —
+      // clear it and let the last-known-true board/hand show through again.
+      this.predictedBoard = null;
+      this.predictedMyTiles = null;
       if (err instanceof ConflictError) { await this.refetchHand(); return; }
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'move failed' });
+      this.emit({ type: 'state' });
     }
   }
 

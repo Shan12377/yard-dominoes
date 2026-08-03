@@ -414,10 +414,15 @@ export function liveTableView(
 
   const cross = el('div', 'table-cross');
 
+  // predictedBoard, when set, is play()'s optimistic guess at my own
+  // just-tapped tile landing — see predict.ts. Preferred over the last
+  // confirmed board until the real state arrives and clears it.
+  const displayBoard = game.predictedBoard ?? game.hand?.board ?? null;
+
   const feltSlot = el('div', 'felt-slot');
   const felt = el('div', 'table-felt');
   const line = el('div', 'line');
-  renderBoard(line, game.hand?.board ?? null); // first pass: feltBox()'s window-based guess
+  renderBoard(line, displayBoard); // first pass: feltBox()'s window-based guess
   felt.appendChild(line);
   feltSlot.appendChild(felt);
   // The felt isn't attached to the document yet at this point in the build,
@@ -430,7 +435,7 @@ export function liveTableView(
     // convention (felt padding + line padding), not a new magic number.
     const box = { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
     if (box.width > 0 && box.height > 0) {
-      renderBoard(line, game.hand?.board ?? null, { box });
+      renderBoard(line, displayBoard, { box });
     }
   });
   if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
@@ -700,12 +705,19 @@ function partnerHandPanel(tiles: string[]): HTMLElement {
 
 function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
-  panel.append(el('div', 'eyebrow', game.isMyTurn() ? 'Your play' : 'Your hand'));
-  const legal = game.legalMovesForMe();
+  // predictedMyTiles set means a move was just tapped and hasn't been
+  // confirmed by the server yet — game.hand.turn is still stale at this
+  // point (the real update hasn't arrived), so legalMovesForMe() would
+  // otherwise happily offer a second move before the first one has even
+  // been processed. Freeze the hand — plain tiles, no chooser, no Pass —
+  // until the real state lands and clears the prediction.
+  const pending = game.predictedMyTiles !== null;
+  panel.append(el('div', 'eyebrow', pending ? 'Sending…' : (game.isMyTurn() ? 'Your play' : 'Your hand')));
+  const legal = pending ? [] : game.legalMovesForMe();
   const playable = new Set(legal.flatMap((m) => ('tile' in m ? [m.tile] : [])));
   const hand = el('div', 'hand');
 
-  for (const tile of game.myTiles) {
+  for (const tile of game.predictedMyTiles ?? game.myTiles) {
     const node = tileEl(tile);
     const can = playable.has(tile);
     node.classList.add(can ? 'playable' : 'dead');
