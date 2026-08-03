@@ -417,11 +417,32 @@ export function liveTableView(
   const feltSlot = el('div', 'felt-slot');
   const felt = el('div', 'table-felt');
   const line = el('div', 'line');
-  renderBoard(line, game.hand?.board ?? null);
+  renderBoard(line, game.hand?.board ?? null); // first pass: feltBox()'s window-based guess
   felt.appendChild(line);
   feltSlot.appendChild(felt);
+  // The felt isn't attached to the document yet at this point in the build,
+  // so getBoundingClientRect() would read all zeros here — wait a frame for
+  // real layout, then re-render against the real box if it differs from the
+  // first guess. Matches this codebase's existing pattern for "needs the
+  // real DOM after attach" (chat auto-scroll, the countdown timer).
+  requestAnimationFrame(() => {
+    // -32 matches CHROME_X/CHROME_Y's existing padding-subtraction
+    // convention (felt padding + line padding), not a new magic number.
+    const box = { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
+    if (box.width > 0 && box.height > 0) {
+      renderBoard(line, game.hand?.board ?? null, { box });
+    }
+  });
   if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
     feltSlot.appendChild(countdown(game, game.hand.turn_expires_at, rerender));
+  }
+  // Docked directly under the felt so the board and the player's own hand
+  // are always visible together — this used to be a separate panel
+  // appended after .table-room closed, which pushed it below the fold.
+  // Same guards as the old call site: only a seated player with a dealt
+  // hand gets one.
+  if (!game.isSpectator && game.hand) {
+    feltSlot.appendChild(myHandPanel(game, rerender));
   }
   cross.appendChild(feltSlot);
 
@@ -485,7 +506,6 @@ export function liveTableView(
       // non-interactive, labelled — the panel is information you may act on,
       // not a hand you play. Missing from every other mode by construction.
       if (game.partnerTiles) frag.appendChild(partnerHandPanel(game.partnerTiles));
-      frag.appendChild(myHandPanel(game, rerender));
     }
 
     if (game.hand.status !== 'active' && game.hand.result) {
