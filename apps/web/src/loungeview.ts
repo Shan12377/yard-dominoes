@@ -19,7 +19,7 @@ import type {
   Bredrin, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
   PublicProfile,
 } from './lounges.ts';
-import { profilePanel, avatarImg, clearProfileError } from './profile.ts';
+import { profilePanel, avatarImg, timeAgo } from './profile.ts';
 import {
   ensureSignedIn, findActiveSeat, videoSessionCall, turnCredentialsCall,
   secureAccount, signInWithPassword, isAnonymousUser,
@@ -30,8 +30,6 @@ import { el } from './render.ts';
 import { canSpeak, joinVoice } from './voice.ts';
 import type { VoiceRoom } from './voice.ts';
 import { canShowVideo, joinVideo, CAMERA_TRACK_NAME } from './video.ts';
-import { fileReport, listReports, resolveReport, dismissReport, listAdmins, grantAdmin, revokeAdmin } from './reports.ts';
-import type { Report, Admin } from './reports.ts';
 import { photoUrl, uploadMyPhoto, removeMyPhoto } from './photo.ts';
 import type { VideoRoom, RemotePeer } from './video.ts';
 import { loadTournament, stopTournamentClock, tournamentPanel } from './tournamentview.ts';
@@ -553,13 +551,6 @@ export function originBadge(origin: Origin): HTMLElement {
   return el('span', `badge origin-${origin}`, ORIGIN_LABEL[origin]);
 }
 
-// -------------------------------------------------------------- profile --
-// Editing itself (photo, name, origin, location, gender, avatar, backdrop)
-// moved to profile.ts so the live table's own account tab can reuse it —
-// see that file's header for why. This flag stays here: it's the toggle
-// on the "Edit profile" button below, which the panel itself doesn't own.
-let profileOpen = false;
-
 // ------------------------------------------------------- player profile --
 // A read-only card for someone ELSE's profile, opened by tapping their name
 // in a lounge roster. "Online now" only ever means "present in this same
@@ -700,17 +691,6 @@ function loadBredrins(rerender: () => void) {
     .finally(() => { bredrinsLoading = false; rerender(); });
 }
 
-/** Roughly how long ago, for a last-seen line — a coarse grain is the useful
- *  one here, not a live-ticking clock. */
-function timeAgo(iso: string): string {
-  const mins = Math.floor((Date.now() - Date.parse(iso)) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 /**
  * "Know where your people are" — JamDom's own most-praised VIP feature
  * (docs/superpowers/plans/2026-07-31-source-audit-and-followups.md §6). The
@@ -771,176 +751,10 @@ function bredrinsPanel(me: MyProfile, rerender: () => void): HTMLElement {
   return panel;
 }
 
-// -------------------------------------------------------------- reports --
-// Admin-only review queue. The report button itself lives at the table
-// (onlinetableview.ts) — this is the other end of the terms of service's
-// "There is a report button — use it, and we will look" promise, which
-// had no way to actually look until now.
-let reportsOpen = false;
-let reportsList: Report[] | null = null;
-let reportsLoading = false;
-let reportsError: string | null = null;
-let reportsBusy = false;
-
-function loadReports(rerender: () => void) {
-  reportsLoading = true;
-  reportsError = null;
-  rerender();
-  void listReports()
-    .then((list) => { reportsList = list; })
-    .catch((err) => { reportsError = err instanceof Error ? err.message : 'could not load'; })
-    .finally(() => { reportsLoading = false; rerender(); });
-}
-
-// Who else can review reports. A grant/revoke UI so is_admin stops being a
-// SQL-only knob — the entire reason to build report-admin's grant-admin/
-// revoke-admin actions was to get this out of "ask someone to run a query."
-let adminsList: Admin[] | null = null;
-let adminsLoading = false;
-let adminsError: string | null = null;
-let adminsBusy = false;
-let grantUsername = '';
-
-function loadAdmins(rerender: () => void) {
-  adminsLoading = true;
-  adminsError = null;
-  rerender();
-  void listAdmins()
-    .then((list) => { adminsList = list; })
-    .catch((err) => { adminsError = err instanceof Error ? err.message : 'could not load'; })
-    .finally(() => { adminsLoading = false; rerender(); });
-}
-
-function adminsSection(rerender: () => void): HTMLElement {
-  const section = el('div', 'stack');
-  section.append(el('h3', undefined, 'Admins'));
-
-  if (adminsError) section.append(el('div', 'banner small', adminsError));
-
-  if (adminsLoading && !adminsList) {
-    section.append(el('p', 'muted small', 'Loading…'));
-    return section;
-  }
-
-  const list = el('div', 'roster');
-  for (const a of adminsList ?? []) {
-    const line = el('div', 'person');
-    line.append(el('span', undefined, a.username));
-    const remove = document.createElement('button');
-    remove.className = 'dismiss';
-    remove.textContent = 'Remove';
-    remove.disabled = adminsBusy;
-    remove.onclick = () => void (async () => {
-      adminsBusy = true;
-      adminsError = null;
-      rerender();
-      try {
-        await revokeAdmin(a.id);
-        adminsList = (adminsList ?? []).filter((x) => x.id !== a.id);
-      } catch (err) {
-        adminsError = err instanceof Error ? err.message : 'could not remove';
-      } finally {
-        adminsBusy = false;
-        rerender();
-      }
-    })();
-    line.appendChild(remove);
-    list.appendChild(line);
-  }
-  section.appendChild(list);
-
-  const form = el('div', 'row');
-  const input = document.createElement('input');
-  input.placeholder = 'username';
-  input.value = grantUsername;
-  input.oninput = () => { grantUsername = input.value; };
-  form.appendChild(input);
-
-  const add = document.createElement('button');
-  add.className = 'act small';
-  add.textContent = adminsBusy ? 'Adding…' : 'Make admin';
-  add.disabled = adminsBusy;
-  add.onclick = () => void (async () => {
-    const username = grantUsername.trim();
-    if (!username) return;
-    adminsBusy = true;
-    adminsError = null;
-    rerender();
-    try {
-      const result = await grantAdmin(username);
-      grantUsername = '';
-      if (!result.already) {
-        adminsList = [...(adminsList ?? []), { id: '', username: result.username }]
-          .sort((x, y) => x.username.localeCompare(y.username));
-        // The temporary id is fine here — the next loadAdmins() (panel
-        // reopen) replaces it with the real one; Remove just isn't wired
-        // for this row until then.
-      }
-    } catch (err) {
-      adminsError = err instanceof Error ? err.message : 'could not add';
-    } finally {
-      adminsBusy = false;
-      rerender();
-    }
-  })();
-  form.appendChild(add);
-  section.appendChild(form);
-
-  return section;
-}
-
-function reportsPanel(rerender: () => void): HTMLElement {
-  const panel = el('div', 'panel');
-  panel.append(el('div', 'eyebrow', 'Admin'));
-  panel.append(el('h2', undefined, 'Reports'));
-
-  if (reportsError) panel.append(el('div', 'banner', reportsError));
-
-  if (reportsLoading && !reportsList) {
-    panel.append(el('p', 'muted', 'Loading…'));
-  } else {
-    const open = (reportsList ?? []).filter((r) => r.status === 'open');
-    if (open.length === 0) {
-      panel.append(el('p', 'muted', 'Nothing open.'));
-    } else {
-      const list = el('div', 'roster');
-      for (const r of open) {
-        const line = el('div', 'person');
-        const who = `${r.reporter?.username ?? 'someone'} reported ${r.reported?.username ?? 'someone'}`;
-        line.append(el('span', undefined, who));
-        line.append(el('p', 'muted small', r.reason));
-        line.append(el('span', 'muted small', timeAgo(r.created_at)));
-
-        const act = (label: string, fn: (id: string) => Promise<unknown>) => {
-          const b = document.createElement('button');
-          b.className = 'dismiss';
-          b.textContent = label;
-          b.disabled = reportsBusy;
-          b.onclick = () => void (async () => {
-            reportsBusy = true;
-            rerender();
-            try {
-              await fn(r.id);
-              reportsList = (reportsList ?? []).map((x) => x.id === r.id ? { ...x, status: label === 'Resolve' ? 'resolved' as const : 'dismissed' as const } : x);
-            } catch (err) {
-              reportsError = err instanceof Error ? err.message : 'could not update';
-            } finally {
-              reportsBusy = false;
-              rerender();
-            }
-          })();
-          return b;
-        };
-        line.append(act('Resolve', resolveReport), act('Dismiss', dismissReport));
-        list.appendChild(line);
-      }
-      panel.appendChild(list);
-    }
-  }
-
-  panel.appendChild(adminsSection(rerender));
-  return panel;
-}
+// Reports and admin management moved to profile.ts's adminSection — the
+// profile is now the one place reachable from the lounge, the live table,
+// and Membership alike, so that's where admin tools live too. See that
+// file's header comment for why the old header-button home didn't work.
 
 // ---------------------------------------------------------------- coins --
 // Balance and purchase now live in profilePanel (profile.ts) — this is only
@@ -1143,7 +957,7 @@ function accountPanel(rerender: () => void): HTMLElement {
 }
 
 // ----------------------------------------------------------- lounge list --
-function loungeList(rerender: () => void): DocumentFragment {
+function loungeList(rerender: () => void, goToMembership: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
   const me = loungeState.me;
   const myTier: Tier = me?.tier ?? 'guest';
@@ -1154,92 +968,26 @@ function loungeList(rerender: () => void): DocumentFragment {
   head.append(el('p', 'muted',
     'Every lounge is a room with people in it — talk, watch, and take a seat ' +
     'when one opens. You keep your rank wherever you play.'));
+  // Signed-in status only, no editing here — people arrive at Lounges ready
+  // to play, not to fill out a form. Profile, coins, account security, and
+  // (for admins) reports all live under Membership now, one tap away.
   if (me) {
     const you = el('div', 'row');
     you.append(el('span', 'muted', `Signed in as ${me.username}`), tierBadge(me.tier));
     if (me.origin) you.append(originBadge(me.origin));
-    const edit = document.createElement('button');
-    edit.className = 'act ghost small';
-    edit.textContent = profileOpen ? 'Done' : 'Edit profile';
-    edit.onclick = () => { profileOpen = !profileOpen; clearProfileError(); rerender(); };
-    you.append(edit);
-    const bredrinsBtn = document.createElement('button');
-    bredrinsBtn.className = 'act ghost small';
-    bredrinsBtn.textContent = bredrinsOpen ? 'Done' : 'Bredrins';
-    bredrinsBtn.onclick = () => {
-      bredrinsOpen = !bredrinsOpen;
-      if (bredrinsOpen && me.tier === 'vip' && !bredrinsList) loadBredrins(rerender);
-      rerender();
-    };
-    you.append(bredrinsBtn);
-    if (me.isAdmin) {
-      const reportsBtn = document.createElement('button');
-      reportsBtn.className = 'act ghost small';
-      reportsBtn.textContent = reportsOpen ? 'Done' : 'Reports';
-      reportsBtn.onclick = () => {
-        reportsOpen = !reportsOpen;
-        if (reportsOpen && !reportsList) loadReports(rerender);
-        if (reportsOpen && !adminsList) loadAdmins(rerender);
-        rerender();
-      };
-      you.append(reportsBtn);
-    }
-    // Two entry points act like tabs onto the same panel — opening one while
-    // the other's mode is showing switches mode rather than closing it;
-    // only clicking the currently-active one closes the panel.
-    const openAccount = (mode: 'secure' | 'signin') => {
-      const alreadyActive = accountOpen && accountMode === mode;
-      accountOpen = !alreadyActive;
-      accountMode = mode;
-      accountError = null;
-      accountMessage = null;
-      rerender();
-    };
-    const defaultMode = loungeState.isAnonymous ? 'secure' : 'signin';
-    const accountBtn = document.createElement('button');
-    accountBtn.className = 'act ghost small';
-    accountBtn.textContent = (accountOpen && accountMode === defaultMode)
-      ? 'Done'
-      : (loungeState.isAnonymous ? 'Secure account' : 'Account');
-    accountBtn.onclick = () => openAccount(defaultMode);
-    you.append(accountBtn);
-    // A fresh browser always lands on a brand-new guest session — "Sign in"
-    // to an account secured elsewhere was previously reachable only by
-    // opening "Secure account" first and finding a toggle link buried
-    // inside it. A player who already knows they have an account and just
-    // wants back in should see that option up front, not one layer deep.
-    if (loungeState.isAnonymous) {
-      const signInBtn = document.createElement('button');
-      signInBtn.className = 'act ghost small';
-      signInBtn.textContent = (accountOpen && accountMode === 'signin') ? 'Done' : 'Sign in';
-      signInBtn.onclick = () => openAccount('signin');
-      you.append(signInBtn);
-    }
+    const manage = document.createElement('button');
+    manage.className = 'act ghost small';
+    manage.textContent = 'Manage account';
+    manage.onclick = () => goToMembership();
+    you.append(manage);
     head.append(you);
-    // "i am vip, where do i upload pic?" — the photo lives inside Edit
-    // profile, same panel as name/origin/avatar, with nothing on this
-    // screen pointing there first. One line is enough; it isn't worth a
-    // banner for something that's one tap away once you know where to look.
-    if (myTier !== 'guest' && !profileOpen) {
-      head.append(el('p', 'muted small', 'Add your profile photo under Edit profile.'));
-    }
-    if (loungeState.isAnonymous && !accountOpen) {
+    if (loungeState.isAnonymous) {
       head.append(el('p', 'muted small',
-        'This is a guest session tied to this browser. Secure account keeps it from being '
-        + 'lost, or Sign in if you already secured one elsewhere.'));
+        'This is a guest session tied to this browser. Secure it under Membership so a '
+        + 'cleared browser or a new phone never loses it.'));
     }
   }
   frag.appendChild(head);
-
-  if (me && justUpgradedTier && loungeState.isAnonymous && !accountOpen) {
-    frag.appendChild(upgradePrompt(justUpgradedTier, rerender));
-  }
-  if (me && profileOpen) {
-    frag.appendChild(profilePanel(me, rerender, (fresh) => { loungeState.me = fresh; profileOpen = false; }));
-  }
-  if (me && bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
-  if (me && me.isAdmin && reportsOpen) frag.appendChild(reportsPanel(rerender));
-  if (me && accountOpen) frag.appendChild(accountPanel(rerender));
 
   // Above the lounge cards: the countdown is the thing a player should not be
   // able to miss, and this is the screen they land on.
@@ -1464,7 +1212,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   return frag;
 }
 
-export function loungesView(rerender: () => void): DocumentFragment | HTMLElement {
+export function loungesView(rerender: () => void, goToMembership: () => void): DocumentFragment | HTMLElement {
   if (!loungesAvailable) {
     const frag = document.createDocumentFragment();
     const panel = el('div', 'panel');
@@ -1515,7 +1263,7 @@ export function loungesView(rerender: () => void): DocumentFragment | HTMLElemen
     }));
     return frag;
   }
-  return loungeState.current ? room(loungeState.current, rerender) : loungeList(rerender);
+  return loungeState.current ? room(loungeState.current, rerender) : loungeList(rerender, goToMembership);
 }
 
 // --------------------------------------------------------- membership ----
@@ -1571,5 +1319,72 @@ export function membershipView(rerender: () => void): DocumentFragment {
     'Card payment, active the second it clears. Cancel any time and you keep ' +
     'the year you paid for.'));
   frag.appendChild(note);
+
+  const me = loungeState.me;
+
+  // Right after a Stripe redirect — checkout itself starts from the tier
+  // cards above, so this is where the nudge to secure it belongs, not a
+  // screen the player has to happen to revisit.
+  if (me && justUpgradedTier && loungeState.isAnonymous && !accountOpen) {
+    frag.appendChild(upgradePrompt(justUpgradedTier, rerender));
+  }
+
+  // Everything about the account lives here now: editing who you are,
+  // coins, feedback, and (for admins) reports — one screen, reachable from
+  // Lounges' "Manage account" button and from the live table's You tab.
+  if (me) {
+    frag.appendChild(profilePanel(me, rerender, (fresh) => { loungeState.me = fresh; }));
+  }
+
+  if (me) {
+    const accountHead = el('div', 'row');
+    const openAccount = (mode: 'secure' | 'signin') => {
+      const alreadyActive = accountOpen && accountMode === mode;
+      accountOpen = !alreadyActive;
+      accountMode = mode;
+      accountError = null;
+      accountMessage = null;
+      rerender();
+    };
+    const defaultMode = loungeState.isAnonymous ? 'secure' : 'signin';
+    const accountBtn = document.createElement('button');
+    accountBtn.className = 'act ghost small';
+    accountBtn.textContent = (accountOpen && accountMode === defaultMode)
+      ? 'Done'
+      : (loungeState.isAnonymous ? 'Secure account' : 'Account');
+    accountBtn.onclick = () => openAccount(defaultMode);
+    accountHead.append(accountBtn);
+    // A fresh browser always lands on a brand-new guest session — "Sign in"
+    // to an account secured elsewhere was previously reachable only by
+    // opening "Secure account" first and finding a toggle link buried
+    // inside it. A player who already knows they have an account and just
+    // wants back in should see that option up front, not one layer deep.
+    if (loungeState.isAnonymous) {
+      const signInBtn = document.createElement('button');
+      signInBtn.className = 'act ghost small';
+      signInBtn.textContent = (accountOpen && accountMode === 'signin') ? 'Done' : 'Sign in';
+      signInBtn.onclick = () => openAccount('signin');
+      accountHead.append(signInBtn);
+    }
+    frag.appendChild(accountHead);
+    if (loungeState.isAnonymous && !accountOpen) {
+      frag.appendChild(el('p', 'muted small',
+        'This is a guest session tied to this browser. Secure account keeps it from being '
+        + 'lost, or Sign in if you already secured one elsewhere.'));
+    }
+    if (accountOpen) frag.appendChild(accountPanel(rerender));
+
+    const bredrinsBtn = document.createElement('button');
+    bredrinsBtn.className = 'act ghost small';
+    bredrinsBtn.textContent = bredrinsOpen ? 'Done' : 'Bredrins';
+    bredrinsBtn.onclick = () => {
+      bredrinsOpen = !bredrinsOpen;
+      if (bredrinsOpen && me.tier === 'vip' && !bredrinsList) loadBredrins(rerender);
+      rerender();
+    };
+    frag.appendChild(bredrinsBtn);
+    if (bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
+  }
+
   return frag;
 }

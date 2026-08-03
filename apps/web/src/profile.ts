@@ -16,6 +16,26 @@ import {
   BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl, myCoinBalance, buyCoins, COIN_PACK_LABEL,
 } from './lounges.ts';
 import type { Avatar, Background, Gender, MyProfile, Origin } from './lounges.ts';
+import {
+  listReports, resolveReport, dismissReport, listAdmins, grantAdmin, revokeAdmin,
+} from './reports.ts';
+import type { Report, Admin } from './reports.ts';
+import { sendFeedback, listFeedback, markFeedbackReviewed } from './feedback.ts';
+import type { FeedbackItem } from './feedback.ts';
+
+/** Roughly how long ago, for a last-seen or filed-at line — a coarse grain
+ *  is the useful one here, not a live-ticking clock. Exported: loungeview.ts
+ *  needs this too (bredrin last-seen), and importing it back from there
+ *  would be the same circular-dependency problem this whole module exists
+ *  to avoid — see the file header. */
+export function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - Date.parse(iso)) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
 
 /** The circular portrait worn on a seat. Alt text names the character, not
  *  the filename — a screen reader should hear "gold head-wrap", not "wrap". */
@@ -165,6 +185,304 @@ function coinSection(rerender: () => void): HTMLElement {
   })();
   section.appendChild(buy);
   return section;
+}
+
+// -------------------------------------------------------------- feedback --
+// Send side, open to anyone signed in. Review side lives in adminSection
+// below, gated the same way reports are.
+let feedbackDraft = '';
+let feedbackSending = false;
+let feedbackSent = false;
+let feedbackError: string | null = null;
+
+function feedbackSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('label', 'field-label', 'Feedback'));
+  section.append(el('p', 'muted small',
+    'Something confusing, broken, or missing? This goes straight to the ' +
+    'people building the app, not into a queue nobody reads.'));
+
+  if (feedbackSent) {
+    section.append(el('p', 'muted small', 'Sent — thank you.'));
+    return section;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.rows = 3;
+  textarea.placeholder = 'What happened, or what would help?';
+  textarea.value = feedbackDraft;
+  textarea.oninput = () => { feedbackDraft = textarea.value; };
+  section.appendChild(textarea);
+
+  if (feedbackError) section.append(el('div', 'banner small', feedbackError));
+
+  const send = document.createElement('button');
+  send.type = 'button';
+  send.className = 'act ghost small';
+  send.textContent = feedbackSending ? 'Sending…' : 'Send feedback';
+  send.disabled = feedbackSending;
+  send.onclick = () => void (async () => {
+    feedbackSending = true;
+    feedbackError = null;
+    rerender();
+    try {
+      await sendFeedback(feedbackDraft);
+      feedbackDraft = '';
+      feedbackSent = true;
+    } catch (err) {
+      feedbackError = err instanceof Error ? err.message : 'could not send';
+    } finally {
+      feedbackSending = false;
+      rerender();
+    }
+  })();
+  section.appendChild(send);
+  return section;
+}
+
+// ----------------------------------------------------------------- admin --
+// Reports and feedback review, plus who else can review them — all admin-
+// only, folded into the profile because that's the one place reachable from
+// both the lounge and a live table. The previous home (a header button)
+// only existed in the lounge's top-level list and vanished the moment you
+// stepped into a room or sat at a table — an admin already inside either
+// had no way to find it at all.
+let reportsList: Report[] | null = null;
+let reportsLoading = false;
+let reportsError: string | null = null;
+let reportsBusy = false;
+
+function loadReports(rerender: () => void) {
+  reportsLoading = true;
+  reportsError = null;
+  rerender();
+  void listReports()
+    .then((list) => { reportsList = list; })
+    .catch((err) => { reportsError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { reportsLoading = false; rerender(); });
+}
+
+let feedbackList: FeedbackItem[] | null = null;
+let feedbackLoading = false;
+let feedbackListError: string | null = null;
+let feedbackReviewBusy = false;
+
+function loadFeedbackList(rerender: () => void) {
+  feedbackLoading = true;
+  feedbackListError = null;
+  rerender();
+  void listFeedback()
+    .then((list) => { feedbackList = list; })
+    .catch((err) => { feedbackListError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { feedbackLoading = false; rerender(); });
+}
+
+let adminsList: Admin[] | null = null;
+let adminsLoading = false;
+let adminsError: string | null = null;
+let adminsBusy = false;
+let grantUsername = '';
+
+function loadAdmins(rerender: () => void) {
+  adminsLoading = true;
+  adminsError = null;
+  rerender();
+  void listAdmins()
+    .then((list) => { adminsList = list; })
+    .catch((err) => { adminsError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { adminsLoading = false; rerender(); });
+}
+
+function adminsManageSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('h3', undefined, 'Admins'));
+
+  if (adminsError) section.append(el('div', 'banner small', adminsError));
+
+  if (adminsLoading && !adminsList) {
+    section.append(el('p', 'muted small', 'Loading…'));
+    return section;
+  }
+
+  const list = el('div', 'roster');
+  for (const a of adminsList ?? []) {
+    const line = el('div', 'person');
+    line.append(el('span', undefined, a.username));
+    const remove = document.createElement('button');
+    remove.className = 'dismiss';
+    remove.textContent = 'Remove';
+    remove.disabled = adminsBusy;
+    remove.onclick = () => void (async () => {
+      adminsBusy = true;
+      adminsError = null;
+      rerender();
+      try {
+        await revokeAdmin(a.id);
+        adminsList = (adminsList ?? []).filter((x) => x.id !== a.id);
+      } catch (err) {
+        adminsError = err instanceof Error ? err.message : 'could not remove';
+      } finally {
+        adminsBusy = false;
+        rerender();
+      }
+    })();
+    line.appendChild(remove);
+    list.appendChild(line);
+  }
+  section.appendChild(list);
+
+  const form = el('div', 'row');
+  const input = document.createElement('input');
+  input.placeholder = 'username';
+  input.value = grantUsername;
+  input.oninput = () => { grantUsername = input.value; };
+  form.appendChild(input);
+
+  const add = document.createElement('button');
+  add.className = 'act small';
+  add.textContent = adminsBusy ? 'Adding…' : 'Make admin';
+  add.disabled = adminsBusy;
+  add.onclick = () => void (async () => {
+    const username = grantUsername.trim();
+    if (!username) return;
+    adminsBusy = true;
+    adminsError = null;
+    rerender();
+    try {
+      const result = await grantAdmin(username);
+      grantUsername = '';
+      if (!result.already) {
+        adminsList = [...(adminsList ?? []), { id: '', username: result.username }]
+          .sort((x, y) => x.username.localeCompare(y.username));
+        // The temporary id is fine here — the next loadAdmins() (panel
+        // reopen) replaces it with the real one; Remove just isn't wired
+        // for this row until then.
+      }
+    } catch (err) {
+      adminsError = err instanceof Error ? err.message : 'could not add';
+    } finally {
+      adminsBusy = false;
+      rerender();
+    }
+  })();
+  form.appendChild(add);
+  section.appendChild(form);
+
+  return section;
+}
+
+function reportsSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('h3', undefined, 'Reports'));
+
+  if (reportsError) section.append(el('div', 'banner small', reportsError));
+
+  if (reportsLoading && !reportsList) {
+    section.append(el('p', 'muted small', 'Loading…'));
+    return section;
+  }
+  const open = (reportsList ?? []).filter((r) => r.status === 'open');
+  if (open.length === 0) {
+    section.append(el('p', 'muted small', 'Nothing open.'));
+    return section;
+  }
+  const list = el('div', 'roster');
+  for (const r of open) {
+    const line = el('div', 'person');
+    const who = `${r.reporter?.username ?? 'someone'} reported ${r.reported?.username ?? 'someone'}`;
+    line.append(el('span', undefined, who));
+    line.append(el('p', 'muted small', r.reason));
+    line.append(el('span', 'muted small', timeAgo(r.created_at)));
+
+    const act = (label: string, fn: (id: string) => Promise<unknown>) => {
+      const b = document.createElement('button');
+      b.className = 'dismiss';
+      b.textContent = label;
+      b.disabled = reportsBusy;
+      b.onclick = () => void (async () => {
+        reportsBusy = true;
+        rerender();
+        try {
+          await fn(r.id);
+          reportsList = (reportsList ?? []).map((x) => x.id === r.id
+            ? { ...x, status: label === 'Resolve' ? 'resolved' as const : 'dismissed' as const }
+            : x);
+        } catch (err) {
+          reportsError = err instanceof Error ? err.message : 'could not update';
+        } finally {
+          reportsBusy = false;
+          rerender();
+        }
+      })();
+      return b;
+    };
+    line.append(act('Resolve', resolveReport), act('Dismiss', dismissReport));
+    list.appendChild(line);
+  }
+  section.appendChild(list);
+  return section;
+}
+
+function feedbackReviewSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('h3', undefined, 'Feedback'));
+
+  if (feedbackListError) section.append(el('div', 'banner small', feedbackListError));
+
+  if (feedbackLoading && !feedbackList) {
+    section.append(el('p', 'muted small', 'Loading…'));
+    return section;
+  }
+  const open = (feedbackList ?? []).filter((f) => f.status === 'open');
+  if (open.length === 0) {
+    section.append(el('p', 'muted small', 'Nothing open.'));
+    return section;
+  }
+  const list = el('div', 'roster');
+  for (const f of open) {
+    const line = el('div', 'person');
+    line.append(el('span', undefined, f.sender?.username ?? 'someone'));
+    line.append(el('p', 'muted small', f.message));
+    line.append(el('span', 'muted small', timeAgo(f.created_at)));
+    const mark = document.createElement('button');
+    mark.className = 'dismiss';
+    mark.textContent = 'Reviewed';
+    mark.disabled = feedbackReviewBusy;
+    mark.onclick = () => void (async () => {
+      feedbackReviewBusy = true;
+      rerender();
+      try {
+        await markFeedbackReviewed(f.id);
+        feedbackList = (feedbackList ?? []).map((x) => x.id === f.id ? { ...x, status: 'reviewed' as const } : x);
+      } catch (err) {
+        feedbackListError = err instanceof Error ? err.message : 'could not update';
+      } finally {
+        feedbackReviewBusy = false;
+        rerender();
+      }
+    })();
+    line.appendChild(mark);
+    list.appendChild(line);
+  }
+  section.appendChild(list);
+  return section;
+}
+
+let adminDataLoaded = false;
+
+function adminSection(rerender: () => void): HTMLElement {
+  if (!adminDataLoaded) {
+    adminDataLoaded = true;
+    loadReports(rerender);
+    loadFeedbackList(rerender);
+    loadAdmins(rerender);
+  }
+  const wrap = el('div', 'stack');
+  wrap.append(el('h3', undefined, 'Admin'));
+  wrap.appendChild(reportsSection(rerender));
+  wrap.appendChild(feedbackReviewSection(rerender));
+  wrap.appendChild(adminsManageSection(rerender));
+  return wrap;
 }
 
 // --------------------------------------------------------------- profile --
@@ -317,6 +635,10 @@ export function profilePanel(
     }
   })();
   panel.appendChild(save);
+
+  panel.appendChild(feedbackSection(rerender));
+  if (me.isAdmin) panel.appendChild(adminSection(rerender));
+
   return panel;
 }
 

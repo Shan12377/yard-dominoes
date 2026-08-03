@@ -1305,7 +1305,9 @@ function render() {
     } else if (!allowed) {
       app.appendChild(tooYoungView(() => { view = 'play'; render(); }));
     } else {
-      app.appendChild(loungeModule ? loungeModule.loungesView(render) : pending('Opening the lounges'));
+      app.appendChild(loungeModule
+        ? loungeModule.loungesView(render, () => { view = 'membership'; render(); })
+        : pending('Opening the lounges'));
     }
   } else if (view === 'terms') {
     app.appendChild(termsView());
