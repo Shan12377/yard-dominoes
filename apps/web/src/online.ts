@@ -139,6 +139,11 @@ export const playMove = (handId: string, move: Move) =>
 export const requestReview = (handId: string) =>
   call<{ review: unknown; accuracy: number }>('review-hand', { handId });
 
+/** 2 coins for every seat's starting tiles on a finished hand — see
+ *  reveal-hand's own header for what this adds beyond the free replay. */
+export const revealHand = (handId: string) =>
+  call<{ ok: true; deal: TileId[][] }>('reveal-hand', { handId });
+
 /** video.ts is injected this rather than importing online.ts directly, so
  *  it has no Supabase client dependency of its own. */
 export const videoSessionCall = (action: string, body: Record<string, unknown>) =>

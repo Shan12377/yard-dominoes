@@ -760,6 +760,42 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   return panel;
 }
 
+/**
+ * The 2-coin "show the hand" purchase — every seat's starting tiles, which
+ * the free share-link replay deliberately never includes. See
+ * OnlineGame.reveal() / revealedDeal for the state machine and
+ * reveal-hand's own header for why this differs from the already-free
+ * move-by-move replay rather than paywalling it.
+ */
+function revealSection(game: OnlineGame): HTMLElement {
+  const wrap = el('div', 'reveal');
+  const partnered = isPartnered(game.table.mode);
+
+  if (game.revealedDeal) {
+    for (let seat = 0; seat < game.revealedDeal.length; seat++) {
+      const row = el('div', 'reveal-hand');
+      row.append(el('span', 'muted', describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide)));
+      const tiles = el('div', 'hand');
+      for (const tile of game.revealedDeal[seat]) {
+        const t = tileEl(tile);
+        t.classList.add('sm');
+        tiles.appendChild(t);
+      }
+      row.appendChild(tiles);
+      wrap.appendChild(row);
+    }
+    return wrap;
+  }
+
+  const button = document.createElement('button');
+  button.className = 'act ghost';
+  button.textContent = game.revealPending ? 'Revealing…' : 'Show the hand — 2 coins';
+  button.disabled = game.revealPending;
+  button.onclick = () => void game.reveal();
+  wrap.appendChild(button);
+  return wrap;
+}
+
 function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
   const r = game.hand!.result as any;
@@ -788,6 +824,7 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     heading = 'Hand over';
   }
   panel.append(el('h2', undefined, heading));
+  panel.appendChild(revealSection(game));
 
   if (game.canChoosePose()) {
     const row = el('div', 'row');

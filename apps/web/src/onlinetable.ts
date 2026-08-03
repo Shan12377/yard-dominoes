@@ -10,7 +10,8 @@
 
 import {
   supabase, startHand as apiStartHand, playMove as apiPlayMove, passPose as apiPassPose,
-  leaveSeat as apiLeaveSeat, watchTable, ConflictError, type PublicHand, type TableSubscription,
+  leaveSeat as apiLeaveSeat, watchTable, ConflictError, revealHand as apiRevealHand,
+  type PublicHand, type TableSubscription,
 } from './online.ts';
 import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
@@ -90,6 +91,16 @@ export class OnlineGame {
    * than an accidental peek.
    */
   partnerTiles: TileId[] | null = null;
+
+  /**
+   * Every seat's starting tiles for the just-finished hand, bought with
+   * `reveal()` for 2 coins — the one thing the free share-link replay
+   * deliberately never shows (see replay.ts). Cleared the moment a new
+   * hand begins (a fresh hand_id in onPublic), not on every board update,
+   * so it survives whatever else changes about the current hand's row.
+   */
+  revealedDeal: TileId[][] | null = null;
+  revealPending = false;
 
   scores: number[] = [];
   handValue = 1;
@@ -317,6 +328,7 @@ export class OnlineGame {
           // that, it did not just happen.
           sfx.play('shuffle');
         }
+        if (!prev || hand.hand_id !== prev.hand_id) this.revealedDeal = null;
         this.hand = hand;
         // Real data has arrived — whatever was predicted in play() is either
         // already confirmed by this or superseded by it, either way this is
@@ -496,6 +508,22 @@ export class OnlineGame {
       this.predictedMyTiles = null;
       if (err instanceof ConflictError) { await this.refetchHand(); return; }
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'move failed' });
+      this.emit({ type: 'state' });
+    }
+  }
+
+  /** 2 coins, once per finished hand — see revealedDeal's own comment. */
+  async reveal(): Promise<void> {
+    if (!this.hand || this.revealPending || this.revealedDeal) return;
+    this.revealPending = true;
+    this.emit({ type: 'state' });
+    try {
+      const { deal } = await apiRevealHand(this.hand.hand_id);
+      this.revealedDeal = deal;
+    } catch (err) {
+      this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not reveal the hand' });
+    } finally {
+      this.revealPending = false;
       this.emit({ type: 'state' });
     }
   }

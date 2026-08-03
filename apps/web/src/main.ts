@@ -62,6 +62,34 @@ async function ensureLoungeModule(isBootCheck = false) {
     render();
   }
 }
+/**
+ * Site-wide hands-played tally, shown on the hero once the count is high
+ * enough to read as momentum rather than an empty room. A raw PostgREST
+ * fetch — not the Supabase client — because the offline bundle must stay
+ * small and this is the only online.ts-touching thing on the whole page.
+ */
+const SITE_STATS_MIN_TO_SHOW = 500;
+let siteHandsPlayed: number | null = null;
+let siteHandsFetched = false;
+
+async function fetchSiteHandsPlayed() {
+  if (siteHandsFetched) return;
+  siteHandsFetched = true;
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  if (!url || !anon) return;
+  try {
+    const res = await fetch(`${url}/rest/v1/site_stats?id=eq.1&select=total_hands_played`, {
+      headers: { apikey: anon, Authorization: `Bearer ${anon}` },
+    });
+    if (!res.ok) return;
+    const rows = await res.json() as { total_hands_played: number }[];
+    if (rows[0]) { siteHandsPlayed = rows[0].total_hands_played; render(); }
+  } catch {
+    // Social proof, not critical — the hero reads fine without it.
+  }
+}
+
 let view: View = 'play';
 let game: LocalGame | null = null;
 let review: HandReview | null = null;
@@ -392,6 +420,12 @@ function hero(): HTMLElement {
     'playing — a deal you can verify, free.'));
   copy.append(el('p', 'hero-claim',
     'And when the hand is done, it shows you the move you missed.'));
+
+  void fetchSiteHandsPlayed();
+  if (siteHandsPlayed !== null && siteHandsPlayed >= SITE_STATS_MIN_TO_SHOW) {
+    copy.append(el('p', 'hero-tally',
+      `${siteHandsPlayed.toLocaleString()} hands played and counting.`));
+  }
 
   const row = el('div', 'row');
   const deal = document.createElement('button');
