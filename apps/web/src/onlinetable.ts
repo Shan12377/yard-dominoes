@@ -57,6 +57,10 @@ export interface SeatInfo {
   duppyLevel: string | null;
   /** Unspent seconds this seat carries into its next turn. Server-owned. */
   timeBank: number;
+  /** rating_partner or rating_cutthroat, whichever this table's mode uses. Null for a duppy. */
+  rating: number | null;
+  /** Lifetime average, from profiles.total_move_ms / total_moves — not this hand's pace. Null with no moves recorded yet. */
+  avgMoveMs: number | null;
 }
 
 export type OnlineEvent = { type: 'state' } | { type: 'error'; message: string };
@@ -251,7 +255,8 @@ export class OnlineGame {
    */
   private names = new Map<string, {
     username: string; origin: string | null; avatar: string | null;
-    background: string | null; fetchedAt: number;
+    background: string | null; rating: number | null; avgMoveMs: number | null;
+    fetchedAt: number;
   }>();
 
   private applySeats(rows: any[]) {
@@ -262,6 +267,8 @@ export class OnlineGame {
       origin: s.user_id ? this.names.get(s.user_id)?.origin ?? null : null,
       avatar: s.user_id ? this.names.get(s.user_id)?.avatar ?? null : null,
       background: s.user_id ? this.names.get(s.user_id)?.background ?? null : null,
+      rating: s.user_id ? this.names.get(s.user_id)?.rating ?? null : null,
+      avgMoveMs: s.user_id ? this.names.get(s.user_id)?.avgMoveMs ?? null : null,
       duppyLevel: s.duppy_level,
       timeBank: s.time_bank ?? 0,
     }));
@@ -281,21 +288,30 @@ export class OnlineGame {
     const now = Date.now();
     const due = staleUserIds(this.seats.map((s) => s.userId), this.names, now);
     if (due.length === 0) return;
-    const { data } = await db().from('profiles').select('id, username, origin, avatar, background').in('id', due);
+    const ratingColumn = this.ratingColumn();
+    const { data } = await db().from('profiles')
+      .select(`id, username, origin, avatar, background, total_move_ms, total_moves, ${ratingColumn}`)
+      .in('id', due);
     if (!data?.length) return;
     for (const row of data) {
+      const totalMoves = (row.total_moves ?? 0) as number;
       this.names.set(row.id as string, {
         username: row.username as string,
         origin: (row.origin ?? null) as string | null,
         avatar: (row.avatar ?? null) as string | null,
         background: (row.background ?? null) as string | null,
+        rating: ((row as any)[ratingColumn] ?? null) as number | null,
+        avgMoveMs: totalMoves > 0 ? (row.total_move_ms as number) / totalMoves : null,
         fetchedAt: now,
       });
     }
     this.seats = this.seats.map((s) => {
       const known = s.userId ? this.names.get(s.userId) : undefined;
       return known
-        ? { ...s, username: known.username, origin: known.origin, avatar: known.avatar, background: known.background }
+        ? {
+            ...s, username: known.username, origin: known.origin, avatar: known.avatar,
+            background: known.background, rating: known.rating, avgMoveMs: known.avgMoveMs,
+          }
         : s;
     });
     this.emit({ type: 'state' });

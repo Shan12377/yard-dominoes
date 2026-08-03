@@ -10,16 +10,16 @@ import {
   listLounges, myProfile, canEnter, recentMessages, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
-  saveProfile, ORIGIN_LABEL, AVATARS, AVATAR_LABEL, avatarUrl,
-  BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl,
+  ORIGIN_LABEL,
   addBredrin, removeBredrin, whereAreMyBredrins,
   MIN_GIFT_COINS, COIN_PACK_LABEL, myCoinBalance, buyCoins, giftCoins,
   fetchPublicProfile,
 } from './lounges.ts';
 import type {
-  Avatar, Background, Bredrin, Gender, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
+  Bredrin, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
   PublicProfile,
 } from './lounges.ts';
+import { profilePanel, avatarImg, clearProfileError } from './profile.ts';
 import {
   ensureSignedIn, findActiveSeat, videoSessionCall, turnCredentialsCall,
   secureAccount, signInWithPassword, isAnonymousUser,
@@ -553,293 +553,12 @@ export function originBadge(origin: Origin): HTMLElement {
   return el('span', `badge origin-${origin}`, ORIGIN_LABEL[origin]);
 }
 
-/** The circular portrait worn on a seat. Alt text names the character, not
- *  the filename — a screen reader should hear "gold head-wrap", not "wrap". */
-export function avatarImg(avatar: Avatar, alt = ''): HTMLImageElement {
-  const img = document.createElement('img');
-  img.className = 'avatar';
-  img.src = avatarUrl(avatar);
-  img.alt = alt;
-  img.width = 32;
-  img.height = 32;
-  return img;
-}
-
 // -------------------------------------------------------------- profile --
+// Editing itself (photo, name, origin, location, gender, avatar, backdrop)
+// moved to profile.ts so the live table's own account tab can reuse it —
+// see that file's header for why. This flag stays here: it's the toggle
+// on the "Edit profile" button below, which the panel itself doesn't own.
 let profileOpen = false;
-let profileError: string | null = null;
-let profileSaving = false;
-
-/**
- * The first place in this app a player has ever been able to change anything
- * about themselves. Until now `profiles.username` was assigned at sign-up and
- * `flag` had sat unwritten since the very first migration.
- *
- * Three fields, and two of them are optional on purpose. "Did not say" is a
- * real answer to both where you play from and what to call you, so neither
- * question has a default and neither is ever inferred — not from a name, not
- * from a voice, not from an IP.
- */
-// ----------------------------------------------------------------- photo --
-// "Rank badge and profile photo" has been sold in TIER_PITCH.yardie since
-// lounges.ts existed, with nothing to upload one until now. Live the moment
-// it uploads, no review queue — the existing report-a-player flow is the
-// moderation path, same as for any other conduct problem.
-let photoBusy = false;
-let photoError: string | null = null;
-let photoVersion = 0;
-/** null = not yet checked. Set by the preview <img>'s own load/error, since
- *  there is no has_photo column to ask instead — see photo.ts. */
-let photoExists: boolean | null = null;
-
-function photoSection(me: MyProfile, rerender: () => void): HTMLElement {
-  const section = el('div', 'stack');
-  section.append(el('label', 'field-label', 'Profile photo (optional)'));
-
-  if (me.tier === 'guest') {
-    section.append(el('p', 'muted small',
-      `A real photo instead of a preset character — part of Yardie, ${TIER_PITCH.yardie.price}.`));
-    return section;
-  }
-
-  section.append(el('p', 'muted small',
-    'Shown wherever your seat card is, live the moment you upload it. The ' +
-    'report button is the safety net if someone puts up something bad.'));
-
-  if (photoError) section.append(el('div', 'banner small', photoError));
-
-  const img = document.createElement('img');
-  img.className = 'photo-preview';
-  img.alt = '';
-  img.width = 96;
-  img.height = 96;
-  img.src = `${photoUrl(me.id)}?v=${photoVersion}`;
-  img.onload = () => { if (photoExists !== true) { photoExists = true; rerender(); } };
-  img.onerror = () => {
-    img.style.display = 'none';
-    if (photoExists !== false) { photoExists = false; rerender(); }
-  };
-  section.appendChild(img);
-
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.style.display = 'none';
-  input.onchange = () => void (async () => {
-    const file = input.files?.[0];
-    if (!file) return;
-    photoBusy = true;
-    photoError = null;
-    rerender();
-    try {
-      await uploadMyPhoto(file);
-      photoVersion += 1;
-      photoExists = true;
-    } catch (err) {
-      photoError = err instanceof Error ? err.message : 'could not upload';
-    } finally {
-      photoBusy = false;
-      rerender();
-    }
-  })();
-
-  const pick = document.createElement('button');
-  pick.type = 'button';
-  pick.className = 'act ghost small';
-  pick.textContent = photoBusy ? 'Uploading…' : 'Upload photo';
-  pick.disabled = photoBusy;
-  pick.onclick = () => input.click();
-
-  const row = el('div', 'row');
-  row.append(pick, input);
-
-  if (photoExists) {
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'act ghost small';
-    remove.textContent = 'Remove';
-    remove.disabled = photoBusy;
-    remove.onclick = () => void (async () => {
-      photoBusy = true;
-      photoError = null;
-      rerender();
-      try {
-        await removeMyPhoto();
-        photoVersion += 1;
-        photoExists = false;
-      } catch (err) {
-        photoError = err instanceof Error ? err.message : 'could not remove';
-      } finally {
-        photoBusy = false;
-        rerender();
-      }
-    })();
-    row.appendChild(remove);
-  }
-
-  section.appendChild(row);
-  return section;
-}
-
-function profilePanel(me: MyProfile, rerender: () => void): HTMLElement {
-  const panel = el('div', 'panel');
-  panel.append(el('div', 'eyebrow', 'Your profile'));
-  panel.append(el('h2', undefined, 'Who yuh be'));
-
-  panel.appendChild(photoSection(me, rerender));
-
-  const name = document.createElement('input');
-  name.className = 'field';
-  name.value = me.username;
-  name.maxLength = 24;
-  name.setAttribute('aria-label', 'Your name');
-  panel.append(el('label', 'field-label', 'Name'), name);
-
-  panel.append(el('label', 'field-label', 'Where you play from'));
-  panel.append(el('p', 'muted small',
-    'Yard or foreign — both are Jamaican. Somebody in Brooklyn flying the '
-    + 'flag is still foreign, and that is the point of asking.'));
-  let origin: Origin | null = me.origin;
-  const originRow = choiceRow(
-    [['yardie', 'Yardie'], ['foreign', 'Foreign']],
-    () => origin,
-    (v) => { origin = v as Origin | null; },
-  );
-  panel.appendChild(originRow);
-
-  panel.append(el('label', 'field-label', 'Location (optional)'));
-  panel.append(el('p', 'muted small',
-    'So a bredrin nearby can spot you and link up. Entirely your call — '
-    + 'leave it blank and nobody sees a location on your card.'));
-  const location = document.createElement('input');
-  location.className = 'field';
-  location.value = me.location ?? '';
-  location.maxLength = 60;
-  location.placeholder = 'e.g. Kingston, JA or Brooklyn, NY';
-  location.setAttribute('aria-label', 'Location');
-  panel.append(location);
-
-  panel.append(el('label', 'field-label', 'Call me (optional)'));
-  let gender: Gender | null = me.gender;
-  const genderRow = choiceRow(
-    [['f', 'She'], ['m', 'He']],
-    () => gender,
-    (v) => { gender = v as Gender | null; },
-  );
-  panel.appendChild(genderRow);
-
-  panel.append(el('label', 'field-label', 'Presence (optional)'));
-  panel.append(el('p', 'muted small',
-    'A character for the seat, if you would rather not show your face. '
-    + '"Plain" is presence without one either.'));
-  let avatar: Avatar | null = me.avatar;
-  const avatarCaption = el('p', 'muted small', avatar ? AVATAR_LABEL[avatar] : 'None chosen');
-  const avatarGrid = el('div', 'avatar-grid');
-  const paintAvatars = () => {
-    for (const btn of Array.from(avatarGrid.children) as HTMLButtonElement[]) {
-      btn.setAttribute('aria-pressed', String(btn.dataset.value === avatar));
-    }
-    avatarCaption.textContent = avatar ? AVATAR_LABEL[avatar] : 'None chosen';
-  };
-  for (const id of AVATARS) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'avatar-choice';
-    btn.dataset.value = id;
-    btn.setAttribute('aria-label', AVATAR_LABEL[id]);
-    btn.appendChild(avatarImg(id));
-    btn.onclick = () => { avatar = avatar === id ? null : id; paintAvatars(); };
-    avatarGrid.appendChild(btn);
-  }
-  paintAvatars();
-  panel.append(avatarGrid, avatarCaption);
-
-  panel.append(el('label', 'field-label', 'Seat backdrop (optional)'));
-  panel.append(el('p', 'muted small',
-    'A cosmetic scene worn behind your seat card. Nobody else\'s tiles or '
-    + 'turn get any harder to read — it just sits at the back.'));
-  let background: Background | null = me.background;
-  const backgroundCaption = el('p', 'muted small', background ? BACKGROUND_LABEL[background] : 'None chosen');
-  const backgroundGrid = el('div', 'background-grid');
-  const paintBackgrounds = () => {
-    for (const btn of Array.from(backgroundGrid.children) as HTMLButtonElement[]) {
-      btn.setAttribute('aria-pressed', String(btn.dataset.value === background));
-    }
-    backgroundCaption.textContent = background ? BACKGROUND_LABEL[background] : 'None chosen';
-  };
-  for (const id of BACKGROUNDS) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'background-choice';
-    btn.dataset.value = id;
-    btn.setAttribute('aria-label', BACKGROUND_LABEL[id]);
-    const img = document.createElement('img');
-    img.src = backgroundUrl(id);
-    img.alt = '';
-    img.width = 96;
-    img.height = 64;
-    btn.appendChild(img);
-    btn.onclick = () => { background = background === id ? null : id; paintBackgrounds(); };
-    backgroundGrid.appendChild(btn);
-  }
-  paintBackgrounds();
-  panel.append(backgroundGrid, backgroundCaption);
-
-  if (profileError) panel.append(el('div', 'banner', profileError));
-
-  const save = document.createElement('button');
-  save.className = 'act';
-  save.textContent = profileSaving ? 'Saving…' : 'Save';
-  save.disabled = profileSaving;
-  save.onclick = () => void (async () => {
-    profileSaving = true;
-    profileError = null;
-    rerender();
-    try {
-      await saveProfile({ username: name.value, origin, gender, avatar, background, location: location.value });
-      // Re-read rather than patching the local copy: the server is the only
-      // thing that knows whether the name was actually accepted.
-      loungeState.me = await myProfile();
-      profileOpen = false;
-    } catch (err) {
-      profileError = err instanceof Error ? err.message : 'could not save';
-    } finally {
-      profileSaving = false;
-      rerender();
-    }
-  })();
-  panel.appendChild(save);
-  return panel;
-}
-
-/**
- * A row of choices where picking the one already chosen clears it. That is how
- * an optional question stays answerable with "actually, never mind" — without
- * it, a player who taps "She" by accident can never take it back.
- */
-function choiceRow(
-  options: [string, string][],
-  get: () => string | null,
-  set: (v: string | null) => void,
-): HTMLElement {
-  const row = el('div', 'choices');
-  const paint = () => {
-    for (const b of Array.from(row.children) as HTMLButtonElement[]) {
-      b.setAttribute('aria-pressed', String(b.dataset.value === get()));
-    }
-  };
-  for (const [value, label] of options) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'choice';
-    b.dataset.value = value;
-    b.textContent = label;
-    b.onclick = () => { set(get() === value ? null : value); paint(); };
-    row.appendChild(b);
-  }
-  paint();
-  return row;
-}
 
 // ------------------------------------------------------- player profile --
 // A read-only card for someone ELSE's profile, opened by tapping their name
@@ -1472,7 +1191,7 @@ function loungeList(rerender: () => void): DocumentFragment {
     const edit = document.createElement('button');
     edit.className = 'act ghost small';
     edit.textContent = profileOpen ? 'Done' : 'Edit profile';
-    edit.onclick = () => { profileOpen = !profileOpen; profileError = null; rerender(); };
+    edit.onclick = () => { profileOpen = !profileOpen; clearProfileError(); rerender(); };
     you.append(edit);
     const bredrinsBtn = document.createElement('button');
     bredrinsBtn.className = 'act ghost small';
@@ -1554,7 +1273,9 @@ function loungeList(rerender: () => void): DocumentFragment {
   if (me && justUpgradedTier && loungeState.isAnonymous && !accountOpen) {
     frag.appendChild(upgradePrompt(justUpgradedTier, rerender));
   }
-  if (me && profileOpen) frag.appendChild(profilePanel(me, rerender));
+  if (me && profileOpen) {
+    frag.appendChild(profilePanel(me, rerender, (fresh) => { loungeState.me = fresh; profileOpen = false; }));
+  }
   if (me && bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
   if (me && coinsOpen) frag.appendChild(coinsPanel(rerender));
   if (me && me.isAdmin && reportsOpen) frag.appendChild(reportsPanel(rerender));

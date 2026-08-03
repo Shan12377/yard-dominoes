@@ -7,10 +7,11 @@
 import { OnlineGame } from './onlinetable.ts';
 import type { SeatInfo } from './onlinetable.ts';
 import {
-  listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL, backgroundUrl,
-  type OpenTable, type Avatar, type Background,
+  listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL, backgroundUrl, myProfile,
+  type OpenTable, type Avatar, type Background, type MyProfile,
 } from './lounges.ts';
-import { createTable, joinTable } from './online.ts';
+import { createTable, joinTable, myCoinBalance } from './online.ts';
+import { profilePanel } from './profile.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
@@ -243,7 +244,47 @@ function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSo
 // .table-rail), a phone shows one at a time behind tabs. Module state, not
 // per-render, so the choice survives a re-render the same way reportOpenFor
 // and the chat draft already do.
-let activeRailTab: 'chat' | 'watchers' | 'standings' | 'log' = 'chat';
+let activeRailTab: 'chat' | 'watchers' | 'standings' | 'log' | 'you' = 'chat';
+
+// -------------------------------------------------------------------- you --
+// Coin balance and profile editing, reachable without leaving a live hand —
+// previously only existed in the lounge, so a seated player had no way to
+// check their balance or fix a typo'd name mid-game short of quitting the
+// table. A rail tab, not a modal, so it doesn't run into the no-modal-
+// during-a-live-hand rule.
+let myProfileCache: MyProfile | null = null;
+let myProfileLoading = false;
+let youCoinBalance: number | null = null;
+
+function loadYouPanelData(rerender: () => void) {
+  if (!myProfileCache && !myProfileLoading) {
+    myProfileLoading = true;
+    void myProfile().then((me) => { myProfileCache = me; myProfileLoading = false; rerender(); });
+  }
+  if (youCoinBalance === null) {
+    void myCoinBalance().then((n) => { youCoinBalance = n; rerender(); });
+  }
+}
+
+function youPanel(rerender: () => void): HTMLElement {
+  const wrap = el('div', 'you-wrap');
+  loadYouPanelData(rerender);
+
+  // A separate small panel rather than folding the balance into
+  // profilePanel's own — that panel is shared with the lounge and stays
+  // agnostic of anything table-specific.
+  const coins = el('div', 'panel');
+  coins.append(el('div', 'eyebrow', 'You'));
+  coins.append(el('div', 'coin-balance', youCoinBalance === null ? '…' : `${youCoinBalance} coins`));
+  wrap.appendChild(coins);
+
+  if (myProfileCache) {
+    wrap.appendChild(profilePanel(myProfileCache, rerender, (fresh) => { myProfileCache = fresh; }));
+  } else if (myProfileLoading) {
+    wrap.append(el('p', 'muted small', 'Loading your profile…'));
+  }
+  return wrap;
+}
 
 // ---------------------------------------------------------------- reports --
 // The terms of service promise a report button — this is it. Filing needs a
@@ -357,6 +398,18 @@ function seatCard(
   card.appendChild(who);
   const count = game.hand?.hand_sizes[s.seatIndex] ?? 0;
   card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
+  // Closes a gap CLAUDE.md names by name: rating and pace are the two things
+  // JamDom shows per-seat that we didn't. Rating is the raw number (an
+  // ordinal leaderboard rank needs a real ranked query — separate feature).
+  // Speed is a lifetime average from profiles.total_move_ms/total_moves —
+  // the only pace data that exists without adding new tracking — not this
+  // hand's timing.
+  if (s.userId && (s.rating !== null || s.avgMoveMs !== null)) {
+    const bits: string[] = [];
+    if (s.rating !== null) bits.push(`${s.rating} rated`);
+    if (s.avgMoveMs !== null) bits.push(`avg ${(s.avgMoveMs / 1000).toFixed(1)}s`);
+    card.append(el('div', 'meta seat-stats', bits.join(' · ')));
+  }
   const scoreIndex = isPartnered(game.table.mode) ? sideOf(s.seatIndex, game.table.mode) : s.seatIndex;
   const score = game.scores[scoreIndex] ?? 0;
   card.append(el('div', 'seat-score', String(score)));
@@ -470,6 +523,7 @@ export function liveTableView(
     { id: 'watchers', label: 'Watching' },
     { id: 'standings', label: 'Standings' },
     { id: 'log', label: 'Log' },
+    { id: 'you', label: 'You' },
   ];
   for (const { id, label } of tabDefs) {
     const btn = document.createElement('button');
@@ -499,6 +553,10 @@ export function liveTableView(
   log.classList.add('rail-section', 'rail-section-log');
   log.classList.toggle('rail-section-active', activeRailTab === 'log');
   rail.appendChild(log);
+  const you = youPanel(rerender);
+  you.classList.add('rail-section', 'rail-section-you');
+  you.classList.toggle('rail-section-active', activeRailTab === 'you');
+  rail.appendChild(you);
   room.appendChild(rail);
 
   frag.appendChild(room);

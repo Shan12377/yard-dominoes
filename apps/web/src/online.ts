@@ -144,6 +144,19 @@ export const requestReview = (handId: string) =>
 export const revealHand = (handId: string) =>
   call<{ ok: true; deal: TileId[][] }>('reveal-hand', { handId });
 
+/**
+ * Mirrors lounges.ts's myCoinBalance() — duplicated rather than imported so
+ * the live table's account tab never has to import lounges.ts (which pulls
+ * in loungeview.ts's whole call graph). Same RPC, same zero-on-signed-out
+ * fallback, one extra line of module.
+ */
+export async function myCoinBalance(): Promise<number> {
+  const { data: auth } = await client().auth.getUser();
+  if (!auth.user) return 0;
+  const { data } = await client().rpc('coin_balance', { p_user_id: auth.user.id });
+  return typeof data === 'number' ? data : Number(data ?? 0);
+}
+
 /** video.ts is injected this rather than importing online.ts directly, so
  *  it has no Supabase client dependency of its own. */
 export const videoSessionCall = (action: string, body: Record<string, unknown>) =>
