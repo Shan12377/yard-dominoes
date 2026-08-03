@@ -232,7 +232,13 @@ function chrome(): HTMLElement {
     };
     nav.appendChild(b);
   }
-  bar.append(brand, nav);
+  // Also in the footer (legalFooter()), but nobody thinks to scroll to the
+  // bottom of the page to check whether the app they're already using is
+  // current — same control, reachable from the top too. If checking finds
+  // one, updateBar() (rendered right below this) already carries its own
+  // "Reload now" button, so there's nothing further to hunt for once you've
+  // clicked this.
+  bar.append(brand, nav, checkForUpdateLink());
   return bar;
 }
 
