@@ -34,28 +34,49 @@ export function photoUrl(userId: string): string {
   return db().storage.from(BUCKET).getPublicUrl(pathFor(userId)).data.publicUrl;
 }
 
-/** Center-cropped to a square and downscaled client-side, so a phone's
- *  multi-megabyte original never touches the network or the bucket. */
+/**
+ * Center-cropped to a square and downscaled client-side, so a phone's
+ * multi-megabyte original never touches the network or the bucket.
+ *
+ * Decodes via an <img> element rather than createImageBitmap(): an iPhone's
+ * default camera format is HEIC, and createImageBitmap() has inconsistent
+ * HEIC support in Mobile Safari even though Safari displays HEIC natively
+ * in an <img> — this was a real bug, the raw "source image could not be
+ * decoded" DOMException was leaking straight to the UI uncaught. <img>
+ * decoding also respects the file's EXIF orientation automatically, which
+ * createImageBitmap does not do by default.
+ */
 async function toSquareWebp(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
-  const side = Math.min(bitmap.width, bitmap.height);
-  const sx = (bitmap.width - side) / 2;
-  const sy = (bitmap.height - side) / 2;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = document.createElement('img');
+    img.src = url;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('could not process that image'));
+    });
 
-  const canvas = document.createElement('canvas');
-  canvas.width = SIZE;
-  canvas.height = SIZE;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('could not process that image');
-  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, SIZE, SIZE);
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    const sx = (img.naturalWidth - side) / 2;
+    const sy = (img.naturalHeight - side) / 2;
 
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('could not process that image'))),
-      'image/webp',
-      0.85,
-    );
-  });
+    const canvas = document.createElement('canvas');
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('could not process that image');
+    ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE);
+
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('could not process that image'))),
+        'image/webp',
+        0.85,
+      );
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 /** Rewords the RLS rejection into the actual reason, rather than the raw
