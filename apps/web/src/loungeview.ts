@@ -12,7 +12,7 @@ import {
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
   ORIGIN_LABEL,
   addBredrin, removeBredrin, whereAreMyBredrins,
-  MIN_GIFT_COINS, COIN_PACK_LABEL, myCoinBalance, buyCoins, giftCoins,
+  MIN_GIFT_COINS, giftCoins,
   fetchPublicProfile,
 } from './lounges.ts';
 import type {
@@ -674,6 +674,10 @@ function playerProfileCard(rerender: () => void): HTMLElement {
   }
   panel.appendChild(stats);
 
+  if (loungeState.me && p.id !== loungeState.me.id) {
+    panel.appendChild(giftButton(p.id, rerender));
+  }
+
   return panel;
 }
 
@@ -939,64 +943,30 @@ function reportsPanel(rerender: () => void): HTMLElement {
 }
 
 // ---------------------------------------------------------------- coins --
-// Never cash out — money in, utility only. See lounges.ts's coins section
-// for why that single rule keeps this out of a licensing regime.
-let coinsOpen = false;
-let coinBalance: number | null = null;
-let coinBusy = false;
-let coinError: string | null = null;
+// Balance and purchase now live in profilePanel (profile.ts) — this is only
+// the gift button, which stays here since it's specific to viewing someone
+// ELSE's profile, not your own.
+let giftBusy = false;
 
-function loadCoinBalance(rerender: () => void) {
-  void myCoinBalance().then((n) => { coinBalance = n; rerender(); });
-}
-
-function coinsPanel(rerender: () => void): HTMLElement {
-  const panel = el('div', 'panel');
-  panel.append(el('div', 'eyebrow', 'Coins'));
-  panel.append(el('h2', undefined, 'Yours to spend'));
-  panel.append(el('p', 'muted',
-    'Never cash out — money in, utility only. Buy a bredrin a drink, or ' +
-    'just carry a little weight.'));
-
-  panel.append(el('div', 'coin-balance', coinBalance === null ? '…' : String(coinBalance)));
-
-  if (coinError) panel.append(el('div', 'banner', coinError));
-
-  const buy = document.createElement('button');
-  buy.className = 'act';
-  buy.textContent = coinBusy ? 'Opening checkout…' : `Buy ${COIN_PACK_LABEL}`;
-  buy.disabled = coinBusy;
-  buy.onclick = () => void (async () => {
-    coinBusy = true; coinError = null; rerender();
-    try {
-      window.location.href = await buyCoins();
-    } catch (err) {
-      coinError = err instanceof Error ? err.message : 'checkout unavailable';
-      coinBusy = false;
-      rerender();
-    }
-  })();
-  panel.appendChild(buy);
-  return panel;
-}
-
-/** The "gift N coins" affordance dropped into a roster line, framed the way
- *  the gesture actually reads at a yard table — you buy a bredrin a drink,
- *  you don't "send them coins". No further detail than that: this is one
- *  word doing real work, not a menu of what's in the glass. Fixed at the
- *  floor — a full amount picker is more UI than "pure social flex" needs. */
+/** Framed the way the gesture actually reads at a yard table — you buy a
+ *  bredrin a drink, you don't "send them coins". No further detail than
+ *  that: one word doing real work, not a menu of what's in the glass.
+ *  Fixed at the floor — a full amount picker is more UI than "pure social
+ *  flex" needs. */
 function giftButton(toUserId: string, rerender: () => void): HTMLButtonElement {
   const btn = document.createElement('button');
-  btn.className = 'dismiss';
-  btn.textContent = `Buy a drink — ${MIN_GIFT_COINS} coins`;
-  btn.title = `Buy a drink — ${MIN_GIFT_COINS} coins`;
+  btn.className = 'act ghost small';
+  btn.textContent = giftBusy ? 'Buying…' : `Buy a drink — ${MIN_GIFT_COINS} coins`;
+  btn.disabled = giftBusy;
   btn.onclick = () => void (async () => {
-    btn.disabled = true;
+    giftBusy = true;
+    rerender();
     try {
-      coinBalance = await giftCoins(toUserId, MIN_GIFT_COINS);
+      await giftCoins(toUserId, MIN_GIFT_COINS);
     } catch (err) {
       loungeState.error = err instanceof Error ? err.message : 'could not buy that drink';
     } finally {
+      giftBusy = false;
       rerender();
     }
   })();
@@ -1202,15 +1172,6 @@ function loungeList(rerender: () => void): DocumentFragment {
       rerender();
     };
     you.append(bredrinsBtn);
-    const coinsBtn = document.createElement('button');
-    coinsBtn.className = 'act ghost small';
-    coinsBtn.textContent = coinsOpen ? 'Done' : (coinBalance === null ? 'Coins' : `${coinBalance} coins`);
-    coinsBtn.onclick = () => {
-      coinsOpen = !coinsOpen;
-      if (coinsOpen && coinBalance === null) loadCoinBalance(rerender);
-      rerender();
-    };
-    you.append(coinsBtn);
     if (me.isAdmin) {
       const reportsBtn = document.createElement('button');
       reportsBtn.className = 'act ghost small';
@@ -1277,7 +1238,6 @@ function loungeList(rerender: () => void): DocumentFragment {
     frag.appendChild(profilePanel(me, rerender, (fresh) => { loungeState.me = fresh; profileOpen = false; }));
   }
   if (me && bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
-  if (me && coinsOpen) frag.appendChild(coinsPanel(rerender));
   if (me && me.isAdmin && reportsOpen) frag.appendChild(reportsPanel(rerender));
   if (me && accountOpen) frag.appendChild(accountPanel(rerender));
 
@@ -1476,10 +1436,6 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
         }
       })();
       line.appendChild(add);
-    }
-    // Gifting is open to anyone with the coins, not a tier perk.
-    if (loungeState.me && person.user_id !== loungeState.me.id) {
-      line.appendChild(giftButton(person.user_id, rerender));
     }
     if (speaking) {
       const wave = el('span', 'wave');

@@ -10,7 +10,7 @@ import {
   listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL, backgroundUrl, myProfile,
   type OpenTable, type Avatar, type Background, type MyProfile,
 } from './lounges.ts';
-import { createTable, joinTable, myCoinBalance } from './online.ts';
+import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { fileReport } from './reports.ts';
@@ -247,42 +247,26 @@ function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSo
 let activeRailTab: 'chat' | 'watchers' | 'standings' | 'log' | 'you' = 'chat';
 
 // -------------------------------------------------------------------- you --
-// Coin balance and profile editing, reachable without leaving a live hand —
-// previously only existed in the lounge, so a seated player had no way to
-// check their balance or fix a typo'd name mid-game short of quitting the
-// table. A rail tab, not a modal, so it doesn't run into the no-modal-
-// during-a-live-hand rule.
+// Profile editing — including coin balance and the buy-coins button, both
+// folded into profilePanel itself (profile.ts) — reachable without leaving
+// a live hand. Previously only existed in the lounge, so a seated player
+// had no way to check their balance or fix a typo'd name mid-game short of
+// quitting the table. A rail tab, not a modal, so it doesn't run into the
+// no-modal-during-a-live-hand rule.
 let myProfileCache: MyProfile | null = null;
 let myProfileLoading = false;
-let youCoinBalance: number | null = null;
 
-function loadYouPanelData(rerender: () => void) {
+function youPanel(rerender: () => void): HTMLElement {
   if (!myProfileCache && !myProfileLoading) {
     myProfileLoading = true;
     void myProfile().then((me) => { myProfileCache = me; myProfileLoading = false; rerender(); });
   }
-  if (youCoinBalance === null) {
-    void myCoinBalance().then((n) => { youCoinBalance = n; rerender(); });
-  }
-}
-
-function youPanel(rerender: () => void): HTMLElement {
-  const wrap = el('div', 'you-wrap');
-  loadYouPanelData(rerender);
-
-  // A separate small panel rather than folding the balance into
-  // profilePanel's own — that panel is shared with the lounge and stays
-  // agnostic of anything table-specific.
-  const coins = el('div', 'panel');
-  coins.append(el('div', 'eyebrow', 'You'));
-  coins.append(el('div', 'coin-balance', youCoinBalance === null ? '…' : `${youCoinBalance} coins`));
-  wrap.appendChild(coins);
-
   if (myProfileCache) {
-    wrap.appendChild(profilePanel(myProfileCache, rerender, (fresh) => { myProfileCache = fresh; }));
-  } else if (myProfileLoading) {
-    wrap.append(el('p', 'muted small', 'Loading your profile…'));
+    return profilePanel(myProfileCache, rerender, (fresh) => { myProfileCache = fresh; });
   }
+  const wrap = el('div', 'panel');
+  wrap.append(el('div', 'eyebrow', 'You'));
+  wrap.append(el('p', 'muted small', 'Loading your profile…'));
   return wrap;
 }
 

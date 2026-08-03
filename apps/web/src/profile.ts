@@ -13,7 +13,7 @@ import { el } from './render.ts';
 import { photoUrl, uploadMyPhoto, removeMyPhoto } from './photo.ts';
 import {
   saveProfile, myProfile, TIER_PITCH, AVATARS, AVATAR_LABEL, avatarUrl,
-  BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl,
+  BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl, myCoinBalance, buyCoins, COIN_PACK_LABEL,
 } from './lounges.ts';
 import type { Avatar, Background, Gender, MyProfile, Origin } from './lounges.ts';
 
@@ -126,6 +126,47 @@ function photoSection(me: MyProfile, rerender: () => void): HTMLElement {
   return section;
 }
 
+// ----------------------------------------------------------------- coins --
+// Balance and the only purchase path, folded into the profile rather than a
+// separate toggle — coins were previously reachable from three different
+// entry points (a "Coins" header button, a per-hand reveal button, a gift
+// button buried in the roster line) with no single place that answered
+// "where do I check my balance or buy more". This is that place now.
+let coinBalance: number | null = null;
+let coinBalanceLoading = false;
+let coinBusy = false;
+let coinError: string | null = null;
+
+function coinSection(rerender: () => void): HTMLElement {
+  if (coinBalance === null && !coinBalanceLoading) {
+    coinBalanceLoading = true;
+    void myCoinBalance().then((n) => { coinBalance = n; coinBalanceLoading = false; rerender(); });
+  }
+  const section = el('div', 'stack');
+  section.append(el('label', 'field-label', 'Coins'));
+  section.append(el('p', 'muted small',
+    'Never cash out — money in, utility only. Reveal a finished hand, or buy a bredrin a drink.'));
+  section.append(el('div', 'coin-balance', coinBalance === null ? '…' : `${coinBalance} coins`));
+  if (coinError) section.append(el('div', 'banner small', coinError));
+  const buy = document.createElement('button');
+  buy.type = 'button';
+  buy.className = 'act ghost small';
+  buy.textContent = coinBusy ? 'Opening checkout…' : `Buy ${COIN_PACK_LABEL}`;
+  buy.disabled = coinBusy;
+  buy.onclick = () => void (async () => {
+    coinBusy = true; coinError = null; rerender();
+    try {
+      window.location.href = await buyCoins();
+    } catch (err) {
+      coinError = err instanceof Error ? err.message : 'checkout unavailable';
+      coinBusy = false;
+      rerender();
+    }
+  })();
+  section.appendChild(buy);
+  return section;
+}
+
 // --------------------------------------------------------------- profile --
 let profileError: string | null = null;
 let profileSaving = false;
@@ -149,6 +190,7 @@ export function profilePanel(
   panel.append(el('div', 'eyebrow', 'Your profile'));
   panel.append(el('h2', undefined, 'Who yuh be'));
 
+  panel.appendChild(coinSection(rerender));
   panel.appendChild(photoSection(me, rerender));
 
   const name = document.createElement('input');
