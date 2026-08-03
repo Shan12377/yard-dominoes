@@ -280,8 +280,14 @@ export async function joinVoice(
       if (!stream) return;
       audio.srcObject = stream;
       // Autoplay can be refused until the player has interacted with the page;
-      // they joined voice by tapping a button, so this normally resolves.
-      void audio.play().catch(() => {});
+      // they joined voice by tapping a button, so this normally resolves. But
+      // "normally" isn't "always" — a silently swallowed rejection here is
+      // indistinguishable from a real connection failure: mic permission was
+      // granted, the peer connects, audio never plays, and nothing says why.
+      // Surface it the same way every other voice failure mode already does.
+      audio.play().catch(() => {
+        handlers.onError?.('Could not play their audio — try tapping the page, or rejoin voice.');
+      });
       peer.meter?.();
       peer.meter = handlers.onSpeaking ? meterStream(stream, peerId, handlers.onSpeaking) : undefined;
     };
