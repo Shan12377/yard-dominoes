@@ -348,6 +348,13 @@ function seatCard(
 ): HTMLElement {
   const card = el('div', 'seat');
   if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
+  // Partner mode had no online cue at all for which seat is your partner —
+  // the border existed only in offline play (main.ts's seats()). Seats are
+  // numbered in play order (client.md's own convention), so partners are
+  // always the two same-parity seats.
+  const isMyPartner = isPartnered(game.table.mode) && game.mySeat !== null
+    && s.seatIndex !== game.mySeat && s.seatIndex % 2 === game.mySeat % 2;
+  if (isMyPartner) card.classList.add('partner');
   // Cosmetic only — plan §7.1. A faint backdrop behind the seat's own
   // content, never anything that could compete with tile/turn legibility.
   if (s.userId && s.background) {
@@ -378,8 +385,14 @@ function seatCard(
     };
     who.appendChild(img);
   }
+  // A stable ordinal, same idea as the roster label a real table already
+  // has — "Player 2" is sayable over voice chat, a username or "Duppy ·
+  // pickney" alone is not, and it's the one identifier every seat has
+  // regardless of whether it's a real player or a bot filling the chair.
+  who.append(el('span', 'seat-number', `Player ${s.seatIndex + 1}`));
   who.append(el('h3', undefined,
     s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`));
+  if (isMyPartner) who.append(el('span', 'badge partner-badge', 'Your partner'));
   // Yard or foreign, if they said. A duppy is from nowhere.
   if (s.origin === 'yardie' || s.origin === 'foreign') {
     who.append(el('span', `badge origin-${s.origin}`,
@@ -822,12 +835,21 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   panel.appendChild(hand);
 
   if (pendingTile) {
+    // The pip value on each end, not just the bare direction — "I thought
+    // this was the right end" is a real argument at a real table, and the
+    // number settles it before it starts.
+    const board = game.predictedBoard ?? game.hand?.board ?? null;
+    const linear = board?.kind === 'linear' ? board : null;
     const choice = el('div', 'row');
     choice.append(el('span', 'muted', 'Which end?'));
     for (const move of legal.filter((m) => 'tile' in m && m.tile === pendingTile)) {
+      const isLeft = (move as any).end === 'left';
+      const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;
       const b = document.createElement('button');
       b.className = 'act ghost';
-      b.textContent = (move as any).end === 'left' ? 'Left end' : 'Right end';
+      b.textContent = pip !== null
+        ? `${isLeft ? 'Left' : 'Right'} end (${pip})`
+        : (isLeft ? 'Left end' : 'Right end');
       b.onclick = () => { pendingTile = null; void game.play(move); };
       choice.appendChild(b);
     }

@@ -465,6 +465,10 @@ label.field > span {
   box-shadow: 0 0 0 2px var(--gold) inset, 0 0 16px 2px rgba(224, 164, 0, 0.45);
 }
 .seat.partner { border-left: 3px solid var(--forest-hi); }
+.seat-number {
+  display: block; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
 .seat h3 { font-size: 14px; font-family: var(--body); font-weight: 800; }
 .seat .meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .seat .seat-score {
@@ -807,6 +811,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .badge.origin-yardie { border-color: var(--forest); color: var(--forest); }
 .badge.origin-foreign { border-color: var(--wood-hi); color: var(--wood); }
 .badge.online { border-color: var(--forest); color: var(--forest-hi); }
+.badge.partner-badge { border-color: var(--forest-hi); color: var(--forest-hi); }
 
 /* A name that opens something (the player profile card) rather than a real
    link — same visual weight as body text, just enough affordance to read

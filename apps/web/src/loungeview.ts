@@ -990,11 +990,10 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
   frag.appendChild(head);
 
   // Above the lounge cards: the countdown is the thing a player should not be
-  // able to miss, and this is the screen they land on.
+  // able to miss, and this is the screen they land on. Returns null with no
+  // active tournament (the common case), so this costs nothing then.
   const tourney = tournamentPanel(me, (tableId) => void attachTable(tableId, rerender), rerender);
   if (tourney) frag.appendChild(tourney);
-
-  frag.appendChild(joinByCodeField((tableId) => void attachTable(tableId, rerender)));
 
   if (loungeState.error) {
     frag.appendChild(el('div', 'banner', loungeState.error));
@@ -1042,6 +1041,13 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
     card.append(left, right);
     frag.appendChild(card);
   }
+
+  // Below the room list, not above it — a join code is a power-user path
+  // (someone read it off another screen or heard it called out), not how
+  // someone new finds a room. It used to sit right under the header,
+  // pushing the actual list of rooms an extra section further down.
+  frag.appendChild(joinByCodeField((tableId) => void attachTable(tableId, rerender)));
+
   return frag;
 }
 
