@@ -324,7 +324,7 @@ label.field > span {
    child — the grid area still exists but renders empty, no gap to patch. */
 .table-cross {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(0, 3fr) minmax(120px, 1fr);
+  grid-template-columns: 96px minmax(0, 1fr) 96px;
   grid-template-rows: auto auto auto;
   grid-template-areas:
     ".    top    ."
