@@ -21,7 +21,7 @@ import type {
   PublicProfile,
 } from './lounges.ts';
 import {
-  ensureSignedIn, findActiveSeat, videoSessionCall,
+  ensureSignedIn, findActiveSeat, videoSessionCall, turnCredentialsCall,
   secureAccount, signInWithPassword, isAnonymousUser,
 } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
@@ -363,6 +363,7 @@ async function startVoice(rerender: () => void) {
   try {
     const voice = await joinVoice(room.channel, me.id, {
       speak: canSpeak(me.tier),
+      turn: turnCredentialsCall,
       onSpeaking: ({ id, speaking }) => {
         const next = new Set(loungeState.speaking);
         if (speaking) next.add(id); else next.delete(id);
@@ -460,6 +461,7 @@ async function startVideo(rerender: () => void) {
   rerender();
   try {
     const video = await joinVideo(onlineGame.table.id, videoSessionCall, {
+      turn: turnCredentialsCall,
       onStream: (userId, stream) => {
         const next = new Map(loungeState.videoStreams);
         if (stream) next.set(userId, stream); else next.delete(userId);

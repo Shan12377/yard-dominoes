@@ -144,6 +144,11 @@ export const requestReview = (handId: string) =>
 export const videoSessionCall = (action: string, body: Record<string, unknown>) =>
   call<any>('video-session', { action, ...body });
 
+/** voice.ts and video.ts are both injected this — same reasoning as
+ *  videoSessionCall above. */
+export const turnCredentialsCall = () =>
+  call<{ iceServers: RTCIceServer[] }>('turn-credentials', {});
+
 /** The redacted state every seat is allowed to see. */
 export interface PublicHand {
   hand_id: string;

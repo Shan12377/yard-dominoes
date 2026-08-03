@@ -1,4 +1,5 @@
 import { iceServers } from './voice.ts';
+import type { TurnCall } from './voice.ts';
 import type { Tier } from './lounges.ts';
 
 /**
@@ -82,6 +83,8 @@ export async function joinVideo(
   tableId: string,
   call: VideoCall,
   handlers: {
+    /** Fetches short-lived TURN credentials — see voice.ts's iceServers(). */
+    turn?: TurnCall;
     onError?: (message: string) => void;
     onStream?: (userId: string, stream: MediaStream | null) => void;
   } = {},
@@ -115,7 +118,7 @@ export async function joinVideo(
     return null;
   }
 
-  const pc = new RTCPeerConnection({ iceServers: iceServers() });
+  const pc = new RTCPeerConnection({ iceServers: await iceServers(handlers.turn) });
   let left = false;
   let sessionId: string | null = null;
   let cameraOff = false;

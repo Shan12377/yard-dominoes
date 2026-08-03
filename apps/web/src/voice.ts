@@ -37,15 +37,32 @@ export function canSpeak(tier: Tier): boolean {
   return tier !== 'guest';
 }
 
-/** Free public STUN. TURN is optional and only needed behind strict NAT. */
-export function iceServers(): RTCIceServer[] {
+/** Injected rather than importing online.ts directly, so this file keeps no
+ *  Supabase client dependency of its own — same reasoning as video.ts's
+ *  VideoCall. Cloudflare's TURN credentials are short-lived and must be
+ *  generated server-side with a secret API token (see turn-credentials
+ *  Edge Function); there is no static client-side credential to bake in. */
+export type TurnCall = () => Promise<{ iceServers: RTCIceServer[] }>;
+
+/**
+ * Free public STUN plus, when a `call` is supplied, short-lived Cloudflare
+ * TURN credentials for the minority of connections behind strict NAT that
+ * STUN alone cannot traverse. TURN is additive: a failure fetching it (or
+ * omitting `call` entirely) still leaves STUN-only connectivity working for
+ * everyone else, so a fetch failure here is swallowed, never thrown.
+ */
+export async function iceServers(call?: TurnCall): Promise<RTCIceServer[]> {
   const servers: RTCIceServer[] = [
     { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
   ];
-  const url = import.meta.env.VITE_TURN_URL;
-  const username = import.meta.env.VITE_TURN_USERNAME;
-  const credential = import.meta.env.VITE_TURN_CREDENTIAL;
-  if (url && username && credential) servers.push({ urls: url, username, credential });
+  if (!call) return servers;
+  try {
+    const { iceServers: turn } = await call();
+    servers.push(...turn);
+  } catch {
+    // Additive only — never let a TURN-fetch failure block voice/video from
+    // attempting a connection at all.
+  }
   return servers;
 }
 
@@ -193,6 +210,8 @@ export async function joinVoice(
   handlers: {
     /** Guests join listen-only and are never asked for a microphone. */
     speak?: boolean;
+    /** Fetches short-lived TURN credentials — see iceServers()'s doc. */
+    turn?: TurnCall;
     onSpeaking?: (s: VoiceSpeaker) => void;
     onError?: (message: string) => void;
   } = {},
@@ -201,6 +220,11 @@ export async function joinVoice(
     handlers.onError?.('This browser cannot do voice. Text still works.');
     return null;
   }
+
+  // Resolved once per join, not once per peer — up to three peer
+  // connections in a four-seat mesh all reuse the same short-lived
+  // credential rather than each fetching their own.
+  const servers = await iceServers(handlers.turn);
 
   let local: MediaStream | null = null;
   if (handlers.speak) {
@@ -234,7 +258,7 @@ export async function joinVoice(
     const existing = peers.get(peerId);
     if (existing) return existing;
 
-    const pc = new RTCPeerConnection({ iceServers: iceServers() });
+    const pc = new RTCPeerConnection({ iceServers: servers });
     const audio = document.createElement('audio');
     audio.autoplay = true;
     const peer: Peer = { pc, audio, makingOffer: false, ignoreOffer: false };
