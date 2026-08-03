@@ -15,7 +15,7 @@ import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
-import { describeMoveLine } from './movelog.ts';
+import { describeMoveLine, describeSeat } from './movelog.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 
@@ -751,7 +751,31 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
 function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
   const r = game.hand!.result as any;
-  panel.append(el('h2', undefined, r.tie ? 'Tied on count — replay' : 'Hand over'));
+  const partnered = isPartnered(game.table.mode);
+  const winnerName = r.winnerSeat !== null
+    ? describeSeat(r.winnerSeat, game.seats, game.mySeat, partnered, game.mySide)
+    : null;
+
+  // A blocked hand used to just say "Hand over" here regardless of who won
+  // or why — the engine had already correctly picked the lowest individual
+  // count (packages/engine/src/set.ts), the score had already updated, but
+  // nothing on screen said so. A player who won this way had no way to tell
+  // the rule had actually fired for them. Domino (someone played out) is
+  // self-evident from the empty hand, so it keeps a plain heading; blocked
+  // is the case that actually needs the "why".
+  let heading: string;
+  if (r.tie) {
+    // A tie is "two or more seats share the lowest count" — the tied seats
+    // aren't necessarily seat 0, so the tied value is the minimum across
+    // every seat's count, not a fixed index.
+    heading = `Tied at ${Math.min(...r.counts)} — replay at ${game.handValue} points`;
+  } else if (r.status === 'blocked' && winnerName !== null) {
+    const count = r.counts[r.winnerSeat];
+    heading = `Blocked — ${winnerName} ${winnerName === 'You' ? 'win' : 'wins'} on the count (${count})`;
+  } else {
+    heading = 'Hand over';
+  }
+  panel.append(el('h2', undefined, heading));
 
   if (game.canChoosePose()) {
     const row = el('div', 'row');
