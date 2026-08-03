@@ -35,6 +35,21 @@ reading the code. Neither one throws an error.
   `loungeState.room` is set. Tapping it then does nothing, silently. Any
   control that depends on the room must be disabled until the room is there,
   and must say why.
+- **No TURN relay configured in production at all** (found 2026-08-02, a real
+  user report: "camera works, I hear nothing on either device"). `iceServers()`
+  only ever returned two public STUN servers — STUN alone fails to connect two
+  real devices whenever either is behind a NAT type that needs a relay, which
+  is common on home routers and cellular. Video worked anyway because it talks
+  to one predictable Cloudflare server, not another arbitrary residential
+  network, so this went unnoticed until voice specifically was tested between
+  two real devices. See "TURN" below for the fix.
+- **`audio.play()`'s rejection silently swallowed** (found 2026-08-03, same
+  shape of report: mic permission granted, no sound, no error). Desktop
+  browsers can block autoplay independently of microphone permission — those
+  are two separate gates, and a blocked `.play()` on the incoming `<audio>`
+  element is indistinguishable from a real connection failure if the
+  rejection isn't surfaced. Fixed by routing it through `handlers.onError`
+  like every other failure mode here.
 
 ## Before you touch this file, know these will happen
 
@@ -71,6 +86,29 @@ Each of these is normal, not exceptional. Handle it, don't guard against it.
   Four people on phone speakers in a real yard is exactly the environment they
   exist for.
 - **Never play your own stream back.** That is not a monitor, that is feedback.
+
+## TURN
+
+`iceServers()` (this file) returns STUN unconditionally, plus TURN when a
+`TurnCall` is injected — `video.ts` uses the exact same function, injected the
+same way, since both P2P mesh and Cloudflare SFU legs need real NAT
+traversal.
+
+Real TURN credentials must be generated **server-side**, per-session,
+short-lived — there is no static client-side credential Cloudflare's TURN
+service supports, so this cannot be a `VITE_*` env var no matter how
+tempting that looks. `supabase/functions/turn-credentials/index.ts` calls
+`POST https://rtc.live.cloudflare.com/v1/turn/keys/$KEY_ID/credentials/generate-ice-servers`
+server-side using two Supabase secrets — `CLOUDFLARE_TURN_KEY_ID` and
+`CLOUDFLARE_TURN_KEY_API_TOKEN`, generated once in the Cloudflare dashboard's
+Calls section — and hands back a 6-hour-TTL credential. No tier gate: even a
+listen-only guest's `RTCPeerConnection` needs real connectivity to *receive*
+audio from a speaker behind strict NAT.
+
+TURN is additive, same posture as everything else in this file — a fetch
+failure inside `iceServers()` is swallowed, never blocks a connection
+attempt. STUN-only still works for the majority of real-world networks; TURN
+only matters for the minority that need a relay.
 
 ## The mesh has a ceiling
 
