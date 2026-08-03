@@ -110,6 +110,23 @@ export class OnlineGame {
   /** True for one render after a bruk — every side's points went to zero at
    *  once, having held some before. Mirrors LocalGame's lastResultBruk. */
   lastResultBruk = false;
+  /**
+   * The hand id that just transitioned into 'domino', so the view can tag
+   * the winning tile and shake the felt. An identity comparison
+   * (`justWonByDominoHandId === hand?.hand_id`) rather than a one-shot
+   * "consumed" boolean on purpose: `hands`/`hand_public` and `sets` update
+   * in the same server transaction, so the `onSet` broadcast below almost
+   * always follows this one within milliseconds and triggers its own full
+   * re-render (render() rebuilds everything — client.md) — a consume-once
+   * flag gets cleared by the FIRST render and is already gone by the
+   * SECOND, so the tag never survives to what's actually left on screen.
+   * Tying it to the hand's own id instead means every render of this same
+   * still-finished hand reapplies it, which is correct: renderBoard wipes
+   * and rebuilds the tile elements from scratch on every render regardless
+   * of this feature, so "reapply the class every time" is just how a
+   * freshly created element keeps its animation, not a repeat firing.
+   */
+  justWonByDominoHandId: string | null = null;
   handValue = 1;
   poser = 0;
   poseMustBeDoubleSix = true;
@@ -348,6 +365,7 @@ export class OnlineGame {
           sfx.play('shuffle');
         }
         if (!prev || hand.hand_id !== prev.hand_id) this.revealedDeal = null;
+        if (prev?.status === 'active' && hand.status === 'domino') this.justWonByDominoHandId = hand.hand_id;
         this.hand = hand;
         // Real data has arrived — whatever was predicted in play() is either
         // already confirmed by this or superseded by it, either way this is

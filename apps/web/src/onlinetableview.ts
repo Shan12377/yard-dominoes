@@ -411,6 +411,30 @@ function seatCard(
   return card;
 }
 
+/**
+ * "The slam" — the winning tile drops in and lands hard, the felt shakes.
+ * design.md calls this the emotional peak of the game; it existed only as
+ * unused CSS (`.slammed`, `.table-felt.shake`) until now, offline included.
+ *
+ * Identity check against `game.justWonByDominoHandId`, not a one-shot flag
+ * — see that field's own comment for why a "consume on first render" design
+ * loses the race against the near-simultaneous `sets` broadcast. A tile's
+ * own placement never repeats within a hand (a domino set holds each tile
+ * once), so its `data-tile` value is a safe, shape-agnostic way to find it
+ * again after `renderBoard` rebuilds the line from scratch, whether that's
+ * a straight line or a French cross board.
+ */
+function tagWinningTile(line: HTMLElement, felt: HTMLElement, game: OnlineGame): void {
+  if (!game.hand || game.justWonByDominoHandId !== game.hand.hand_id) return;
+  const lastMove = game.hand.move_log[game.hand.move_log.length - 1];
+  const tileId = lastMove && 'tile' in lastMove ? lastMove.tile : null;
+  if (tileId) {
+    const el_ = line.querySelector(`[data-tile="${tileId}"]`);
+    el_?.classList.add('slammed');
+    felt.classList.add('shake');
+  }
+}
+
 export function liveTableView(
   game: OnlineGame,
   rerender: () => void,
@@ -477,6 +501,7 @@ export function liveTableView(
   const felt = el('div', 'table-felt');
   const line = el('div', 'line');
   renderBoard(line, displayBoard); // first pass: feltBox()'s window-based guess
+  tagWinningTile(line, felt, game);
   felt.appendChild(line);
   feltSlot.appendChild(felt);
   // The felt isn't attached to the document yet at this point in the build,
@@ -490,6 +515,7 @@ export function liveTableView(
     const box = { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
     if (box.width > 0 && box.height > 0) {
       renderBoard(line, displayBoard, { box });
+      tagWinningTile(line, felt, game);
     }
   });
   if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
