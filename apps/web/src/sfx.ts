@@ -1,5 +1,3 @@
-import { muted } from './speak.ts';
-
 /**
  * The table's own noise: bone on board, a shuffle, and the sound a six love
  * makes.
@@ -9,11 +7,26 @@ import { muted } from './speak.ts';
  * this game, and a thin digital tick where a bone should land is the tell that
  * separates a domino app from a domino table.
  *
- * Separate from `speak.ts` (the duppy's recorded voice) because these are
- * objects, not opinions, but they deliberately share that module's mute flag:
- * one control silences everything. Two independent mute toggles is how people
- * end up unable to find the thing still making noise.
+ * Own mute flag, separate from speak.ts's duppy-voice mute. They used to
+ * share one flag on the theory that two toggles is how someone ends up
+ * hunting for whichever one is still making noise — but online play never
+ * triggers the duppy voice at all (speak.ts is offline-only), so an online
+ * player had no in-context control over the knock/shuffle sfx whatsoever:
+ * whatever this flag happened to be, inherited silently from whatever was
+ * last toggled in offline play, was final. A real report: table sound gone,
+ * no toggle in reach to check or fix it.
  */
+
+const SFX_MUTE_KEY = 'yard:mute-sfx';
+
+export function muted(): boolean {
+  try { return localStorage.getItem(SFX_MUTE_KEY) === '1'; } catch { return false; }
+}
+
+export function setMuted(next: boolean) {
+  try { localStorage.setItem(SFX_MUTE_KEY, next ? '1' : '0'); } catch { /* private mode */ }
+  if (next) silence();
+}
 
 type Sound = 'knock' | 'shuffle' | 'sixLove';
 

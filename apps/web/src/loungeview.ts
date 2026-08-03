@@ -1260,6 +1260,7 @@ export function loungesView(rerender: () => void, goToMembership: () => void): D
         (p) => p.table === loungeState.onlineGame!.table.id,
       ),
       chatPanel: loungeState.current ? chatPanel(loungeState.current, rerender) : null,
+      loungeName: loungeState.current?.name ?? null,
     }));
     return frag;
   }

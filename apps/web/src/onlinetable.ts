@@ -107,6 +107,9 @@ export class OnlineGame {
   revealPending = false;
 
   scores: number[] = [];
+  /** True for one render after a bruk — every side's points went to zero at
+   *  once, having held some before. Mirrors LocalGame's lastResultBruk. */
+  lastResultBruk = false;
   handValue = 1;
   poser = 0;
   poseMustBeDoubleSix = true;
@@ -377,7 +380,10 @@ export class OnlineGame {
         // and a flag that is already true must not re-fire the sound.
         if (!this.sixLove && set.six_love) sfx.play('sixLove');
         const justDecided = this.winnerSide === null && set.winner_side !== null;
+        const beforeScores = this.scores;
         this.scores = set.scores as number[]; this.handValue = set.hand_value as number;
+        // A bruk is the moment every pip goes out at once — worth animating.
+        this.lastResultBruk = beforeScores.some((v) => v > 0) && this.scores.every((v) => v === 0);
         this.poser = set.poser as number; this.poseMustBeDoubleSix = set.pose_must_be_double_six as boolean;
         this.handsPlayed = set.hands_played as number; this.winnerSide = set.winner_side as number | null;
         this.sixLove = set.six_love as boolean;

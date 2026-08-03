@@ -19,6 +19,7 @@ import { seatPosition } from './seatlayout.ts';
 import { describeMoveLine, describeSeat } from './movelog.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
+import * as sfx from './sfx.ts';
 
 /** Surface a failed request inline, next to whatever control triggered it —
  * same `.banner` treatment loungeview.ts uses for its room-level error, just
@@ -196,6 +197,11 @@ export interface TableSocial {
    *  Null when the table has no lounge context (e.g. a direct join-code
    *  attach with no lounge ever opened). */
   chatPanel?: HTMLElement | null;
+  /** The lounge's own name (e.g. "Yard Gate"), so a seated player still
+   *  knows which room they're in — the lounge header that names it gets
+   *  fully replaced by this view once seated. Null off a direct join-code
+   *  attach with no lounge context. */
+  loungeName?: string | null;
 }
 
 /** Speaking ring and thrown reaction on a seat, keyed by the player's user id.
@@ -414,8 +420,16 @@ export function liveTableView(
   const frag = document.createDocumentFragment();
 
   const head = el('div', 'panel');
+  if (social?.loungeName) head.append(el('div', 'eyebrow', social.loungeName));
   const top = el('div', 'spread');
   top.append(el('h2', undefined, `Table ${game.table.joinCode}`));
+  const sfxOff = sfx.muted();
+  const sound = document.createElement('button');
+  sound.className = 'act ghost small';
+  sound.textContent = sfxOff ? 'Table sound off' : 'Table sound on';
+  sound.setAttribute('aria-pressed', String(!sfxOff));
+  sound.onclick = () => { sfx.setMuted(!sfxOff); rerender(); };
+  top.appendChild(sound);
   const leave = document.createElement('button');
   leave.className = 'act ghost';
   leave.textContent = 'Leave';
@@ -439,13 +453,16 @@ export function liveTableView(
   if (social?.videoPanel) frag.appendChild(social.videoPanel);
 
   const board = el('div', 'scoreboard');
+  const brukOpt = { bruk: game.lastResultBruk };
   if (game.table.mode === 'partner') {
     board.append(
-      scoreTrack('You & partner', game.scores[(game.mySide ?? 0)] ?? 0, { us: true }),
-      scoreTrack('Them', game.scores[1 - (game.mySide ?? 0)] ?? 0),
+      scoreTrack('You & partner', game.scores[(game.mySide ?? 0)] ?? 0, { us: true, ...brukOpt }),
+      scoreTrack('Them', game.scores[1 - (game.mySide ?? 0)] ?? 0, brukOpt),
     );
   } else {
-    game.scores.forEach((s, i) => board.append(scoreTrack(`Seat ${i}`, s, { us: i === game.mySeat })));
+    game.scores.forEach((s, i) => board.append(
+      scoreTrack(`Seat ${i}`, s, { us: i === game.mySeat, ...brukOpt }),
+    ));
   }
   frag.appendChild(board);
 
@@ -842,6 +859,11 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
   const r = game.hand!.result as any;
   const partnered = isPartnered(game.table.mode);
+
+  if (game.winnerSide !== null && game.sixLove) {
+    panel.append(el('div', 'banner six-love',
+      game.winnerSide === game.mySide ? 'SIX LOVE' : 'Six love against you'));
+  }
   const winnerName = r.winnerSeat !== null
     ? describeSeat(r.winnerSeat, game.seats, game.mySeat, partnered, game.mySide)
     : null;
@@ -891,7 +913,13 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     next.onclick = () => void game.dealNext(false);
     panel.appendChild(next);
   } else if (game.winnerSide !== null) {
-    panel.append(el('p', 'muted', 'Set over.'));
+    // Cutthroat's "side" is just the seat itself, so describeSeat resolves
+    // it straight; partnered modes need the side-to-name mapping instead
+    // since a side is two seats, not one.
+    const setWinnerName = partnered
+      ? (game.winnerSide === game.mySide ? 'You & partner' : 'Them')
+      : describeSeat(game.winnerSide, game.seats, game.mySeat, partnered, game.mySide);
+    panel.append(el('p', 'muted', `Set over — ${setWinnerName} won.`));
     // Absent for a spectator, a duppy-mixed table (never rated), or while
     // the server's write is still catching up to this broadcast — see
     // onlinetable.ts's loadRatingAfter. Nothing shown beats a fabricated +0.

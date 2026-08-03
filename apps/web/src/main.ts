@@ -1047,21 +1047,32 @@ function coachPanel(g: LocalGame, r: HandReview): HTMLElement {
  * Turning the sound off. One tap, and it stays off — people play this in bed
  * at two in the morning, and audio they cannot silence is an uninstall.
  *
- * ONE toggle for the duppy's voice and the table's noise together. Two
- * separate mutes is how someone ends up hunting for whichever one is still
- * making a sound, so `sfx.ts` deliberately reads this same flag.
+ * Two independent toggles, not one — they used to share a flag on the theory
+ * that separate mutes is how someone ends up hunting for whichever is still
+ * making noise. In practice online play never triggers the duppy's voice at
+ * all (that's offline-only), so muting it there silently killed the table's
+ * knock/shuffle too, with no control anywhere online to notice or undo it.
  */
 function soundToggle(): HTMLElement {
   const bar = el('div', 'sound-bar');
   bar.appendChild(feltPicker());
 
-  const off = muted();
-  const b = document.createElement('button');
-  b.className = 'dismiss';
-  b.textContent = off ? 'Sound off' : 'Sound on';
-  b.setAttribute('aria-pressed', String(!off));
-  b.onclick = () => { setMuted(!off); if (!off) sfx.silence(); render(); };
-  bar.appendChild(b);
+  const voiceOff = muted();
+  const voiceBtn = document.createElement('button');
+  voiceBtn.className = 'dismiss';
+  voiceBtn.textContent = voiceOff ? 'Voice off' : 'Voice on';
+  voiceBtn.setAttribute('aria-pressed', String(!voiceOff));
+  voiceBtn.onclick = () => { setMuted(!voiceOff); render(); };
+  bar.appendChild(voiceBtn);
+
+  const sfxOff = sfx.muted();
+  const sfxBtn = document.createElement('button');
+  sfxBtn.className = 'dismiss';
+  sfxBtn.textContent = sfxOff ? 'Table sound off' : 'Table sound on';
+  sfxBtn.setAttribute('aria-pressed', String(!sfxOff));
+  sfxBtn.onclick = () => { sfx.setMuted(!sfxOff); render(); };
+  bar.appendChild(sfxBtn);
+
   return bar;
 }
 
