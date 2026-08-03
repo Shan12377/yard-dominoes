@@ -108,6 +108,14 @@ body {
   padding: calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
            calc(48px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 }
+/* The live table wants a spacious board; every other screen (front door,
+   lounges list, academy) wants the narrower reading width above. .table-room
+   only exists in the DOM while actually seated at or watching a real table,
+   so this can't reach any other screen — no JS change needed, this is
+   purely "does #app currently contain a live table." */
+#app:has(.table-room) {
+  max-width: 1400px;
+}
 
 h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: 0.01em; margin: 0; }
 h1 { font-size: clamp(28px, 6vw, 44px); line-height: 0.95; }
