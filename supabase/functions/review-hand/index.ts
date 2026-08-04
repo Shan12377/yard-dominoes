@@ -3,7 +3,7 @@
 // The Coach. Runs only on a finished hand, because it needs the full deal —
 // which is exactly why it can be exact where a live hint never could be.
 
-import { handled, json, requireUser, serviceClient, HttpError, openingTileForFormat } from '../_shared/lib.ts';
+import { handled, json, requireUser, serviceClient, HttpError, openingTileForFormat, effectiveTier } from '../_shared/lib.ts';
 import { reviewHand, accuracy } from '../_shared/engine/coach.ts';
 import type { HandState } from '../_shared/engine/types.ts';
 
@@ -26,6 +26,26 @@ Deno.serve(handled(async (req) => {
   const cached = await db.from('hand_reviews').select('*')
     .eq('hand_id', handId).eq('user_id', user.id).maybeSingle();
   if (cached.data) return json({ ok: true, review: cached.data.review, cached: true });
+
+  // One NEW review a day on Guest — re-opening a hand already graded today
+  // stays free forever (the cache check above returns before this runs).
+  // Yardie and VIP are both uncapped: only the guest bullet in lounges.ts's
+  // TIER_PITCH promises a number, and vip's own bullet is explicitly
+  // "unlimited" — nothing here should read a paying member's cap as lower
+  // than what they were sold.
+  const { data: profile } = await db.from('profiles')
+    .select('tier, tier_expires_at').eq('id', user.id).maybeSingle();
+  if (effectiveTier(profile ?? { tier: 'guest', tier_expires_at: null }) === 'guest') {
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const { count } = await db.from('hand_reviews')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', startOfDay.toISOString());
+    if ((count ?? 0) >= 1) {
+      throw new HttpError(429, 'One free Coach review a day on Guest — become a Yardie or VIP for more.');
+    }
+  }
 
   // format/openingTile are required on HandState — without them, applyMove's
   // pose branch (`s.format === 'french'`) is always false and, worse, a
@@ -53,7 +73,15 @@ Deno.serve(handled(async (req) => {
     openingTile: openingTileForFormat(format),
   };
 
-  const review = reviewHand(initial, hand.move_log, seat);
+  // The engine's own default (120,000 nodes/decision) is tuned for a
+  // browser tab, which has no hard CPU-time budget. This isolate does: a
+  // real cut-throat hand blew it (546, ~3.5s CPU for ~500k nodes total
+  // across the hand's decisions) the first time this function ever ran for
+  // real, because the Coach had only ever executed client-side before now.
+  // 20,000/decision keeps a full hand comfortably under budget; `exact:
+  // false` on the odd position that still needs more already has a UI
+  // message ("too big to solve exactly") rather than a hard failure.
+  const review = reviewHand(initial, hand.move_log, seat, { nodeLimit: 20_000 });
   await db.from('hand_reviews').insert({
     hand_id: handId, user_id: user.id, seat_index: seat,
     review, accuracy: accuracy(review),

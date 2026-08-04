@@ -11,12 +11,13 @@
 import {
   supabase, startHand as apiStartHand, playMove as apiPlayMove, passPose as apiPassPose,
   leaveSeat as apiLeaveSeat, watchTable, ConflictError, revealHand as apiRevealHand,
+  requestReview as apiRequestReview,
   type PublicHand, type TableSubscription,
 } from './online.ts';
 import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
 import { isPartnered, legalMoves, sideOf } from '@yard/engine';
-import type { AnyBoard, GameMode, Move, SetFormat, TileId } from '@yard/engine';
+import type { AnyBoard, GameMode, HandReview, Move, SetFormat, TileId } from '@yard/engine';
 import { predictMyMove } from './predict.ts';
 
 export interface TableInfo {
@@ -105,6 +106,12 @@ export class OnlineGame {
    */
   revealedDeal: TileId[][] | null = null;
   revealPending = false;
+
+  /** The Coach, requested for the just-finished hand. Cleared on a new deal
+   *  the same way revealedDeal is — see that field's own comment. */
+  review: HandReview | null = null;
+  reviewAccuracy: number | null = null;
+  reviewPending = false;
 
   scores: number[] = [];
   /** True for one render after a bruk — every side's points went to zero at
@@ -384,7 +391,11 @@ export class OnlineGame {
           // that by checking whether THIS client is the one who dealt it.
           sfx.play('shuffle');
         }
-        if (!prev || hand.hand_id !== prev.hand_id) this.revealedDeal = null;
+        if (!prev || hand.hand_id !== prev.hand_id) {
+          this.revealedDeal = null;
+          this.review = null;
+          this.reviewAccuracy = null;
+        }
         if (prev?.status === 'active' && hand.status === 'domino') this.justWonByDominoHandId = hand.hand_id;
         this.hand = hand;
         // Real data has arrived — whatever was predicted in play() is either
@@ -584,6 +595,24 @@ export class OnlineGame {
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not reveal the hand' });
     } finally {
       this.revealPending = false;
+      this.emit({ type: 'state' });
+    }
+  }
+
+  /** Grades every decision on the just-finished hand. Free (rate-limited
+   *  server-side for guests) — unlike reveal(), no coin spend here. */
+  async requestCoachReview(): Promise<void> {
+    if (!this.hand || this.reviewPending || this.review) return;
+    this.reviewPending = true;
+    this.emit({ type: 'state' });
+    try {
+      const { review, accuracy } = await apiRequestReview(this.hand.hand_id);
+      this.review = review;
+      this.reviewAccuracy = accuracy;
+    } catch (err) {
+      this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not review the hand' });
+    } finally {
+      this.reviewPending = false;
       this.emit({ type: 'state' });
     }
   }

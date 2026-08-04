@@ -1110,8 +1110,12 @@ function tableView(g: LocalGame): DocumentFragment {
   felt.appendChild(line);
   frag.appendChild(felt);
 
-  frag.appendChild(seats(g));
-  frag.appendChild(soundToggle());
+  // Hand docks right under the board, before seats/sound compete for the
+  // fold — reading the board and reading your own hand is one motion, not
+  // two, same reasoning as onlinetableview.ts's felt-slot placement. This
+  // used to render after seats()/soundToggle(), which on a phone pushed the
+  // hand below the board far enough that playing meant scrolling down to
+  // read the hand, then back up to read the board.
   // Openhand: your partner's tiles above your own, on the same terms as the
   // online table — small, non-interactive, labelled. LocalGame holds the full
   // engine state, so this is a direct read; no RLS or subscription involved.
@@ -1120,6 +1124,9 @@ function tableView(g: LocalGame): DocumentFragment {
     frag.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
   }
   frag.appendChild(myHand(g));
+
+  frag.appendChild(seats(g));
+  frag.appendChild(soundToggle());
   const result = handResult(g);
   if (result) frag.appendChild(result);
   const summary = coachSummary(g);

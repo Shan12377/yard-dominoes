@@ -9,7 +9,7 @@
 
 /// <reference types="vite/client" />
 import { createClient, type SupabaseClient, type RealtimeChannel, FunctionsHttpError } from '@supabase/supabase-js';
-import type { AnyBoard, ClockName, GameMode, Move, TileId } from '@yard/engine';
+import type { AnyBoard, ClockName, GameMode, HandReview, Move, TileId } from '@yard/engine';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -132,6 +132,15 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
     if (fn === 'play-move' && error instanceof FunctionsHttpError && error.context?.status === 409) {
       throw new ConflictError();
     }
+    // HttpError's message (lib.ts's `handled()`) lands in the response body,
+    // not on `error.message` — the SDK only ever sets that to a generic
+    // "non-2xx status code" string. Read the real text out of the body so a
+    // caller-facing reason (a tier gate, a daily limit) actually reaches
+    // the player instead of a placeholder.
+    if (error instanceof FunctionsHttpError) {
+      const parsed = await error.context.json().catch(() => null);
+      throw new Error(parsed?.error ?? error.message);
+    }
     throw new Error(error.message);
   }
   if ((data as any)?.error) throw new Error((data as any).error);
@@ -175,7 +184,7 @@ export const playMove = (handId: string, move: Move) =>
   call<{ handOver: boolean; turn?: number }>('play-move', { handId, move });
 
 export const requestReview = (handId: string) =>
-  call<{ review: unknown; accuracy: number }>('review-hand', { handId });
+  call<{ review: HandReview; accuracy: number }>('review-hand', { handId });
 
 /** 2 coins for every seat's starting tiles on a finished hand — see
  *  reveal-hand's own header for what this adds beyond the free replay. */

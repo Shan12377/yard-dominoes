@@ -17,7 +17,7 @@ import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
 import { describeMoveLine, describeSeat } from './movelog.ts';
-import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
+import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, GRADE_LABEL, isPartnered, sideOf } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 import * as sfx from './sfx.ts';
 
@@ -903,6 +903,61 @@ function revealSection(game: OnlineGame): HTMLElement {
   return wrap;
 }
 
+/**
+ * The Coach, online. Grades every real decision on the just-finished hand —
+ * same engine, same grades (Best/Fine/Loose/Blunder), as the offline replay
+ * in main.ts's coachPanel(). Free to request; review-hand rate-limits guests
+ * server-side (RLS-equivalent — see billing.md's "never gate a paid feature
+ * in the client"), so the only client-side job here is showing whatever
+ * message that limit sends back.
+ */
+function coachSection(game: OnlineGame): HTMLElement {
+  const wrap = el('div', 'panel');
+  wrap.append(el('div', 'eyebrow', 'The coach'));
+
+  if (game.review) {
+    const r = game.review;
+    const head = el('div', 'spread');
+    const left = el('div', 'stack');
+    left.append(el('h2', undefined, r.summary));
+    left.append(el('div', 'muted',
+      `${r.reviews.length} real decision${r.reviews.length === 1 ? '' : 's'} this hand`));
+    const acc = el('div', 'stack');
+    acc.style.textAlign = 'right';
+    acc.append(el('div', 'accuracy', `${game.reviewAccuracy}%`), el('div', 'side-name', 'accuracy'));
+    head.append(left, acc);
+    wrap.appendChild(head);
+
+    if (!r.exact) {
+      wrap.append(el('p', 'muted',
+        'One position was too big to solve exactly, so part of this is an estimate.'));
+    }
+
+    for (const move of r.reviews) {
+      const row = el('div', 'review-move');
+      if (move.ply === r.criticalPly) row.classList.add('critical');
+      row.append(el('div', 'ply', `#${move.ply + 1}`));
+      row.append(el('span', `grade ${move.grade}`, GRADE_LABEL[move.grade]));
+      const played = 'tile' in move.move ? move.move.tile : 'pass';
+      const best = 'tile' in move.best ? move.best.tile : 'pass';
+      row.append(el('div', 'note',
+        move.grade === 'best'
+          ? `You played ${played}. Correct.`
+          : `You played ${played} — ${best} was stronger. ${move.note}`));
+      wrap.appendChild(row);
+    }
+    return wrap;
+  }
+
+  const button = document.createElement('button');
+  button.className = 'act ghost';
+  button.textContent = game.reviewPending ? 'Reviewing…' : 'Coach review this hand';
+  button.disabled = game.reviewPending;
+  button.onclick = () => void game.requestCoachReview();
+  wrap.appendChild(button);
+  return wrap;
+}
+
 function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
   const r = game.hand!.result as any;
@@ -937,6 +992,7 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   }
   panel.append(el('h2', undefined, heading));
   panel.appendChild(revealSection(game));
+  if (!game.isSpectator) panel.appendChild(coachSection(game));
 
   if (game.canChoosePose()) {
     const row = el('div', 'row');
