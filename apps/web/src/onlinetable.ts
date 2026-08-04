@@ -127,6 +127,18 @@ export class OnlineGame {
    * freshly created element keeps its animation, not a repeat firing.
    */
   justWonByDominoHandId: string | null = null;
+  /**
+   * The hand id `dealNext()` most recently started, so the shuffle plays
+   * even when duppies race a pose (and sometimes a reply) onto the board
+   * before this client's first broadcast for that hand ever arrives.
+   * `laid(hand) === 0` alone — the original check — assumes the very first
+   * broadcast a client sees for a new hand still has an empty board, which
+   * is only true when nobody at the table can move faster than the
+   * network; a duppy poser plus a duppy's own quick reply routinely beats
+   * it, and the shuffle silently never fires. Real bug, caught by actually
+   * dealing hands and watching for it, not by re-reading the code.
+   */
+  justDealtHandId: string | null = null;
   handValue = 1;
   poser = 0;
   poseMustBeDoubleSix = true;
@@ -358,10 +370,18 @@ export class OnlineGame {
         };
         if (prev && hand.hand_id === prev.hand_id) {
           if (laid(hand) > laid(prev)) sfx.play('knock');
-        } else if (laid(hand) === 0) {
-          // A fresh deal. An opening board with tiles already on it means we
-          // arrived in the middle of somebody else's hand — no shuffle for
-          // that, it did not just happen.
+        } else if (prev || hand.hand_id === this.justDealtHandId) {
+          // A fresh deal. `prev` already existing means this client was
+          // actively watching this table across the transition — a new
+          // hand_id is unambiguous evidence a deal just happened here, no
+          // matter how many tiles already landed on it before this
+          // broadcast arrived (see justDealtHandId's own comment for why
+          // checking for an empty board doesn't reliably catch that
+          // moment). `prev === null` covers the one ambiguous case — the
+          // very first broadcast this OnlineGame instance has ever seen,
+          // which looks identical whether this client just dealt it or
+          // arrived mid-hand as a late joiner — justDealtHandId resolves
+          // that by checking whether THIS client is the one who dealt it.
           sfx.play('shuffle');
         }
         if (!prev || hand.hand_id !== prev.hand_id) this.revealedDeal = null;
@@ -571,7 +591,10 @@ export class OnlineGame {
   async dealNext(pass: boolean): Promise<void> {
     try {
       if (pass) await apiPassPose(this.table.id);
-      await apiStartHand(this.table.id);
+      const { handId } = await apiStartHand(this.table.id);
+      // See justDealtHandId's own comment: this covers the one case the
+      // realtime handler can't tell apart on its own.
+      this.justDealtHandId = handId;
     } catch (err) {
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not start hand' });
     }
