@@ -1391,4 +1391,12 @@ openSharedHand();
 render();
 if (localStorage.getItem(LOUNGES_VISITED_KEY)) {
   void ensureLoungeModule(true);
+} else if (new URLSearchParams(window.location.search).get('recovery') === '1') {
+  // A password-reset link can land on a browser that has never opened
+  // Lounges/Membership before (a different device, a cleared one) — the
+  // lounge module owns the Supabase client that actually parses the
+  // recovery tokens out of this URL, so it has to load regardless of
+  // whether this visitor would otherwise have triggered it.
+  view = 'membership';
+  void ensureLoungeModule();
 }

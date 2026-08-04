@@ -78,6 +78,44 @@ export async function signInWithPassword(email: string, password: string): Promi
   if (error) throw error;
 }
 
+/**
+ * Forgot-password: emails a reset link. `?recovery=1` is our own marker, not
+ * anything Supabase requires — the SDK parses its own tokens out of the
+ * redirect URL regardless of format, but main.ts's boot sequence needs a
+ * plain, unambiguous signal it can check synchronously, before the lounge
+ * module (and the Supabase client living inside it) has even loaded, to
+ * decide whether to force that module in early. A recovery link landing on
+ * a version of the app that never loads online.ts would silently strand it.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await client().auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/?recovery=1`,
+  });
+  if (error) throw error;
+}
+
+/** Sets a new password on the temporary session a recovery link establishes. */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await client().auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+/**
+ * Fires once the Supabase SDK has parsed a recovery link from the URL and
+ * established the temporary session it grants — not before, since that
+ * parsing happens asynchronously against whatever's in the URL at client
+ * creation time. Returns an unsubscribe function; there is currently only
+ * ever one caller (loungeview.ts, once, on first load) so leaking the
+ * subscription for the page's lifetime is a non-issue in practice, but
+ * callers that might mount more than once should still call it.
+ */
+export function watchForPasswordRecovery(onRecovery: () => void): () => void {
+  const { data } = client().auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') onRecovery();
+  });
+  return () => data.subscription.unsubscribe();
+}
+
 /** True for a guest session never attached to a real email. */
 export async function isAnonymousUser(): Promise<boolean> {
   const { data } = await client().auth.getUser();

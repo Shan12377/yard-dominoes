@@ -23,6 +23,7 @@ import { profilePanel, avatarImg, timeAgo } from './profile.ts';
 import {
   ensureSignedIn, findActiveSeat, videoSessionCall, turnCredentialsCall,
   secureAccount, signInWithPassword, isAnonymousUser,
+  requestPasswordReset, updatePassword, watchForPasswordRecovery,
 } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
 import { openTablesPanel, joinByCodeField, liveTableView } from './onlinetableview.ts';
@@ -116,8 +117,20 @@ let draftCaret = 0;
  */
 let justUpgradedTier: Tier | null = null;
 
+let recoveryWatcherStarted = false;
+
 /** Load lounges and profile. Safe to call repeatedly. */
 export async function loadLounges(rerender: () => void) {
+  if (!recoveryWatcherStarted) {
+    recoveryWatcherStarted = true;
+    watchForPasswordRecovery(() => { recoveryMode = true; rerender(); });
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('recovery')) {
+      params.delete('recovery');
+      const rest = params.toString();
+      history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
+    }
+  }
   if (!loungesAvailable || loungeState.loading) return;
   loungeState.loading = true;
   try {
@@ -807,6 +820,82 @@ let accountPasswordDraft = '';
 let accountPasswordCaret = 0;
 let accountFocusedField: 'email' | 'password' | null = null;
 
+// Forgot password — sign-in mode only, since "secure" is for someone who
+// doesn't have a password yet at all.
+let resetRequested = false;
+let resetBusy = false;
+let resetError: string | null = null;
+
+/**
+ * True once a password-recovery link has been clicked and the Supabase SDK
+ * has established the temporary session it grants (see
+ * watchForPasswordRecovery in online.ts). Rendered ahead of everything else
+ * in membershipView — someone who just clicked an emailed link expects to
+ * land directly on "set a new password", not have to go find it.
+ */
+let recoveryMode = false;
+let newPasswordDraft = '';
+let recoveryBusy = false;
+let recoveryError: string | null = null;
+let recoveryDone = false;
+
+function passwordRecoveryPanel(rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Account'));
+  panel.append(el('h2', undefined, 'Set a new password'));
+
+  if (recoveryDone) {
+    panel.append(el('p', 'muted', 'Password updated — you\'re signed in.'));
+    const done = document.createElement('button');
+    done.className = 'act ghost';
+    done.textContent = 'Done';
+    done.onclick = () => { recoveryMode = false; recoveryDone = false; rerender(); };
+    panel.appendChild(done);
+    return panel;
+  }
+
+  panel.append(el('p', 'muted small', 'This link signed you in — pick a new password to finish.'));
+
+  const password = document.createElement('input');
+  password.type = 'password';
+  password.className = 'field';
+  password.autocomplete = 'new-password';
+  password.setAttribute('aria-label', 'New password');
+  password.placeholder = 'At least 8 characters';
+  password.value = newPasswordDraft;
+  password.oninput = () => { newPasswordDraft = password.value; };
+  panel.append(el('label', 'field-label', 'New password'), password);
+
+  if (recoveryError) panel.append(el('div', 'banner small', recoveryError));
+
+  const submit = document.createElement('button');
+  submit.className = 'act';
+  submit.textContent = recoveryBusy ? 'Saving…' : 'Save password';
+  submit.disabled = recoveryBusy;
+  submit.onclick = () => void (async () => {
+    if (newPasswordDraft.length < 8) { recoveryError = 'password needs at least 8 characters'; rerender(); return; }
+    recoveryBusy = true; recoveryError = null; rerender();
+    try {
+      await updatePassword(newPasswordDraft);
+      newPasswordDraft = '';
+      recoveryDone = true;
+      // The recovery session belongs to whichever account owned the reset
+      // link — likely a different account than whatever this browser had
+      // signed in before. Same reasoning as signInWithPassword's success
+      // path: refresh rather than leave the old identity on screen.
+      loungeState.me = await myProfile();
+      loungeState.isAnonymous = await isAnonymousUser();
+    } catch (err) {
+      recoveryError = err instanceof Error ? err.message : 'could not update password';
+    } finally {
+      recoveryBusy = false;
+      rerender();
+    }
+  })();
+  panel.appendChild(submit);
+  return panel;
+}
+
 /**
  * The moment a Yardie/VIP purchase is most likely to get secured: right
  * after paying, while it's front of mind, rather than buried in Edit
@@ -940,6 +1029,34 @@ function accountPanel(rerender: () => void): HTMLElement {
   })();
   panel.appendChild(submit);
 
+  // Only sign-in needs this — "secure" is for someone with no password yet.
+  if (!secure) {
+    if (resetRequested) {
+      panel.append(el('p', 'muted small', `Check ${accountEmailDraft.trim() || 'your email'} for a reset link.`));
+    } else {
+      if (resetError) panel.append(el('div', 'banner small', resetError));
+      const forgot = document.createElement('button');
+      forgot.className = 'act ghost small';
+      forgot.textContent = resetBusy ? 'Sending…' : 'Forgot password?';
+      forgot.disabled = resetBusy;
+      forgot.onclick = () => void (async () => {
+        const addr = email.value.trim();
+        if (!addr) { resetError = 'enter your email first'; rerender(); return; }
+        resetBusy = true; resetError = null; rerender();
+        try {
+          await requestPasswordReset(addr);
+          resetRequested = true;
+        } catch (err) {
+          resetError = err instanceof Error ? err.message : 'could not send that';
+        } finally {
+          resetBusy = false;
+          rerender();
+        }
+      })();
+      panel.appendChild(forgot);
+    }
+  }
+
   const switchMode = document.createElement('button');
   switchMode.className = 'act ghost small';
   switchMode.textContent = secure
@@ -949,6 +1066,8 @@ function accountPanel(rerender: () => void): HTMLElement {
     accountMode = secure ? 'signin' : 'secure';
     accountError = null;
     accountMessage = null;
+    resetRequested = false;
+    resetError = null;
     rerender();
   };
   panel.appendChild(switchMode);
@@ -1277,6 +1396,11 @@ export function loungesView(rerender: () => void, goToMembership: () => void): D
 export function membershipView(rerender: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
   const myTier: Tier = loungeState.me?.tier ?? 'guest';
+
+  // Ahead of everything else — someone who just clicked an emailed reset
+  // link expects to land directly on setting a new password, not have to
+  // find it under the usual tier pitch.
+  if (recoveryMode) frag.appendChild(passwordRecoveryPanel(rerender));
 
   const head = el('div', 'panel');
   head.append(el('div', 'eyebrow', 'Membership'));
