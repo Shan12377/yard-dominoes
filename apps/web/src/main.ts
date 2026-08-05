@@ -875,6 +875,20 @@ function handResult(g: LocalGame): HTMLElement | null {
     panel.append(el('p', 'muted', 'Score bruk. Back to love all, and the six opens.'));
   }
 
+  // French penalties (board pass, three-in-a-row pass, an illegal try) accrue
+  // silently mid-hand — the player never sees them fire in the moment, only
+  // the eventual score. This is the one place that proves they actually
+  // landed, matching every other "don't just trust us, look" moment in this
+  // app (Verify this hand, the bruk flash, six love). Zero entries when
+  // nothing happened this hand, so it never appears for non-French formats.
+  if (g.options.format === 'french' && r.penalties?.some((p) => p > 0)) {
+    const breakdown = r.penalties
+      .map((p, seat) => (p > 0 ? `${g.seatLabel(seat)} +${p}` : null))
+      .filter((s): s is string => s !== null)
+      .join('  ·  ');
+    panel.append(el('p', 'muted', `Penalties this hand — ${breakdown}`));
+  }
+
   // The "these tiles were rigged" feeling arrives at exactly one moment: when
   // you have just lost, and hardest when six love has just gone against you.
   // That is the only point where a provably fair deal means anything

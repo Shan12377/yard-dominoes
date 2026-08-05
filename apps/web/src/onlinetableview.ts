@@ -1076,6 +1076,21 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     heading = 'Hand over';
   }
   panel.append(el('h2', undefined, heading));
+
+  // French penalties (board pass, three-in-a-row pass, an illegal try) accrue
+  // silently mid-hand — the player never sees them fire in the moment, only
+  // the eventual score. This is the one place that proves they actually
+  // landed, matching every other "don't just trust us, look" moment in this
+  // app (Verify this hand, the bruk flash, six love). Zero entries when
+  // nothing happened this hand, so it never appears for non-French formats.
+  if (game.table.format === 'french' && r.penalties?.some((p: number) => p > 0)) {
+    const breakdown = (r.penalties as number[])
+      .map((p, seat) => (p > 0 ? `${describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide)} +${p}` : null))
+      .filter((s): s is string => s !== null)
+      .join('  ·  ');
+    panel.append(el('p', 'muted', `Penalties this hand — ${breakdown}`));
+  }
+
   panel.appendChild(revealSection(game));
   if (!game.isSpectator) panel.appendChild(coachSection(game));
 
