@@ -155,11 +155,12 @@ export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
     const [a, b] = halves(step.tile);
 
     if (!board) {
-      // French round 1 opens on the chucha specifically — matches
-      // applyMove's own pose branch in hand.ts. Any other pose, even in a
-      // French hand's later rounds, is a linear open.
-      if (replay.format === 'french' && step.kind === 'pose' && step.tile === '0-0') {
-        board = { kind: 'cross', center: step.tile, arms: [], suitLed: [0] };
+      // Every French pose is a double (round 1 forces the chucha, round 2+
+      // forces the winner's own choice — see poseMustBeAnyDouble in
+      // hand.ts), so any French pose builds a cross centred on whatever was
+      // posed, matching applyMove's own pose branch.
+      if (replay.format === 'french' && step.kind === 'pose' && a === b) {
+        board = { kind: 'cross', center: step.tile, arms: [] };
       } else {
         board = { kind: 'linear', line: [{ tile: step.tile, crosswise: a === b }], leftEnd: a, rightEnd: b };
       }
@@ -175,26 +176,26 @@ export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
       if (step.kind !== 'playcross') return null;
       const placed = { tile: step.tile, crosswise: a === b };
       if (step.arm === cross.arms.length) {
-        // Filling phase: the tile must actually carry a blank half, or a
-        // hand-edited URL could claim an impossible arm.
-        if (a !== 0 && b !== 0) return null;
-        const exposed = (a === 0 ? b : a) as Pip;
-        const newArm: CrossArm = { direction: ARM_DIRECTIONS[step.arm], tiles: [placed], openEnd: exposed };
-        const suitLed = isDouble(step.tile) && !cross.suitLed.includes(exposed)
-          ? [...cross.suitLed, exposed] : cross.suitLed;
-        board = { ...cross, arms: [...cross.arms, newArm], suitLed };
+        // Filling phase: the tile must actually carry a half matching the
+        // centre's own pip value, or a hand-edited URL could claim an
+        // impossible arm.
+        const centerValue = halves(cross.center)[0];
+        if (a !== centerValue && b !== centerValue) return null;
+        const exposed = (a === centerValue ? b : a) as Pip;
+        const newArm: CrossArm = {
+          direction: ARM_DIRECTIONS[step.arm], tiles: [placed], openEnd: exposed, doubleDown: false,
+        };
+        board = { ...cross, arms: [...cross.arms, newArm] };
         continue;
       }
       const arm = cross.arms[step.arm];
       if (!arm) return null;
       let exposed: Pip;
       try { exposed = otherHalf(step.tile, arm.openEnd); } catch { return null; }
-      const nextArm: CrossArm = { ...arm, tiles: [...arm.tiles, placed], openEnd: exposed };
-      const ledSuit = arm.openEnd;
-      const suitLed = isDouble(step.tile) && !cross.suitLed.includes(ledSuit)
-        ? [...cross.suitLed, ledSuit] : cross.suitLed;
+      const doubleDown = isDouble(step.tile) && halves(step.tile)[0] === arm.openEnd;
+      const nextArm: CrossArm = { ...arm, tiles: [...arm.tiles, placed], openEnd: exposed, doubleDown };
       const arms = cross.arms.map((a2, i) => i === step.arm ? nextArm : a2);
-      board = { ...cross, arms, suitLed };
+      board = { ...cross, arms };
       continue;
     }
 

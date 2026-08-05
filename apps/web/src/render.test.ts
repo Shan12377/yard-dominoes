@@ -129,7 +129,7 @@ test('the width cap is respected even when there is room to be bigger', () => {
 // arm, 4 across it), centred on the arm's normal band.
 
 function emptyCrossBoard(): CrossBoard {
-  return { kind: 'cross', center: '0-0', arms: [], suitLed: [] };
+  return { kind: 'cross', center: '0-0', arms: [] };
 }
 
 /** One arm, one tile, everything else empty. */
@@ -137,13 +137,13 @@ function crossBoardWithOneTile(
   armIndex: 0 | 1 | 2 | 3, tile: string, crosswise: boolean,
 ): CrossBoard {
   const arms: CrossBoard['arms'] = [
-    { direction: 'right', tiles: [], openEnd: 0 },
-    { direction: 'left', tiles: [], openEnd: 0 },
-    { direction: 'up', tiles: [], openEnd: 0 },
-    { direction: 'down', tiles: [], openEnd: 0 },
+    { direction: 'right', tiles: [], openEnd: 0, doubleDown: false },
+    { direction: 'left', tiles: [], openEnd: 0, doubleDown: false },
+    { direction: 'up', tiles: [], openEnd: 0, doubleDown: false },
+    { direction: 'down', tiles: [], openEnd: 0, doubleDown: false },
   ];
   arms[armIndex] = { ...arms[armIndex], tiles: [{ tile, crosswise }] };
-  return { kind: 'cross', center: '0-0', arms, suitLed: [] };
+  return { kind: 'cross', center: '0-0', arms };
 }
 
 test('an empty cross board centres the chucha with room to spare on every side', () => {

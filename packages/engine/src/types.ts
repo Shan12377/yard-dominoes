@@ -71,23 +71,33 @@ export interface CrossArm {
   direction: 'right' | 'left' | 'up' | 'down';
   tiles: PlacedTile[];
   openEnd: Pip;
+  /**
+   * True once THIS arm's own matching double has been played, specifically
+   * on this arm, unlocking non-double extension of its currently exposed
+   * value. Per pagat.com/domino/cross/french.html: "The next bone played on
+   * each of these arms must be the matching double... whenever a new number
+   * appears at the end of an arm, it cannot be extended further until the
+   * double has been played" — and their worked example confirms this is
+   * per-arm, not board-wide: [2-1] plays on the top arm because [2-2] was
+   * played THERE, but not on the left arm where [1-1] hasn't been. Resets
+   * to false every time a non-double play changes openEnd to a new value —
+   * a fresh number needs its own gate. Only one copy of any double exists,
+   * so a double played on one arm can never unlock a different arm that
+   * later happens to expose the same pip.
+   */
+  doubleDown: boolean;
 }
 
 /**
- * French cross board. The chucha (0-0) sits in the centre; up to 4 arms
- * extend outward, one per blank corner of the chucha.
- *
- * suitLed tracks which suits' doubles have been played anywhere on the board.
- * Once a suit's double is down, non-doubles of that suit are legal on any arm
- * whose openEnd matches. Until then only the double itself can play on such
- * an arm — this is the "doubles run tings" rule. Blank (0) starts in the set
- * because the chucha IS the double-blank.
+ * French cross board. Centred on whatever double was posed to open the hand
+ * — the chucha (0-0) in round 1, or the winner's own choice of double in
+ * round 2 onward (see HandState.poseMustBeAnyDouble). Up to 4 arms extend
+ * outward, one per corner matching the centre's own pip value.
  */
 export interface CrossBoard {
   kind: 'cross';
   center: TileId;
   arms: CrossArm[];
-  suitLed: Pip[];
 }
 
 export type AnyBoard = Board | CrossBoard;

@@ -201,8 +201,8 @@ describe('hard ends, dead doubles and keys — named reads of public board state
             { tile: '3-5', crosswise: false },
           ],
           openEnd: 3,
+          doubleDown: false,
         }],
-        suitLed: [0],
       };
       const view = baseView({ board, myHand: ['3-6'], format: 'french', openingTile: '0-0' });
       assert.deepEqual(hardEnds(view), [3]);

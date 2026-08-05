@@ -226,6 +226,124 @@ describe('French: round 2+ must pose a double', () => {
   });
 });
 
+// pagat.com/domino/cross/french.html: "the winner of the previous round poses
+// a double of their choice"; the fill mechanic it then describes ("four bones
+// ... played against the four sides of the posed double ... creates a
+// cross-shaped layout with four arms") is stated generally, matching the
+// standard cross-domino convention that whichever double opens a hand is
+// that hand's own spinner — not only the chucha. A round-2+ pose of, say,
+// 3-3 must build a fresh 4-arm cross centred on 3-3, exactly like the chucha
+// does in round 1, not fall through to an ordinary 2-ended line.
+describe('French: cross board — a round 2+ posed double is a spinner too', () => {
+  it('posing a non-chucha double builds a cross, not a line', () => {
+    const order = [
+      '1-2', '1-3', '1-4', '1-5', '1-6', '5-5', '3-3', // seat 0 — poser, holds two doubles
+      '0-0', '0-1', '0-2', '0-3', '0-4', '0-5', '0-6', // seat 1
+      '2-2', '2-3', '2-4', '2-5', '2-6', '4-4', '4-5', // seat 2
+      '4-6', '6-6', '1-1', '3-4', '3-5', '3-6', '5-6', // seat 3
+    ];
+    const hand = deal({
+      order, seatCount: 4, mode: 'cutthroat', useBoneyard: false,
+      poser: 0, poseMustBeDoubleSix: false, poseMustBeAnyDouble: true,
+      openingTile: '0-0', format: 'french',
+    });
+    const posed = applyMove(hand, { kind: 'pose', seat: 0, tile: '3-3' });
+    assert.equal(posed.board!.kind, 'cross', 'a French pose is always a double, so it always builds a cross');
+    assert.equal((posed.board as any).center, '3-3');
+    assert.deepEqual((posed.board as any).arms, [], 'nothing fills the fresh cross yet');
+
+    // Fill phase now needs tiles carrying a "3" half, not a blank half —
+    // the spinner's own value, whatever double was actually posed.
+    const fillMoves = legalMoves(posed).filter((m) => m.kind === 'playcross');
+    assert.ok(fillMoves.length > 0, 'someone at the table can start filling the 3-3 cross');
+    for (const m of fillMoves) {
+      const [a, b] = (m as any).tile.split('-').map(Number);
+      assert.ok(a === 3 || b === 3, `${(m as any).tile} does not carry a 3 to attach to the 3-3 centre`);
+    }
+  });
+});
+
+// pagat.com/domino/cross/french.html's own worked example: "[2-1] can be
+// played on the top arm since [2-2] has been played, but cannot be played on
+// the left arm since [1-1] has not yet been played" — the gate is tied to
+// the SPECIFIC arm a double was played on, not to the board as a whole. This
+// matters because only one copy of any double exists: playing it on one arm
+// can never retroactively unlock a different arm that happens to expose the
+// same pip.
+describe('French: cross board — doubles must lead per arm, not board-wide', () => {
+  function crossHand(overrides: Partial<HandState>): HandState {
+    return {
+      seatCount: 4,
+      mode: 'cutthroat',
+      hands: [[], [], [], []],
+      boneyard: [],
+      board: null,
+      format: 'french',
+      turn: 0,
+      consecutivePasses: 0,
+      moveLog: [],
+      penalties: [0, 0, 0, 0],
+      status: 'active',
+      result: null,
+      poseMustBeDoubleSix: false,
+      openingTile: '0-0',
+      poser: 0,
+      ...overrides,
+    };
+  }
+
+  it("matches pagat's own example: 2-1 plays on the arm where 2-2 led, not on one where 1-1 hasn't", () => {
+    const state = crossHand({
+      hands: [['2-1'], [], [], []],
+      turn: 0,
+      board: {
+        kind: 'cross',
+        center: '0-0',
+        arms: [
+          { direction: 'right', tiles: [], openEnd: 2, doubleDown: true },  // 2-2 already played here
+          { direction: 'left', tiles: [], openEnd: 1, doubleDown: false }, // 1-1 not played here
+          { direction: 'up', tiles: [], openEnd: 5, doubleDown: false },
+          { direction: 'down', tiles: [], openEnd: 6, doubleDown: false },
+        ],
+      },
+    });
+    const moves = legalMoves(state).filter((m) => m.kind === 'playcross');
+    assert.deepEqual(
+      moves.map((m) => (m as any).arm),
+      [0],
+      '2-1 is only legal on arm 0 (via its 2 half) — arm 1 rejects it even though the tile also carries a 1',
+    );
+  });
+
+  it("a double played on one arm never unlocks a DIFFERENT arm exposing the same pip", () => {
+    // Both arm 0 and arm 2 expose "3" — arm 0 got there via 3-3 actually
+    // being played on it; arm 2 got there some other way (e.g. a tile like
+    // 4-3 laid down after 4-4 unlocked arm 2's own earlier number) and has
+    // never had 3-3 played on IT specifically.
+    const state = crossHand({
+      hands: [['0-3'], [], [], []],
+      turn: 0,
+      board: {
+        kind: 'cross',
+        center: '0-0',
+        arms: [
+          { direction: 'right', tiles: [], openEnd: 3, doubleDown: true },  // 3-3 led arm 0
+          { direction: 'left', tiles: [], openEnd: 1, doubleDown: false },
+          { direction: 'up', tiles: [], openEnd: 3, doubleDown: false },   // exposes 3 too, but never led
+          { direction: 'down', tiles: [], openEnd: 6, doubleDown: false },
+        ],
+      },
+    });
+    const moves = legalMoves(state).filter((m) => m.kind === 'playcross');
+    assert.deepEqual(
+      moves.map((m) => (m as any).arm),
+      [0],
+      'the non-double 0-3 may extend arm 0 (its own double already down) but not arm 2, ' +
+        'even though arm 2 shows the same pip — this is the exact bug a shared board-wide flag would reintroduce',
+    );
+  });
+});
+
 describe('French: chucha opens round 1', () => {
   it('the double-blank holder is picked as opener when openingTile is "0-0"', () => {
     // Build a deal order that puts 0-0 in seat 2's hand and 6-6 in seat 0's.

@@ -836,11 +836,18 @@ function partnerHandPanel(tiles: string[]): HTMLElement {
   return panel;
 }
 
-/** Matches CrossArm['direction'] — the felt lays a French board's four arms
- *  out in exactly these compass positions, so naming the arm this way is
- *  naming something the player can actually see, not new vocabulary. */
-const ARM_DIRECTION_LABEL: Record<'right' | 'left' | 'up' | 'down', string> = {
-  right: 'Right', left: 'Left', up: 'Up', down: 'Down',
+/**
+ * Matches CrossArm['direction'] — the felt lays a French board's four arms
+ * out in exactly these screen positions. An arrow needs no translating the
+ * way "Right"/"Up" did — a player who couldn't place what "Up arm" meant
+ * can still match an arrow glyph straight to the arm pointing that way on
+ * the felt. `label` stays for screen readers, which can't see the glyph.
+ */
+const ARM_DIRECTION_ARROW: Record<'right' | 'left' | 'up' | 'down', { glyph: string; label: string }> = {
+  right: { glyph: '→', label: 'right' },
+  left: { glyph: '←', label: 'left' },
+  up: { glyph: '↑', label: 'top' },
+  down: { glyph: '↓', label: 'bottom' },
 };
 
 function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
@@ -891,14 +898,20 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
       if (cross && move.kind === 'playcross') {
         // Post-fill only — the fill phase always has exactly one legal arm
         // per tile, so a real choice here means two or more EXISTING arms
-        // both expose the same pip and this tile answers both. Naming the
-        // physical arm (matching the felt's own up/down/left/right layout)
-        // is what "Right end" twice, with no way to tell them apart, was
-        // missing — a cross board has no left/right at all.
+        // both expose the same pip and this tile answers both. An arrow
+        // pointing the same way the arm actually runs on the felt needs no
+        // reading — "Right end" twice, with no way to tell them apart, was
+        // the original bug; "Right arm" / "Up arm" fixed the ambiguity but
+        // still asked the player to translate a compass word into a screen
+        // position. The glyph removes that step entirely.
         const arm = cross.arms[move.arm];
-        b.textContent = arm
-          ? `${ARM_DIRECTION_LABEL[arm.direction]} arm (${arm.openEnd})`
-          : 'New arm';
+        if (arm) {
+          const dir = ARM_DIRECTION_ARROW[arm.direction];
+          b.textContent = `${dir.glyph} (${arm.openEnd})`;
+          b.setAttribute('aria-label', `${dir.label} arm, opens on ${arm.openEnd}`);
+        } else {
+          b.textContent = 'New arm';
+        }
       } else {
         const isLeft = (move as any).end === 'left';
         const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;

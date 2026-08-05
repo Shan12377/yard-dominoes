@@ -47,7 +47,6 @@ function cloneAnyBoard(board: AnyBoard | null): AnyBoard | null {
       kind: 'cross',
       center: board.center,
       arms: board.arms.map((a) => ({ ...a, tiles: a.tiles.map((p) => ({ ...p })) })),
-      suitLed: [...board.suitLed],
     };
   }
   return {

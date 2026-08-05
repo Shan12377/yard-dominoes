@@ -45,7 +45,6 @@ function cloneBoard(board: AnyBoard | null): AnyBoard | null {
       kind: 'cross',
       center: board.center,
       arms: board.arms.map((a) => ({ ...a, tiles: a.tiles.map((p) => ({ ...p })) })),
-      suitLed: [...board.suitLed],
     };
   }
   return {
@@ -260,25 +259,26 @@ function linearLegalPlays(hand: TileId[], board: Board, seat: number): Move[] {
 /**
  * French cross-board legal plays.
  *
- * Filling phase (arms.length < 4): must play a tile with a blank half. Each
- * such play creates the next arm attached to a chucha corner. Because blank
- * is already in suitLed (the chucha IS the double-blank), the suit-led rule
- * is satisfied automatically.
+ * Filling phase (arms.length < 4): must play a tile with a half matching the
+ * centre's own pip value (the chucha's blank in round 1, or whatever double
+ * the winner posed in round 2+ — see HandState.poseMustBeAnyDouble). Each
+ * such play creates the next arm attached to a centre corner.
  *
- * Post-fill: each arm exposes its openEnd. A tile with a matching half is
- * legal on that arm iff either the tile IS the double of that suit (i.e.
- * leads the suit) OR the suit is already in board.suitLed. This is the
- * "doubles must lead" rule from the JamDom tutorial — until a suit's double
- * is on the board, only the double itself can play on an arm exposing that
- * suit.
+ * Post-fill: each arm exposes its own openEnd. A tile with a matching half
+ * is legal on that arm iff either the tile IS the double of that suit (i.e.
+ * leads it) OR that specific arm's own doubleDown flag is already set. This
+ * is the "doubles must lead" rule (pagat.com/domino/cross/french.html) —
+ * per-arm, not board-wide: playing a suit's double on one arm never unlocks
+ * a different arm that happens to expose the same pip. See CrossArm.doubleDown.
  */
 function crossLegalPlays(hand: TileId[], board: CrossBoard, seat: number): Move[] {
   const plays: Move[] = [];
+  const centerValue = halves(board.center)[0]; // center is always a double
   if (board.arms.length < 4) {
     const armIdx = board.arms.length;
     for (const tile of hand) {
       const [a, b] = halves(tile);
-      if (a === 0 || b === 0) plays.push({ kind: 'playcross', seat, tile, arm: armIdx });
+      if (a === centerValue || b === centerValue) plays.push({ kind: 'playcross', seat, tile, arm: armIdx });
     }
     return plays;
   }
@@ -286,9 +286,8 @@ function crossLegalPlays(hand: TileId[], board: CrossBoard, seat: number): Move[
     const arm = board.arms[armIdx];
     for (const tile of hand) {
       if (!matches(tile, arm.openEnd)) continue;
-      const isSuitLed = board.suitLed.includes(arm.openEnd);
       const isSuitDouble = isDouble(tile) && halves(tile)[0] === arm.openEnd;
-      if (isSuitDouble || isSuitLed) {
+      if (isSuitDouble || arm.doubleDown) {
         plays.push({ kind: 'playcross', seat, tile, arm: armIdx });
       }
     }
@@ -320,39 +319,39 @@ function place(board: Board, tile: TileId, end: End): Board {
 
 /**
  * Apply a French cross-board play. Filling phase (arm === arms.length)
- * creates a new arm; post-fill extends an existing arm. In both cases we
- * update suitLed when a double is played, because that suit is now "led".
+ * creates a new arm, gate unset (its very first extension must be its own
+ * matching double — see CrossArm.doubleDown). Post-fill extends an existing
+ * arm: doubleDown becomes true when the play IS that arm's matching double
+ * (the value stays the same, now unlocked), and false whenever a non-double
+ * changes openEnd to a new value (a fresh number needs its own gate).
  */
 function placeCross(board: CrossBoard, tile: TileId, armIdx: number): CrossBoard {
   const placed = { tile, crosswise: isDouble(tile) };
   const [a, b] = halves(tile);
   if (armIdx === board.arms.length) {
-    // Filling phase: attach to chucha via blank half; other half is exposed.
-    const exposed = (a === 0 ? b : a) as Pip;
+    // Filling phase: attach to the centre via the matching half; the other
+    // half is exposed.
+    const centerValue = halves(board.center)[0];
+    const exposed = (a === centerValue ? b : a) as Pip;
     const newArm: CrossArm = {
       direction: ARM_DIRECTIONS[armIdx],
       tiles: [placed],
       openEnd: exposed,
+      doubleDown: false,
     };
-    const suitLed = isDouble(tile) && !board.suitLed.includes(exposed)
-      ? [...board.suitLed, exposed] : board.suitLed;
-    return { ...board, arms: [...board.arms, newArm], suitLed };
+    return { ...board, arms: [...board.arms, newArm] };
   }
   const arm = board.arms[armIdx];
+  const doubleDown = isDouble(tile) && halves(tile)[0] === arm.openEnd;
   const exposed = otherHalf(tile, arm.openEnd);
   const nextArm: CrossArm = {
     ...arm,
     tiles: [...arm.tiles, placed],
     openEnd: exposed,
+    doubleDown,
   };
-  // A double leads its own suit (openEnd unchanged); non-doubles never lead.
-  // The suit we may newly lead is the openEnd BEFORE this play — i.e. the
-  // suit the arm was already exposing when the double was placed on it.
-  const ledSuit = arm.openEnd;
-  const suitLed = isDouble(tile) && !board.suitLed.includes(ledSuit)
-    ? [...board.suitLed, ledSuit] : board.suitLed;
   const arms = board.arms.map((a2, i) => i === armIdx ? nextArm : a2);
-  return { ...board, arms, suitLed };
+  return { ...board, arms };
 }
 
 function resolve(s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble = false): HandResult {
@@ -429,12 +428,15 @@ export function applyMove(prev: HandState, move: Move): HandState {
     case 'pose': {
       const [a, b] = halves(move.tile);
       s.hands[move.seat] = s.hands[move.seat].filter((t) => t !== move.tile);
-      // French round-1 chucha pose builds the cross board; standard poses
-      // build a linear board. A non-chucha pose in French (openingTile
-      // fallback) still uses the linear board — French cross rules require
-      // the chucha specifically as centre.
-      if (s.format === 'french' && move.tile === '0-0') {
-        s.board = { kind: 'cross', center: move.tile, arms: [], suitLed: [0] };
+      // Every French pose is a double — round 1 forces the chucha
+      // specifically (poseMustBeDoubleSix + openingTile '0-0'), round 2+
+      // forces the winner's own choice of double (poseMustBeAnyDouble) —
+      // so any French pose builds a fresh cross centred on whatever was
+      // posed, not just the chucha. Per pagat.com/domino/cross/french.html,
+      // "the first double played [in a hand] acts as a spinner" generally,
+      // not only the double-blank.
+      if (s.format === 'french' && isDouble(move.tile)) {
+        s.board = { kind: 'cross', center: move.tile, arms: [] };
       } else {
         s.board = {
           kind: 'linear',
