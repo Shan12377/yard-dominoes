@@ -774,23 +774,25 @@ function myHand(g: LocalGame): HTMLElement {
     const can = playable.has(tile);
     node.classList.add(can ? 'playable' : 'dead');
     if (pendingTile === tile) node.classList.add('chosen');
-    if (can) {
-      node.tabIndex = 0;
-      const choose = () => {
-        const options = legal.filter((m) => 'tile' in m && m.tile === tile);
-        if (options.length === 1) {
-          pendingTile = null;
-          void g.play(options[0]);
-        } else {
-          // Fits both ends — make the player say which. Auto-placing here is a
-          // top complaint against every rival app.
-          pendingTile = pendingTile === tile ? null : tile;
-          render();
-        }
-      };
-      node.onclick = choose;
-      node.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
-    }
+    // Every tile is selectable, playable or not — a real table never stops
+    // your hand touching a tile that doesn't fit, it just won't land. The
+    // 'playable' class is the hint; tapping a 'dead' one shows why it can't
+    // be played instead of doing nothing.
+    node.tabIndex = 0;
+    const choose = () => {
+      const options = legal.filter((m) => 'tile' in m && m.tile === tile);
+      if (options.length === 1) {
+        pendingTile = null;
+        void g.play(options[0]);
+      } else {
+        // Fits both ends — make the player say which. Auto-placing here is a
+        // top complaint against every rival app.
+        pendingTile = pendingTile === tile ? null : tile;
+        render();
+      }
+    };
+    node.onclick = choose;
+    node.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
     hand.appendChild(node);
   }
   panel.appendChild(hand);
@@ -799,34 +801,39 @@ function myHand(g: LocalGame): HTMLElement {
     const board = g.hand?.board ?? null;
     const linear = board?.kind === 'linear' ? board : null;
     const cross = board?.kind === 'cross' ? board : null;
+    const options = legal.filter((m) => 'tile' in m && m.tile === pendingTile);
     const choice = el('div', 'row');
-    choice.append(el('span', 'muted', 'Which end?'));
-    for (const move of legal.filter((m) => 'tile' in m && m.tile === pendingTile)) {
-      const b = document.createElement('button');
-      b.className = 'act ghost';
-      if (cross && move.kind === 'playcross') {
-        // Post-fill only — the fill phase always has exactly one legal arm
-        // per tile, so a real choice here means two or more EXISTING arms
-        // both expose the same pip. An arrow pointing the same way the arm
-        // actually runs on the felt needs no reading — see the parallel
-        // comment in onlinetableview.ts.
-        const arm = cross.arms[move.arm];
-        if (arm) {
-          const dir = ARM_DIRECTION_ARROW[arm.direction];
-          b.textContent = `${dir.glyph} (${arm.openEnd})`;
-          b.setAttribute('aria-label', `${dir.label} arm, opens on ${arm.openEnd}`);
+    if (options.length === 0) {
+      choice.append(el('span', 'muted', "That tile doesn't fit the board right now."));
+    } else {
+      choice.append(el('span', 'muted', 'Which end?'));
+      for (const move of options) {
+        const b = document.createElement('button');
+        b.className = 'act ghost';
+        if (cross && move.kind === 'playcross') {
+          // Post-fill only — the fill phase always has exactly one legal arm
+          // per tile, so a real choice here means two or more EXISTING arms
+          // both expose the same pip. An arrow pointing the same way the arm
+          // actually runs on the felt needs no reading — see the parallel
+          // comment in onlinetableview.ts.
+          const arm = cross.arms[move.arm];
+          if (arm) {
+            const dir = ARM_DIRECTION_ARROW[arm.direction];
+            b.textContent = `${dir.glyph} (${arm.openEnd})`;
+            b.setAttribute('aria-label', `${dir.label} arm, opens on ${arm.openEnd}`);
+          } else {
+            b.textContent = 'New arm';
+          }
         } else {
-          b.textContent = 'New arm';
+          const isLeft = (move as any).end === 'left';
+          const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;
+          b.textContent = pip !== null
+            ? `${isLeft ? 'Left' : 'Right'} end (${pip})`
+            : (isLeft ? 'Left end' : 'Right end');
         }
-      } else {
-        const isLeft = (move as any).end === 'left';
-        const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;
-        b.textContent = pip !== null
-          ? `${isLeft ? 'Left' : 'Right'} end (${pip})`
-          : (isLeft ? 'Left end' : 'Right end');
+        b.onclick = () => { pendingTile = null; void g.play(move); };
+        choice.appendChild(b);
       }
-      b.onclick = () => { pendingTile = null; void g.play(move); };
-      choice.appendChild(b);
     }
     panel.appendChild(choice);
   }

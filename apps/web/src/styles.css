@@ -423,7 +423,11 @@ label.field > span {
 .hand { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0; }
 .hand .tile { --w: 38px; --h: 76px; cursor: pointer; transition: transform 140ms ease; }
 .hand .tile.playable:hover { transform: translateY(-8px); }
-.hand .tile.dead { opacity: 0.34; cursor: not-allowed; }
+/* Dead tiles are still tappable — see myHand()/myHandPanel() — so they keep
+ * the pointer cursor and a (smaller) hover lift; only the opacity marks them
+ * as unlikely to fit. */
+.hand .tile.dead { opacity: 0.5; }
+.hand .tile.dead:hover { transform: translateY(-4px); }
 .hand .tile.chosen { outline: 2px solid var(--gold); outline-offset: 2px; transform: translateY(-8px); }
 
 /* Openhand: partner's tiles above your own. Small enough not to compete with
