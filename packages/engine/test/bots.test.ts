@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   publicView, chooseMove, duppyMove, suitStrength, voidsFromLog,
-  sampleConsistentDeal, DUPPY_LEVELS, allBoardTiles, hardEnds, deadDoubles, hasKey,
+  sampleConsistentDeal, DUPPY_LEVELS, allBoardTiles, hardEnds, deadDoubles, hasKey, endsAfter,
 } from '../src/bots.ts';
 import type { PublicView } from '../src/bots.ts';
 import { reviewHand, accuracy } from '../src/coach.ts';
@@ -274,6 +274,34 @@ describe('hard ends, dead doubles and keys — named reads of public board state
       const view = baseView({ board, myHand: ['1-2'] });
       assert.equal(hasKey(view), false);
     });
+  });
+});
+
+// Regression: duppy move-scoring's endsAfter() had the exact same
+// hardcoded-blank-centre bug that hand.ts's real legality logic already got
+// fixed for — a round 2+ French cross can centre on ANY double, not only
+// the chucha (0-0). Missed the first time because endsAfter is a scoring
+// heuristic, not a legality check, so nothing here failed loudly; a duppy
+// would just misjudge the position for the fill phase of a non-chucha
+// spinner. Also pins the sixlove/firstToSix boundary the fix depends on:
+// a plain double-six pose there still builds a 2-ended LINE, not a cross,
+// so it must keep exposing both halves, not just one.
+describe('endsAfter', () => {
+  test('a French pose is always a fresh cross, exposing only the posed double\'s own value', () => {
+    const ends = endsAfter(null, { kind: 'pose', seat: 0, tile: '3-3' }, 'french');
+    assert.deepEqual(ends, [3]);
+  });
+
+  test('a sixlove double-six pose builds a normal 2-ended line, not a cross — both halves expose', () => {
+    const ends = endsAfter(null, { kind: 'pose', seat: 0, tile: '6-6' }, 'sixlove');
+    assert.deepEqual(ends, [6, 6]);
+  });
+
+  test('filling a non-chucha spinner anchors on the centre\'s own pip, not blank', () => {
+    const board: AnyBoard = { kind: 'cross', center: '6-6', arms: [] };
+    const move: Move = { kind: 'playcross', seat: 0, tile: '2-6', arm: 0 };
+    // 2-6 attaches via its 6 half (matching the 6-6 centre); 2 is exposed.
+    assert.deepEqual(endsAfter(board, move, 'french'), [2]);
   });
 });
 

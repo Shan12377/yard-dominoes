@@ -157,6 +157,37 @@ test('an empty cross board centres the chucha with room to spare on every side',
   assert.equal(chucha.row - 1, totalRows - (chucha.row + chucha.rowSpan - 1));
 });
 
+// Regression: round 2+ can centre a French cross on ANY double the winner
+// posed (3-3, 6-6, ...), not only the chucha. The centre placement's faces
+// were hardcoded to [0, 0] from when the chucha was the only possible
+// centre — a live board showed this exact bug, rendering a posed 6-6 as a
+// blank tile. Faces must track board.center, whatever it actually is.
+test('the centre tile renders the pips of whatever double was actually posed, not always blank', () => {
+  const board: CrossBoard = { kind: 'cross', center: '6-6', arms: [] };
+  const { placements } = crossPlacements(board);
+  assert.equal(placements.length, 1);
+  assert.deepEqual(placements[0].faces, [6, 6], 'a 6-6 spinner must render as 6-6, not 0-0');
+});
+
+// Regression, same root cause as the centre-face bug above but worse: the
+// first tile of each arm decides its inner/outer orientation against a
+// hardcoded blank anchor. Live on a 1-1 spinner this put a 1-6 fill tile's
+// 1 (the half that actually matches the centre) on the OUTER end and the
+// unrelated 6 on the inner end — backwards. Anchor must track the centre's
+// real pip value.
+test('the first tile of an arm orients its centre-matching half inward, even on a non-chucha spinner', () => {
+  const board: CrossBoard = {
+    kind: 'cross',
+    center: '1-1',
+    arms: [{ direction: 'right', tiles: [{ tile: '1-6', crosswise: false }], openEnd: 6, doubleDown: false }],
+  };
+  const { placements } = crossPlacements(board);
+  assert.equal(placements.length, 2);
+  // Right arm is not reversed: faces = [inner, outer]. The 1 (matching the
+  // 1-1 centre) must be inner; the unrelated 6 must be outer.
+  assert.deepEqual(placements[1].faces, [1, 6], 'the 1 must face the centre, not the outer end');
+});
+
 test('a non-double lies along its arm: long side matches the arm direction', () => {
   const right = crossPlacements(crossBoardWithOneTile(0, '0-3', false)).placements[1];
   assert.equal(right.colSpan, 4, 'a horizontal-arm single should be wide');

@@ -247,10 +247,16 @@ export function hasKey(view: PublicView): boolean {
  * reason about what suits opponents would face next. Linear boards return two
  * pips; cross boards return however many arms are exposed.
  */
-function endsAfter(board: AnyBoard | null, move: Move): Pip[] {
+export function endsAfter(board: AnyBoard | null, move: Move, format: SetFormat): Pip[] {
   if (move.kind === 'pose') {
     const [a, b] = halves(move.tile);
-    if (move.tile === '0-0') return [0];
+    // A French pose is always a double and always builds a fresh cross (see
+    // applyMove's own pose branch in hand.ts), which exposes only its own
+    // value at every future corner — not both halves the way a linear
+    // pose's two ends do. Gated on format, not just isDouble(move.tile):
+    // sixlove/firstToSix can also pose a double (e.g. a forced 6-6), and
+    // that builds an ordinary 2-ended line, not a cross.
+    if (format === 'french' && isDouble(move.tile)) return [a as Pip];
     return [a as Pip, b as Pip];
   }
   if (move.kind === 'play' && board && board.kind === 'linear') {
@@ -261,7 +267,10 @@ function endsAfter(board: AnyBoard | null, move: Move): Pip[] {
   if (move.kind === 'playcross' && board && board.kind === 'cross') {
     if (move.arm === board.arms.length) {
       const [a, b] = halves(move.tile);
-      const exposed = (a === 0 ? b : a) as Pip;
+      // Fill-phase anchor is the centre's own pip value, not always blank —
+      // same generalization as placeCross in hand.ts.
+      const centerValue = halves(board.center)[0];
+      const exposed = (a === centerValue ? b : a) as Pip;
       return [...board.arms.map((a) => a.openEnd), exposed];
     }
     const arm = board.arms[move.arm];
@@ -327,7 +336,7 @@ export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLeve
   // Heavy tiles are a liability if the board blocks.
   score += tileCount(tile) * w.shedPips * 0.1;
 
-  const ends = endsAfter(view.board, move);
+  const ends = endsAfter(view.board, move, view.format);
   const remaining = view.myHand.filter((t) => t !== tile);
   const strength = suitStrength(remaining);
 

@@ -198,13 +198,15 @@ interface CrossLayout {
  * French cross board, pure layout math — same split as chooseUnit/layoutLine
  * for the linear board, so this is unit-testable without a DOM.
  *
- * Chucha (0-0) at centre; up to 4 arms extend outward in fixed order —
- * right (0), left (1), up (2), down (3). Non-doubles lie along their arm and
- * occupy a 4×2 footprint (long side along the arm); doubles lie CROSSWISE —
- * jutting out to both sides, a 2×4 or 4×2 footprint with the long side
- * perpendicular to the arm. Pip halves are ordered so the touching pips at
- * every junction match — the anchor pip for tiles[i] is tiles[i-1]'s exposed
- * pip, or 0 (chucha) when i === 0.
+ * Whatever double opened the hand sits at centre — the chucha (0-0) in
+ * round 1, or the winner's own choice in round 2+ (see
+ * HandState.poseMustBeAnyDouble) — with up to 4 arms extending outward in
+ * fixed order: right (0), left (1), up (2), down (3). Non-doubles lie along
+ * their arm and occupy a 4×2 footprint (long side along the arm); doubles
+ * lie CROSSWISE — jutting out to both sides, a 2×4 or 4×2 footprint with the
+ * long side perpendicular to the arm. Pip halves are ordered so the touching
+ * pips at every junction match — the anchor pip for tiles[i] is tiles[i-1]'s
+ * exposed pip, or the centre's own pip value when i === 0.
  *
  * The grid gets a uniform 1-unit buffer beyond what the arms' own along-axis
  * spans require, on every side. Without it, a crosswise tile near the base
@@ -229,10 +231,11 @@ export function crossPlacements(board: CrossBoard): CrossLayout {
   const centerCol = 2 + leftSpan;
   const centerRow = 2 + upSpan;
 
+  const centerValue = halves(board.center)[0]; // center is always a double
   const placements: TilePlacement[] = [{
     placed: { tile: board.center, crosswise: true },
     orient: 'v',
-    faces: [0, 0],
+    faces: [centerValue, centerValue],
     col: centerCol, row: centerRow, colSpan: 2, rowSpan: 2,
   }];
 
@@ -249,7 +252,14 @@ export function crossPlacements(board: CrossBoard): CrossLayout {
   ) => {
     if (!tiles) return;
     let offset = 0;
-    let anchor: Pip = 0;
+    // The first tile's inner half must match the CENTRE's own pip value —
+    // hardcoded to 0 (blank) from when the chucha was the only possible
+    // centre. A round 2+ cross can spin on any double (e.g. 1-1): a fill
+    // tile like 1-6 has its inner/outer picked by `a === anchor`, so an
+    // anchor stuck at 0 instead of the true centre value (1) put the 6
+    // inward and the 1 outward — backwards, and specifically the "ones on
+    // the outer side" bug seen live on a 1-1 spinner.
+    let anchor: Pip = centerValue;
     tiles.forEach((p) => {
       const [a, b] = halves(p.tile);
       const inner: Pip = (a === anchor ? a : b) as Pip;
