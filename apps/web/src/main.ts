@@ -567,6 +567,14 @@ function seatName(r: ReplayHand, seat: number): string {
   return `Seat ${seat + 1}`;
 }
 
+/** One line under the Set picker — where a player actually needs to know
+ *  what they're choosing, not a standalone guide bolted onto the lounge. */
+const FORMAT_HINTS: Record<string, string> = {
+  sixlove: 'Six wins in a row while the other side stays at zero — a bruk resets it.',
+  firstToSix: 'Best of six. Straight race, no reset.',
+  french: 'Race to 100 — lowest score wins. Doubles cost you double.',
+};
+
 // ----------------------------------------------------------------- lobby --
 function lobby(): HTMLElement {
   const panel = el('div', 'panel door');
@@ -595,8 +603,14 @@ function lobby(): HTMLElement {
       ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
       : cutthroatOptions;
   };
+  // One line under the picker, not a standalone guide — this is where a
+  // player actually needs to know what they're choosing.
+  const formatHint = el('div', 'muted small');
+  const syncFormatHint = () => { formatHint.textContent = FORMAT_HINTS[format.value] ?? ''; };
   syncFormat();
-  mode.onchange = syncFormat;
+  syncFormatHint();
+  mode.onchange = () => { syncFormat(); syncFormatHint(); };
+  format.onchange = syncFormatHint;
 
   const duppy = document.createElement('select');
   duppy.innerHTML = `
@@ -611,12 +625,15 @@ function lobby(): HTMLElement {
                           <option value="1">Tournament — must lead the six</option>`;
 
   for (const [label, control] of [
-    ['Game', mode], ['Set', format], ['Duppies', duppy], ['Rules', tournament],
+    ['Game', mode], ['Duppies', duppy], ['Rules', tournament],
   ] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
     form.appendChild(field);
   }
+  const formatField = el('label', 'field');
+  formatField.append(el('span', undefined, 'Set'), format, formatHint);
+  form.insertBefore(formatField, form.children[1] ?? null);
 
   const go = document.createElement('button');
   go.className = 'act';

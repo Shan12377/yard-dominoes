@@ -77,6 +77,14 @@ export async function openTablesPanel(
   return wrap;
 }
 
+/** One line under the Set picker — where a player actually needs to know
+ *  what they're choosing, not a standalone guide bolted onto the lounge. */
+const FORMAT_HINTS: Record<string, string> = {
+  sixlove: 'Six wins in a row while the other side stays at zero — a bruk resets it.',
+  firstToSix: 'Best of six. Straight race, no reset.',
+  french: 'Race to 100 — lowest score wins. Doubles cost you double.',
+};
+
 function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HTMLElement {
   const form = el('div', 'row');
   const mode = document.createElement('select');
@@ -118,16 +126,28 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
         + `<option value="sixlove">Six love — very long</option>`
         + `<option value="french">French — race to 100</option>`;
   };
+  // One line under the picker, not a standalone guide — this is where the
+  // actual confusion was (a player couldn't tell what a format meant, or
+  // that French existed at all), not a gap the lounge screen as a whole
+  // needed filling.
+  const formatHint = el('div', 'muted small');
+  const syncFormatHint = () => {
+    formatHint.textContent = FORMAT_HINTS[format.value] ?? '';
+  };
   syncFormat();
   syncSeatCount();
-  mode.onchange = () => { syncFormat(); syncSeatCount(); };
-  format.onchange = syncSeatCount;
+  syncFormatHint();
+  mode.onchange = () => { syncFormat(); syncSeatCount(); syncFormatHint(); };
+  format.onchange = () => { syncSeatCount(); syncFormatHint(); };
 
-  for (const [label, control] of [['Game', mode], ['Set', format], ['Seats', seatCount], ['Clock', clock], ['Fill empty seats with', duppy]] as const) {
+  for (const [label, control] of [['Game', mode], ['Seats', seatCount], ['Clock', clock], ['Fill empty seats with', duppy]] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
     form.appendChild(field);
   }
+  const formatField = el('label', 'field');
+  formatField.append(el('span', undefined, 'Set'), format, formatHint);
+  form.insertBefore(formatField, form.children[1] ?? null);
 
   const go = document.createElement('button');
   go.className = 'act';
