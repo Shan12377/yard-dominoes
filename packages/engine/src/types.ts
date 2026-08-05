@@ -181,6 +181,17 @@ export interface HandState {
    */
   poseMustBeDoubleSix: boolean;
   /**
+   * French only, round 2 onward (never true alongside poseMustBeDoubleSix —
+   * round 1's chucha and a tie-break reshuffle both force one SPECIFIC
+   * tile, this forces ANY double). The poser must lead some double they
+   * hold, their own choice among however many they have. deal() is what
+   * actually enforces the "or someone else poses, and you're fined" half of
+   * the rule — by the time a HandState exists, `turn`/`poser` already point
+   * at whoever legitimately can pose, so this flag only needs to constrain
+   * legalMoves() to doubles-only, not re-derive who's allowed to act.
+   */
+  poseMustBeAnyDouble?: boolean;
+  /**
    * The tile the poser must lead when poseMustBeDoubleSix is true. Defaults
    * to 6-6 for every format except French, where round 1 is opened by the
    * chucha (0-0) holder leading the 0-0. Derived from format at rehydration

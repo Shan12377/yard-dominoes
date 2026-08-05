@@ -99,6 +99,9 @@ export interface PublicView {
   boneyardSize: number;
   moveLog: Move[];
   poseMustBeDoubleSix: boolean;
+  /** French, round 2+ — see HandState's own field. A duppy due to pose
+   *  needs this to restrict its own stub's legalMoves() to doubles. */
+  poseMustBeAnyDouble?: boolean;
   /** Format is needed so bot stubs re-enter the engine's cross vs linear branches. */
   format: SetFormat;
   /**
@@ -150,6 +153,7 @@ export function publicView(s: HandState, seat: number): PublicView {
     boneyardSize: s.boneyard.length,
     moveLog: s.moveLog.map((m) => ({ ...m })),
     poseMustBeDoubleSix: s.poseMustBeDoubleSix,
+    poseMustBeAnyDouble: s.poseMustBeAnyDouble,
     openingTile: s.openingTile,
     format: s.format,
     ...(partnerHand !== undefined ? { partnerHand } : {}),
@@ -424,6 +428,7 @@ function stateFromDeal(view: PublicView, deal: TileId[][]): HandState {
     status: 'active',
     result: null,
     poseMustBeDoubleSix: view.poseMustBeDoubleSix,
+    poseMustBeAnyDouble: view.poseMustBeAnyDouble,
     openingTile: view.openingTile,
     poser: view.seat,
     format: view.format,

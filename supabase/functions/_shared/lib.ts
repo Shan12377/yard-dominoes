@@ -92,6 +92,7 @@ export interface HandRow {
   result: HandState['result'];
   poser: number;
   pose_must_be_double_six: boolean;
+  pose_must_be_any_double: boolean;
   version: number;
   penalties: number[];
 }
@@ -138,6 +139,7 @@ export function toState(row: HandRow, seatCount: number, mode: GameMode, format:
     status: row.status as HandState['status'],
     result: row.result,
     poseMustBeDoubleSix: row.pose_must_be_double_six,
+    poseMustBeAnyDouble: row.pose_must_be_any_double,
     openingTile: openingTileForFormat(format),
     poser: row.poser,
   };

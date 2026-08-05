@@ -734,6 +734,13 @@ function seats(g: LocalGame): HTMLElement {
 
 let pendingTile: string | null = null;
 
+/** Matches CrossArm['direction'] — the felt lays a French board's four arms
+ *  out in exactly these compass positions, so naming the arm this way is
+ *  naming something the player can actually see, not new vocabulary. */
+const ARM_DIRECTION_LABEL: Record<'right' | 'left' | 'up' | 'down', string> = {
+  right: 'Right', left: 'Left', up: 'Up', down: 'Down',
+};
+
 function partnerHandPanel(tiles: string[]): HTMLElement {
   const panel = el('div', 'panel partner-hand');
   panel.append(el('div', 'eyebrow', 'Partner'));
@@ -782,12 +789,31 @@ function myHand(g: LocalGame): HTMLElement {
   panel.appendChild(hand);
 
   if (pendingTile) {
+    const board = g.hand?.board ?? null;
+    const linear = board?.kind === 'linear' ? board : null;
+    const cross = board?.kind === 'cross' ? board : null;
     const choice = el('div', 'row');
     choice.append(el('span', 'muted', 'Which end?'));
     for (const move of legal.filter((m) => 'tile' in m && m.tile === pendingTile)) {
       const b = document.createElement('button');
       b.className = 'act ghost';
-      b.textContent = (move as any).end === 'left' ? 'Left end' : 'Right end';
+      if (cross && move.kind === 'playcross') {
+        // Post-fill only — the fill phase always has exactly one legal arm
+        // per tile, so a real choice here means two or more EXISTING arms
+        // both expose the same pip. A cross board has no left/right at
+        // all; naming the physical arm (matching the felt's own layout) is
+        // what's actually missing when "Right end" shows up twice.
+        const arm = cross.arms[move.arm];
+        b.textContent = arm
+          ? `${ARM_DIRECTION_LABEL[arm.direction]} arm (${arm.openEnd})`
+          : 'New arm';
+      } else {
+        const isLeft = (move as any).end === 'left';
+        const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;
+        b.textContent = pip !== null
+          ? `${isLeft ? 'Left' : 'Right'} end (${pip})`
+          : (isLeft ? 'Left end' : 'Right end');
+      }
       b.onclick = () => { pendingTile = null; void g.play(move); };
       choice.appendChild(b);
     }

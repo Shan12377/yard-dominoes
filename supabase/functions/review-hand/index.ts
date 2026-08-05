@@ -69,6 +69,7 @@ Deno.serve(handled(async (req) => {
     status: 'active',
     result: null,
     poseMustBeDoubleSix: hand.pose_must_be_double_six,
+    poseMustBeAnyDouble: hand.pose_must_be_any_double,
     poser: hand.poser,
     format,
     openingTile: openingTileForFormat(format),

@@ -84,6 +84,17 @@ export interface DealInput {
    * highest-double / heaviest-tile just as it does for a missing 6-6.
    */
   openingTile?: TileId;
+  /**
+   * French, round 2 onward: `poser` names who is NOMINALLY due to pose (the
+   * previous hand's winner), but they must lead some double they hold, not
+   * a specific tile. If they hold none, deal() searches seat order from
+   * them for the first seat that does, reassigns `poser` to that seat, and
+   * fines the original 10 points (folded into the returned HandState's own
+   * `penalties`, same as every other French penalty). Never combine with
+   * poseMustBeDoubleSix — that one forces a SPECIFIC tile (round 1's
+   * chucha, or a tie-break reshuffle), this forces ANY double.
+   */
+  poseMustBeAnyDouble?: boolean;
   /** Format defaults to 'sixlove'. Only 'french' changes engine behavior. */
   format?: SetFormat;
 }
@@ -130,16 +141,40 @@ export function deal(input: DealInput): HandState {
     hands.push(input.order.slice(s * perPlayer, (s + 1) * perPlayer));
   }
   const boneyard = input.order.slice(input.seatCount * perPlayer);
-
-  // When the score is fresh, has just bruk, or a replay is due, the hand is
-  // opened by whoever holds the required opening tile (6-6 for standard
-  // play, 0-0 for French) — not by the previous winner.
+  const penalties = new Array(input.seatCount).fill(0);
   const openingTile = input.openingTile ?? DOUBLE_SIX;
-  const opener = findOpener(hands, openingTile);
-  const openerLed = input.poseMustBeDoubleSix || input.poser === undefined;
-  const poser = openerLed ? opener.seat : input.poser!;
-  // Can't force a lead of a tile nobody was dealt.
-  const forceOpening = input.poseMustBeDoubleSix && opener.canForceOpening;
+
+  let poser: number;
+  let forceOpening: boolean;
+
+  if (input.poseMustBeAnyDouble) {
+    // French, round 2+: the nominal poser (the previous winner) must lead
+    // SOME double they hold — free choice among however many they have. If
+    // they hold none, seat order from them decides who actually poses, and
+    // the nominal poser is fined for it.
+    const nominal = input.poser ?? 0;
+    let found = -1;
+    for (let i = 0; i < input.seatCount; i++) {
+      const seat = (nominal + i) % input.seatCount;
+      if (hands[seat].some(isDouble)) { found = seat; break; }
+    }
+    // found < 0 only if nobody at the table holds a double at all —
+    // vanishingly rare (a 28-tile set always has 7), but never strand a
+    // live table on it: fall back to the nominal poser, who legalMoves()'s
+    // own defensive fallback then lets open with anything.
+    poser = found >= 0 ? found : nominal;
+    if (found >= 0 && found !== nominal) penalties[nominal] += 10;
+    forceOpening = false;
+  } else {
+    // When the score is fresh, has just bruk, or a replay is due, the hand
+    // is opened by whoever holds the required opening tile (6-6 for
+    // standard play, 0-0 for French) — not by the previous winner.
+    const opener = findOpener(hands, openingTile);
+    const openerLed = input.poseMustBeDoubleSix || input.poser === undefined;
+    poser = openerLed ? opener.seat : input.poser!;
+    // Can't force a lead of a tile nobody was dealt.
+    forceOpening = input.poseMustBeDoubleSix && opener.canForceOpening;
+  }
 
   return {
     seatCount: input.seatCount,
@@ -150,10 +185,11 @@ export function deal(input: DealInput): HandState {
     turn: poser,
     consecutivePasses: 0,
     moveLog: [],
-    penalties: new Array(input.seatCount).fill(0),
+    penalties,
     status: 'active',
     result: null,
     poseMustBeDoubleSix: forceOpening,
+    poseMustBeAnyDouble: !!input.poseMustBeAnyDouble,
     openingTile,
     poser,
     format: input.format ?? 'sixlove',
@@ -180,6 +216,17 @@ export function legalMoves(s: HandState): Move[] {
 
   // Opening the hand.
   if (s.board === null) {
+    if (s.poseMustBeAnyDouble) {
+      // French, round 2+: deal() already searched for a seat holding a
+      // double before assigning `poser` — this seat holding none should be
+      // unreachable — but never strand a live table on an invariant a
+      // caller could theoretically violate; fall through to any tile
+      // rather than returning zero legal moves.
+      const doubles = hand.filter((t) => isDouble(t));
+      if (doubles.length > 0) {
+        return doubles.map((tile) => ({ kind: 'pose', seat, tile }) as Move);
+      }
+    }
     if (s.poseMustBeDoubleSix) {
       // Tournament / post-bruk / French-round-1 opening: the required
       // opening tile must actually be led, not merely held. "Sporting" is

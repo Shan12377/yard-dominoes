@@ -836,6 +836,13 @@ function partnerHandPanel(tiles: string[]): HTMLElement {
   return panel;
 }
 
+/** Matches CrossArm['direction'] — the felt lays a French board's four arms
+ *  out in exactly these compass positions, so naming the arm this way is
+ *  naming something the player can actually see, not new vocabulary. */
+const ARM_DIRECTION_LABEL: Record<'right' | 'left' | 'up' | 'down', string> = {
+  right: 'Right', left: 'Left', up: 'Up', down: 'Down',
+};
+
 function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
   // predictedMyTiles set means a move was just tapped and hasn't been
@@ -875,16 +882,30 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     // number settles it before it starts.
     const board = game.predictedBoard ?? game.hand?.board ?? null;
     const linear = board?.kind === 'linear' ? board : null;
+    const cross = board?.kind === 'cross' ? board : null;
     const choice = el('div', 'row');
     choice.append(el('span', 'muted', 'Which end?'));
     for (const move of legal.filter((m) => 'tile' in m && m.tile === pendingTile)) {
-      const isLeft = (move as any).end === 'left';
-      const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;
       const b = document.createElement('button');
       b.className = 'act ghost';
-      b.textContent = pip !== null
-        ? `${isLeft ? 'Left' : 'Right'} end (${pip})`
-        : (isLeft ? 'Left end' : 'Right end');
+      if (cross && move.kind === 'playcross') {
+        // Post-fill only — the fill phase always has exactly one legal arm
+        // per tile, so a real choice here means two or more EXISTING arms
+        // both expose the same pip and this tile answers both. Naming the
+        // physical arm (matching the felt's own up/down/left/right layout)
+        // is what "Right end" twice, with no way to tell them apart, was
+        // missing — a cross board has no left/right at all.
+        const arm = cross.arms[move.arm];
+        b.textContent = arm
+          ? `${ARM_DIRECTION_LABEL[arm.direction]} arm (${arm.openEnd})`
+          : 'New arm';
+      } else {
+        const isLeft = (move as any).end === 'left';
+        const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;
+        b.textContent = pip !== null
+          ? `${isLeft ? 'Left' : 'Right'} end (${pip})`
+          : (isLeft ? 'Left end' : 'Right end');
+      }
       b.onclick = () => { pendingTile = null; void game.play(move); };
       choice.appendChild(b);
     }

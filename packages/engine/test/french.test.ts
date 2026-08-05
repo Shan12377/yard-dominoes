@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  applyHandResult, applyMove, createSet, deal, isDouble,
+  applyHandResult, applyMove, createSet, deal, isDouble, legalMoves,
 } from '../src/index.ts';
 import type { HandResult, HandState, SetState } from '../src/index.ts';
 
@@ -177,6 +177,52 @@ describe('French: blocked-hand tie reshuffle', () => {
       status: 'domino', winnerSeat: 0, counts: [0, 6, 4, 3], penalties: [0, 10, 0, 0],
     }));
     assert.deepEqual(next.scores, [12, 20, 10, 10]);
+  });
+});
+
+describe('French: round 2+ must pose a double', () => {
+  it('the nominal poser (previous winner) leads it when they hold one — free choice among their own doubles', () => {
+    const order = [
+      '1-2', '1-3', '1-4', '1-5', '1-6', '5-5', '3-3', // seat 0 — nominal poser, holds two doubles
+      '0-0', '0-1', '0-2', '0-3', '0-4', '0-5', '0-6', // seat 1
+      '2-2', '2-3', '2-4', '2-5', '2-6', '4-4', '4-5', // seat 2
+      '4-6', '6-6', '1-1', '3-4', '3-5', '3-6', '5-6', // seat 3
+    ];
+    const hand = deal({
+      order, seatCount: 4, mode: 'cutthroat', useBoneyard: false,
+      poser: 0, poseMustBeDoubleSix: false, poseMustBeAnyDouble: true,
+      openingTile: '0-0', format: 'french',
+    });
+    assert.equal(hand.poser, 0, 'the nominal poser holds a double, so they pose');
+    assert.equal(hand.turn, 0);
+    assert.deepEqual(hand.penalties, [0, 0, 0, 0], 'no penalty when they could pose');
+
+    const moves = legalMoves(hand);
+    assert.deepEqual(
+      moves.map((m) => (m as any).tile).sort(),
+      ['3-3', '5-5'],
+      'both of the poser\'s own doubles are legal — their free choice',
+    );
+  });
+
+  it('a nominal poser holding no double is fined 10, and the pose passes to the first seat (in order) that has one', () => {
+    const order = [
+      '0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '1-2', // seat 0 — nominal poser, NO doubles
+      '1-1', '1-3', '1-4', '1-5', '1-6', '2-3', '2-4', // seat 1 — holds 1-1
+      '0-0', '2-2', '2-5', '2-6', '3-3', '3-4', '3-5', // seat 2
+      '3-6', '4-4', '4-5', '4-6', '5-5', '5-6', '6-6', // seat 3
+    ];
+    const hand = deal({
+      order, seatCount: 4, mode: 'cutthroat', useBoneyard: false,
+      poser: 0, poseMustBeDoubleSix: false, poseMustBeAnyDouble: true,
+      openingTile: '0-0', format: 'french',
+    });
+    assert.equal(hand.poser, 1, 'seat 0 held nothing double — seat 1 is next in order and has one');
+    assert.equal(hand.turn, 1);
+    assert.deepEqual(hand.penalties, [10, 0, 0, 0], 'seat 0 is fined for not holding a double on their turn to pose');
+
+    const moves = legalMoves(hand);
+    assert.deepEqual(moves.map((m) => (m as any).tile), ['1-1'], 'seat 1\'s only double is their only legal pose');
   });
 });
 

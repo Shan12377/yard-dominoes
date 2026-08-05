@@ -149,6 +149,20 @@ export class OnlineGame {
    * dealing hands and watching for it, not by re-reading the code.
    */
   justDealtHandId: string | null = null;
+  /**
+   * True from the moment dealNext() is CALLED, set before any await — unlike
+   * justDealtHandId (only set once apiStartHand()'s HTTP response returns),
+   * this can never lose the race against the realtime broadcast for the same
+   * deal, which travels a separate, often-faster channel and can arrive
+   * before that await resolves. Found live testing French specifically: its
+   * start-hand call does more server-side work before responding (playing
+   * out however many duppy fill-phase arms come before the human's turn),
+   * which gives the broadcast more of a head start — but the race was always
+   * there for every format, French just made it easy to actually see. Never
+   * reset: after the first hand `prev` below is always truthy, so this stops
+   * being consulted at all from the second hand on regardless.
+   */
+  dealPending = false;
   handValue = 1;
   poser = 0;
   poseMustBeDoubleSix = true;
@@ -380,7 +394,7 @@ export class OnlineGame {
         };
         if (prev && hand.hand_id === prev.hand_id) {
           if (laid(hand) > laid(prev)) sfx.play('knock');
-        } else if (prev || hand.hand_id === this.justDealtHandId) {
+        } else if (prev || this.dealPending || hand.hand_id === this.justDealtHandId) {
           // A fresh deal. `prev` already existing means this client was
           // actively watching this table across the transition — a new
           // hand_id is unambiguous evidence a deal just happened here, no
@@ -642,6 +656,8 @@ export class OnlineGame {
   }
 
   async dealNext(pass: boolean): Promise<void> {
+    // Set before the FIRST await, not after — see dealPending's own comment.
+    this.dealPending = true;
     try {
       if (pass) await apiPassPose(this.table.id);
       const { handId } = await apiStartHand(this.table.id);

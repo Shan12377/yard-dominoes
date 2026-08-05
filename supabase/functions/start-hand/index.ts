@@ -76,6 +76,12 @@ Deno.serve(handled(async (req) => {
     useBoneyard: table.use_boneyard,
     poser: set!.pose_must_be_double_six ? undefined : set!.poser,
     poseMustBeDoubleSix: set!.pose_must_be_double_six || table.tournament,
+    // French, round 2+ only — round 1 (and a tie-break reshuffle) already
+    // forces the chucha specifically via poseMustBeDoubleSix above; this is
+    // the "any double, your choice, or you're fined and it passes to
+    // someone who has one" rule for every hand after that.
+    poseMustBeAnyDouble:
+      table.format === 'french' && !(set!.pose_must_be_double_six || table.tournament),
     // French round 1 is opened by whoever holds the chucha (0-0). The
     // pose_must_be_double_six flag stays TRUE for that first hand (createSet
     // sets it), and openingTile switches from 6-6 to 0-0 for French.
@@ -91,6 +97,7 @@ Deno.serve(handled(async (req) => {
     boneyard: state.boneyard, board: state.board, turn: state.turn,
     move_log: [], status: 'active', poser: state.poser,
     pose_must_be_double_six: state.poseMustBeDoubleSix,
+    pose_must_be_any_double: state.poseMustBeAnyDouble ?? false,
   }).select().single();
   // The unique partial index on (set_id) where status = 'active' is the
   // database-level backstop against the same race the check above narrows
