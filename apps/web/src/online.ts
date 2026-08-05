@@ -149,7 +149,7 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
 
 export interface CreateTableInput {
   mode: GameMode;
-  format: 'sixlove' | 'firstToSix';
+  format: 'sixlove' | 'firstToSix' | 'french';
   seatCount: 2 | 3 | 4;
   tournament?: boolean;
   oneAllPlayTwo?: boolean;
@@ -190,6 +190,11 @@ export const requestReview = (handId: string) =>
  *  reveal-hand's own header for what this adds beyond the free replay. */
 export const revealHand = (handId: string) =>
   call<{ ok: true; deal: TileId[][] }>('reveal-hand', { handId });
+
+/** French's paid mid-hand reshuffle — 2 coins, once per set, only while your
+ *  own score sits between 50 and 70. See french-reshuffle's own header. */
+export const frenchReshuffle = (tableId: string) =>
+  call<{ ok: true }>('french-reshuffle', { tableId });
 
 /** video.ts is injected this rather than importing online.ts directly, so
  *  it has no Supabase client dependency of its own. */

@@ -11,7 +11,7 @@
 import {
   supabase, startHand as apiStartHand, playMove as apiPlayMove, passPose as apiPassPose,
   leaveSeat as apiLeaveSeat, watchTable, ConflictError, revealHand as apiRevealHand,
-  requestReview as apiRequestReview,
+  requestReview as apiRequestReview, frenchReshuffle as apiFrenchReshuffle,
   type PublicHand, type TableSubscription,
 } from './online.ts';
 import * as sfx from './sfx.ts';
@@ -112,6 +112,9 @@ export class OnlineGame {
   review: HandReview | null = null;
   reviewAccuracy: number | null = null;
   reviewPending = false;
+
+  /** French's paid reshuffle — see requestReshuffle()'s own comment. */
+  reshufflePending = false;
 
   scores: number[] = [];
   /** True for one render after a bruk — every side's points went to zero at
@@ -533,6 +536,7 @@ export class OnlineGame {
       turn: this.mySeat,
       consecutivePasses: 0,
       moveLog: this.hand.move_log,
+      penalties: new Array(this.table.seatCount).fill(0),
       status: this.hand.status as 'active' | 'domino' | 'blocked',
       result: this.hand.result as any,
       poseMustBeDoubleSix: this.poseMustBeDoubleSix,
@@ -613,6 +617,26 @@ export class OnlineGame {
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not review the hand' });
     } finally {
       this.reviewPending = false;
+      this.emit({ type: 'state' });
+    }
+  }
+
+  /**
+   * 2 coins, once per set, only offered while my own French score sits
+   * between 50 and 70 — the server is the real gate on all three; this just
+   * calls it and surfaces whatever it says. My own hand updates over the
+   * normal seat_hands realtime stream a moment later, same as any move.
+   */
+  async requestReshuffle(): Promise<void> {
+    if (this.reshufflePending) return;
+    this.reshufflePending = true;
+    this.emit({ type: 'state' });
+    try {
+      await apiFrenchReshuffle(this.table.id);
+    } catch (err) {
+      this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not reshuffle' });
+    } finally {
+      this.reshufflePending = false;
       this.emit({ type: 'state' });
     }
   }

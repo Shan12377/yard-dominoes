@@ -93,6 +93,7 @@ export interface HandRow {
   poser: number;
   pose_must_be_double_six: boolean;
   version: number;
+  penalties: number[];
 }
 
 /**
@@ -130,6 +131,10 @@ export function toState(row: HandRow, seatCount: number, mode: GameMode, format:
     turn: row.turn,
     consecutivePasses: row.consecutive_passes,
     moveLog: row.move_log,
+    // Empty on a freshly-inserted row (column default) and on any hand
+    // dealt before this column existed — both read the same as "nothing
+    // accrued yet", not a data error.
+    penalties: row.penalties && row.penalties.length > 0 ? row.penalties : new Array(seatCount).fill(0),
     status: row.status as HandState['status'],
     result: row.result,
     poseMustBeDoubleSix: row.pose_must_be_double_six,
@@ -157,11 +162,21 @@ export async function persist(
   seatUsers: (string | null)[],
   turnSeconds: number,
   expectedVersion: number,
+  /**
+   * Preserve an already-running turn clock instead of recomputing it fresh
+   * from `turnSeconds` — needed by anything that persists WITHOUT the
+   * current turn actually changing (French's reshuffle rewrites `hands`
+   * only; it must not hand the seat on turn a free extra `turnSeconds`).
+   * `undefined` keeps every existing caller's behavior unchanged.
+   */
+  expiresOverride?: string | null,
 ) {
   const finished = state.status !== 'active';
   const expires = finished
     ? null
-    : new Date(Date.now() + turnSeconds * 1000).toISOString();
+    : expiresOverride !== undefined
+      ? expiresOverride
+      : new Date(Date.now() + turnSeconds * 1000).toISOString();
 
   // Conditional write. If the row advanced since we read it, this returns null
   // and we abort rather than clobbering another player's move.
@@ -177,6 +192,7 @@ export async function persist(
     p_status: state.status,
     p_result: state.result,
     p_expires: expires,
+    p_penalties: state.penalties,
   });
   if (error) throw new Error(error.message);
   if (newVersion === null) throw new Conflict();

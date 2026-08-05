@@ -32,6 +32,7 @@ export function createSet(options: Partial<SetOptions> = {}): SetState {
     handsPlayed: 0,
     winnerSide: null,
     sixLove: false,
+    frenchTieBreak: false,
   };
 }
 
@@ -70,29 +71,67 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
 
   // --- French: race to 100 where LOWER wins -------------------------------
   // Every seat adds their remaining pip count to their own running total,
-  // doubled if they held any double when the hand ended. A domino winner's
-  // hand is empty so they add zero — the "winner scores zero" property falls
-  // out for free. The moment any seat crosses `target` the set ends and the
-  // winner is the seat with the LOWEST score. Ties on the lowest are broken
-  // by the earliest seat, which is ponytail-adequate — a real tie among
-  // seats crossing 100 in the same hand is vanishingly rare. See
-  // docs/superpowers/plans/2026-07-30-french-debrief.md for what's deferred
-  // (true mid-set elimination, cross-shaped board, coin-tied shuffle at 50).
+  // doubled if they held any double when the hand ended, doubled AGAIN
+  // (stacking to ×4) if the winner's own final tile was itself a double —
+  // that second doubling hits every OTHER seat regardless of what they
+  // personally held. A domino winner's hand is empty so they add zero — the
+  // "winner scores zero" property falls out for free.
+  //
+  // A blocked tie doesn't use the sixlove-style escalating replay — it
+  // forces the chucha open and replays flat: the replay's winner takes +2,
+  // nobody else scores anything for it, and a tie AGAIN just repeats the
+  // reshuffle (frenchTieBreak stays true) rather than climbing in value.
+  //
+  // True elimination: crossing `target` puts a seat OUT, not the set. Play
+  // continues among whoever remains under target until exactly one is left —
+  // that seat wins outright. Every seat is still dealt into and plays out
+  // every remaining hand; only the win/elimination bookkeeping changes.
   if (format === 'french') {
     const doubles = result.doublesRemaining ?? new Array(seatCount).fill(false);
-    for (let seat = 0; seat < seatCount; seat++) {
-      const factor = doubles[seat] ? 2 : 1;
-      s.scores[seat] += result.counts[seat] * factor;
-    }
-    s.handValue = 1;
-    s.poseMustBeDoubleSix = false; // chucha only forced round 1
-    if (result.winnerSeat !== null) s.poser = result.winnerSeat;
-    if (s.scores.some((v) => v >= target)) {
-      let minSeat = 0;
-      for (let seat = 1; seat < seatCount; seat++) {
-        if (s.scores[seat] < s.scores[minSeat]) minSeat = seat;
+    const penalties = result.penalties ?? new Array(seatCount).fill(0);
+    const winnerHadDouble = result.winnerPlayedDouble ?? false;
+
+    // Penalties (board-pass / three-real-passes-running) are earned by what
+    // happened during THIS hand's play, independent of how its win/tie
+    // result gets scored below — they land whether or not a reshuffle
+    // follows.
+    for (let seat = 0; seat < seatCount; seat++) s.scores[seat] += penalties[seat];
+
+    if (s.frenchTieBreak) {
+      if (result.tie) {
+        // Still tied — reshuffle again. Flat +2 never escalates.
+        s.poseMustBeDoubleSix = true;
+        s.handValue = 1;
+        return s;
       }
-      s.winnerSide = minSeat;
+      s.scores[result.winnerSeat!] += 2;
+      s.frenchTieBreak = false;
+      s.poseMustBeDoubleSix = false;
+      s.poser = result.winnerSeat!;
+    } else if (result.tie) {
+      s.frenchTieBreak = true;
+      s.poseMustBeDoubleSix = true;
+      s.handValue = 1;
+      return s;
+    } else {
+      for (let seat = 0; seat < seatCount; seat++) {
+        let factor = doubles[seat] ? 2 : 1;
+        if (winnerHadDouble && seat !== result.winnerSeat) factor *= 2;
+        s.scores[seat] += result.counts[seat] * factor;
+      }
+      if (result.winnerSeat !== null) s.poser = result.winnerSeat;
+      s.poseMustBeDoubleSix = false;
+    }
+
+    s.handValue = 1;
+
+    const stillIn: number[] = [];
+    for (let seat = 0; seat < seatCount; seat++) if (s.scores[seat] < target) stillIn.push(seat);
+    if (stillIn.length <= 1) {
+      // stillIn.length === 0 only when every seat crosses in the same hand —
+      // fall back to whoever has the lowest score even though nobody is
+      // technically "under" target.
+      s.winnerSide = stillIn.length === 1 ? stillIn[0] : s.scores.indexOf(Math.min(...s.scores));
     }
     return s;
   }

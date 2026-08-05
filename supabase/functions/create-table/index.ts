@@ -21,6 +21,13 @@ Deno.serve(handled(async (req) => {
   if ((mode === 'partner' || mode === 'openhand') && seatCount !== 4) {
     throw new HttpError(422, `${mode} mode needs exactly 4 seats`);
   }
+  // French is cut-throat, 4-hand only in v1 (see the French debrief) — the
+  // engine's own createSet() lets a caller's options override its
+  // french-implied mode/seatCount defaults, so this has to be caught here,
+  // not assumed safe because the engine "usually" forces it.
+  if (body.format === 'french' && (mode !== 'cutthroat' || seatCount !== 4)) {
+    throw new HttpError(422, 'French is cut-throat, 4 players only');
+  }
 
   if (body.loungeId) {
     const { data: lounge } = await db.from('lounges').select('min_tier').eq('id', body.loungeId).single();

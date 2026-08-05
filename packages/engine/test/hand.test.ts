@@ -35,6 +35,7 @@ function makeHand(hands: TileId[][], leftEnd: Pip, rightEnd: Pip, turn = 0): Han
     turn,
     consecutivePasses: 0,
     moveLog: [],
+    penalties: new Array(hands.length).fill(0),
     status: 'active',
     result: null,
     poseMustBeDoubleSix: false,

@@ -91,18 +91,44 @@ export interface ShuffleInput {
   removeDoubleBlank?: boolean;
 }
 
+/**
+ * Deterministic Fisher-Yates over an arbitrary tile array, keyed the same
+ * way the deal itself is. Shared by `provablyFairShuffle` (always the fixed
+ * 28-tile set) and `shufflePool` (an arbitrary caller-supplied pool — French's
+ * mid-hand reshuffle, which has no boneyard to draw fresh tiles from and so
+ * has to reshuffle whatever's actually still in play).
+ */
+async function keyedShuffle(tiles: TileId[], serverSeed: string, message: string): Promise<TileId[]> {
+  const out = [...tiles];
+  // 32 bytes per block; rejection sampling may burn draws, so allow headroom.
+  const stream = await keystream(serverSeed, message, 8);
+  const cursor = { i: 0 };
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = boundedInt(stream, cursor, i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 /** The deal. Same inputs always produce the same ordering, on any machine. */
 export async function provablyFairShuffle(input: ShuffleInput): Promise<TileId[]> {
   const tiles = fullSet().filter((t) => !(input.removeDoubleBlank && t === DOUBLE_BLANK));
   const message = `${input.clientSeeds.join('|')}:${input.handId}`;
-  // 32 bytes per block; rejection sampling may burn draws, so allow headroom.
-  const stream = await keystream(input.serverSeed, message, 8);
-  const cursor = { i: 0 };
-  for (let i = tiles.length - 1; i > 0; i--) {
-    const j = boundedInt(stream, cursor, i + 1);
-    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
-  }
-  return tiles;
+  return keyedShuffle(tiles, input.serverSeed, message);
+}
+
+/**
+ * French's paid mid-hand reshuffle. No boneyard exists in 4-player French —
+ * every one of the 28 tiles is always in some seat's hand or already
+ * played — so there is no spare pile to draw fresh tiles from. `pool` is
+ * whatever the caller pooled together (every still-unplayed seat's hand);
+ * this just orders it deterministically and reproducibly from the SAME
+ * committed serverSeed the hand's own deal used, keyed by a distinct
+ * `handId` suffix so it never collides with the original deal's ordering.
+ */
+export async function shufflePool(pool: TileId[], input: ShuffleInput): Promise<TileId[]> {
+  const message = `${input.clientSeeds.join('|')}:${input.handId}`;
+  return keyedShuffle(pool, input.serverSeed, message);
 }
 
 export interface HandReceipt {

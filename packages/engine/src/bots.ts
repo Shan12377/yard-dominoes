@@ -420,6 +420,7 @@ function stateFromDeal(view: PublicView, deal: TileId[][]): HandState {
     turn: view.turn,
     consecutivePasses: 0,
     moveLog: [],
+    penalties: new Array(view.seatCount).fill(0),
     status: 'active',
     result: null,
     poseMustBeDoubleSix: view.poseMustBeDoubleSix,

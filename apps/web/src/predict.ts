@@ -50,6 +50,7 @@ export function predictMyMove(input: PredictInput, move: Move): Prediction | nul
     turn: input.mySeat,
     consecutivePasses: 0,
     moveLog: input.moveLog,
+    penalties: new Array(input.seatCount).fill(0),
     status: input.status,
     result: input.result,
     poseMustBeDoubleSix: input.poseMustBeDoubleSix,

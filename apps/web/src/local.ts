@@ -166,6 +166,7 @@ export class LocalGame {
       turn: this.hand.poser,
       consecutivePasses: 0,
       moveLog: [],
+      penalties: new Array(this.options.seatCount).fill(0),
       status: 'active',
       result: null,
       poseMustBeDoubleSix: this.hand.poseMustBeDoubleSix,

@@ -27,13 +27,22 @@ export type GameMode = 'cutthroat' | 'partner' | 'openhand';
  * firstToSix  — best of six. Plain race to six, no reset.
  * single      — one hand, one winner. Used for drills.
  * french      — race to 100 where LOWER is better. Losers add their remaining
- *               pip count to their own running total (doubles left in hand
- *               double that hand's score). First seat to hit target loses;
- *               winner is the seat with the lowest score at that moment. The
- *               chucha (0-0) opens round 1 and sits at the centre of a
- *               4-armed cross board (see CrossBoard below) — this REPLACES
- *               the earlier linear-French shim. Coin-tied shuffle-at-50 and
- *               the +10 pass penalty are still deferred to phase 3.
+ *               pip count to their own running total, doubled if they held a
+ *               double when the hand ended, doubled again (stacking to ×4)
+ *               if the winner's own final tile was a double. Pass penalties
+ *               (+10 for a seat's own third real pass running, +10 to every
+ *               seat a board-blocking play shuts out — see HandResult.penalties)
+ *               accrue mid-hand. A blocked tie forces the chucha open and
+ *               replays flat for a +2 bonus (SetState.frenchTieBreak) rather
+ *               than the sixlove-style escalating replay. Crossing `target`
+ *               puts a seat OUT, not the set — play continues among survivors
+ *               until exactly one remains, who wins outright. The chucha
+ *               (0-0) opens round 1 and sits at the centre of a 4-armed cross
+ *               board (see CrossBoard below). The coin-tied mid-hand reshuffle
+ *               (2 coins, once per set, only while a score sits 50-70) lives
+ *               server-side in supabase/functions/french-reshuffle, not here —
+ *               it pools every seat's unplayed tiles and redeals, which needs
+ *               DB/coin-ledger access this pure engine doesn't have.
  */
 export type SetFormat = 'sixlove' | 'firstToSix' | 'single' | 'french';
 
@@ -121,6 +130,20 @@ export interface HandResult {
    * so old fixtures still typecheck.
    */
   doublesRemaining?: boolean[];
+  /**
+   * True when the DOMINO winner's final tile was itself a double. French
+   * doubles every OTHER seat's pip score for the hand when this fires,
+   * stacking with that seat's own doublesRemaining flag (×2 × ×2 = ×4).
+   * Never set on a blocked hand — nobody "plays" a winning tile there.
+   */
+  winnerPlayedDouble?: boolean;
+  /**
+   * Per-seat point penalties accrued DURING this hand — French only. +10 to
+   * every seat a board-blocking play just shut out, +10 to a seat on its own
+   * third consecutive real pass. Folded into the running score alongside the
+   * pip total at hand-end; other formats never populate this.
+   */
+  penalties?: number[];
 }
 
 export interface HandState {
@@ -141,6 +164,12 @@ export interface HandState {
   /** Consecutive passes; equals seatCount when the board is blocked. */
   consecutivePasses: number;
   moveLog: Move[];
+  /**
+   * Per-seat penalty points accrued mid-hand — French only (see
+   * HandResult.penalties). Every other format leaves this at all zeros and
+   * nothing outside the French scoring path reads it.
+   */
+  penalties: number[];
   status: HandStatus;
   result: HandResult | null;
   /**
@@ -196,4 +225,12 @@ export interface SetState {
   winnerSide: number | null;
   /** Set when the winning side took it six-love, i.e. every opponent on zero. */
   sixLove: boolean;
+  /**
+   * True when the last French hand ended tied for lowest count and the table
+   * is replaying with the chucha forced open to break it. The replay's
+   * winner scores a flat +2 instead of the normal pip total; everyone else
+   * scores nothing for that hand. Stays true across repeated ties until
+   * someone wins outright. Every other format leaves this false.
+   */
+  frenchTieBreak: boolean;
 }

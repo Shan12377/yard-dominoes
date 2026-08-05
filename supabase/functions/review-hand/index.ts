@@ -65,6 +65,7 @@ Deno.serve(handled(async (req) => {
     turn: hand.poser,
     consecutivePasses: 0,
     moveLog: [],
+    penalties: new Array(table!.seat_count).fill(0),
     status: 'active',
     result: null,
     poseMustBeDoubleSix: hand.pose_must_be_double_six,

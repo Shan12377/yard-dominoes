@@ -150,6 +150,7 @@ export function deal(input: DealInput): HandState {
     turn: poser,
     consecutivePasses: 0,
     moveLog: [],
+    penalties: new Array(input.seatCount).fill(0),
     status: 'active',
     result: null,
     poseMustBeDoubleSix: forceOpening,
@@ -166,6 +167,7 @@ function clone(s: HandState): HandState {
     boneyard: [...s.boneyard],
     board: cloneBoard(s.board),
     moveLog: [...s.moveLog],
+    penalties: [...s.penalties],
     result: s.result ? { ...s.result, counts: [...s.result.counts] } : null,
   };
 }
@@ -306,11 +308,12 @@ function placeCross(board: CrossBoard, tile: TileId, armIdx: number): CrossBoard
   return { ...board, arms, suitLed };
 }
 
-function resolve(s: HandState, status: 'domino' | 'blocked'): HandResult {
+function resolve(s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble = false): HandResult {
   const counts = s.hands.map(handCount);
   // Per-seat "did this seat end the hand still holding any double?" — used
   // by French scoring to double that seat's pips. Other formats ignore it.
   const doublesRemaining = s.hands.map((h) => h.some(isDouble));
+  const penalties = [...s.penalties];
 
   if (status === 'domino') {
     const seat = s.hands.findIndex((h) => h.length === 0);
@@ -321,6 +324,8 @@ function resolve(s: HandState, status: 'domino' | 'blocked'): HandResult {
       tie: false,
       counts,
       doublesRemaining,
+      winnerPlayedDouble,
+      penalties,
     };
   }
 
@@ -333,13 +338,31 @@ function resolve(s: HandState, status: 'domino' | 'blocked'): HandResult {
   const lowest = Math.min(...counts);
   const tied = counts.filter((c) => c === lowest).length > 1;
   if (tied) {
-    return { status, winnerSeat: null, winnerSide: null, tie: true, counts, doublesRemaining };
+    return {
+      status, winnerSeat: null, winnerSide: null, tie: true, counts, doublesRemaining, penalties,
+    };
   }
   const seat = counts.indexOf(lowest);
   return {
     status, winnerSeat: seat, winnerSide: sideOf(seat, s.mode), tie: false, counts,
-    doublesRemaining,
+    doublesRemaining, penalties,
   };
+}
+
+/**
+ * True the instant a just-applied board-changing move leaves EVERY other
+ * seat with no legal response — the "board pass" case: pagat's French rules
+ * score +10 against each of those seats. Probed with a stub `turn`, same
+ * trick bots.ts uses to enumerate one seat's options without touching whose
+ * turn it "really" is.
+ */
+function blocksEveryoneElse(s: HandState, mover: number): boolean {
+  for (let seat = 0; seat < s.seatCount; seat++) {
+    if (seat === mover) continue;
+    const options = legalMoves({ ...s, turn: seat });
+    if (!options.every((m) => m.kind === 'pass')) return false;
+  }
+  return true;
 }
 
 export function applyMove(prev: HandState, move: Move): HandState {
@@ -403,13 +426,37 @@ export function applyMove(prev: HandState, move: Move): HandState {
     }
     case 'pass': {
       s.consecutivePasses += 1;
+      // French: a seat's own third real pass in a row (every legal-move
+      // check already forces a pass only when nothing else was playable, so
+      // every pass here is by definition "real") costs 10 points. Read off
+      // the seat's own trailing moves rather than a separate counter — same
+      // derive-from-moveLog approach knownVoids() already uses.
+      if (s.format === 'french') {
+        const own = s.moveLog.filter((m) => m.seat === move.seat);
+        const last3 = own.slice(-3);
+        if (last3.length === 3 && last3.every((m) => m.kind === 'pass')) {
+          s.penalties[move.seat] += 10;
+        }
+      }
       break;
+    }
+  }
+
+  // French "board pass": a pose/play/playcross that leaves every OTHER seat
+  // with nothing to answer costs each of them 10 points, on top of however
+  // the hand itself resolves. Checked before the domino/blocked branches
+  // below so it still fires even when this same move happens to end the
+  // hand outright. `draw` already returned above, so only pose/play/
+  // playcross/pass reach here.
+  if (s.format === 'french' && move.kind !== 'pass' && blocksEveryoneElse(s, move.seat)) {
+    for (let seat = 0; seat < s.seatCount; seat++) {
+      if (seat !== move.seat) s.penalties[seat] += 10;
     }
   }
 
   if (s.hands[move.seat].length === 0) {
     s.status = 'domino';
-    s.result = resolve(s, 'domino');
+    s.result = resolve(s, 'domino', 'tile' in move && isDouble(move.tile));
     return s;
   }
   if (s.consecutivePasses >= s.seatCount) {

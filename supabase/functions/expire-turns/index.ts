@@ -61,12 +61,14 @@ Deno.serve(handled(async () => {
         scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,
         poseMustBeDoubleSix: set!.pose_must_be_double_six, playoff: set!.playoff,
         handsPlayed: set!.hands_played, winnerSide: set!.winner_side, sixLove: set!.six_love,
+        frenchTieBreak: set!.french_tie_break ?? false,
       };
       const next = applyHandResult(current as any, state.result!);
       await db.from('sets').update({
         scores: next.scores, hand_value: next.handValue, poser: next.poser,
         pose_must_be_double_six: next.poseMustBeDoubleSix, playoff: next.playoff,
         hands_played: next.handsPlayed, winner_side: next.winnerSide, six_love: next.sixLove,
+        french_tie_break: next.frenchTieBreak,
       }).eq('id', row.set_id);
 
       if (next.winnerSide !== null) {

@@ -85,6 +85,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
     + `<option value="cutthroat">Cut throat</option>`;
   const seatCount = document.createElement('select');
   seatCount.innerHTML = `<option value="4">4 players</option><option value="3">3 players</option><option value="2">2 players</option>`;
+  const format = document.createElement('select');
   const duppy = document.createElement('select');
   duppy.innerHTML = DUPPY_LEVELS.map((d) => `<option value="${d}">${DUPPY_LABELS[d]}</option>`).join('');
   // Without this the clock feature exists but nobody can reach it: every table
@@ -96,19 +97,33 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   // Partner AND openhand are both inherently 4-seat, 2-vs-2 formats — lock the
   // seat count when either is selected so the form can never submit an invalid
   // combination. The server enforces this too (the real gate); this is just so
-  // a partnered table doesn't 422 on submit for no visible reason.
+  // a partnered table doesn't 422 on submit for no visible reason. French is
+  // cut-throat, 4-hand only in v1, so picking it locks seats the same way.
   const syncSeatCount = () => {
-    if (mode.value === 'partner' || mode.value === 'openhand') {
+    if (mode.value === 'partner' || mode.value === 'openhand' || format.value === 'french') {
       seatCount.value = '4';
       seatCount.disabled = true;
     } else {
       seatCount.disabled = false;
     }
   };
+  // Mirrors main.ts's local-practice lobby: French only ever appears as a
+  // cut-throat option, never partner/openhand (see the French debrief —
+  // partnered French isn't scoped for v1).
+  const syncFormat = () => {
+    const partnered = mode.value === 'partner' || mode.value === 'openhand';
+    format.innerHTML = partnered
+      ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
+      : `<option value="firstToSix">First to six</option>`
+        + `<option value="sixlove">Six love — very long</option>`
+        + `<option value="french">French — race to 100</option>`;
+  };
+  syncFormat();
   syncSeatCount();
-  mode.onchange = syncSeatCount;
+  mode.onchange = () => { syncFormat(); syncSeatCount(); };
+  format.onchange = syncSeatCount;
 
-  for (const [label, control] of [['Game', mode], ['Seats', seatCount], ['Clock', clock], ['Fill empty seats with', duppy]] as const) {
+  for (const [label, control] of [['Game', mode], ['Set', format], ['Seats', seatCount], ['Clock', clock], ['Fill empty seats with', duppy]] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
     form.appendChild(field);
@@ -124,7 +139,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
       const fill = new Array(Math.max(0, seats - 1)).fill(duppy.value);
       const { tableId } = await createTable({
         mode: mode.value as GameMode,
-        format: mode.value === 'cutthroat' ? 'firstToSix' : 'sixlove',
+        format: format.value as 'sixlove' | 'firstToSix' | 'french',
         seatCount: seats as 2 | 3 | 4,
         duppies: fill,
         clock: clock.value as ClockName,
@@ -863,6 +878,22 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     b.textContent = 'Pass';
     b.onclick = () => void game.play(legal[0]);
     panel.appendChild(b);
+  }
+
+  // French's paid reshuffle. The 50-70 window and the once-per-set limit
+  // are both enforced server-side — this is just where the button shows up
+  // once the window opens; the request itself surfaces whatever the server
+  // says (already used it, score moved back out of range, etc).
+  if (game.table.format === 'french' && game.mySeat !== null) {
+    const myScore = game.scores[game.mySeat] ?? 0;
+    if (myScore >= 50 && myScore <= 70) {
+      const reshuffle = document.createElement('button');
+      reshuffle.className = 'act ghost';
+      reshuffle.textContent = game.reshufflePending ? 'Reshuffling…' : 'Reshuffle your hand — 2 coins';
+      reshuffle.disabled = game.reshufflePending;
+      reshuffle.onclick = () => void game.requestReshuffle();
+      panel.appendChild(reshuffle);
+    }
   }
   return panel;
 }

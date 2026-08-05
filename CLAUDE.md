@@ -176,6 +176,11 @@ legal opinion and processor.
 - When a test fails, work out whether the test or the code is wrong before
   changing either. Several tests encode rules that look wrong and are not.
 - Do not add a dependency to `packages/engine`. Ask first.
-- Do not invent rules for game modes we have not specified. French and
-  Across-the-table are deliberately unbuilt pending a Jamaican consultant.
+- French is built: cross board, chucha opening, doubling (own double ×2,
+  doubled again when the winner's own final tile was a double, stacking to
+  ×4), the +10 pass penalties, the blocked-tie chucha reshuffle, true
+  elimination, and the coin-tied mid-hand reshuffle at a 50-70 score window
+  are all live — selectable from both local practice and real online tables.
+  Across-the-Table remains deliberately unbuilt; do not invent rules for it
+  without a Jamaican consultant.
 - Prefer editing existing files over creating new ones.
