@@ -1,4 +1,4 @@
-import { halves } from '@yard/engine';
+import { halves, isDouble, matches } from '@yard/engine';
 import type { AnyBoard, Board, CrossBoard, Pip, TileId } from '@yard/engine';
 import { layoutLine, MIN_WIDTH_UNITS, orientLine } from './layout.ts';
 import type { OrientedTile, TilePlacement } from './layout.ts';
@@ -300,6 +300,42 @@ export function crossPlacements(board: CrossBoard): CrossLayout {
   placeArm(board.arms[3]?.tiles, 'v', 1, false);   // down
 
   return { totalCols, totalRows, placements };
+}
+
+/**
+ * Why `tile` can't be played on a French cross board right now — the message
+ * behind the hand panel's "doesn't fit" line. Returns null when the tile
+ * actually IS legal (callers only reach for this once legality already
+ * failed, but staying honest here means a caller mistake shows up loudly
+ * instead of lying to the player).
+ *
+ * pagat.com/domino/cross/french.html: "whenever a new number appears at the
+ * end of an arm, it cannot be extended further until the double has been
+ * played" — per arm, not board-wide (see CrossArm.doubleDown). This is the
+ * single most surprising rule on the board: a player who watched 6-6 lead a
+ * DIFFERENT arm reasonably expects any 6 anywhere to be free, and it isn't.
+ * Naming that explicitly is the fix — the legality check itself was already
+ * correct and tested against pagat's own worked examples.
+ */
+export function crossRejectReason(board: CrossBoard, tile: TileId): string | null {
+  const [a, b] = halves(tile);
+  if (board.arms.length < 4) {
+    const centerValue = halves(board.center)[0];
+    if (a === centerValue || b === centerValue) return null;
+    return `Doesn't touch the ${centerValue} in the middle — a new arm has to start there.`;
+  }
+  const lockedEnds = new Set<Pip>();
+  for (const arm of board.arms) {
+    if (!matches(tile, arm.openEnd)) continue;
+    const isSuitDouble = isDouble(tile) && halves(tile)[0] === arm.openEnd;
+    if (isSuitDouble || arm.doubleDown) return null;
+    lockedEnds.add(arm.openEnd);
+  }
+  if (lockedEnds.size > 0) {
+    const which = [...lockedEnds].join(' or ');
+    return `The ${which} needs its own double played on that arm before anything else can join it — even if ${which}-${which} already led a different arm.`;
+  }
+  return "Doesn't match any open end on the board.";
 }
 
 function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {

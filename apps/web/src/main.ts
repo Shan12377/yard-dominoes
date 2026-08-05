@@ -14,7 +14,7 @@ function formatLabel(format: SetFormat): string {
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { Board, DuppyLevel, GameMode, HandReview, Move, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { tileEl, renderBoard, backsEl, scoreTrack, el } from './render.ts';
+import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -804,7 +804,8 @@ function myHand(g: LocalGame): HTMLElement {
     const options = legal.filter((m) => 'tile' in m && m.tile === pendingTile);
     const choice = el('div', 'row');
     if (options.length === 0) {
-      choice.append(el('span', 'muted', "That tile doesn't fit the board right now."));
+      const reason = cross ? crossRejectReason(cross, pendingTile) : null;
+      choice.append(el('span', 'muted', reason ?? "That tile doesn't fit the board right now."));
     } else {
       choice.append(el('span', 'muted', 'Which end?'));
       for (const move of options) {

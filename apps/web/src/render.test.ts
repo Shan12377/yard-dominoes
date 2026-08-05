@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
 import type { Board, CrossBoard, Pip, PlacedTile } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { chooseUnit, crossPlacements, rowsOf } from './render.ts';
+import { chooseUnit, crossPlacements, crossRejectReason, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -224,4 +224,66 @@ test('a crosswise double never requests a column or row below the grid start, ev
       assert.ok(p.row >= 1, `arm ${armIndex}: row ${p.row} is off the explicit grid`);
     }
   }
+});
+
+// ------------------------------------------------------------ crossRejectReason --
+// The rule that actually confused a real player: a double leading one arm
+// never frees a DIFFERENT arm that happens to expose the same number
+// (pagat.com/domino/cross/french.html — confirmed against the live text
+// while investigating this report). The legality check was already correct
+// and tested in packages/engine/test/french.test.ts; what was missing was
+// telling the player WHY a tile they could clearly see a home for got
+// rejected, instead of a bare "doesn't fit".
+
+test('names the exact number that needs its own double', () => {
+  // Reached 6 via a non-double (e.g. 2-6) — nothing on THIS arm has led with
+  // 6-6, even though a player may well have watched 6-6 lead a different arm
+  // earlier in the hand and reasonably expect any 6 to now be free.
+  const board: CrossBoard = {
+    kind: 'cross',
+    center: '0-0',
+    arms: [
+      { direction: 'right', tiles: [], openEnd: 6, doubleDown: false },
+      { direction: 'left', tiles: [], openEnd: 1, doubleDown: false },
+      { direction: 'up', tiles: [], openEnd: 2, doubleDown: false },
+      { direction: 'down', tiles: [], openEnd: 3, doubleDown: false },
+    ],
+  };
+  const reason = crossRejectReason(board, '6-5');
+  assert.match(reason ?? '', /\b6\b/, 'must name the 6 by number');
+  assert.match(reason ?? '', /already led a different arm/, 'must explain the "played elsewhere" confusion directly');
+});
+
+test('returns null once the arm really is legal, even if another arm with the same number is still locked', () => {
+  const board: CrossBoard = {
+    kind: 'cross',
+    center: '0-0',
+    arms: [
+      { direction: 'right', tiles: [], openEnd: 6, doubleDown: true },
+      { direction: 'left', tiles: [], openEnd: 6, doubleDown: false },
+      { direction: 'up', tiles: [], openEnd: 1, doubleDown: false },
+      { direction: 'down', tiles: [], openEnd: 3, doubleDown: false },
+    ],
+  };
+  assert.equal(crossRejectReason(board, '6-5'), null);
+});
+
+test('a tile matching no open end at all gets the generic reason, not a fabricated arm number', () => {
+  const board: CrossBoard = {
+    kind: 'cross',
+    center: '0-0',
+    arms: [
+      { direction: 'right', tiles: [], openEnd: 1, doubleDown: false },
+      { direction: 'left', tiles: [], openEnd: 2, doubleDown: false },
+      { direction: 'up', tiles: [], openEnd: 3, doubleDown: false },
+      { direction: 'down', tiles: [], openEnd: 4, doubleDown: false },
+    ],
+  };
+  assert.equal(crossRejectReason(board, '6-5'), "Doesn't match any open end on the board.");
+});
+
+test('during the fill phase, names the centre value the next arm has to touch', () => {
+  const board: CrossBoard = { kind: 'cross', center: '3-3', arms: [] };
+  const reason = crossRejectReason(board, '6-5');
+  assert.match(reason ?? '', /\b3\b/, 'must name the centre value (3), not the tile\'s own numbers');
 });

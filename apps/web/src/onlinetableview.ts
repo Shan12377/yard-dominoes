@@ -12,7 +12,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
@@ -899,7 +899,8 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     const options = legal.filter((m) => 'tile' in m && m.tile === pendingTile);
     const choice = el('div', 'row');
     if (options.length === 0) {
-      choice.append(el('span', 'muted', "That tile doesn't fit the board right now."));
+      const reason = cross ? crossRejectReason(cross, pendingTile) : null;
+      choice.append(el('span', 'muted', reason ?? "That tile doesn't fit the board right now."));
     } else {
       choice.append(el('span', 'muted', 'Which end?'));
       for (const move of options) {
