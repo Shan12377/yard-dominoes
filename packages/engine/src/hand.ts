@@ -201,6 +201,7 @@ export function deal(input: DealInput): HandState {
     poser,
     format: input.format ?? 'sixlove',
     lastPenalties,
+    penaltyLog: [...lastPenalties],
   };
 }
 
@@ -212,6 +213,7 @@ function clone(s: HandState): HandState {
     board: cloneBoard(s.board),
     moveLog: [...s.moveLog],
     penalties: [...s.penalties],
+    penaltyLog: [...(s.penaltyLog ?? [])],
     result: s.result ? { ...s.result, counts: [...s.result.counts] } : null,
   };
 }
@@ -364,6 +366,7 @@ function resolve(s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble 
   // by French scoring to double that seat's pips. Other formats ignore it.
   const doublesRemaining = s.hands.map((h) => h.some(isDouble));
   const penalties = [...s.penalties];
+  const penaltyLog = [...(s.penaltyLog ?? [])];
 
   if (status === 'domino') {
     const seat = s.hands.findIndex((h) => h.length === 0);
@@ -376,6 +379,7 @@ function resolve(s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble 
       doublesRemaining,
       winnerPlayedDouble,
       penalties,
+      penaltyLog,
     };
   }
 
@@ -390,12 +394,13 @@ function resolve(s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble 
   if (tied) {
     return {
       status, winnerSeat: null, winnerSide: null, tie: true, counts, doublesRemaining, penalties,
+      penaltyLog,
     };
   }
   const seat = counts.indexOf(lowest);
   return {
     status, winnerSeat: seat, winnerSide: sideOf(seat, s.mode), tie: false, counts,
-    doublesRemaining, penalties,
+    doublesRemaining, penalties, penaltyLog,
   };
 }
 
@@ -518,6 +523,10 @@ export function applyMove(prev: HandState, move: Move): HandState {
         penaltyEvents.push({ seat, amount: 10, reason: 'board-pass' });
       }
     }
+  }
+
+  if (penaltyEvents.length > 0) {
+    s.penaltyLog = [...(s.penaltyLog ?? []), ...penaltyEvents];
   }
 
   if (s.hands[move.seat].length === 0) {

@@ -430,6 +430,29 @@ export function penaltyBanner(events: PenaltyEvent[], seatLabel: (seat: number) 
 }
 
 /**
+ * "Penalties this hand — and why", the persistent counterpart to
+ * penaltyBanner()'s 6-second live banner. Reads HandResult.penaltyLog (the
+ * full ordered event log for the whole hand), not `penalties` (a per-seat
+ * running total with no memory of why) — the gap that made a player who got
+ * fined unable to tell, after the fact, what actually happened: the banner
+ * had already vanished and the old "Penalties this hand" line only ever
+ * showed a bare `+10`, never the reason. Returns null when nothing fired, so
+ * callers can skip appending it entirely.
+ */
+export function frenchPenaltyLog(
+  events: PenaltyEvent[],
+  seatLabel: (seat: number) => string,
+): HTMLElement | null {
+  if (events.length === 0) return null;
+  const wrap = el('div', 'french-penalties');
+  wrap.append(el('div', 'eyebrow', 'Penalties this hand'));
+  events.forEach((e) => {
+    wrap.append(el('div', 'muted small', `${seatLabel(e.seat)} ${PENALTY_REASON_TEXT[e.reason]} — +${e.amount}`));
+  });
+  return wrap;
+}
+
+/**
  * "Did the losing hands add up right" — every seat's pip count from the
  * hand that just ended, any doubling that applied, what it actually added
  * to their score, and their new running total. The delta (`after - before`)

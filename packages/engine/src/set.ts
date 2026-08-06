@@ -82,10 +82,13 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
   // nobody else scores anything for it, and a tie AGAIN just repeats the
   // reshuffle (frenchTieBreak stays true) rather than climbing in value.
   //
-  // True elimination: crossing `target` puts a seat OUT, not the set. Play
-  // continues among whoever remains under target until exactly one is left —
-  // that seat wins outright. Every seat is still dealt into and plays out
-  // every remaining hand; only the win/elimination bookkeeping changes.
+  // The set ends the instant ANY seat's score reaches or crosses `target` —
+  // not "true elimination" (that earlier design let the other seats keep
+  // racing until only one remained under target; confirmed wrong against
+  // real play). The hand that crosses it always plays out to its natural
+  // conclusion first — this only ever runs at hand-end — and whoever holds
+  // the LOWEST score at that moment wins the whole set outright, even if
+  // several seats crossed target in the very same hand.
   if (format === 'french') {
     const doubles = result.doublesRemaining ?? new Array(seatCount).fill(false);
     const penalties = result.penalties ?? new Array(seatCount).fill(0);
@@ -125,13 +128,8 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
 
     s.handValue = 1;
 
-    const stillIn: number[] = [];
-    for (let seat = 0; seat < seatCount; seat++) if (s.scores[seat] < target) stillIn.push(seat);
-    if (stillIn.length <= 1) {
-      // stillIn.length === 0 only when every seat crosses in the same hand —
-      // fall back to whoever has the lowest score even though nobody is
-      // technically "under" target.
-      s.winnerSide = stillIn.length === 1 ? stillIn[0] : s.scores.indexOf(Math.min(...s.scores));
+    if (s.scores.some((v) => v >= target)) {
+      s.winnerSide = s.scores.indexOf(Math.min(...s.scores));
     }
     return s;
   }

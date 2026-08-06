@@ -14,7 +14,7 @@ function formatLabel(format: SetFormat): string {
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { Board, DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown } from './render.ts';
+import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -909,18 +909,13 @@ function handResult(g: LocalGame): HTMLElement | null {
     panel.append(el('p', 'muted', 'Score bruk. Back to love all, and the six opens.'));
   }
 
-  // French penalties (board pass, three-in-a-row pass, an illegal try) accrue
-  // silently mid-hand — the player never sees them fire in the moment, only
-  // the eventual score. This is the one place that proves they actually
-  // landed, matching every other "don't just trust us, look" moment in this
-  // app (Verify this hand, the bruk flash, six love). Zero entries when
-  // nothing happened this hand, so it never appears for non-French formats.
-  if (g.options.format === 'french' && r.penalties?.some((p) => p > 0)) {
-    const breakdown = r.penalties
-      .map((p, seat) => (p > 0 ? `${g.seatLabel(seat)} +${p}` : null))
-      .filter((s): s is string => s !== null)
-      .join('  ·  ');
-    panel.append(el('p', 'muted', `Penalties this hand — ${breakdown}`));
+  // French penalties (board pass, three-in-a-row pass, no double to pose)
+  // accrue silently mid-hand — the live banner names the reason but vanishes
+  // after 6 seconds, so this is where a player can still see WHY each +10
+  // landed once the hand is over, not just that it did.
+  if (g.options.format === 'french') {
+    const penaltyLog = frenchPenaltyLog(r.penaltyLog ?? [], (seat) => g.seatLabel(seat));
+    if (penaltyLog) panel.appendChild(penaltyLog);
   }
 
   // The "these tiles were rigged" feeling arrives at exactly one moment: when

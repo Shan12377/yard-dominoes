@@ -107,35 +107,35 @@ describe('French scoring', () => {
   });
 });
 
-describe('French: true elimination', () => {
-  it('one seat crossing target does not end the set — three seats remain and keep playing', () => {
+describe('French: the set ends the instant anyone crosses target', () => {
+  it('one seat crossing target ends the set immediately — lowest score at that moment wins, even under target', () => {
     const s = frenchSet([92, 40, 55, 88]);
-    const next = applyHandResult(s, scoringResult({ status: 'domino', winnerSeat: 1, counts: [9, 3, 4, 7] }));
-    assert.equal(next.scores[0], 101);
-    assert.equal(next.winnerSide, null, 'seats 1, 2, and 3 are all still under target');
+    // Seat 1 is this hand's domino winner, so their own count is 0.
+    const next = applyHandResult(s, scoringResult({ status: 'domino', winnerSeat: 1, counts: [9, 0, 4, 7] }));
+    assert.equal(next.scores[0], 101, 'seat 0 crossed target');
+    assert.equal(next.winnerSide, 1, 'seat 1 (score 40) is lowest across the table — the set ends right here, not just for seat 0');
   });
 
-  it('two of four crossing target in the same hand: the set still continues with the two survivors', () => {
-    const s = frenchSet([95, 30, 97, 40]);
-    const next = applyHandResult(s, scoringResult({ status: 'domino', winnerSeat: 3, counts: [8, 4, 6, 2] }));
-    assert.ok(next.scores[0] >= 100 && next.scores[2] >= 100);
-    assert.equal(next.winnerSide, null, 'seats 1 and 3 are both still under target');
+  it('two seats crossing target in the same hand: still just the lowest score across everyone', () => {
+    const s = frenchSet([95, 20, 97, 40]);
+    // Seat 1 is this hand's domino winner, so their own count is 0.
+    const next = applyHandResult(s, scoringResult({ status: 'domino', winnerSeat: 1, counts: [8, 0, 6, 5] }));
+    assert.ok(next.scores[0] >= 100 && next.scores[2] >= 100, 'seats 0 and 2 both crossed');
+    assert.equal(next.winnerSide, 1, 'seat 1 (score 20) is the lowest score at the table');
   });
 
-  it('the set ends the instant only one seat remains under target — that seat wins outright', () => {
-    // Seats 0 and 2 already out from an earlier hand; 1 and 3 are the only
-    // two still racing.
-    const s = frenchSet([110, 40, 105, 92]);
-    const next = applyHandResult(s, scoringResult({ status: 'domino', winnerSeat: 1, counts: [9, 3, 4, 9] }));
-    assert.equal(next.scores[3], 101, 'seat 3 just crossed too');
-    assert.equal(next.winnerSide, 1, 'seat 1 is the only one left under target');
-  });
-
-  it('every remaining seat crossing target in the same hand: lowest score wins even though nobody is under target', () => {
+  it('every seat crossing target in the same hand: lowest score still wins outright', () => {
     const s = frenchSet([110, 94, 105, 92]);
     const next = applyHandResult(s, scoringResult({ status: 'blocked', winnerSeat: 3, counts: [9, 8, 4, 9] }));
     assert.ok(next.scores.every((v) => v >= 100));
     assert.equal(next.winnerSide, 3, 'seat 3 (92+9=101) edges seat 1 (94+8=102)');
+  });
+
+  it('nobody at or over target: the set is not decided yet', () => {
+    const s = frenchSet([50, 30, 55, 40]);
+    const next = applyHandResult(s, scoringResult({ status: 'domino', winnerSeat: 1, counts: [9, 0, 4, 7] }));
+    assert.ok(next.scores.every((v) => v < 100));
+    assert.equal(next.winnerSide, null);
   });
 });
 
@@ -452,6 +452,26 @@ describe('French: pass penalties', () => {
     assert.deepEqual(next.lastPenalties, [{ seat: 1, amount: 10, reason: 'triple-pass' }]);
   });
 
+  it('penaltyLog accumulates across the whole hand instead of only keeping the most recent move\'s events', () => {
+    const state = frenchHand({
+      board: { kind: 'linear', line: [{ tile: '6-6', crosswise: true }], leftEnd: 6, rightEnd: 6 },
+      hands: [['1-1'], ['0-1', '0-2', '0-3'], ['2-2'], ['3-3']],
+      turn: 1,
+      moveLog: [
+        { kind: 'pass', seat: 1, ends: [6, 6] },
+        { kind: 'pass', seat: 1, ends: [6, 6] },
+      ],
+      // An earlier move this same hand already fined seat 2 — penaltyLog
+      // must still carry it after a later, unrelated fine.
+      penaltyLog: [{ seat: 2, amount: 10, reason: 'board-pass' }],
+    });
+    const next = applyMove(state, { kind: 'pass', seat: 1 });
+    assert.deepEqual(next.penaltyLog, [
+      { seat: 2, amount: 10, reason: 'board-pass' },
+      { seat: 1, amount: 10, reason: 'triple-pass' },
+    ], 'appended, not overwritten — this is what lets the hand-result screen show every penalty, not just the last one');
+  });
+
   it('lastPenalties is empty on a move that costs nothing, even for a seat already carrying an earlier fine', () => {
     const state = frenchHand({
       board: { kind: 'linear', line: [{ tile: '6-6', crosswise: true }], leftEnd: 6, rightEnd: 6 },
@@ -492,6 +512,21 @@ describe('French: pass penalties', () => {
       { seat: 2, amount: 10, reason: 'board-pass' },
       { seat: 3, amount: 10, reason: 'board-pass' },
     ]);
+  });
+
+  it('HandResult.penaltyLog carries the whole hand\'s penalty history through to hand end, not just the winning move\'s', () => {
+    const state = frenchHand({
+      board: { kind: 'linear', line: [{ tile: '6-6', crosswise: true }], leftEnd: 6, rightEnd: 6 },
+      // Seat 1 can answer the new left end (0) once seat 0 goes out, so this
+      // winning move earns no NEW board-pass — the log at hand-end should be
+      // exactly the one entry from earlier in the hand, carried through.
+      hands: [['0-6'], ['0-1'], ['2-2'], ['3-3']],
+      turn: 0,
+      penaltyLog: [{ seat: 2, amount: 10, reason: 'board-pass' }],
+    });
+    const next = applyMove(state, { kind: 'play', seat: 0, tile: '0-6', end: 'left' });
+    assert.equal(next.status, 'domino');
+    assert.deepEqual(next.result!.penaltyLog, [{ seat: 2, amount: 10, reason: 'board-pass' }]);
   });
 
   it('a play that leaves even one other seat with an answer costs nobody', () => {

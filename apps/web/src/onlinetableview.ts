@@ -12,7 +12,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
@@ -1122,18 +1122,16 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     ));
   }
 
-  // French penalties (board pass, three-in-a-row pass, an illegal try) accrue
-  // silently mid-hand — the player never sees them fire in the moment, only
-  // the eventual score. This is the one place that proves they actually
-  // landed, matching every other "don't just trust us, look" moment in this
-  // app (Verify this hand, the bruk flash, six love). Zero entries when
-  // nothing happened this hand, so it never appears for non-French formats.
-  if (game.table.format === 'french' && r.penalties?.some((p: number) => p > 0)) {
-    const breakdown = (r.penalties as number[])
-      .map((p, seat) => (p > 0 ? `${describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide)} +${p}` : null))
-      .filter((s): s is string => s !== null)
-      .join('  ·  ');
-    panel.append(el('p', 'muted', `Penalties this hand — ${breakdown}`));
+  // French penalties (board pass, three-in-a-row pass, no double to pose)
+  // accrue silently mid-hand — the live banner names the reason but vanishes
+  // after 6 seconds, so this is where a player can still see WHY each +10
+  // landed once the hand is over, not just that it did.
+  if (game.table.format === 'french') {
+    const penaltyLog = frenchPenaltyLog(
+      r.penaltyLog ?? [],
+      (seat) => describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide),
+    );
+    if (penaltyLog) panel.appendChild(penaltyLog);
   }
 
   panel.appendChild(revealSection(game));

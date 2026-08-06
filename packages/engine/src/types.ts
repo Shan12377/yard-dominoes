@@ -150,6 +150,14 @@ export interface HandResult {
    * pip total at hand-end; other formats never populate this.
    */
   penalties?: number[];
+  /**
+   * Every French penalty assessed across the WHOLE hand, in order — unlike
+   * `penalties` (a per-seat running total with no memory of why), this is
+   * the full event log, so a hand-result screen can say what each +10 was
+   * actually for once the hand is over and the live banner is long gone.
+   * Mirrors HandState.penaltyLog at the moment the hand ended.
+   */
+  penaltyLog?: PenaltyEvent[];
 }
 
 /**
@@ -227,6 +235,14 @@ export interface HandState {
    * empty. See PenaltyEvent.
    */
   lastPenalties?: PenaltyEvent[];
+  /**
+   * Every French penalty assessed since deal(), accumulated across the whole
+   * hand — unlike lastPenalties, this is appended to, never overwritten, so
+   * resolve() can copy the complete log onto HandResult when the hand ends.
+   * Optional for the same reason lastPenalties is: old HandState literals
+   * keep compiling unchanged.
+   */
+  penaltyLog?: PenaltyEvent[];
 }
 
 export interface SetOptions {
