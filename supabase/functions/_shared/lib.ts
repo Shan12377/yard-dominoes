@@ -219,6 +219,11 @@ export async function persist(
     move_log: state.moveLog,
     status: state.status,
     result: state.result,
+    // This move's penalty events only — see PenaltyEvent. Never the running
+    // total (that's inside `penalties`/`result.penalties`, not broadcast
+    // live); this is what lets every seat learn about a +10 the instant it
+    // lands instead of only at hand-end.
+    last_penalties: state.lastPenalties ?? [],
     turn_expires_at: expires,
     // Captures the mode this hand was actually dealt under — the openhand RLS
     // policy on seat_hands (0016) gates on THIS value, not on tables.mode, so

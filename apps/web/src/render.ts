@@ -1,5 +1,5 @@
 import { halves, isDouble, matches } from '@yard/engine';
-import type { AnyBoard, Board, CrossBoard, Pip, TileId } from '@yard/engine';
+import type { AnyBoard, Board, CrossBoard, PenaltyEvent, Pip, TileId } from '@yard/engine';
 import { layoutLine, MIN_WIDTH_UNITS, orientLine } from './layout.ts';
 import type { OrientedTile, TilePlacement } from './layout.ts';
 
@@ -395,6 +395,26 @@ export function scoreTrack(label: string, score: number, opts: { us?: boolean; b
     wrap.appendChild(note);
   }
   return wrap;
+}
+
+const PENALTY_REASON_TEXT: Record<PenaltyEvent['reason'], string> = {
+  'board-pass': 'had no answer to the board',
+  'triple-pass': 'passed three times running',
+  'no-double-to-pose': 'had no double to pose',
+};
+
+/**
+ * "X just got a 10, and why" — the live counterpart to the hand-result
+ * panel's after-the-fact "Penalties this hand" breakdown. Every seat at the
+ * table sees the same PenaltyEvent[] (hand_public.last_penalties online,
+ * HandState.lastPenalties locally), so this renders identically for
+ * everyone, not just the seat it happened to.
+ */
+export function penaltyBanner(events: PenaltyEvent[], seatLabel: (seat: number) => string): HTMLElement {
+  const line = events
+    .map((e) => `${seatLabel(e.seat)} ${PENALTY_REASON_TEXT[e.reason]} — +${e.amount}`)
+    .join('  ·  ');
+  return el('div', 'banner penalty', line);
 }
 
 export function el(tag: string, className?: string, text?: string): HTMLElement {

@@ -20,6 +20,7 @@ import type {
   HandResult,
   HandState,
   Move,
+  PenaltyEvent,
   Pip,
   SetFormat,
   TileId,
@@ -148,6 +149,7 @@ export function deal(input: DealInput): HandState {
 
   let poser: number;
   let forceOpening: boolean;
+  const lastPenalties: PenaltyEvent[] = [];
 
   if (input.poseMustBeAnyDouble) {
     // French, round 2+: the nominal poser (the previous winner) must lead
@@ -165,7 +167,10 @@ export function deal(input: DealInput): HandState {
     // live table on it: fall back to the nominal poser, who legalMoves()'s
     // own defensive fallback then lets open with anything.
     poser = found >= 0 ? found : nominal;
-    if (found >= 0 && found !== nominal) penalties[nominal] += 10;
+    if (found >= 0 && found !== nominal) {
+      penalties[nominal] += 10;
+      lastPenalties.push({ seat: nominal, amount: 10, reason: 'no-double-to-pose' });
+    }
     forceOpening = false;
   } else {
     // When the score is fresh, has just bruk, or a replay is due, the hand
@@ -195,6 +200,7 @@ export function deal(input: DealInput): HandState {
     openingTile,
     poser,
     format: input.format ?? 'sixlove',
+    lastPenalties,
   };
 }
 
@@ -415,6 +421,11 @@ export function applyMove(prev: HandState, move: Move): HandState {
   if (!isLegal(prev, move)) throw new Error(`illegal move: ${JSON.stringify(move)}`);
 
   const s = clone(prev);
+  // Fresh every call, never accumulated — see PenaltyEvent. Pushed into
+  // below rather than reassigned, so `s.lastPenalties` stays this exact
+  // array through every branch and both penalty sites end up in it.
+  const penaltyEvents: PenaltyEvent[] = [];
+  s.lastPenalties = penaltyEvents;
   // Stamp the evidence onto a pass at the moment it happens.
   const logged: Move =
     move.kind === 'pass' && s.board
@@ -487,6 +498,7 @@ export function applyMove(prev: HandState, move: Move): HandState {
         const last3 = own.slice(-3);
         if (last3.length === 3 && last3.every((m) => m.kind === 'pass')) {
           s.penalties[move.seat] += 10;
+          penaltyEvents.push({ seat: move.seat, amount: 10, reason: 'triple-pass' });
         }
       }
       break;
@@ -501,7 +513,10 @@ export function applyMove(prev: HandState, move: Move): HandState {
   // playcross/pass reach here.
   if (s.format === 'french' && move.kind !== 'pass' && blocksEveryoneElse(s, move.seat)) {
     for (let seat = 0; seat < s.seatCount; seat++) {
-      if (seat !== move.seat) s.penalties[seat] += 10;
+      if (seat !== move.seat) {
+        s.penalties[seat] += 10;
+        penaltyEvents.push({ seat, amount: 10, reason: 'board-pass' });
+      }
     }
   }
 

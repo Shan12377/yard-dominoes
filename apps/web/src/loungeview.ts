@@ -27,7 +27,9 @@ import {
 } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
 import { openTablesPanel, joinByCodeField, liveTableView } from './onlinetableview.ts';
-import { el } from './render.ts';
+import { el, penaltyBanner } from './render.ts';
+import { describeSeat } from './movelog.ts';
+import type { PenaltyEvent } from '@yard/engine';
 import { canSpeak, joinVoice } from './voice.ts';
 import type { VoiceRoom } from './voice.ts';
 import { canShowVideo, joinVideo, CAMERA_TRACK_NAME } from './video.ts';
@@ -60,6 +62,9 @@ interface LoungeState {
   error: string | null;
   loading: boolean;
   onlineGame: OnlineGame | null;
+  /** A French penalty that just landed at this table — see PenaltyEvent.
+   *  Cleared by attachTable's own timeout, PENALTY_BANNER_MS after it fires. */
+  penaltyEvents: PenaltyEvent[] | null;
   voice: LiveVoice | null;
   /** Joining is async; this keeps the button from being tapped twice. */
   voiceJoining: boolean;
@@ -76,10 +81,13 @@ interface LoungeState {
 
 export const loungeState: LoungeState = {
   lounges: [], me: null, current: null, roster: [], messages: [],
-  room: null, error: null, loading: false, onlineGame: null,
+  room: null, error: null, loading: false, onlineGame: null, penaltyEvents: null,
   voice: null, voiceJoining: false, speaking: new Set(), reactions: new Map(),
   video: null, videoJoining: false, videoStreams: new Map(), isAnonymous: true,
 };
+
+/** Long enough to read, short enough not to linger past the next couple of moves. */
+const PENALTY_BANNER_MS = 6000;
 
 /** Timers clearing each reaction, so one person spamming cannot pile them up. */
 const reactionTimers = new Map<string, number>();
@@ -262,6 +270,10 @@ async function attachTable(tableId: string, rerender: () => void) {
   // carries 'error' events that otherwise have no listener and vanish.
   game.on((e) => {
     if (e.type === 'error') loungeState.error = e.message;
+    if (e.type === 'penalty') {
+      loungeState.penaltyEvents = e.events;
+      setTimeout(() => { loungeState.penaltyEvents = null; rerender(); }, PENALTY_BANNER_MS);
+    }
     rerender();
   });
 
@@ -1354,6 +1366,14 @@ export function loungesView(rerender: () => void, goToMembership: () => void): D
     const frag = document.createDocumentFragment();
     if (loungeState.error) {
       frag.appendChild(el('div', 'banner', loungeState.error));
+    }
+    if (loungeState.penaltyEvents) {
+      const g = loungeState.onlineGame;
+      const partnered = g.table.mode === 'partner' || g.table.mode === 'openhand';
+      frag.appendChild(penaltyBanner(
+        loungeState.penaltyEvents,
+        (seat) => describeSeat(seat, g.seats, g.mySeat, partnered, g.mySide),
+      ));
     }
     // Voice and reactions belong at the table more than anywhere — this is
     // where the four of you actually are. They ride the lounge channel, which

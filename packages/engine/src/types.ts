@@ -152,6 +152,19 @@ export interface HandResult {
   penalties?: number[];
 }
 
+/**
+ * One French penalty assessed by the deal()/applyMove() call that just ran —
+ * a description of what just happened, not a running total (that's
+ * HandState.penalties). Lets the client announce a +10 the moment it fires
+ * instead of only at hand-end, which is the only place penalties were
+ * visible before this existed.
+ */
+export interface PenaltyEvent {
+  seat: number;
+  amount: number;
+  reason: 'board-pass' | 'triple-pass' | 'no-double-to-pose';
+}
+
 export interface HandState {
   seatCount: number;
   mode: GameMode;
@@ -206,6 +219,14 @@ export interface HandState {
   openingTile: TileId;
   /** Seat that poses this hand. */
   poser: number;
+  /**
+   * Penalty events from the MOST RECENT deal()/applyMove() call only —
+   * always overwritten fresh, never accumulated. Optional so every existing
+   * HandState literal across the codebase (tests, replay reconstruction,
+   * client stub states) keeps compiling unchanged; absent reads the same as
+   * empty. See PenaltyEvent.
+   */
+  lastPenalties?: PenaltyEvent[];
 }
 
 export interface SetOptions {

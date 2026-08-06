@@ -9,7 +9,7 @@
 
 /// <reference types="vite/client" />
 import { createClient, type SupabaseClient, type RealtimeChannel, FunctionsHttpError } from '@supabase/supabase-js';
-import type { AnyBoard, ClockName, GameMode, HandReview, Move, TileId } from '@yard/engine';
+import type { AnyBoard, ClockName, GameMode, HandReview, Move, PenaltyEvent, TileId } from '@yard/engine';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -218,6 +218,8 @@ export interface PublicHand {
   move_log: Move[];
   status: string;
   result: unknown;
+  /** This row's most recent penalty events only — see PenaltyEvent. */
+  last_penalties: PenaltyEvent[];
   turn_expires_at: string | null;
 }
 

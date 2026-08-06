@@ -17,7 +17,7 @@ import {
   duppyMove, reviewHand, accuracy, isPartnered, sideOf,
 } from '@yard/engine';
 import type {
-  DuppyLevel, GameMode, HandReview, HandState, Move, SetFormat, SetState, TileId,
+  DuppyLevel, GameMode, HandReview, HandState, Move, PenaltyEvent, SetFormat, SetState, TileId,
 } from '@yard/engine';
 
 export interface LocalOptions {
@@ -43,7 +43,9 @@ export type LocalEvent =
   | { type: 'played'; seat: number; tile: TileId }
   | { type: 'passed'; seat: number }
   | { type: 'handOver' }
-  | { type: 'setOver' };
+  | { type: 'setOver' }
+  /** A French penalty just landed somewhere at the table — see PenaltyEvent. */
+  | { type: 'penalty'; events: PenaltyEvent[] };
 
 export class LocalGame {
   set: SetState;
@@ -106,6 +108,7 @@ export class LocalGame {
       dealt: this.dealt, removeDoubleBlank,
     };
     this.lastResultBruk = false;
+    if (this.hand.lastPenalties?.length) this.emit({ type: 'penalty', events: this.hand.lastPenalties });
     this.emit({ type: 'state' });
     await this.runDuppies();
   }
@@ -125,6 +128,7 @@ export class LocalGame {
     this.hand = applyMove(this.hand, move);
     if (move.kind === 'pass') this.emit({ type: 'passed', seat: move.seat });
     else if ('tile' in move) this.emit({ type: 'played', seat: move.seat, tile: move.tile });
+    if (this.hand.lastPenalties?.length) this.emit({ type: 'penalty', events: this.hand.lastPenalties });
     this.emit({ type: 'state' });
     await this.afterMove();
   }
@@ -144,6 +148,7 @@ export class LocalGame {
       this.hand = applyMove(this.hand, move);
       if (move.kind === 'pass') this.emit({ type: 'passed', seat: move.seat });
       else if ('tile' in move) this.emit({ type: 'played', seat: move.seat, tile: move.tile });
+      if (this.hand.lastPenalties?.length) this.emit({ type: 'penalty', events: this.hand.lastPenalties });
       this.emit({ type: 'state' });
     }
     if (this.hand.status !== 'active') this.finishHand();

@@ -17,7 +17,7 @@ import {
 import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
 import { isPartnered, legalMoves, sideOf } from '@yard/engine';
-import type { AnyBoard, GameMode, HandReview, Move, SetFormat, TileId } from '@yard/engine';
+import type { AnyBoard, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { predictMyMove } from './predict.ts';
 
 export interface TableInfo {
@@ -64,7 +64,11 @@ export interface SeatInfo {
   avgMoveMs: number | null;
 }
 
-export type OnlineEvent = { type: 'state' } | { type: 'error'; message: string };
+export type OnlineEvent =
+  | { type: 'state' }
+  | { type: 'error'; message: string }
+  /** A French penalty just landed somewhere at the table — see PenaltyEvent. */
+  | { type: 'penalty'; events: PenaltyEvent[] };
 
 function db() {
   if (!supabase) throw new Error('online mode needs Supabase configured');
@@ -414,6 +418,16 @@ export class OnlineGame {
           this.reviewAccuracy = null;
         }
         if (prev?.status === 'active' && hand.status === 'domino') this.justWonByDominoHandId = hand.hand_id;
+        // `prev` must already exist — a client's very first broadcast for a
+        // table (a fresh join, or the first tick after (re)subscribing) can
+        // carry an old hand's last penalty from before this client was
+        // watching, and announcing that would look like it just happened
+        // when it didn't. Not gated on the same hand_id like the sound
+        // effects above: a fresh deal's own no-double-to-pose fine (see
+        // deal() in hand.ts) is exactly as real-time as a mid-hand one.
+        if (prev && hand.last_penalties?.length) {
+          this.emit({ type: 'penalty', events: hand.last_penalties });
+        }
         this.hand = hand;
         // Real data has arrived — whatever was predicted in play() is either
         // already confirmed by this or superseded by it, either way this is

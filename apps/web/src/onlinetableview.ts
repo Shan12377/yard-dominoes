@@ -525,15 +525,21 @@ export function liveTableView(
   if (social?.videoPanel) frag.appendChild(social.videoPanel);
 
   const board = el('div', 'scoreboard');
-  const brukOpt = { bruk: game.lastResultBruk };
+  // French is race-to-100 (lower wins) and always cutthroat — createSet()
+  // enforces both — so this only ever widens the `else` branch below, but
+  // the max belongs on both for the same reason main.ts's local scoreboard
+  // already carries it: without it scoreTrack() defaults to 6 and every
+  // French score renders against the wrong scale, hiding exactly the "how
+  // much do I need to lose" number this table is actually played around.
+  const trackOpts = { bruk: game.lastResultBruk, max: game.table.format === 'french' ? 100 : 6 };
   if (game.table.mode === 'partner') {
     board.append(
-      scoreTrack('You & partner', game.scores[(game.mySide ?? 0)] ?? 0, { us: true, ...brukOpt }),
-      scoreTrack('Them', game.scores[1 - (game.mySide ?? 0)] ?? 0, brukOpt),
+      scoreTrack('You & partner', game.scores[(game.mySide ?? 0)] ?? 0, { us: true, ...trackOpts }),
+      scoreTrack('Them', game.scores[1 - (game.mySide ?? 0)] ?? 0, trackOpts),
     );
   } else {
     game.scores.forEach((s, i) => board.append(
-      scoreTrack(`Seat ${i}`, s, { us: i === game.mySeat, ...brukOpt }),
+      scoreTrack(`Seat ${i}`, s, { us: i === game.mySeat, ...trackOpts }),
     ));
   }
   frag.appendChild(board);

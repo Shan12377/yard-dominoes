@@ -220,6 +220,7 @@ describe('French: round 2+ must pose a double', () => {
     assert.equal(hand.poser, 1, 'seat 0 held nothing double — seat 1 is next in order and has one');
     assert.equal(hand.turn, 1);
     assert.deepEqual(hand.penalties, [10, 0, 0, 0], 'seat 0 is fined for not holding a double on their turn to pose');
+    assert.deepEqual(hand.lastPenalties, [{ seat: 0, amount: 10, reason: 'no-double-to-pose' }]);
 
     const moves = legalMoves(hand);
     assert.deepEqual(moves.map((m) => (m as any).tile), ['1-1'], 'seat 1\'s only double is their only legal pose');
@@ -445,6 +446,23 @@ describe('French: pass penalties', () => {
     });
     const next = applyMove(state, { kind: 'pass', seat: 1 });
     assert.equal(next.penalties[1], 10);
+    // The client's "when someone gets a 10" live banner is built entirely
+    // off this — it must name the seat, the amount, and why, not just move
+    // the running total.
+    assert.deepEqual(next.lastPenalties, [{ seat: 1, amount: 10, reason: 'triple-pass' }]);
+  });
+
+  it('lastPenalties is empty on a move that costs nothing, even for a seat already carrying an earlier fine', () => {
+    const state = frenchHand({
+      board: { kind: 'linear', line: [{ tile: '6-6', crosswise: true }], leftEnd: 6, rightEnd: 6 },
+      hands: [['1-1'], ['0-1', '0-2', '0-3'], ['2-2'], ['3-3']],
+      turn: 1,
+      moveLog: [{ kind: 'pass', seat: 1, ends: [6, 6] }],
+      penalties: [0, 10, 0, 0],
+    });
+    const next = applyMove(state, { kind: 'pass', seat: 1 });
+    assert.equal(next.penalties[1], 10, 'the earlier fine is still on the running total');
+    assert.deepEqual(next.lastPenalties, [], 'but this particular pass earned nothing new');
   });
 
   it('two consecutive passes are not yet a penalty', () => {
@@ -466,6 +484,14 @@ describe('French: pass penalties', () => {
     });
     const next = applyMove(state, { kind: 'play', seat: 0, tile: '6-0', end: 'right' });
     assert.deepEqual(next.penalties, [0, 10, 10, 10]);
+    // One event per fined seat, all reason 'board-pass' — this is what lets
+    // the live banner name every seat that just got boarded, not merely the
+    // first one.
+    assert.deepEqual(next.lastPenalties, [
+      { seat: 1, amount: 10, reason: 'board-pass' },
+      { seat: 2, amount: 10, reason: 'board-pass' },
+      { seat: 3, amount: 10, reason: 'board-pass' },
+    ]);
   });
 
   it('a play that leaves even one other seat with an answer costs nobody', () => {

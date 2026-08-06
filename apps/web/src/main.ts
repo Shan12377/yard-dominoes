@@ -12,9 +12,9 @@ function formatLabel(format: SetFormat): string {
   }
 }
 import type { LeakStore, TalkTrigger } from '@yard/engine';
-import type { Board, DuppyLevel, GameMode, HandReview, Move, SetFormat } from '@yard/engine';
+import type { Board, DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason } from './render.ts';
+import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -93,6 +93,15 @@ async function fetchSiteHandsPlayed() {
 let view: View = 'play';
 let game: LocalGame | null = null;
 let review: HandReview | null = null;
+/**
+ * A French penalty (+10) that just landed, shown as a banner and cleared
+ * after PENALTY_BANNER_MS — see local.ts's 'penalty' event. Module-scoped
+ * like `pendingTile` below: render() rebuilds the whole view on every event,
+ * so this has to live outside it or it would vanish the instant the very
+ * next state event redraws the table.
+ */
+let penaltyEvents: PenaltyEvent[] | null = null;
+const PENALTY_BANNER_MS = 6000;
 /** The coach is running. It solves positions, so it is not instant. */
 let reviewPending = false;
 /** The full move-by-move breakdown, opened from the summary. */
@@ -350,6 +359,11 @@ async function startGame(opts: {
     // Six love is the loudest thing that happens in this game and it ends the
     // set, so it gets its own sound rather than sharing the win line's.
     if (e.type === 'setOver' && g.set.sixLove) sfx.play('sixLove');
+
+    if (e.type === 'penalty') {
+      penaltyEvents = e.events;
+      setTimeout(() => { penaltyEvents = null; render(); }, PENALTY_BANNER_MS);
+    }
 
     if (e.type === 'passed' && e.seat !== g.mySeat) {
       say(e.seat, 'iPass', level);
@@ -1179,6 +1193,7 @@ function feltPicker(): HTMLElement {
 function tableView(g: LocalGame): DocumentFragment {
   const frag = document.createDocumentFragment();
   frag.appendChild(scoreboard(g));
+  if (penaltyEvents) frag.appendChild(penaltyBanner(penaltyEvents, (seat) => g.seatLabel(seat)));
 
   const felt = el('div', 'table-felt');
   const line = el('div', 'line');
