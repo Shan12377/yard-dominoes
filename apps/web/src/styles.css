@@ -278,6 +278,16 @@ label.field > span {
    bruks they all go out together. The rule is the interface.
    ========================================================================= */
 .scoreboard { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+
+/* Pinned so the running score never scrolls out of view while you're reading
+   the board or your hand — it used to sit at the very top of the page and
+   disappear the moment you scrolled down to actually play. */
+.sticky-scores {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin-bottom: 12px;
+}
 .side-score { display: grid; gap: 6px; }
 .side-name {
   font-family: var(--mono); font-size: 11px;

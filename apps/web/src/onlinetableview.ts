@@ -524,6 +524,7 @@ export function liveTableView(
   if (social?.voicePanel) frag.appendChild(social.voicePanel);
   if (social?.videoPanel) frag.appendChild(social.videoPanel);
 
+  const scoreWrap = el('div', 'panel sticky-scores');
   const board = el('div', 'scoreboard');
   // French is race-to-100 (lower wins) and always cutthroat — createSet()
   // enforces both — so this only ever widens the `else` branch below, but
@@ -532,17 +533,27 @@ export function liveTableView(
   // French score renders against the wrong scale, hiding exactly the "how
   // much do I need to lose" number this table is actually played around.
   const trackOpts = { bruk: game.lastResultBruk, max: game.table.format === 'french' ? 100 : 6 };
-  if (game.table.mode === 'partner') {
+  const scoreboardPartnered = game.table.mode === 'partner';
+  if (scoreboardPartnered) {
     board.append(
       scoreTrack('You & partner', game.scores[(game.mySide ?? 0)] ?? 0, { us: true, ...trackOpts }),
       scoreTrack('Them', game.scores[1 - (game.mySide ?? 0)] ?? 0, trackOpts),
     );
   } else {
+    // Named per seat (real username, or "Duppy · level" for a substitute),
+    // not "Seat N" — the whole point of pinning this bar is so a player can
+    // always tell whose score is whose at a glance, on French's four-way
+    // individual scoring as much as cut throat's.
     game.scores.forEach((s, i) => board.append(
-      scoreTrack(`Seat ${i}`, s, { us: i === game.mySeat, ...trackOpts }),
+      scoreTrack(
+        describeSeat(i, game.seats, game.mySeat, scoreboardPartnered, game.mySide),
+        s,
+        { us: i === game.mySeat, ...trackOpts },
+      ),
     ));
   }
-  frag.appendChild(board);
+  scoreWrap.appendChild(board);
+  frag.appendChild(scoreWrap);
 
   const cross = el('div', 'table-cross');
 

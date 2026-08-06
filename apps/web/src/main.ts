@@ -678,7 +678,7 @@ function lobby(): HTMLElement {
 
 // ----------------------------------------------------------------- table --
 function scoreboard(g: LocalGame): HTMLElement {
-  const panel = el('div', 'panel');
+  const panel = el('div', 'panel sticky-scores');
 
   const top = el('div', 'spread');
   top.append(el('div', 'eyebrow', 'Practice'));
