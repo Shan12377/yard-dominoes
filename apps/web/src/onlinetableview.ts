@@ -858,6 +858,12 @@ const ARM_DIRECTION_ARROW: Record<'right' | 'left' | 'up' | 'down', { glyph: str
 
 function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
+  // A tile tapped right before the hand ended (legal or not) must not carry
+  // into the result screen, or wrongly pre-select a same-id tile if the
+  // next deal happens to include it again — same reasoning as main.ts's
+  // handOver handler, done here instead since OnlineGame has no equivalent
+  // discrete event to hook.
+  if (game.hand?.status !== 'active') pendingTile = null;
   // predictedMyTiles set means a move was just tapped and hasn't been
   // confirmed by the server yet — game.hand.turn is still stale at this
   // point (the real update hasn't arrived), so legalMovesForMe() would
@@ -895,7 +901,7 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   }
   panel.appendChild(hand);
 
-  if (pendingTile) {
+  if (pendingTile && game.hand?.status === 'active') {
     // The pip value on each end, not just the bare direction — "I thought
     // this was the right end" is a real argument at a real table, and the
     // number settles it before it starts.

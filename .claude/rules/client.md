@@ -21,6 +21,24 @@ position, a partly-filled form, an open dropdown.
 If you add a text input, ask what happens when a render fires while it is
 focused. The answer must not be "the player loses their typing."
 
+**The reverse also bites: module-scoped selection state must be invalidated
+when the state it depends on stops being true, not just preserved across a
+render.** `pendingTile` (`main.ts`, `onlinetableview.ts`) holds a tile the
+player tapped to ask "which end?" — including, since dead tiles became
+tappable so a player can see *why* one doesn't fit, a tile that has no legal
+placement at all. Nothing cleared it when the hand ended: a player who tapped
+a dead tile right as the hand blocked or went out got the result screen
+fighting a stale "that tile doesn't fit" chooser for a hand that no longer
+existed, instead of seeing the winner and scores. Any selection tied to "my
+turn, this hand, this move" must be cleared the moment that context ends —
+`myHand()`/`myHandPanel()` now guard on `hand.status === 'active'` before
+rendering the chooser at all, and `main.ts` additionally clears `pendingTile`
+on its `handOver` event so a same-id tile in the next deal doesn't inherit a
+stale "chosen" highlight. When you add a new piece of tap-to-select state,
+ask the same question the text-input case asks, pointed the other way: what
+happens when the thing this selection was ABOUT stops being true underneath
+it?
+
 ## Hard UI rules
 
 - **No modal during a live hand.** Not a gift, not a rating prompt, not the

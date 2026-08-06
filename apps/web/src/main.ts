@@ -382,6 +382,12 @@ async function startGame(opts: {
       if (left === 1) say(e.seat, 'lastTile', level, true);
       else if (a === b) say(e.seat, 'slam', level);
     } else if (e.type === 'handOver') {
+      // A tile tapped right before the hand ended (legal or not) must not
+      // linger into the result screen — myHand() already stops rendering
+      // the chooser once the hand isn't active, but clearing this too stops
+      // it from wrongly pre-selecting a same-id tile if the next deal
+      // happens to include it again.
+      pendingTile = null;
       // The coach is the reason to play here rather than anywhere else, so it
       // runs on every hand instead of waiting to be asked. It solves
       // positions — a few hundred milliseconds on a phone — so it is deferred
@@ -811,7 +817,7 @@ function myHand(g: LocalGame): HTMLElement {
   }
   panel.appendChild(hand);
 
-  if (pendingTile) {
+  if (pendingTile && g.hand?.status === 'active') {
     const board = g.hand?.board ?? null;
     const linear = board?.kind === 'linear' ? board : null;
     const cross = board?.kind === 'cross' ? board : null;
