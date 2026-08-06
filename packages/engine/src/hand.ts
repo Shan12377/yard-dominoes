@@ -45,6 +45,9 @@ function cloneBoard(board: AnyBoard | null): AnyBoard | null {
       kind: 'cross',
       center: board.center,
       arms: board.arms.map((a) => ({ ...a, tiles: a.tiles.map((p) => ({ ...p })) })),
+      // Legacy rows dealt before doublesPlayed shipped have no such field —
+      // same defensive default as the kind check above.
+      doublesPlayed: [...(board.doublesPlayed ?? [])],
     };
   }
   return {
@@ -264,12 +267,12 @@ function linearLegalPlays(hand: TileId[], board: Board, seat: number): Move[] {
  * the winner posed in round 2+ — see HandState.poseMustBeAnyDouble). Each
  * such play creates the next arm attached to a centre corner.
  *
- * Post-fill: each arm exposes its own openEnd. A tile with a matching half
- * is legal on that arm iff either the tile IS the double of that suit (i.e.
- * leads it) OR that specific arm's own doubleDown flag is already set. This
- * is the "doubles must lead" rule (pagat.com/domino/cross/french.html) —
- * per-arm, not board-wide: playing a suit's double on one arm never unlocks
- * a different arm that happens to expose the same pip. See CrossArm.doubleDown.
+ * Post-fill: each arm exposes its own openEnd. A tile with a matching half is
+ * legal on that arm iff either the tile IS the double of that suit (i.e.
+ * leads it right now) OR that suit's double has already been played anywhere
+ * on the board this hand (board.doublesPlayed) — once a suit's double lands,
+ * every tile of that suit is live on every arm showing it, for the rest of
+ * the hand. See CrossBoard.doublesPlayed.
  */
 function crossLegalPlays(hand: TileId[], board: CrossBoard, seat: number): Move[] {
   const plays: Move[] = [];
@@ -287,7 +290,7 @@ function crossLegalPlays(hand: TileId[], board: CrossBoard, seat: number): Move[
     for (const tile of hand) {
       if (!matches(tile, arm.openEnd)) continue;
       const isSuitDouble = isDouble(tile) && halves(tile)[0] === arm.openEnd;
-      if (isSuitDouble || arm.doubleDown) {
+      if (isSuitDouble || board.doublesPlayed.includes(arm.openEnd)) {
         plays.push({ kind: 'playcross', seat, tile, arm: armIdx });
       }
     }
@@ -319,11 +322,10 @@ function place(board: Board, tile: TileId, end: End): Board {
 
 /**
  * Apply a French cross-board play. Filling phase (arm === arms.length)
- * creates a new arm, gate unset (its very first extension must be its own
- * matching double — see CrossArm.doubleDown). Post-fill extends an existing
- * arm: doubleDown becomes true when the play IS that arm's matching double
- * (the value stays the same, now unlocked), and false whenever a non-double
- * changes openEnd to a new value (a fresh number needs its own gate).
+ * creates a new arm. Post-fill extends an existing arm and, when the play IS
+ * a double, adds its value to board.doublesPlayed — a board-wide unlock, not
+ * scoped to this arm; see CrossBoard.doublesPlayed. There is only one copy
+ * of any double, so this can only ever add a value once per hand.
  */
 function placeCross(board: CrossBoard, tile: TileId, armIdx: number): CrossBoard {
   const placed = { tile, crosswise: isDouble(tile) };
@@ -337,21 +339,17 @@ function placeCross(board: CrossBoard, tile: TileId, armIdx: number): CrossBoard
       direction: ARM_DIRECTIONS[armIdx],
       tiles: [placed],
       openEnd: exposed,
-      doubleDown: false,
     };
     return { ...board, arms: [...board.arms, newArm] };
   }
   const arm = board.arms[armIdx];
-  const doubleDown = isDouble(tile) && halves(tile)[0] === arm.openEnd;
   const exposed = otherHalf(tile, arm.openEnd);
-  const nextArm: CrossArm = {
-    ...arm,
-    tiles: [...arm.tiles, placed],
-    openEnd: exposed,
-    doubleDown,
-  };
+  const nextArm: CrossArm = { ...arm, tiles: [...arm.tiles, placed], openEnd: exposed };
   const arms = board.arms.map((a2, i) => i === armIdx ? nextArm : a2);
-  return { ...board, arms };
+  const doublesPlayed = isDouble(tile) && !board.doublesPlayed.includes(arm.openEnd)
+    ? [...board.doublesPlayed, arm.openEnd]
+    : board.doublesPlayed;
+  return { ...board, arms, doublesPlayed };
 }
 
 function resolve(s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble = false): HandResult {
@@ -436,7 +434,11 @@ export function applyMove(prev: HandState, move: Move): HandState {
       // "the first double played [in a hand] acts as a spinner" generally,
       // not only the double-blank.
       if (s.format === 'french' && isDouble(move.tile)) {
-        s.board = { kind: 'cross', center: move.tile, arms: [] };
+        // The centre tile IS that value's double, physically on the board —
+        // seed doublesPlayed with it so an arm that later cycles back to
+        // exposing the centre's own value doesn't wrongly need a second
+        // copy of a double that can't exist.
+        s.board = { kind: 'cross', center: move.tile, arms: [], doublesPlayed: [a as Pip] };
       } else {
         s.board = {
           kind: 'linear',

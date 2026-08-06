@@ -263,14 +263,15 @@ describe('French: cross board — a round 2+ posed double is a spinner too', () 
   });
 });
 
-// pagat.com/domino/cross/french.html's own worked example: "[2-1] can be
-// played on the top arm since [2-2] has been played, but cannot be played on
-// the left arm since [1-1] has not yet been played" — the gate is tied to
-// the SPECIFIC arm a double was played on, not to the board as a whole. This
-// matters because only one copy of any double exists: playing it on one arm
-// can never retroactively unlock a different arm that happens to expose the
-// same pip.
-describe('French: cross board — doubles must lead per arm, not board-wide', () => {
+// Doubles-must-lead is a BOARD-WIDE gate, per how the hand is actually
+// played: once a suit's double lands anywhere, every arm showing that
+// number is live for the rest of the hand, until all seven of that number
+// are gone. It is not scoped to the specific arm the double happened to
+// land on. (pagat.com/domino/cross/french.html describes a different,
+// per-arm variant of the cross board — that read was tried first, shipped,
+// and then reverted once it produced a live false rejection this ruleset
+// doesn't have.)
+describe('French: cross board — doubles must lead, board-wide', () => {
   function crossHand(overrides: Partial<HandState>): HandState {
     return {
       seatCount: 4,
@@ -292,7 +293,7 @@ describe('French: cross board — doubles must lead per arm, not board-wide', ()
     };
   }
 
-  it("matches pagat's own example: 2-1 plays on the arm where 2-2 led, not on one where 1-1 hasn't", () => {
+  it('a number with no double played yet stays locked, even where a DIFFERENT number is already free', () => {
     const state = crossHand({
       hands: [['2-1'], [], [], []],
       turn: 0,
@@ -300,26 +301,28 @@ describe('French: cross board — doubles must lead per arm, not board-wide', ()
         kind: 'cross',
         center: '0-0',
         arms: [
-          { direction: 'right', tiles: [], openEnd: 2, doubleDown: true },  // 2-2 already played here
-          { direction: 'left', tiles: [], openEnd: 1, doubleDown: false }, // 1-1 not played here
-          { direction: 'up', tiles: [], openEnd: 5, doubleDown: false },
-          { direction: 'down', tiles: [], openEnd: 6, doubleDown: false },
+          { direction: 'right', tiles: [], openEnd: 2 }, // 2-2 already played
+          { direction: 'left', tiles: [], openEnd: 1 },  // 1-1 not played anywhere yet
+          { direction: 'up', tiles: [], openEnd: 5 },
+          { direction: 'down', tiles: [], openEnd: 6 },
         ],
+        doublesPlayed: [2],
       },
     });
     const moves = legalMoves(state).filter((m) => m.kind === 'playcross');
     assert.deepEqual(
       moves.map((m) => (m as any).arm),
       [0],
-      '2-1 is only legal on arm 0 (via its 2 half) — arm 1 rejects it even though the tile also carries a 1',
+      '2-1 is legal on arm 0 (its 2 half — 2-2 has been played) but not arm 1 (its 1 half — 1-1 hasn\'t)',
     );
   });
 
-  it("a double played on one arm never unlocks a DIFFERENT arm exposing the same pip", () => {
+  it('a double played on one arm DOES unlock a different arm exposing the same pip', () => {
     // Both arm 0 and arm 2 expose "3" — arm 0 got there via 3-3 actually
-    // being played on it; arm 2 got there some other way (e.g. a tile like
-    // 4-3 laid down after 4-4 unlocked arm 2's own earlier number) and has
-    // never had 3-3 played on IT specifically.
+    // landing on it; arm 2 got there some other way (e.g. a tile like 4-3
+    // laid down after 4-4 unlocked arm 2's own earlier number) and never had
+    // 3-3 played on IT specifically. Board-wide means that doesn't matter —
+    // 3-3 has been played, so every arm showing a 3 is live.
     const state = crossHand({
       hands: [['0-3'], [], [], []],
       turn: 0,
@@ -327,20 +330,40 @@ describe('French: cross board — doubles must lead per arm, not board-wide', ()
         kind: 'cross',
         center: '0-0',
         arms: [
-          { direction: 'right', tiles: [], openEnd: 3, doubleDown: true },  // 3-3 led arm 0
-          { direction: 'left', tiles: [], openEnd: 1, doubleDown: false },
-          { direction: 'up', tiles: [], openEnd: 3, doubleDown: false },   // exposes 3 too, but never led
-          { direction: 'down', tiles: [], openEnd: 6, doubleDown: false },
+          { direction: 'right', tiles: [], openEnd: 3 }, // 3-3 led here
+          { direction: 'left', tiles: [], openEnd: 1 },
+          { direction: 'up', tiles: [], openEnd: 3 },    // same pip, reached another way
+          { direction: 'down', tiles: [], openEnd: 6 },
         ],
+        doublesPlayed: [3],
       },
     });
     const moves = legalMoves(state).filter((m) => m.kind === 'playcross');
     assert.deepEqual(
-      moves.map((m) => (m as any).arm),
-      [0],
-      'the non-double 0-3 may extend arm 0 (its own double already down) but not arm 2, ' +
-        'even though arm 2 shows the same pip — this is the exact bug a shared board-wide flag would reintroduce',
+      moves.map((m) => (m as any).arm).sort(),
+      [0, 2],
+      'the non-double 0-3 may extend either arm showing a 3, since 3-3 has been played on the board',
     );
+  });
+
+  it('the centre value counts as already played, so an arm cycling back to it never needs a second copy of an impossible double', () => {
+    const state = crossHand({
+      hands: [['3-1'], [], [], []],
+      turn: 0,
+      board: {
+        kind: 'cross',
+        center: '3-3',
+        arms: [
+          { direction: 'right', tiles: [], openEnd: 3 }, // cycled back to the centre's own value
+          { direction: 'left', tiles: [], openEnd: 6 },
+          { direction: 'up', tiles: [], openEnd: 2 },
+          { direction: 'down', tiles: [], openEnd: 5 },
+        ],
+        doublesPlayed: [3],
+      },
+    });
+    const moves = legalMoves(state).filter((m) => m.kind === 'playcross');
+    assert.deepEqual(moves.map((m) => (m as any).arm), [0], '3-1 extends the arm showing 3 — the centre already counts as 3-3 played');
   });
 });
 

@@ -71,21 +71,6 @@ export interface CrossArm {
   direction: 'right' | 'left' | 'up' | 'down';
   tiles: PlacedTile[];
   openEnd: Pip;
-  /**
-   * True once THIS arm's own matching double has been played, specifically
-   * on this arm, unlocking non-double extension of its currently exposed
-   * value. Per pagat.com/domino/cross/french.html: "The next bone played on
-   * each of these arms must be the matching double... whenever a new number
-   * appears at the end of an arm, it cannot be extended further until the
-   * double has been played" — and their worked example confirms this is
-   * per-arm, not board-wide: [2-1] plays on the top arm because [2-2] was
-   * played THERE, but not on the left arm where [1-1] hasn't been. Resets
-   * to false every time a non-double play changes openEnd to a new value —
-   * a fresh number needs its own gate. Only one copy of any double exists,
-   * so a double played on one arm can never unlock a different arm that
-   * later happens to expose the same pip.
-   */
-  doubleDown: boolean;
 }
 
 /**
@@ -98,6 +83,17 @@ export interface CrossBoard {
   kind: 'cross';
   center: TileId;
   arms: CrossArm[];
+  /**
+   * Every pip value whose own double has been played anywhere on the board
+   * this hand, board-wide. Confirmed directly against how the hand is
+   * actually played: once a suit's double lands — 6-6, say — every 6 is
+   * live on every arm that shows one, for the rest of the hand, until all
+   * seven 6-tiles are gone. It is NOT scoped to the arm the double landed
+   * on. (An earlier build gated this per-arm instead, citing a generic
+   * pagat.com description of a different cross variant — that was wrong
+   * for how this game is actually played and was reverted.)
+   */
+  doublesPlayed: Pip[];
 }
 
 export type AnyBoard = Board | CrossBoard;

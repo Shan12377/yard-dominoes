@@ -129,7 +129,7 @@ test('the width cap is respected even when there is room to be bigger', () => {
 // arm, 4 across it), centred on the arm's normal band.
 
 function emptyCrossBoard(): CrossBoard {
-  return { kind: 'cross', center: '0-0', arms: [] };
+  return { kind: 'cross', center: '0-0', arms: [], doublesPlayed: [] };
 }
 
 /** One arm, one tile, everything else empty. */
@@ -137,13 +137,13 @@ function crossBoardWithOneTile(
   armIndex: 0 | 1 | 2 | 3, tile: string, crosswise: boolean,
 ): CrossBoard {
   const arms: CrossBoard['arms'] = [
-    { direction: 'right', tiles: [], openEnd: 0, doubleDown: false },
-    { direction: 'left', tiles: [], openEnd: 0, doubleDown: false },
-    { direction: 'up', tiles: [], openEnd: 0, doubleDown: false },
-    { direction: 'down', tiles: [], openEnd: 0, doubleDown: false },
+    { direction: 'right', tiles: [], openEnd: 0 },
+    { direction: 'left', tiles: [], openEnd: 0 },
+    { direction: 'up', tiles: [], openEnd: 0 },
+    { direction: 'down', tiles: [], openEnd: 0 },
   ];
   arms[armIndex] = { ...arms[armIndex], tiles: [{ tile, crosswise }] };
-  return { kind: 'cross', center: '0-0', arms };
+  return { kind: 'cross', center: '0-0', arms, doublesPlayed: [] };
 }
 
 test('an empty cross board centres the chucha with room to spare on every side', () => {
@@ -163,7 +163,7 @@ test('an empty cross board centres the chucha with room to spare on every side',
 // centre — a live board showed this exact bug, rendering a posed 6-6 as a
 // blank tile. Faces must track board.center, whatever it actually is.
 test('the centre tile renders the pips of whatever double was actually posed, not always blank', () => {
-  const board: CrossBoard = { kind: 'cross', center: '6-6', arms: [] };
+  const board: CrossBoard = { kind: 'cross', center: '6-6', arms: [], doublesPlayed: [6] };
   const { placements } = crossPlacements(board);
   assert.equal(placements.length, 1);
   assert.deepEqual(placements[0].faces, [6, 6], 'a 6-6 spinner must render as 6-6, not 0-0');
@@ -179,7 +179,8 @@ test('the first tile of an arm orients its centre-matching half inward, even on 
   const board: CrossBoard = {
     kind: 'cross',
     center: '1-1',
-    arms: [{ direction: 'right', tiles: [{ tile: '1-6', crosswise: false }], openEnd: 6, doubleDown: false }],
+    arms: [{ direction: 'right', tiles: [{ tile: '1-6', crosswise: false }], openEnd: 6 }],
+    doublesPlayed: [1],
   };
   const { placements } = crossPlacements(board);
   assert.equal(placements.length, 2);
@@ -227,43 +228,43 @@ test('a crosswise double never requests a column or row below the grid start, ev
 });
 
 // ------------------------------------------------------------ crossRejectReason --
-// The rule that actually confused a real player: a double leading one arm
-// never frees a DIFFERENT arm that happens to expose the same number
-// (pagat.com/domino/cross/french.html — confirmed against the live text
-// while investigating this report). The legality check was already correct
-// and tested in packages/engine/test/french.test.ts; what was missing was
-// telling the player WHY a tile they could clearly see a home for got
-// rejected, instead of a bare "doesn't fit".
+// Doubles-must-lead is board-wide: once a suit's double has been played
+// ANYWHERE on the board (CrossBoard.doublesPlayed), every arm showing that
+// number is live, regardless of which arm the double actually landed on.
+// The legality check is tested directly in packages/engine/test/hand.test.ts;
+// this covers the player-facing "why can't I play this" message built on
+// top of the same board.doublesPlayed field.
 
-test('names the exact number that needs its own double', () => {
-  // Reached 6 via a non-double (e.g. 2-6) — nothing on THIS arm has led with
-  // 6-6, even though a player may well have watched 6-6 lead a different arm
-  // earlier in the hand and reasonably expect any 6 to now be free.
+test('names the exact number that needs its own double, when it has not been played anywhere yet', () => {
   const board: CrossBoard = {
     kind: 'cross',
     center: '0-0',
     arms: [
-      { direction: 'right', tiles: [], openEnd: 6, doubleDown: false },
-      { direction: 'left', tiles: [], openEnd: 1, doubleDown: false },
-      { direction: 'up', tiles: [], openEnd: 2, doubleDown: false },
-      { direction: 'down', tiles: [], openEnd: 3, doubleDown: false },
+      { direction: 'right', tiles: [], openEnd: 6 },
+      { direction: 'left', tiles: [], openEnd: 1 },
+      { direction: 'up', tiles: [], openEnd: 2 },
+      { direction: 'down', tiles: [], openEnd: 3 },
     ],
+    doublesPlayed: [],
   };
   const reason = crossRejectReason(board, '6-5');
   assert.match(reason ?? '', /\b6\b/, 'must name the 6 by number');
-  assert.match(reason ?? '', /already led a different arm/, 'must explain the "played elsewhere" confusion directly');
 });
 
-test('returns null once the arm really is legal, even if another arm with the same number is still locked', () => {
+test('returns null once that suit\'s double has been played anywhere on the board, not only on this arm', () => {
   const board: CrossBoard = {
     kind: 'cross',
     center: '0-0',
     arms: [
-      { direction: 'right', tiles: [], openEnd: 6, doubleDown: true },
-      { direction: 'left', tiles: [], openEnd: 6, doubleDown: false },
-      { direction: 'up', tiles: [], openEnd: 1, doubleDown: false },
-      { direction: 'down', tiles: [], openEnd: 3, doubleDown: false },
+      // 6-6 landed on the LEFT arm; the RIGHT arm reached 6 some other way
+      // (e.g. a 2-6) and never had 6-6 played on it specifically — board-wide
+      // means that doesn't matter.
+      { direction: 'right', tiles: [], openEnd: 6 },
+      { direction: 'left', tiles: [], openEnd: 3 },
+      { direction: 'up', tiles: [], openEnd: 1 },
+      { direction: 'down', tiles: [], openEnd: 4 },
     ],
+    doublesPlayed: [6],
   };
   assert.equal(crossRejectReason(board, '6-5'), null);
 });
@@ -273,17 +274,18 @@ test('a tile matching no open end at all gets the generic reason, not a fabricat
     kind: 'cross',
     center: '0-0',
     arms: [
-      { direction: 'right', tiles: [], openEnd: 1, doubleDown: false },
-      { direction: 'left', tiles: [], openEnd: 2, doubleDown: false },
-      { direction: 'up', tiles: [], openEnd: 3, doubleDown: false },
-      { direction: 'down', tiles: [], openEnd: 4, doubleDown: false },
+      { direction: 'right', tiles: [], openEnd: 1 },
+      { direction: 'left', tiles: [], openEnd: 2 },
+      { direction: 'up', tiles: [], openEnd: 3 },
+      { direction: 'down', tiles: [], openEnd: 4 },
     ],
+    doublesPlayed: [],
   };
   assert.equal(crossRejectReason(board, '6-5'), "Doesn't match any open end on the board.");
 });
 
 test('during the fill phase, names the centre value the next arm has to touch', () => {
-  const board: CrossBoard = { kind: 'cross', center: '3-3', arms: [] };
+  const board: CrossBoard = { kind: 'cross', center: '3-3', arms: [], doublesPlayed: [3] };
   const reason = crossRejectReason(board, '6-5');
   assert.match(reason ?? '', /\b3\b/, 'must name the centre value (3), not the tile\'s own numbers');
 });

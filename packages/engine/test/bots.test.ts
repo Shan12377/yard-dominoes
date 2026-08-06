@@ -201,8 +201,8 @@ describe('hard ends, dead doubles and keys — named reads of public board state
             { tile: '3-5', crosswise: false },
           ],
           openEnd: 3,
-          doubleDown: false,
         }],
+        doublesPlayed: [],
       };
       const view = baseView({ board, myHand: ['3-6'], format: 'french', openingTile: '0-0' });
       assert.deepEqual(hardEnds(view), [3]);
@@ -298,7 +298,7 @@ describe('endsAfter', () => {
   });
 
   test('filling a non-chucha spinner anchors on the centre\'s own pip, not blank', () => {
-    const board: AnyBoard = { kind: 'cross', center: '6-6', arms: [] };
+    const board: AnyBoard = { kind: 'cross', center: '6-6', arms: [], doublesPlayed: [6] };
     const move: Move = { kind: 'playcross', seat: 0, tile: '2-6', arm: 0 };
     // 2-6 attaches via its 6 half (matching the 6-6 centre); 2 is exposed.
     assert.deepEqual(endsAfter(board, move, 'french'), [2]);

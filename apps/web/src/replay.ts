@@ -160,7 +160,7 @@ export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
       // hand.ts), so any French pose builds a cross centred on whatever was
       // posed, matching applyMove's own pose branch.
       if (replay.format === 'french' && step.kind === 'pose' && a === b) {
-        board = { kind: 'cross', center: step.tile, arms: [] };
+        board = { kind: 'cross', center: step.tile, arms: [], doublesPlayed: [a] };
       } else {
         board = { kind: 'linear', line: [{ tile: step.tile, crosswise: a === b }], leftEnd: a, rightEnd: b };
       }
@@ -182,9 +182,7 @@ export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
         const centerValue = halves(cross.center)[0];
         if (a !== centerValue && b !== centerValue) return null;
         const exposed = (a === centerValue ? b : a) as Pip;
-        const newArm: CrossArm = {
-          direction: ARM_DIRECTIONS[step.arm], tiles: [placed], openEnd: exposed, doubleDown: false,
-        };
+        const newArm: CrossArm = { direction: ARM_DIRECTIONS[step.arm], tiles: [placed], openEnd: exposed };
         board = { ...cross, arms: [...cross.arms, newArm] };
         continue;
       }
@@ -192,10 +190,12 @@ export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
       if (!arm) return null;
       let exposed: Pip;
       try { exposed = otherHalf(step.tile, arm.openEnd); } catch { return null; }
-      const doubleDown = isDouble(step.tile) && halves(step.tile)[0] === arm.openEnd;
-      const nextArm: CrossArm = { ...arm, tiles: [...arm.tiles, placed], openEnd: exposed, doubleDown };
+      const nextArm: CrossArm = { ...arm, tiles: [...arm.tiles, placed], openEnd: exposed };
       const arms = cross.arms.map((a2, i) => i === step.arm ? nextArm : a2);
-      board = { ...cross, arms };
+      const doublesPlayed = isDouble(step.tile) && !cross.doublesPlayed.includes(arm.openEnd)
+        ? [...cross.doublesPlayed, arm.openEnd]
+        : cross.doublesPlayed;
+      board = { ...cross, arms, doublesPlayed };
       continue;
     }
 

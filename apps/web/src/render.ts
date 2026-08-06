@@ -309,13 +309,11 @@ export function crossPlacements(board: CrossBoard): CrossLayout {
  * failed, but staying honest here means a caller mistake shows up loudly
  * instead of lying to the player).
  *
- * pagat.com/domino/cross/french.html: "whenever a new number appears at the
- * end of an arm, it cannot be extended further until the double has been
- * played" — per arm, not board-wide (see CrossArm.doubleDown). This is the
- * single most surprising rule on the board: a player who watched 6-6 lead a
- * DIFFERENT arm reasonably expects any 6 anywhere to be free, and it isn't.
- * Naming that explicitly is the fix — the legality check itself was already
- * correct and tested against pagat's own worked examples.
+ * A tile with a matching half is playable on an arm once that suit's own
+ * double has been played anywhere on the board (board.doublesPlayed) — a
+ * board-wide unlock, not scoped to whichever arm the double landed on. So
+ * the only way a matching tile gets rejected here is when NO suit it carries
+ * has had its double played yet at all.
  */
 export function crossRejectReason(board: CrossBoard, tile: TileId): string | null {
   const [a, b] = halves(tile);
@@ -328,12 +326,12 @@ export function crossRejectReason(board: CrossBoard, tile: TileId): string | nul
   for (const arm of board.arms) {
     if (!matches(tile, arm.openEnd)) continue;
     const isSuitDouble = isDouble(tile) && halves(tile)[0] === arm.openEnd;
-    if (isSuitDouble || arm.doubleDown) return null;
+    if (isSuitDouble || board.doublesPlayed.includes(arm.openEnd)) return null;
     lockedEnds.add(arm.openEnd);
   }
   if (lockedEnds.size > 0) {
     const which = [...lockedEnds].join(' or ');
-    return `The ${which} needs its own double played on that arm before anything else can join it — even if ${which}-${which} already led a different arm.`;
+    return `The ${which} needs its own double played before anything else of that number can join the board.`;
   }
   return "Doesn't match any open end on the board.";
 }
