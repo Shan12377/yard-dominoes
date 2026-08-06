@@ -47,15 +47,27 @@ export function tileEl(id: TileId): HTMLElement {
 
 function boardTile(p: TilePlacement): HTMLElement {
   const el = document.createElement('div');
-  el.className = 'tile ' + (p.orient === 'h' ? 'h' : 'v');
+  // The cross board's centre hub is the one placement with a SQUARE
+  // footprint (colSpan === rowSpan) — every other tile, on the linear board
+  // or any arm, is a 2:4 rectangle, so this is an unambiguous signal, not a
+  // guess. Stacking two identical halves with a bar (the normal domino
+  // shape) inside a square squashes each half into a short, wide band and
+  // the pips render distorted — "turning inside out". Both halves are the
+  // same value for a double, so render one full-square face instead.
+  const isHub = p.colSpan === p.rowSpan;
+  el.className = 'tile ' + (isHub ? 'hub' : p.orient === 'h' ? 'h' : 'v');
   el.dataset.tile = p.placed.tile;
   el.setAttribute('role', 'img');
   el.setAttribute('aria-label', `${p.faces[0]} ${p.faces[1]}`);
-  el.appendChild(face(p.faces[0], p.orient === 'h'));
-  const bar = document.createElement('div');
-  bar.className = 'bar';
-  el.appendChild(bar);
-  el.appendChild(face(p.faces[1], p.orient === 'h'));
+  if (isHub) {
+    el.appendChild(face(p.faces[0]));
+  } else {
+    el.appendChild(face(p.faces[0], p.orient === 'h'));
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    el.appendChild(bar);
+    el.appendChild(face(p.faces[1], p.orient === 'h'));
+  }
   return el;
 }
 

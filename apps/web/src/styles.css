@@ -412,6 +412,9 @@ label.field > span {
 .tile .bar { background: rgba(36,22,8,0.35); }
 /* A tile lying along the line: halves side by side instead of stacked. */
 .tile.h { grid-template-rows: 1fr; grid-template-columns: 1fr 1px 1fr; }
+/* The cross board's centre hub: a square footprint, one full-size face, no
+   bar — see boardTile()'s isHub branch in render.ts for why. */
+.tile.hub { grid-template-rows: 1fr; grid-template-columns: 1fr; }
 .tile .half {
   display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
   padding: 2px;
