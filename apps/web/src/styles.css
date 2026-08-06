@@ -311,6 +311,7 @@ label.field > span {
   100% { background: var(--bone-shade); box-shadow: none; }
 }
 .under-love { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.tile-count { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 /* -------------------------------------------------------------- the board */
 .table-felt {

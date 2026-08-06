@@ -692,15 +692,27 @@ function scoreboard(g: LocalGame): HTMLElement {
   const board = el('div', 'scoreboard');
 
   const trackOpts = { bruk: g.lastResultBruk, max: g.set.options.target };
+  // How many tiles each side/seat has left — the pinned scoreboard is the
+  // one place that stays on screen through the whole hand, so this is
+  // where a player can actually track it without hunting the board.
+  const tilesOfSeat = (seat: number) => g.hand?.hands[seat]?.length;
   if (isPartnered(g.options.mode)) {
+    const tilesOfSide = (side: number) => {
+      if (!g.hand) return undefined;
+      let sum = 0;
+      for (let seat = 0; seat < g.options.seatCount; seat++) {
+        if (sideOf(seat, g.options.mode) === side) sum += g.hand.hands[seat].length;
+      }
+      return sum;
+    };
     board.append(
-      scoreTrack('You & partner', g.set.scores[g.mySide], { us: true, ...trackOpts }),
-      scoreTrack('Them', g.set.scores[1 - g.mySide], trackOpts),
+      scoreTrack('You & partner', g.set.scores[g.mySide], { us: true, ...trackOpts, tiles: tilesOfSide(g.mySide) }),
+      scoreTrack('Them', g.set.scores[1 - g.mySide], { ...trackOpts, tiles: tilesOfSide(1 - g.mySide) }),
     );
   } else {
     g.set.scores.forEach((score, seat) => {
       board.append(scoreTrack(g.seatLabel(seat), score, {
-        us: seat === g.mySeat, ...trackOpts,
+        us: seat === g.mySeat, ...trackOpts, tiles: tilesOfSeat(seat),
       }));
     });
   }

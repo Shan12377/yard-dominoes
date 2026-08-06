@@ -376,7 +376,11 @@ export function backsEl(count: number): HTMLElement {
 }
 
 /** Six pips per side. They light one at a time and go out all together. */
-export function scoreTrack(label: string, score: number, opts: { us?: boolean; bruk?: boolean; max?: number } = {}) {
+export function scoreTrack(
+  label: string,
+  score: number,
+  opts: { us?: boolean; bruk?: boolean; max?: number; tiles?: number } = {},
+) {
   const max = opts.max ?? 6;
   const wrap = document.createElement('div');
   wrap.className = 'side-score';
@@ -405,6 +409,17 @@ export function scoreTrack(label: string, score: number, opts: { us?: boolean; b
     note.className = 'under-love';
     note.textContent = String(score);
     wrap.appendChild(note);
+  }
+
+  // Reading the board is reading who's close to going out — this is the
+  // one place that stays on screen the whole hand (the pinned scoreboard),
+  // so the tile count belongs right here next to the score, not only in a
+  // seat card elsewhere on the board that a player has to go looking for.
+  if (opts.tiles !== undefined) {
+    const count = document.createElement('div');
+    count.className = 'tile-count';
+    count.textContent = `${opts.tiles} tile${opts.tiles === 1 ? '' : 's'}`;
+    wrap.appendChild(count);
   }
   return wrap;
 }

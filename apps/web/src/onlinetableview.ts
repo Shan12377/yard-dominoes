@@ -534,10 +534,22 @@ export function liveTableView(
   // much do I need to lose" number this table is actually played around.
   const trackOpts = { bruk: game.lastResultBruk, max: game.table.format === 'french' ? 100 : 6 };
   const scoreboardPartnered = game.table.mode === 'partner';
+  // How many tiles each side/seat has left — the pinned scoreboard is the
+  // one place that stays on screen through the whole hand, so this is
+  // where a player can actually track it without hunting the board.
+  const handSizes = game.hand?.hand_sizes;
+  const tilesOfSide = (side: number) => {
+    if (!handSizes) return undefined;
+    let sum = 0;
+    for (let seat = 0; seat < handSizes.length; seat++) {
+      if (sideOf(seat, game.table.mode) === side) sum += handSizes[seat];
+    }
+    return sum;
+  };
   if (scoreboardPartnered) {
     board.append(
-      scoreTrack('You & partner', game.scores[(game.mySide ?? 0)] ?? 0, { us: true, ...trackOpts }),
-      scoreTrack('Them', game.scores[1 - (game.mySide ?? 0)] ?? 0, trackOpts),
+      scoreTrack('You & partner', game.scores[(game.mySide ?? 0)] ?? 0, { us: true, ...trackOpts, tiles: tilesOfSide(game.mySide ?? 0) }),
+      scoreTrack('Them', game.scores[1 - (game.mySide ?? 0)] ?? 0, { ...trackOpts, tiles: tilesOfSide(1 - (game.mySide ?? 0)) }),
     );
   } else {
     // Named per seat (real username, or "Duppy · level" for a substitute),
@@ -548,7 +560,7 @@ export function liveTableView(
       scoreTrack(
         describeSeat(i, game.seats, game.mySeat, scoreboardPartnered, game.mySide),
         s,
-        { us: i === game.mySeat, ...trackOpts },
+        { us: i === game.mySeat, ...trackOpts, tiles: handSizes?.[i] },
       ),
     ));
   }
