@@ -121,6 +121,12 @@ export class OnlineGame {
   reshufflePending = false;
 
   scores: number[] = [];
+  /**
+   * Every side's score immediately BEFORE the hand that just finished was
+   * folded in — snapshotted in the onSet handler, read by handResultPanel()
+   * to show "N pips → +N, now total" per seat for French.
+   */
+  scoresBeforeHand: number[] = [];
   /** True for one render after a bruk — every side's points went to zero at
    *  once, having held some before. Mirrors LocalGame's lastResultBruk. */
   lastResultBruk = false;
@@ -461,6 +467,7 @@ export class OnlineGame {
         if (!this.sixLove && set.six_love) sfx.play('sixLove');
         const justDecided = this.winnerSide === null && set.winner_side !== null;
         const beforeScores = this.scores;
+        this.scoresBeforeHand = beforeScores;
         this.scores = set.scores as number[]; this.handValue = set.hand_value as number;
         // A bruk is the moment every pip goes out at once — worth animating.
         this.lastResultBruk = beforeScores.some((v) => v > 0) && this.scores.every((v) => v === 0);

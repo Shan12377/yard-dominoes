@@ -1,5 +1,5 @@
 import { halves, isDouble, matches } from '@yard/engine';
-import type { AnyBoard, Board, CrossBoard, PenaltyEvent, Pip, TileId } from '@yard/engine';
+import type { AnyBoard, Board, CrossBoard, HandResult, PenaltyEvent, Pip, TileId } from '@yard/engine';
 import { layoutLine, MIN_WIDTH_UNITS, orientLine } from './layout.ts';
 import type { OrientedTile, TilePlacement } from './layout.ts';
 
@@ -415,6 +415,37 @@ export function penaltyBanner(events: PenaltyEvent[], seatLabel: (seat: number) 
     .map((e) => `${seatLabel(e.seat)} ${PENALTY_REASON_TEXT[e.reason]} — +${e.amount}`)
     .join('  ·  ');
   return el('div', 'banner penalty', line);
+}
+
+/**
+ * "Did the losing hands add up right" — every seat's pip count from the
+ * hand that just ended, any doubling that applied, what it actually added
+ * to their score, and their new running total. The delta (`after - before`)
+ * is read off the real scores the engine/server already computed rather
+ * than reimplementing applyHandResult()'s doubling formula here, so this
+ * can never drift out of sync with the number that actually landed —
+ * including penalties folded into the same hand, which a hand-count-only
+ * view would otherwise leave unexplained.
+ */
+export function frenchScoreBreakdown(
+  result: Pick<HandResult, 'counts' | 'doublesRemaining' | 'winnerPlayedDouble' | 'winnerSeat'>,
+  scoresBefore: number[],
+  scoresAfter: number[],
+  seatLabel: (seat: number) => string,
+): HTMLElement {
+  const wrap = el('div', 'french-breakdown');
+  wrap.append(el('div', 'eyebrow', 'Count this hand'));
+  result.counts.forEach((pips, seat) => {
+    const tags: string[] = [];
+    if (result.doublesRemaining?.[seat]) tags.push('held a double ×2');
+    if (result.winnerPlayedDouble && seat !== result.winnerSeat) tags.push('winner played a double ×2');
+    const tagText = tags.length ? ` (${tags.join(', ')})` : '';
+    const added = (scoresAfter[seat] ?? 0) - (scoresBefore[seat] ?? 0);
+    const line = `${seatLabel(seat)} — ${pips} pip${pips === 1 ? '' : 's'}${tagText} → `
+      + `+${added}, now ${scoresAfter[seat] ?? 0}`;
+    wrap.append(el('div', 'muted small', line));
+  });
+  return wrap;
 }
 
 export function el(tag: string, className?: string, text?: string): HTMLElement {

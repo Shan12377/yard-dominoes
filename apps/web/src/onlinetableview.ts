@@ -12,7 +12,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
@@ -1100,6 +1100,16 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     heading = 'Hand over';
   }
   panel.append(el('h2', undefined, heading));
+
+  // French scores every pip on every hand, not just blocked ones — this is
+  // the one place a player can check the math for themselves, on domino
+  // wins as much as blocked hands.
+  if (game.table.format === 'french') {
+    panel.appendChild(frenchScoreBreakdown(
+      r, game.scoresBeforeHand, game.scores,
+      (seat) => describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide),
+    ));
+  }
 
   // French penalties (board pass, three-in-a-row pass, an illegal try) accrue
   // silently mid-hand — the player never sees them fire in the moment, only

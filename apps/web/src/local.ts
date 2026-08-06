@@ -55,6 +55,13 @@ export class LocalGame {
   /** The seat the human is sitting in. Always 0. */
   readonly mySeat = 0;
   lastResultBruk = false;
+  /**
+   * Every side's score immediately BEFORE the hand that just finished was
+   * folded in — snapshotted in finishHand(), read by handResult() to show
+   * "N pips → +N, now total" per seat for French. Doubling as the source for
+   * lastResultBruk's own before/after comparison rather than a second field.
+   */
+  scoresBeforeHand: number[] = [];
   private listeners: ((e: LocalEvent) => void)[] = [];
 
   constructor(public options: LocalOptions) {
@@ -157,6 +164,7 @@ export class LocalGame {
   private finishHand() {
     if (!this.hand?.result) return;
     const before = [...this.set.scores];
+    this.scoresBeforeHand = before;
     this.set = applyHandResult(this.set, this.hand.result);
     // A bruk is the moment every pip goes out at once — worth animating.
     this.lastResultBruk =

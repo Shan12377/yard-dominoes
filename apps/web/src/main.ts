@@ -14,7 +14,7 @@ function formatLabel(format: SetFormat): string {
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { Board, DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner } from './render.ts';
+import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -889,7 +889,13 @@ function handResult(g: LocalGame): HTMLElement | null {
       : `${g.seatLabel(r.winnerSeat!)} played out.`;
   panel.append(el('h2', undefined, headline));
 
-  if (r.status === 'blocked' && !r.tie) {
+  // French scores every pip on every hand, not just blocked ones — this is
+  // the one place a player can check the math for themselves, on domino
+  // wins as much as blocked hands, which the old blocked-only counts line
+  // below never covered.
+  if (g.options.format === 'french') {
+    panel.appendChild(frenchScoreBreakdown(r, g.scoresBeforeHand, g.set.scores, (seat) => g.seatLabel(seat)));
+  } else if (r.status === 'blocked' && !r.tie) {
     const counts = r.counts
       .map((c, seat) => `${g.seatLabel(seat)} ${c}`)
       .join('  ·  ');
