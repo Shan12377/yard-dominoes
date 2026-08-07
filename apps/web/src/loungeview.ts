@@ -945,6 +945,7 @@ function upgradePrompt(tier: Tier, rerender: () => void): HTMLElement {
 
 function accountPanel(rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
+  panel.id = 'account-panel';
   const secure = accountMode === 'secure';
   panel.append(el('div', 'eyebrow', 'Account'));
   panel.append(el('h2', undefined, secure ? 'Secure this account' : 'Sign in'));
@@ -1428,6 +1429,29 @@ export function membershipView(rerender: () => void): DocumentFragment {
   head.append(el('p', 'muted',
     'Every mode, ranked play, and the deal-checker cost nothing and always will. ' +
     'Membership buys the room, not the rules.'));
+  // Quiet, not a button — this headline's whole job is "free, no login wall,"
+  // so a returning player switching devices needs a fast way back to an
+  // account they already secured without that competing with the pitch a
+  // brand-new guest sees first. Opens the same account flow that already
+  // lives further down the page (profilePanel/accountPanel below), it just
+  // jumps there instead of asking a new player to scroll past pricing to
+  // find it.
+  if (loungeState.me && loungeState.isAnonymous) {
+    const signIn = document.createElement('button');
+    signIn.className = 'linky';
+    signIn.textContent = 'Already have an account? Sign in';
+    signIn.onclick = () => {
+      accountOpen = true;
+      accountMode = 'signin';
+      accountError = null;
+      accountMessage = null;
+      rerender();
+      requestAnimationFrame(() => {
+        document.getElementById('account-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+    head.appendChild(signIn);
+  }
   frag.appendChild(head);
 
   const grid = el('div', 'tiers');
