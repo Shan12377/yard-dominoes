@@ -858,11 +858,15 @@ function myHand(g: LocalGame): HTMLElement {
             b.textContent = 'New arm';
           }
         } else {
+          // Same arrow language as the cross board's arms — a linear board's
+          // left/right end is exactly the same "which end?" question, and
+          // the felt lays them out left-to-right on screen too.
           const isLeft = (move as any).end === 'left';
+          const arrow = isLeft ? '←' : '→';
           const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;
           b.textContent = pip !== null
-            ? `${isLeft ? 'Left' : 'Right'} end (${pip})`
-            : (isLeft ? 'Left end' : 'Right end');
+            ? `${arrow} ${isLeft ? 'Left' : 'Right'} end (${pip})`
+            : `${arrow} ${isLeft ? 'Left end' : 'Right end'}`;
         }
         b.onclick = () => { pendingTile = null; void g.play(move); };
         choice.appendChild(b);
