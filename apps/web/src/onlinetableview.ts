@@ -87,13 +87,26 @@ const FORMAT_HINTS: Record<string, string> = {
 
 function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HTMLElement {
   const form = el('div', 'row');
+  // French used to live only as a third option inside Cut throat's "Set"
+  // dropdown — a player who specifically wants French had no way to find it
+  // without already knowing it was nested under Cut throat first. It's a
+  // top-level Game choice now, same as Partner/Open hand/Cut throat, even
+  // though under the hood it's still cutthroat mode + french format — the
+  // server's own createSet() forces that pairing regardless of what this
+  // form sends. See resolvedMode/resolvedFormat below.
   const mode = document.createElement('select');
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>`
     + `<option value="openhand">Open hand — partner sees your tiles</option>`
-    + `<option value="cutthroat">Cut throat</option>`;
+    + `<option value="cutthroat">Cut throat</option>`
+    + `<option value="french">French — race to 100, lowest wins</option>`;
+  const resolvedMode = (): GameMode => mode.value === 'french' ? 'cutthroat' : (mode.value as GameMode);
+  const resolvedFormat = (): 'sixlove' | 'firstToSix' | 'french' =>
+    mode.value === 'french' ? 'french' : (format.value as 'sixlove' | 'firstToSix');
+
   const seatCount = document.createElement('select');
   seatCount.innerHTML = `<option value="4">4 players</option><option value="3">3 players</option><option value="2">2 players</option>`;
   const format = document.createElement('select');
+  const formatField = el('label', 'field');
   const duppy = document.createElement('select');
   duppy.innerHTML = DUPPY_LEVELS.map((d) => `<option value="${d}">${DUPPY_LABELS[d]}</option>`).join('');
   // Without this the clock feature exists but nobody can reach it: every table
@@ -108,23 +121,25 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   // a partnered table doesn't 422 on submit for no visible reason. French is
   // cut-throat, 4-hand only in v1, so picking it locks seats the same way.
   const syncSeatCount = () => {
-    if (mode.value === 'partner' || mode.value === 'openhand' || format.value === 'french') {
+    if (mode.value === 'partner' || mode.value === 'openhand' || mode.value === 'french') {
       seatCount.value = '4';
       seatCount.disabled = true;
     } else {
       seatCount.disabled = false;
     }
   };
-  // Mirrors main.ts's local-practice lobby: French only ever appears as a
-  // cut-throat option, never partner/openhand (see the French debrief —
-  // partnered French isn't scoped for v1).
+  // Mirrors main.ts's local-practice lobby.
   const syncFormat = () => {
+    if (mode.value === 'french') {
+      // French fully decides its own scoring — nothing left to pick here.
+      formatField.style.display = 'none';
+      return;
+    }
+    formatField.style.display = '';
     const partnered = mode.value === 'partner' || mode.value === 'openhand';
     format.innerHTML = partnered
       ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
-      : `<option value="firstToSix">First to six</option>`
-        + `<option value="sixlove">Six love — very long</option>`
-        + `<option value="french">French — race to 100</option>`;
+      : `<option value="firstToSix">First to six</option><option value="sixlove">Six love — very long</option>`;
   };
   // One line under the picker, not a standalone guide — this is where the
   // actual confusion was (a player couldn't tell what a format meant, or
@@ -132,7 +147,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   // needed filling.
   const formatHint = el('div', 'muted small');
   const syncFormatHint = () => {
-    formatHint.textContent = FORMAT_HINTS[format.value] ?? '';
+    formatHint.textContent = FORMAT_HINTS[resolvedFormat()] ?? '';
   };
   syncFormat();
   syncSeatCount();
@@ -145,7 +160,6 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
     field.append(el('span', undefined, label), control);
     form.appendChild(field);
   }
-  const formatField = el('label', 'field');
   formatField.append(el('span', undefined, 'Set'), format, formatHint);
   form.insertBefore(formatField, form.children[1] ?? null);
 
@@ -158,8 +172,8 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
       const seats = Number(seatCount.value);
       const fill = new Array(Math.max(0, seats - 1)).fill(duppy.value);
       const { tableId } = await createTable({
-        mode: mode.value as GameMode,
-        format: format.value as 'sixlove' | 'firstToSix' | 'french',
+        mode: resolvedMode(),
+        format: resolvedFormat(),
         seatCount: seats as 2 | 3 | 4,
         duppies: fill,
         clock: clock.value as ClockName,

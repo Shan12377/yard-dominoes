@@ -605,28 +605,41 @@ function lobby(): HTMLElement {
 
   const form = el('div', 'lobby-form');
 
+  // French used to live only as a third option inside Cut throat's "Set"
+  // dropdown — a player who specifically wants French had no way to find it
+  // without already knowing it was nested under Cut throat first. It's a
+  // top-level Game choice now, same as Partner/Open hand/Cut throat, even
+  // though under the hood it's still cutthroat mode + french format (see
+  // resolvedMode/resolvedFormat below) — the engine's own createSet() forces
+  // that pairing regardless of what this form sends.
   const mode = document.createElement('select');
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>
                     <option value="openhand">Open hand — partner sees your tiles</option>
-                    <option value="cutthroat">Cut throat — every man for himself</option>`;
+                    <option value="cutthroat">Cut throat — every man for himself</option>
+                    <option value="french">French — race to 100, lowest wins</option>`;
+  const resolvedMode = (): GameMode => mode.value === 'french' ? 'cutthroat' : (mode.value as GameMode);
+  const resolvedFormat = (): SetFormat => mode.value === 'french' ? 'french' : (format.value as SetFormat);
 
   const format = document.createElement('select');
+  const formatField = el('label', 'field');
   const syncFormat = () => {
+    if (mode.value === 'french') {
+      // French fully decides its own scoring — nothing left to pick here.
+      formatField.style.display = 'none';
+      return;
+    }
+    formatField.style.display = '';
     // Cut throat six love runs to a median of ~196 hands. Never make it the
-    // default on a phone; players abandon halfway and everyone loses. French
-    // is 4-hand cut throat only in v1 (see french debrief).
+    // default on a phone; players abandon halfway and everyone loses.
     const partnered = isPartnered(mode.value as GameMode);
-    const cutthroatOptions = `<option value="firstToSix">First to six</option>`
-      + `<option value="sixlove">Six love — very long</option>`
-      + `<option value="french">French — race to 100 (lowest wins)</option>`;
     format.innerHTML = partnered
       ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
-      : cutthroatOptions;
+      : `<option value="firstToSix">First to six</option><option value="sixlove">Six love — very long</option>`;
   };
   // One line under the picker, not a standalone guide — this is where a
   // player actually needs to know what they're choosing.
   const formatHint = el('div', 'muted small');
-  const syncFormatHint = () => { formatHint.textContent = FORMAT_HINTS[format.value] ?? ''; };
+  const syncFormatHint = () => { formatHint.textContent = FORMAT_HINTS[resolvedFormat()] ?? ''; };
   syncFormat();
   syncFormatHint();
   mode.onchange = () => { syncFormat(); syncFormatHint(); };
@@ -651,7 +664,6 @@ function lobby(): HTMLElement {
     field.append(el('span', undefined, label), control);
     form.appendChild(field);
   }
-  const formatField = el('label', 'field');
   formatField.append(el('span', undefined, 'Set'), format, formatHint);
   form.insertBefore(formatField, form.children[1] ?? null);
 
@@ -659,8 +671,8 @@ function lobby(): HTMLElement {
   go.className = 'act';
   go.textContent = 'Deal';
   go.onclick = () => void startGame({
-    mode: mode.value as GameMode,
-    format: format.value as SetFormat,
+    mode: resolvedMode(),
+    format: resolvedFormat(),
     duppy: duppy.value as DuppyLevel,
     tournament: tournament.value === '1',
   });
