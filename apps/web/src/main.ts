@@ -1232,9 +1232,20 @@ function tableView(g: LocalGame): DocumentFragment {
 
   const felt = el('div', 'table-felt');
   const line = el('div', 'line');
-  renderBoard(line, g.hand?.board ?? null);
+  const displayBoard = g.hand?.board ?? null;
+  renderBoard(line, displayBoard); // first pass: feltBox()'s window-based guess
   felt.appendChild(line);
   frag.appendChild(felt);
+  // The felt isn't attached to the document yet at this point in the build,
+  // so clientWidth/clientHeight would read zero here — wait a frame for real
+  // layout, then re-render against the real measured box. onlinetableview.ts
+  // has always done this; local practice never did, which is very likely why
+  // the board could size itself for more room than was actually on screen
+  // and need scrolling to see in full — the exact complaint raised here.
+  requestAnimationFrame(() => {
+    const box = { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
+    if (box.width > 0 && box.height > 0) renderBoard(line, displayBoard, { box });
+  });
 
   // Hand docks right under the board, before seats/sound compete for the
   // fold — reading the board and reading your own hand is one motion, not
