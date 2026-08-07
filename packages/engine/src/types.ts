@@ -14,12 +14,16 @@ export type TileId = string;
 
 /**
  * `openhand` is partner mode with one visibility change: each seat sees its
- * partner's tiles. Everything else about pairing, play order, format, and
- * scoring is identical to `partner`. Use `isPartnered(mode)` from tiles.ts
- * anywhere the code branches on "is this a paired game" — a bare
- * `mode === 'partner'` comparison silently excludes openhand and is a bug.
+ * partner's tiles. `across` is partner mode with a different change: only
+ * two real people play it, each one signed into BOTH seats of one side (0&2
+ * or 1&3), so each of them sees and plays their own hand and their partner's
+ * hand in turn. Rules, pairing, play order, format, and scoring are identical
+ * to `partner` in both cases — only who is allowed to see or act for which
+ * seat changes. Use `isPartnered(mode)` from tiles.ts anywhere the code
+ * branches on "is this a paired game" — a bare `mode === 'partner'`
+ * comparison silently excludes both and is a bug.
  */
-export type GameMode = 'cutthroat' | 'partner' | 'openhand';
+export type GameMode = 'cutthroat' | 'partner' | 'openhand' | 'across';
 
 /**
  * sixlove     — six consecutive wins while every opponent stays at zero.

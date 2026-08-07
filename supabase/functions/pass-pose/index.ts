@@ -15,7 +15,12 @@ Deno.serve(handled(async (req) => {
 
   const { data: table } = await db.from('tables').select('*').eq('id', tableId).single();
   if (!table) throw new HttpError(404, 'no such table');
-  if (table.mode !== 'partner') throw new HttpError(422, 'only partners can pass the pose');
+  // Across runs partner's exact rules, pass-the-pose included. Deliberately
+  // not a switch to isPartnered() here — openhand's exclusion predates this
+  // change and is not this function's to revisit.
+  if (table.mode !== 'partner' && table.mode !== 'across') {
+    throw new HttpError(422, 'only partners can pass the pose');
+  }
 
   const { data: seats } = await db.from('seats').select('*').eq('table_id', tableId);
   const mySeat = seats!.find((s: any) => s.user_id === user.id);

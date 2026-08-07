@@ -43,6 +43,47 @@ Deno.serve(handled(async (req) => {
   const existing = seats!.find((s: any) => s.user_id === user.id);
   if (existing) return json({ ok: true, tableId: table.id, seatIndex: existing.seat_index });
 
+  // Across never leaves a side half-human — you claim your seat AND the one
+  // across from it (0&2 or 1&3) together, or not at all. Everything else
+  // about the table (mode, seat_count, RLS) is ordinary partner underneath.
+  if (table.mode === 'across') {
+    const pairs: [number, number][] = [[0, 2], [1, 3]];
+    const openPair = pairs.find(([a, b]) => {
+      const seatA = seats!.find((s: any) => s.seat_index === a);
+      const seatB = seats!.find((s: any) => s.seat_index === b);
+      return seatA && !seatA.user_id && seatB && !seatB.user_id;
+    });
+    if (!openPair) throw new HttpError(409, 'no free seat');
+    // In case a duppy fallback below is ever needed, this remembers what
+    // each seat held before the claim rather than guessing a tier.
+    const priorDuppy = new Map(
+      openPair.map((idx) => [idx, seats!.find((s: any) => s.seat_index === idx)?.duppy_level ?? null]),
+    );
+
+    // `.is('user_id', null)` re-checks freshness against the live row, not
+    // the snapshot read above — closes most of the window where two people
+    // race for the same pair. Not a database-level transaction, so a
+    // genuine dead-heat can still split one seat to each of two callers;
+    // the check below catches that and undoes the half-claim rather than
+    // leaving the pair split between two different people.
+    const { data: claimed, error: claimErr } = await db.from('seats')
+      .update({ user_id: user.id, duppy_level: null, connected_at: new Date().toISOString() })
+      .eq('table_id', table.id).in('seat_index', openPair).is('user_id', null)
+      .select();
+    if (claimErr) throw new HttpError(500, claimErr.message);
+
+    if (!claimed || claimed.length !== 2) {
+      for (const row of claimed ?? []) {
+        await db.from('seats').update({
+          user_id: null, duppy_level: priorDuppy.get(row.seat_index) ?? 'pickney',
+        }).eq('table_id', table.id).eq('seat_index', row.seat_index);
+      }
+      throw new HttpError(409, 'someone else just took that seat — try again');
+    }
+
+    return json({ ok: true, tableId: table.id, seatIndex: openPair[0] });
+  }
+
   const target = seatIndex != null
     ? seats!.find((s: any) => s.seat_index === seatIndex && !s.user_id)
     : seats!.find((s: any) => !s.user_id);

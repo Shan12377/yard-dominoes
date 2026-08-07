@@ -50,7 +50,8 @@ export async function openTablesPanel(
       const row = el('div', 'row');
       const modeLabel = t.mode === 'partner' ? 'Partner'
         : t.mode === 'openhand' ? 'Open hand'
-          : 'Cut throat';
+          : t.mode === 'across' ? 'Across'
+            : 'Cut throat';
       const formatLabel = t.format === 'sixlove' ? 'Six love'
         : t.format === 'french' ? 'French'
           : 'First to six';
@@ -97,6 +98,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   const mode = document.createElement('select');
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>`
     + `<option value="openhand">Open hand — partner sees your tiles</option>`
+    + `<option value="across">Across — 2 players, you play both hands</option>`
     + `<option value="cutthroat">Cut throat</option>`
     + `<option value="french">French — race to 100, lowest wins</option>`;
   const resolvedMode = (): GameMode => mode.value === 'french' ? 'cutthroat' : (mode.value as GameMode);
@@ -121,7 +123,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   // a partnered table doesn't 422 on submit for no visible reason. French is
   // cut-throat, 4-hand only in v1, so picking it locks seats the same way.
   const syncSeatCount = () => {
-    if (mode.value === 'partner' || mode.value === 'openhand' || mode.value === 'french') {
+    if (mode.value === 'partner' || mode.value === 'openhand' || mode.value === 'across' || mode.value === 'french') {
       seatCount.value = '4';
       seatCount.disabled = true;
     } else {
@@ -136,7 +138,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
       return;
     }
     formatField.style.display = '';
-    const partnered = mode.value === 'partner' || mode.value === 'openhand';
+    const partnered = mode.value === 'partner' || mode.value === 'openhand' || mode.value === 'across';
     format.innerHTML = partnered
       ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
       : `<option value="firstToSix">First to six</option><option value="sixlove">Six love — very long</option>`;
@@ -170,7 +172,11 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
     go.disabled = true;
     try {
       const seats = Number(seatCount.value);
-      const fill = new Array(Math.max(0, seats - 1)).fill(duppy.value);
+      // Across's creator takes two seats (0&2), not one — the other side
+      // (1&3) is exactly two duppy slots, not seatCount-1. create-table
+      // reads duppies[0]/[1] as seat 1/seat 3 for across specifically.
+      const fillCount = resolvedMode() === 'across' ? 2 : Math.max(0, seats - 1);
+      const fill = new Array(fillCount).fill(duppy.value);
       const { tableId } = await createTable({
         mode: resolvedMode(),
         format: resolvedFormat(),
@@ -213,6 +219,13 @@ export function joinByCodeField(onJoin: (tableId: string) => void): HTMLElement 
 }
 
 let pendingTile: string | null = null;
+/** Which seat pendingTile was chosen from — only meaningful in across, where
+ *  the interactive hand can switch (my seat one turn, my partner seat the
+ *  next). A tile mid-chooser in one hand must not survive into the other
+ *  just because the same tile id happens to also be in it — same "clear it
+ *  the moment what it was about stops being true" rule client.md sets for
+ *  pendingTile everywhere else. */
+let pendingTileSeat: number | null = null;
 let countdownTimer: ReturnType<typeof setTimeout> | null = null;
 /**
  * The felt's real measured size, cached across renders — see
@@ -636,7 +649,25 @@ export function liveTableView(
   // Same guards as the old call site: only a seated player with a dealt
   // hand gets one.
   if (!game.isSpectator && game.hand) {
-    feltSlot.appendChild(myHandPanel(game, rerender));
+    if (game.table.mode === 'across') {
+      // Both of my hands dock under the felt together — the reason across
+      // exists at all is seeing (and playing) both while reading the same
+      // board, so neither hand gets pushed below the fold the way a panel
+      // rendered elsewhere on the page would. Whichever seat is actually
+      // live renders first via myHandPanel's own active-seat logic; the
+      // other renders alongside it as a plain, unselectable display.
+      const activeSeat = game.activeSeat();
+      const partnerIsActive = activeSeat !== null && activeSeat === game.partnerSeat();
+      if (partnerIsActive) {
+        if (game.myTiles.length) feltSlot.appendChild(myOtherHandPanel(game.myTiles));
+        feltSlot.appendChild(myHandPanel(game, rerender));
+      } else {
+        if (game.partnerTiles) feltSlot.appendChild(myOtherHandPanel(game.partnerTiles));
+        feltSlot.appendChild(myHandPanel(game, rerender));
+      }
+    } else {
+      feltSlot.appendChild(myHandPanel(game, rerender));
+    }
   }
   cross.appendChild(feltSlot);
 
@@ -704,7 +735,11 @@ export function liveTableView(
       // In openhand the partner's tiles render above your own. Small,
       // non-interactive, labelled — the panel is information you may act on,
       // not a hand you play. Missing from every other mode by construction.
-      if (game.partnerTiles) frag.appendChild(partnerHandPanel(game.partnerTiles));
+      // Across also populates partnerTiles (see loadPrivateTiles), but its
+      // own pair of hands already rendered docked under the felt above —
+      // this block is openhand-only, or across would show a redundant,
+      // wrongly-labelled second "Partner" panel down here too.
+      if (game.partnerTiles && game.table.mode === 'openhand') frag.appendChild(partnerHandPanel(game.partnerTiles));
     }
 
     if (game.hand.status !== 'active' && game.hand.result) {
@@ -898,6 +933,25 @@ function partnerHandPanel(tiles: string[]): HTMLElement {
 }
 
 /**
+ * Across only — whichever of my own two hands is NOT live right now. Same
+ * plain, unselectable display as partnerHandPanel, but labelled for what it
+ * actually is here: my own second hand waiting its turn, not someone else's
+ * tiles the way openhand's partnerHandPanel is.
+ */
+function myOtherHandPanel(tiles: string[]): HTMLElement {
+  const panel = el('div', 'panel partner-hand');
+  panel.append(el('div', 'eyebrow', 'Your other hand'));
+  const row = el('div', 'hand');
+  for (const tile of tiles) {
+    const node = tileEl(tile);
+    node.classList.add('sm', 'dead');
+    row.appendChild(node);
+  }
+  panel.appendChild(row);
+  return panel;
+}
+
+/**
  * Matches CrossArm['direction'] — the felt lays a French board's four arms
  * out in exactly these screen positions. An arrow needs no translating the
  * way "Right"/"Up" did — a player who couldn't place what "Up arm" meant
@@ -918,7 +972,7 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   // next deal happens to include it again — same reasoning as main.ts's
   // handOver handler, done here instead since OnlineGame has no equivalent
   // discrete event to hook.
-  if (game.hand?.status !== 'active') pendingTile = null;
+  if (game.hand?.status !== 'active') { pendingTile = null; pendingTileSeat = null; }
   // predictedMyTiles set means a move was just tapped and hasn't been
   // confirmed by the server yet — game.hand.turn is still stale at this
   // point (the real update hasn't arrived), so legalMovesForMe() would
@@ -926,12 +980,27 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   // been processed. Freeze the hand — plain tiles, no chooser, no Pass —
   // until the real state lands and clears the prediction.
   const pending = game.predictedMyTiles !== null;
-  panel.append(el('div', 'eyebrow', pending ? 'Sending…' : (game.isMyTurn() ? 'Your play' : 'Your hand')));
+  // The seat this panel is actually interactive for: my own seat for every
+  // mode, or across's other seat when that one is what's actually live.
+  // Falls back to my primary seat when it's not my turn at all, so the
+  // panel still shows something sensible while waiting.
+  const seat = game.activeSeat() ?? game.mySeat;
+  const onPartnerSeat = game.table.mode === 'across' && seat !== null && seat === game.partnerSeat();
+  const tiles = seat === null ? []
+    : seat === game.mySeat ? (game.predictedMyTiles ?? game.tilesForSeat(seat))
+      : game.tilesForSeat(seat);
+  // A tile chosen in one of my two hands must not appear "chosen" in the
+  // other just because it shares a tile id — see pendingTileSeat's comment.
+  if (pendingTileSeat !== seat) { pendingTile = null; pendingTileSeat = seat; }
+  const label = onPartnerSeat
+    ? (game.isMyTurn() ? 'Your partner hand — your play' : 'Your partner hand')
+    : (pending ? 'Sending…' : (game.isMyTurn() ? 'Your play' : 'Your hand'));
+  panel.append(el('div', 'eyebrow', label));
   const legal = pending ? [] : game.legalMovesForMe();
   const playable = new Set(legal.flatMap((m) => ('tile' in m ? [m.tile] : [])));
   const hand = el('div', 'hand');
 
-  for (const tile of game.predictedMyTiles ?? game.myTiles) {
+  for (const tile of tiles) {
     const node = tileEl(tile);
     const can = playable.has(tile);
     node.classList.add(can ? 'playable' : 'dead');

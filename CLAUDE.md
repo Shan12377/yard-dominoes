@@ -188,6 +188,11 @@ legal opinion and processor.
   "last-one-under-target-survives" design was wrong) — and the coin-tied
   mid-hand reshuffle at a 50-70 score window are all live — selectable from
   both local practice and real online tables.
-  Across-the-Table remains deliberately unbuilt; do not invent rules for it
-  without a Jamaican consultant.
+  Across is built: partner's exact ruleset (six-love default, first-to-six
+  selectable, same scoring, same pass-the-pose), played online by two real
+  people instead of four — each one signed into both seats of a side (0&2 or
+  1&3) and plays each in its own turn, never back-to-back. No new engine
+  rules; `isPartnered()` covers it. Rules confirmed against a real Jamaican
+  consultant, 2026-08-07. Local practice (a human plus duppies) is not yet
+  wired up for it — online only so far.
 - Prefer editing existing files over creating new ones.

@@ -28,9 +28,14 @@ Deno.serve(handled(async (req) => {
   const { data: seats } = await db.from('seats').select('*').eq('table_id', table!.id).order('seat_index');
 
   const seatUsers: (string | null)[] = seats!.map((s: any) => s.user_id);
-  const mySeat = seatUsers.indexOf(user.id);
-  if (mySeat < 0) throw new HttpError(403, 'you are not seated at this table');
-  if (row.turn !== mySeat) throw new HttpError(409, 'not your turn');
+  if (!seatUsers.includes(user.id)) throw new HttpError(403, 'you are not seated at this table');
+  // The seat whose turn it is, not "the first seat this user occupies" —
+  // `indexOf` would silently pin an across player (bound to two seats) to
+  // whichever seat happens to come first, rejecting every legitimate move
+  // from their other seat with "not your turn." A seat's own occupant is
+  // the only thing that can act for it either way, checked below.
+  const mySeat = row.turn;
+  if (seatUsers[mySeat] !== user.id) throw new HttpError(409, 'not your turn');
   if (move.seat !== mySeat) throw new HttpError(403, 'you cannot move for another seat');
 
   let state = toState(row, table!.seat_count, table!.mode, table!.format);

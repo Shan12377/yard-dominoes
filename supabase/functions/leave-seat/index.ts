@@ -23,9 +23,12 @@ Deno.serve(handled(async (req) => {
   const { data: table } = await db.from('tables').select('*').eq('id', tableId).single();
   if (!table) throw new HttpError(404, 'no such table');
 
-  const { data: seat } = await db.from('seats')
-    .select('*').eq('table_id', tableId).eq('user_id', user.id).maybeSingle();
-  if (!seat) throw new HttpError(403, 'you are not seated at this table');
+  // `.maybeSingle()` would throw here for an across player, who holds two
+  // seat rows at once (0&2 or 1&3) — every row for this user_id leaves
+  // together, since across never leaves a side half-human.
+  const { data: mySeats } = await db.from('seats')
+    .select('*').eq('table_id', tableId).eq('user_id', user.id);
+  if (!mySeats || mySeats.length === 0) throw new HttpError(403, 'you are not seated at this table');
 
   // Clears video_session_id too — a departing seat cannot still be
   // publishing video, and a duppy never can. Closes the gap left by a
@@ -34,7 +37,7 @@ Deno.serve(handled(async (req) => {
   // so it is where stale video state actually gets swept up.
   const { error: seatError } = await db.from('seats')
     .update({ user_id: null, duppy_level: 'yard', connected_at: null, video_session_id: null })
-    .eq('table_id', tableId).eq('seat_index', seat.seat_index);
+    .eq('table_id', tableId).eq('user_id', user.id);
   if (seatError) throw new HttpError(500, seatError.message);
 
   if (table.status === 'playing') {

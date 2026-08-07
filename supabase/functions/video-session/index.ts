@@ -65,8 +65,13 @@ async function requireVipSeat(db: ReturnType<typeof serviceClient>, userId: stri
   const tier = effectiveTier(profile ?? { tier: 'guest', tier_expires_at: null });
   if (tier !== 'vip') throw new HttpError(403, 'video is a VIP benefit');
 
+  // An across player holds two seat rows (0&2 or 1&3) — `.limit(1)` picks
+  // the lower one to represent their video identity, the same "pick one and
+  // accept it" posture this file already takes for the same-seat-two-tabs
+  // case above. One person, one camera, either seat is fine to hang it on.
   const { data: seat } = await db.from('seats')
-    .select('seat_index').eq('table_id', tableId).eq('user_id', userId).maybeSingle();
+    .select('seat_index').eq('table_id', tableId).eq('user_id', userId)
+    .order('seat_index').limit(1).maybeSingle();
   if (!seat) throw new HttpError(403, 'you are not seated at this table');
   return seat.seat_index as number;
 }

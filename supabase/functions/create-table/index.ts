@@ -15,10 +15,10 @@ Deno.serve(handled(async (req) => {
   // groups them; the string check here catches an unknown mode too before it
   // reaches the game_mode enum cast and 500s.
   const mode = String(body.mode ?? 'partner');
-  if (!['cutthroat', 'partner', 'openhand'].includes(mode)) {
+  if (!['cutthroat', 'partner', 'openhand', 'across'].includes(mode)) {
     throw new HttpError(422, `unknown mode: ${mode}`);
   }
-  if ((mode === 'partner' || mode === 'openhand') && seatCount !== 4) {
+  if ((mode === 'partner' || mode === 'openhand' || mode === 'across') && seatCount !== 4) {
     throw new HttpError(422, `${mode} mode needs exactly 4 seats`);
   }
   // French is cut-throat, 4-hand only in v1 (see the French debrief) — the
@@ -45,7 +45,8 @@ Deno.serve(handled(async (req) => {
     join_code: code,
     mode,
     // Cut throat six love runs to a median of ~196 hands. Never default to it.
-    // Openhand is a partnered mode and defaults the same way partner does.
+    // Openhand and across are both partnered modes and default the same way
+    // partner does.
     format: body.format ?? (mode === 'cutthroat' ? 'firstToSix' : 'sixlove'),
     seat_count: seatCount,
     // The client sends a name, never seconds — otherwise a patched client
@@ -62,15 +63,27 @@ Deno.serve(handled(async (req) => {
   if (error) throw new HttpError(500, error.message);
 
   const duppies: string[] = body.duppies ?? [];
-  const seats: any[] = [{
-    table_id: table.id, seat_index: 0, user_id: user.id,
-    connected_at: new Date().toISOString(),
-  }];
-  for (let i = 1; i < seatCount; i++) {
-    seats.push({
-      table_id: table.id, seat_index: i,
-      user_id: null, duppy_level: duppies[i - 1] ?? null,
-    });
+  const now = new Date().toISOString();
+  let seats: any[];
+  if (mode === 'across') {
+    // The creator signs into both seats of one side — seat 0 and its
+    // partner seat 2 — not a choice the client makes; that pairing IS
+    // across. The other side (1&3) stays duppy-filled until a second real
+    // player claims both of them together through join-table.
+    seats = [
+      { table_id: table.id, seat_index: 0, user_id: user.id, connected_at: now },
+      { table_id: table.id, seat_index: 2, user_id: user.id, connected_at: now },
+      { table_id: table.id, seat_index: 1, user_id: null, duppy_level: duppies[0] ?? null },
+      { table_id: table.id, seat_index: 3, user_id: null, duppy_level: duppies[1] ?? null },
+    ];
+  } else {
+    seats = [{ table_id: table.id, seat_index: 0, user_id: user.id, connected_at: now }];
+    for (let i = 1; i < seatCount; i++) {
+      seats.push({
+        table_id: table.id, seat_index: i,
+        user_id: null, duppy_level: duppies[i - 1] ?? null,
+      });
+    }
   }
   const { error: seatsError } = await db.from('seats').insert(seats);
   if (seatsError) {

@@ -215,7 +215,34 @@ export class OnlineGame {
   }
 
   isMyTurn(): boolean {
-    return this.hand?.status === 'active' && this.mySeat !== null && this.hand.turn === this.mySeat;
+    return this.activeSeat() !== null;
+  }
+
+  /**
+   * The specific one of my own seats whose turn it is right now, or null if
+   * it is not my turn at all. Equal to `mySeat` for every mode except
+   * across, where it may equal `partnerSeat()` instead — one real player
+   * covers both seats of a side there, and plays each in its own turn, never
+   * back-to-back. Every turn-dependent method (legalMovesForMe, play) reads
+   * this instead of the fixed `mySeat`, or an across player's second seat
+   * would never get to move.
+   */
+  activeSeat(): number | null {
+    if (!this.hand || this.hand.status !== 'active' || this.mySeat === null) return null;
+    if (this.hand.turn === this.mySeat) return this.mySeat;
+    const partner = this.partnerSeat();
+    if (this.table.mode === 'across' && partner !== null && this.hand.turn === partner) return partner;
+    return null;
+  }
+
+  /** `myTiles` for `mySeat`, `partnerTiles` for `partnerSeat()` (populated in
+   *  openhand and across alike — see loadPrivateTiles), empty otherwise.
+   *  Public because the across live-table view needs to render whichever of
+   *  a player's two hands is currently active, not just their primary one. */
+  tilesForSeat(seat: number): TileId[] {
+    if (seat === this.mySeat) return this.myTiles;
+    if (seat === this.partnerSeat()) return this.partnerTiles ?? [];
+    return [];
   }
 
   /** Whichever side just won and may choose to pass or keep the pose. */
@@ -448,13 +475,16 @@ export class OnlineGame {
       },
       onSeatTiles: (handId, seatIndex, tiles) => {
         // RLS decides which seat_hands rows reach me: my own always, and my
-        // partner's when the mode is openhand. Route by seat_index — writing
+        // partner's when the mode is openhand OR across (across's partner
+        // row is populated because it carries MY OWN user_id, not a special
+        // policy — see 0041_across.sql). Route by seat_index — writing
         // partner tiles into `myTiles` is the bug this callback shape exists
         // to make impossible. A row I do not recognise gets dropped.
         if (handId !== this.hand?.hand_id) return;
         if (seatIndex === this.mySeat) {
           this.myTiles = tiles;
-        } else if (seatIndex === this.partnerSeat() && this.table.mode === 'openhand') {
+        } else if (seatIndex === this.partnerSeat()
+          && (this.table.mode === 'openhand' || this.table.mode === 'across')) {
           this.partnerTiles = tiles;
         } else {
           return;
@@ -527,24 +557,27 @@ export class OnlineGame {
   }
 
   /**
-   * Read this seat's tiles — and, in openhand, the partner's tiles too.
+   * Read this seat's tiles — and, in openhand or across, the partner's
+   * tiles too.
    *
    * One round trip, not two: the extended seat_hands RLS in 0016 lets both
    * rows come back from a single `.in('seat_index', [me, partner])`, so a
    * partner-open table pays no extra network cost over an ordinary partner
-   * table. A seat not covered by RLS is simply not returned; there is no
-   * client-side filtering step that could be wrong.
+   * table. Across needs no RLS extension at all for this — both rows already
+   * carry the same account's own user_id, so the baseline "your own tiles
+   * only" policy already returns both. A seat not covered by RLS is simply
+   * not returned; there is no client-side filtering step that could be wrong.
    */
   private async loadPrivateTiles(handId: string): Promise<void> {
     if (this.mySeat === null) return;
     const partner = this.partnerSeat();
-    const wantOpenhand = this.table.mode === 'openhand' && partner !== null;
-    const seats = wantOpenhand ? [this.mySeat, partner!] : [this.mySeat];
+    const wantsBothSeats = (this.table.mode === 'openhand' || this.table.mode === 'across') && partner !== null;
+    const seats = wantsBothSeats ? [this.mySeat, partner!] : [this.mySeat];
     const { data } = await db().from('seat_hands').select('seat_index, tiles')
       .eq('hand_id', handId).in('seat_index', seats);
     const rows = data ?? [];
     this.myTiles = (rows.find((r: any) => r.seat_index === this.mySeat)?.tiles as TileId[]) ?? [];
-    this.partnerTiles = wantOpenhand
+    this.partnerTiles = wantsBothSeats
       ? (rows.find((r: any) => r.seat_index === partner)?.tiles as TileId[]) ?? null
       : null;
   }
@@ -557,18 +590,23 @@ export class OnlineGame {
 
   /** Legal moves for MY turn only — a stub state with my real tiles and
    * placeholder-length arrays for everyone else, the same trick bots.ts uses.
-   * `turn` must be set to my own seat: legalMoves() reads hands[state.turn]. */
+   * `turn` is `activeSeat()`, not the fixed `mySeat`: an across player's
+   * partner-seat turn needs its own tiles (partnerTiles) plugged in at its
+   * own seat index, or legalMoves() reads an empty placeholder hand and
+   * returns nothing playable. */
   legalMovesForMe(): Move[] {
-    if (!this.hand || this.mySeat === null || this.hand.turn !== this.mySeat) return [];
+    const seat = this.activeSeat();
+    if (!this.hand || seat === null) return [];
+    const tiles = this.tilesForSeat(seat);
     const hands: TileId[][] = this.hand.hand_sizes.map((n, i) =>
-      i === this.mySeat ? this.myTiles : new Array(n).fill('0-0'));
+      i === seat ? tiles : new Array(n).fill('0-0'));
     return legalMoves({
       seatCount: this.table.seatCount,
       mode: this.table.mode,
       hands,
       boneyard: new Array(this.hand.boneyard_size).fill('0-0'),
       board: this.hand.board,
-      turn: this.mySeat,
+      turn: seat,
       consecutivePasses: 0,
       moveLog: this.hand.move_log,
       penalties: new Array(this.table.seatCount).fill(0),
@@ -585,29 +623,38 @@ export class OnlineGame {
   }
 
   async play(move: Move): Promise<void> {
-    if (!this.hand || this.mySeat === null) return;
+    const seat = this.activeSeat();
+    if (!this.hand || seat === null) return;
     // Show my own tile landing immediately — legalMovesForMe() already
     // proved this move legal, so predictMyMove() only ever fails closed
     // (see predict.ts), never shows something that turns out wrong.
-    const prediction = predictMyMove({
-      seatCount: this.table.seatCount,
-      mode: this.table.mode,
-      format: this.table.format as SetFormat,
-      myTiles: this.myTiles,
-      mySeat: this.mySeat,
-      handSizes: this.hand.hand_sizes,
-      boneyardSize: this.hand.boneyard_size,
-      board: this.hand.board,
-      moveLog: this.hand.move_log,
-      status: this.hand.status as 'active' | 'domino' | 'blocked',
-      result: this.hand.result as any,
-      poseMustBeDoubleSix: this.poseMustBeDoubleSix,
-      poser: this.poser,
-    }, move);
-    if (prediction) {
-      this.predictedBoard = prediction.board;
-      this.predictedMyTiles = prediction.myTiles;
-      this.emit({ type: 'state' });
+    //
+    // Only predicted for my own primary hand. predict.ts's shape is written
+    // for exactly one hand; an across move from the partner seat instead
+    // waits for the real broadcast, which is still correct — just not
+    // instant — rather than generalizing prediction for a purely cosmetic
+    // latency win on half of an across player's moves.
+    if (seat === this.mySeat) {
+      const prediction = predictMyMove({
+        seatCount: this.table.seatCount,
+        mode: this.table.mode,
+        format: this.table.format as SetFormat,
+        myTiles: this.myTiles,
+        mySeat: this.mySeat,
+        handSizes: this.hand.hand_sizes,
+        boneyardSize: this.hand.boneyard_size,
+        board: this.hand.board,
+        moveLog: this.hand.move_log,
+        status: this.hand.status as 'active' | 'domino' | 'blocked',
+        result: this.hand.result as any,
+        poseMustBeDoubleSix: this.poseMustBeDoubleSix,
+        poser: this.poser,
+      }, move);
+      if (prediction) {
+        this.predictedBoard = prediction.board;
+        this.predictedMyTiles = prediction.myTiles;
+        this.emit({ type: 'state' });
+      }
     }
     try {
       await apiPlayMove(this.hand.hand_id, move);
