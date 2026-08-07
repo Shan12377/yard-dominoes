@@ -51,7 +51,7 @@ async function ensureLoungeModule(isBootCheck = false) {
   localStorage.setItem(LOUNGES_VISITED_KEY, '1');
   try {
     loungeModule = await import('./loungeview.ts');
-    await loungeModule.loadLounges(render);
+    await loungeModule.loadLounges(scheduleRender);
     // Only the automatic boot-time rejoin check gets to redirect the view —
     // an explicit tab click (Lounges or Membership) must land where the
     // player clicked, never get silently overridden once the async load
@@ -418,7 +418,10 @@ async function startGame(opts: {
     // counting) or just stopped being mine (stop). A hand that ended stops it
     // too, since isMyTurn() is false once the status leaves 'active'.
     nagLater(g, level);
-    render();
+    // A single duppy move fires 'played'/'passed' AND 'state' back to back
+    // (local.ts) — scheduleRender() coalesces both into one actual render
+    // instead of blanking and rebuilding the whole page twice per move.
+    scheduleRender();
   });
 
   review = null;
@@ -1484,7 +1487,7 @@ function render() {
       app.appendChild(tooYoungView(() => { view = 'play'; render(); }));
     } else {
       app.appendChild(loungeModule
-        ? loungeModule.loungesView(render, () => { view = 'membership'; render(); })
+        ? loungeModule.loungesView(scheduleRender, () => { view = 'membership'; scheduleRender(); })
         : pending('Opening the lounges'));
     }
   } else if (view === 'terms') {
@@ -1494,7 +1497,7 @@ function render() {
   } else if (view === 'academy') {
     app.appendChild(academyView());
   } else if (view === 'membership') {
-    app.appendChild(loungeModule ? loungeModule.membershipView(render) : pending('Loading membership'));
+    app.appendChild(loungeModule ? loungeModule.membershipView(scheduleRender) : pending('Loading membership'));
   } else {
     app.appendChild(fairView());
   }
@@ -1502,6 +1505,32 @@ function render() {
   // Not during a live hand — the table is full-bleed and a footer under it
   // reads as the game having ended.
   if (!(view === 'play' && game)) app.appendChild(legalFooter());
+}
+
+/**
+ * render() does `app.innerHTML = ''` then rebuilds the entire page from
+ * scratch — necessarily, given this app's whole rendering model (see
+ * client.md). That is fine for ONE render, but several event sources fire
+ * more than one event per real thing that happened: a single duppy move
+ * emits both 'played'/'passed' AND 'state' (local.ts), a single online move
+ * can emit 'penalty' AND 'state' back to back (onlinetable.ts) — and each
+ * one calling render() directly meant the whole page blanked and rebuilt
+ * two or three times, synchronously, for one move. Invisible on a fast
+ * machine, a visible flash on a slower one — which is exactly why this
+ * reads as "flickering on the tablet, fine on the laptop" rather than a
+ * clear-cut bug on every device. Coalescing to one render per tick, no
+ * matter how many times it's requested, fixes both: the human-set 420ms
+ * pacing between duppy moves still shows one clean render per move, it's
+ * just never a double.
+ */
+let renderScheduled = false;
+function scheduleRender() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  queueMicrotask(() => {
+    renderScheduled = false;
+    render();
+  });
 }
 
 // --- bootstrap --------------------------------------------------------------
