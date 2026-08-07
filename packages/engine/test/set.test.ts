@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createSet, applyHandResult, leadingSide } from '../src/set.ts';
+import { createSet, applyHandResult } from '../src/set.ts';
 import { deal, legalMoves, applyMove } from '../src/hand.ts';
 import { provablyFairShuffle } from '../src/shuffle.ts';
 import { handCount, dealPlan } from '../src/tiles.ts';
@@ -110,33 +110,31 @@ describe('one all play two', () => {
 });
 
 describe('tied blocked hands', () => {
-  test('a tie is replayed for one more point, and climbs on every further tie', () => {
+  test('a tie is replayed for a flat 2 points, whatever the score currently reads', () => {
     let s = createSet({ mode: 'partner', format: 'sixlove' });
     assert.equal(s.handValue, 1);
 
     s = applyHandResult(s, tied);
     assert.equal(s.handValue, 2);
-    assert.equal(s.poseMustBeDoubleSix, true, 'level score, so the six opens the replay');
+    assert.equal(s.poseMustBeDoubleSix, true, 'the double-six opens the replay');
 
+    // A tie AGAIN just repeats — still forced double-six, still worth 2,
+    // never climbing to 3 or 4 the way an earlier version did.
     s = applyHandResult(s, tied);
-    assert.equal(s.handValue, 3);
-
-    s = applyHandResult(s, tied);
-    assert.equal(s.handValue, 4);
+    assert.equal(s.handValue, 2);
+    assert.equal(s.poseMustBeDoubleSix, true);
 
     s = applyHandResult(s, won(0));
-    assert.deepEqual(s.scores, [4, 0], 'the fourth replay was worth four');
+    assert.deepEqual(s.scores, [2, 0], 'the replay was worth a flat 2, however many ties preceded it');
     assert.equal(s.handValue, 1, 'value resets once a hand is decided');
   });
 
-  test('when a side already leads, that side opens the replay', () => {
+  test('the double-six opens the replay even when a side already leads — never "sporting"', () => {
     let s = createSet({ mode: 'partner', format: 'sixlove' });
     s = applyHandResult(s, won(1)); // side 1 to 1-0
     s = applyHandResult(s, tied);
     assert.equal(s.handValue, 2);
-    assert.equal(s.poseMustBeDoubleSix, false);
-    assert.equal(leadingSide(s), 1);
-    assert.equal(s.poser % 2, 1, 'a seat from the leading side poses');
+    assert.equal(s.poseMustBeDoubleSix, true, 'forced double-six, regardless of who leads');
   });
 
   test('a leading side that loses the replay loses everything', () => {

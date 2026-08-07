@@ -1,4 +1,4 @@
-import { isPartnered, seatsOfSide, sideCount, sideOf } from './tiles.ts';
+import { isPartnered, sideCount, sideOf } from './tiles.ts';
 import type { HandResult, SetOptions, SetState } from './types.ts';
 
 export function createSet(options: Partial<SetOptions> = {}): SetState {
@@ -56,9 +56,12 @@ export function leadingSide(s: SetState): number | null {
  *   - Under "one all play two", a bruk that would happen while the leader sits
  *     on exactly 1 is replaced by a playoff hand worth two points, so the
  *     winner jumps straight to 2-0 rather than starting over.
- *   - A blocked hand with no unique lowest count is REPLAYED, and the replay is
- *     worth one more point than the hand that tied. Tie again and it climbs
- *     again — 2, then 3, then 4.
+ *   - A blocked hand with no unique lowest count is REPLAYED: the double-six
+ *     holder is forced to open it (never "sporting", whatever the current
+ *     score), and it is worth a flat 2 points to whoever wins it — not the
+ *     escalating 2/3/4 an earlier version used, which real play doesn't do.
+ *     A tie on the replay itself just repeats: forced double-six again,
+ *     still worth 2, however many times in a row it happens.
  *   - Winning means reaching the target with every opponent still on zero.
  */
 export function applyHandResult(prev: SetState, result: HandResult): SetState {
@@ -67,7 +70,7 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
   const s: SetState = { ...prev, scores: [...prev.scores] };
   s.handsPlayed += 1;
 
-  const { mode, seatCount, format, target, oneAllPlayTwo } = s.options;
+  const { seatCount, format, target, oneAllPlayTwo } = s.options;
 
   // --- French: race to 100 where LOWER wins -------------------------------
   // Every seat adds their remaining pip count to their own running total,
@@ -134,20 +137,15 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
     return s;
   }
 
-  // --- Tied blocked hand: replay at a higher value -------------------------
+  // --- Tied blocked hand: forced double-six, flat +2 ------------------------
+  // Confirmed against real play: the replay is ALWAYS opened by whoever
+  // holds the double-six — never "sporting", regardless of who currently
+  // leads — and is worth a flat 2 points, not an escalating value. A tie on
+  // the replay itself just repeats this unchanged, so no state needs to be
+  // tracked beyond handValue and poseMustBeDoubleSix themselves.
   if (result.tie) {
-    s.handValue += 1;
-    const lead = leadingSide(s);
-    if (lead === null) {
-      // Score is level, so the double-six opens the replay.
-      s.poseMustBeDoubleSix = true;
-    } else {
-      // The side already holding points opens the replay. A partner team may
-      // agree between themselves which of the two poses, so the UI offers the
-      // choice; the engine defaults to their lower seat.
-      s.poseMustBeDoubleSix = false;
-      s.poser = seatsOfSide(lead, seatCount, mode)[0];
-    }
+    s.handValue = 2;
+    s.poseMustBeDoubleSix = true;
     return s;
   }
 

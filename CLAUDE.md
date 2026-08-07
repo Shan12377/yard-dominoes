@@ -61,7 +61,11 @@ Jamaican players notice these immediately. All are covered by tests.
   "sporting" — opening with any tile.
 - **A win by the side under love BRUKS the score to 0-0.** They do not score
   one. Under six love only one side can hold points at a time.
-- **Tied blocked hands replay at escalating value:** 2, then 3, then 4.
+- **Tied blocked hands replay at a flat 2 points, double-six forced.** The
+  double-six holder opens the replay no matter who currently leads — never
+  "sporting" — and it's worth 2 points whoever wins it, however many ties
+  happened first. An earlier version escalated the value each successive
+  tie (2, then 3, then 4); that was wrong, confirmed against real play.
 - **One all play two:** at 1-1 the playoff winner goes straight to 2-0.
 - **Pass the pose:** in Partner the winner may hand the pose across the table,
   but never when the double-six is forced. The engine rule is tested; the
