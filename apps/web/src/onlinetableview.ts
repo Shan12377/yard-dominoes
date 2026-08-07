@@ -973,28 +973,30 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   // handOver handler, done here instead since OnlineGame has no equivalent
   // discrete event to hook.
   if (game.hand?.status !== 'active') { pendingTile = null; pendingTileSeat = null; }
-  // predictedMyTiles set means a move was just tapped and hasn't been
-  // confirmed by the server yet — game.hand.turn is still stale at this
-  // point (the real update hasn't arrived), so legalMovesForMe() would
-  // otherwise happily offer a second move before the first one has even
-  // been processed. Freeze the hand — plain tiles, no chooser, no Pass —
-  // until the real state lands and clears the prediction.
-  const pending = game.predictedMyTiles !== null;
   // The seat this panel is actually interactive for: my own seat for every
   // mode, or across's other seat when that one is what's actually live.
   // Falls back to my primary seat when it's not my turn at all, so the
   // panel still shows something sensible while waiting.
   const seat = game.activeSeat() ?? game.mySeat;
   const onPartnerSeat = game.table.mode === 'across' && seat !== null && seat === game.partnerSeat();
-  const tiles = seat === null ? []
-    : seat === game.mySeat ? (game.predictedMyTiles ?? game.tilesForSeat(seat))
-      : game.tilesForSeat(seat);
+  // A prediction pending for THIS seat means a move was just tapped and
+  // hasn't been confirmed by the server yet — game.hand.turn is still stale
+  // at this point (the real update hasn't arrived), so legalMovesForMe()
+  // would otherwise happily offer a second move before the first one has
+  // even been processed. Freeze the hand — plain tiles, no chooser, no Pass
+  // — until the real state lands and clears the prediction. Checked per-seat
+  // (predictedTilesFor), not just predictedMyTiles, or an across move from
+  // the partner seat would never freeze and could double-submit.
+  const pending = seat !== null && game.predictedTilesFor(seat) !== null;
+  const tiles = seat === null ? [] : (game.predictedTilesFor(seat) ?? game.tilesForSeat(seat));
   // A tile chosen in one of my two hands must not appear "chosen" in the
   // other just because it shares a tile id — see pendingTileSeat's comment.
   if (pendingTileSeat !== seat) { pendingTile = null; pendingTileSeat = seat; }
-  const label = onPartnerSeat
-    ? (game.isMyTurn() ? 'Your partner hand — your play' : 'Your partner hand')
-    : (pending ? 'Sending…' : (game.isMyTurn() ? 'Your play' : 'Your hand'));
+  const label = pending
+    ? 'Sending…'
+    : onPartnerSeat
+      ? (game.isMyTurn() ? 'Your partner hand — your play' : 'Your partner hand')
+      : (game.isMyTurn() ? 'Your play' : 'Your hand');
   panel.append(el('div', 'eyebrow', label));
   const legal = pending ? [] : game.legalMovesForMe();
   const playable = new Set(legal.flatMap((m) => ('tile' in m ? [m.tile] : [])));

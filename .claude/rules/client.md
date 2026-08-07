@@ -39,6 +39,28 @@ ask the same question the text-input case asks, pointed the other way: what
 happens when the thing this selection was ABOUT stops being true underneath
 it?
 
+## Every playable seat needs optimistic prediction, not just "mine"
+
+`OnlineGame.play()` (`onlinetable.ts`) predicts a move locally the instant
+it's tapped — see `predict.ts` — so the tile lifts immediately instead of
+waiting for the realtime round-trip. When across shipped, prediction was
+scoped to only `mySeat`, on the reasoning that the partner seat's move
+would "just be a little less snappy." That was wrong, found live
+(2026-08-07): a seat with **no** prediction gets **zero** visual feedback
+at all while the request is in flight — no tile lift, no "Sending…", the
+panel just sits there. That reads as broken, not slow, and a player who
+sees nothing happen taps again, which can fire a second `play()` before the
+first one has even resolved.
+
+`predict.ts`'s shape has no built-in notion of "my" seat — it only takes a
+seat index and that seat's tiles as plain parameters — so this generalizes
+for free to any seat a player can actually act for. If a future mode adds a
+third playable seat to one account, predict for that seat too, and gate the
+"pending" freeze (`myHandPanel`'s `pending` flag, `legalMovesForMe`'s
+effective disable) on a check scoped to the ACTIVE seat, not a single
+fixed field — `OnlineGame.predictedTilesFor(seat)` exists for exactly this.
+Never ship a tappable hand with no prediction path behind it.
+
 ## Hard UI rules
 
 - **No modal during a live hand.** Not a gift, not a rating prompt, not the

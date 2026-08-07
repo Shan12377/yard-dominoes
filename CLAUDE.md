@@ -195,4 +195,8 @@ legal opinion and processor.
   rules; `isPartnered()` covers it. Rules confirmed against a real Jamaican
   consultant, 2026-08-07. Local practice (a human plus duppies) is not yet
   wired up for it — online only so far.
+  Shipping it first missed optimistic prediction on the partner seat, which
+  looked like a stuck/delayed hand rather than just a slower one — see
+  `.claude/rules/client.md`'s "Every playable seat needs optimistic
+  prediction" before touching `OnlineGame.play()` again.
 - Prefer editing existing files over creating new ones.

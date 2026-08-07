@@ -87,19 +87,37 @@ export class OnlineGame {
    * Set the instant play() is called, cleared the moment real data arrives
    * (either the realtime broadcast in subscribe()'s onPublic, or a failure/
    * conflict in play() itself) — never anything a caller sets directly.
-   * Only ever predicts MY OWN move; see predict.ts for why nothing beyond
-   * it can be predicted client-side.
+   * Only ever predicts a move for one of MY OWN seats; see predict.ts for
+   * why nothing beyond that can be predicted client-side.
    */
   predictedBoard: AnyBoard | null = null;
   predictedMyTiles: TileId[] | null = null;
   /**
-   * The partner's tiles, when the mode grants sight of them. Populated only
-   * for `mode === 'openhand'` and only when the player is seated (a spectator
-   * gets nothing extra). Null in every other case, so a bare read while
-   * rendering a partner or cutthroat table returns nothing to display rather
-   * than an accidental peek.
+   * Same as predictedMyTiles, for across's second seat. Without this, a move
+   * played from the partner seat gets NO visual feedback at all until the
+   * real broadcast round-trips — no tile lift, no "Sending…" state, nothing
+   * — which reads exactly like the app is broken and invites a second tap
+   * while the first request is still in flight. Learned live (2026-08-07):
+   * do not ship a playable seat without prediction for it. See client.md.
+   */
+  predictedPartnerTiles: TileId[] | null = null;
+  /**
+   * The partner's tiles, when the mode grants sight of them. Populated for
+   * `mode === 'openhand'` (read-only) and `mode === 'across'` (the second
+   * seat this same player also plays), only when the player is seated (a
+   * spectator gets nothing extra). Null in every other case, so a bare read
+   * while rendering a partner or cutthroat table returns nothing to display
+   * rather than an accidental peek.
    */
   partnerTiles: TileId[] | null = null;
+
+  /** predictedMyTiles for mySeat, predictedPartnerTiles for partnerSeat(),
+   *  null for anything else or when nothing is pending for that seat. */
+  predictedTilesFor(seat: number): TileId[] | null {
+    if (seat === this.mySeat) return this.predictedMyTiles;
+    if (seat === this.partnerSeat()) return this.predictedPartnerTiles;
+    return null;
+  }
 
   /**
    * Every seat's starting tiles for the just-finished hand, bought with
@@ -467,6 +485,7 @@ export class OnlineGame {
         // the truth now.
         this.predictedBoard = null;
         this.predictedMyTiles = null;
+        this.predictedPartnerTiles = null;
         // Piggybacks the staleness sweep on a move that was already going to
         // redraw the table — see the comment on `names` for why this exists
         // instead of a dedicated subscription.
@@ -625,36 +644,38 @@ export class OnlineGame {
   async play(move: Move): Promise<void> {
     const seat = this.activeSeat();
     if (!this.hand || seat === null) return;
-    // Show my own tile landing immediately — legalMovesForMe() already
-    // proved this move legal, so predictMyMove() only ever fails closed
-    // (see predict.ts), never shows something that turns out wrong.
+    // Show the tile landing immediately, for WHICHEVER of my seats this
+    // move is for — legalMovesForMe() already proved it legal, so
+    // predictMyMove() only ever fails closed (see predict.ts), never shows
+    // something that turns out wrong. predict.ts's shape only cares about
+    // "which seat, which tiles" as plain parameters; it has no built-in
+    // notion of "my" seat, so the same call covers across's partner seat
+    // too — just pointed at that seat's own tiles.
     //
-    // Only predicted for my own primary hand. predict.ts's shape is written
-    // for exactly one hand; an across move from the partner seat instead
-    // waits for the real broadcast, which is still correct — just not
-    // instant — rather than generalizing prediction for a purely cosmetic
-    // latency win on half of an across player's moves.
-    if (seat === this.mySeat) {
-      const prediction = predictMyMove({
-        seatCount: this.table.seatCount,
-        mode: this.table.mode,
-        format: this.table.format as SetFormat,
-        myTiles: this.myTiles,
-        mySeat: this.mySeat,
-        handSizes: this.hand.hand_sizes,
-        boneyardSize: this.hand.boneyard_size,
-        board: this.hand.board,
-        moveLog: this.hand.move_log,
-        status: this.hand.status as 'active' | 'domino' | 'blocked',
-        result: this.hand.result as any,
-        poseMustBeDoubleSix: this.poseMustBeDoubleSix,
-        poser: this.poser,
-      }, move);
-      if (prediction) {
-        this.predictedBoard = prediction.board;
-        this.predictedMyTiles = prediction.myTiles;
-        this.emit({ type: 'state' });
-      }
+    // This matters beyond snappiness: a seat with NO prediction gets no
+    // visual feedback at all until the real broadcast round-trips, which
+    // reads as broken and invites a second tap while the first request is
+    // still in flight (live report, 2026-08-07 — see client.md).
+    const prediction = predictMyMove({
+      seatCount: this.table.seatCount,
+      mode: this.table.mode,
+      format: this.table.format as SetFormat,
+      myTiles: this.tilesForSeat(seat),
+      mySeat: seat,
+      handSizes: this.hand.hand_sizes,
+      boneyardSize: this.hand.boneyard_size,
+      board: this.hand.board,
+      moveLog: this.hand.move_log,
+      status: this.hand.status as 'active' | 'domino' | 'blocked',
+      result: this.hand.result as any,
+      poseMustBeDoubleSix: this.poseMustBeDoubleSix,
+      poser: this.poser,
+    }, move);
+    if (prediction) {
+      this.predictedBoard = prediction.board;
+      if (seat === this.mySeat) this.predictedMyTiles = prediction.myTiles;
+      else if (seat === this.partnerSeat()) this.predictedPartnerTiles = prediction.myTiles;
+      this.emit({ type: 'state' });
     }
     try {
       await apiPlayMove(this.hand.hand_id, move);
@@ -663,6 +684,7 @@ export class OnlineGame {
       // clear it and let the last-known-true board/hand show through again.
       this.predictedBoard = null;
       this.predictedMyTiles = null;
+      this.predictedPartnerTiles = null;
       if (err instanceof ConflictError) { await this.refetchHand(); return; }
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'move failed' });
       this.emit({ type: 'state' });
