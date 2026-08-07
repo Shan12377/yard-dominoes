@@ -777,6 +777,17 @@ function seats(g: LocalGame): HTMLElement {
 }
 
 let pendingTile: string | null = null;
+/**
+ * The felt's real measured size, cached across renders — see tableView()'s
+ * requestAnimationFrame block. render() rebuilds the whole DOM on every
+ * call (see client.md's rendering model), and duppy turns fire it every
+ * ~420ms in a row; re-measuring AND fully rebuilding the board on each one
+ * flashed visibly the moment several fired back to back. Once the real box
+ * is known it very rarely changes (only an actual resize moves it), so the
+ * fix is to trust the cache on every render after the first and only pay
+ * for a real re-measure-and-rebuild when the box has actually changed.
+ */
+let lastFeltBox: { width: number; height: number } | null = null;
 
 /**
  * Matches CrossArm['direction'] — the felt lays a French board's four arms
@@ -1233,18 +1244,24 @@ function tableView(g: LocalGame): DocumentFragment {
   const felt = el('div', 'table-felt');
   const line = el('div', 'line');
   const displayBoard = g.hand?.board ?? null;
-  renderBoard(line, displayBoard); // first pass: feltBox()'s window-based guess
+  // First pass: the cached real box once we have one (near-instant, no
+  // flash), or feltBox()'s window-based guess before the felt has ever been
+  // measured.
+  renderBoard(line, displayBoard, lastFeltBox ? { box: lastFeltBox } : {});
   felt.appendChild(line);
   frag.appendChild(felt);
   // The felt isn't attached to the document yet at this point in the build,
   // so clientWidth/clientHeight would read zero here — wait a frame for real
-  // layout, then re-render against the real measured box. onlinetableview.ts
-  // has always done this; local practice never did, which is very likely why
-  // the board could size itself for more room than was actually on screen
-  // and need scrolling to see in full — the exact complaint raised here.
+  // layout, then correct the cache and re-render ONLY if the real box has
+  // actually moved (a resize) — not on every render, or a run of duppy
+  // turns (render() fires every ~420ms) tears down and rebuilds every tile
+  // several times a second, which is the flash this guards against.
   requestAnimationFrame(() => {
     const box = { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
-    if (box.width > 0 && box.height > 0) renderBoard(line, displayBoard, { box });
+    if (box.width <= 0 || box.height <= 0) return;
+    const changed = !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
+    lastFeltBox = box;
+    if (changed) renderBoard(line, displayBoard, { box });
   });
 
   // Hand docks right under the board, before seats/sound compete for the

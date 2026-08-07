@@ -214,6 +214,17 @@ export function joinByCodeField(onJoin: (tableId: string) => void): HTMLElement 
 
 let pendingTile: string | null = null;
 let countdownTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * The felt's real measured size, cached across renders — see
+ * liveTableView()'s requestAnimationFrame block. A Realtime update fires a
+ * full rerender on every opponent move (an active table can see several a
+ * second during a duppy-filled seat's turn), and re-measuring AND fully
+ * rebuilding the board on each one flashed visibly. Once the real box is
+ * known it very rarely changes (only an actual resize moves it), so the fix
+ * is to trust the cache on every render after the first and only pay for a
+ * real re-measure-and-rebuild when the box has actually changed.
+ */
+let lastFeltBox: { width: number; height: number } | null = null;
 
 /**
  * The social layer, handed in by whoever owns the Realtime channel it rides on.
@@ -591,20 +602,27 @@ export function liveTableView(
   const feltSlot = el('div', 'felt-slot');
   const felt = el('div', 'table-felt');
   const line = el('div', 'line');
-  renderBoard(line, displayBoard); // first pass: feltBox()'s window-based guess
+  // First pass: the cached real box once we have one (near-instant, no
+  // flash), or feltBox()'s window-based guess before the felt has ever been
+  // measured.
+  renderBoard(line, displayBoard, lastFeltBox ? { box: lastFeltBox } : {});
   tagWinningTile(line, felt, game);
   felt.appendChild(line);
   feltSlot.appendChild(felt);
   // The felt isn't attached to the document yet at this point in the build,
   // so getBoundingClientRect() would read all zeros here — wait a frame for
-  // real layout, then re-render against the real box if it differs from the
-  // first guess. Matches this codebase's existing pattern for "needs the
-  // real DOM after attach" (chat auto-scroll, the countdown timer).
+  // real layout, then correct the cache and re-render ONLY if the real box
+  // has actually moved (a resize) — not on every render. A Realtime update
+  // fires this on every opponent move, and re-measuring plus fully
+  // rebuilding the board on each one is the flash this guards against.
   requestAnimationFrame(() => {
     // -32 matches CHROME_X/CHROME_Y's existing padding-subtraction
     // convention (felt padding + line padding), not a new magic number.
     const box = { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
-    if (box.width > 0 && box.height > 0) {
+    if (box.width <= 0 || box.height <= 0) return;
+    const changed = !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
+    lastFeltBox = box;
+    if (changed) {
       renderBoard(line, displayBoard, { box });
       tagWinningTile(line, felt, game);
     }
