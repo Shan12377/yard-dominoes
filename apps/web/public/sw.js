@@ -12,7 +12,7 @@
  *     network.
  */
 
-const VERSION = 'bdt-v49';
+const VERSION = 'bdt-v50';
 const SHELL = `${VERSION}-shell`;
 
 // Bumping VERSION invalidates everything below.

@@ -12,11 +12,12 @@ import {
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
   ORIGIN_LABEL,
   addBredrin, removeBredrin, whereAreMyBredrins,
+  sendInvite, pendingInvites, dismissInvite, watchInvites,
   MIN_GIFT_COINS, giftCoins,
   fetchPublicProfile,
 } from './lounges.ts';
 import type {
-  Bredrin, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
+  Bredrin, Invite, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
   PublicProfile,
 } from './lounges.ts';
 import { profilePanel, avatarImg, timeAgo } from './profile.ts';
@@ -77,6 +78,11 @@ interface LoungeState {
   videoStreams: Map<string, MediaStream>;
   /** True for a guest session with no email/password attached yet. */
   isAnonymous: boolean;
+  /** Pending "come to this lounge" nudges from bredrins, newest first. Shown
+   *  only on the Lounges screen proper (see loungesView) — never surfaced
+   *  while a live hand is on screen, by construction: that branch returns
+   *  early before this ever renders. */
+  invites: Invite[];
 }
 
 export const loungeState: LoungeState = {
@@ -84,6 +90,7 @@ export const loungeState: LoungeState = {
   room: null, error: null, loading: false, onlineGame: null, penaltyEvents: null,
   voice: null, voiceJoining: false, speaking: new Set(), reactions: new Map(),
   video: null, videoJoining: false, videoStreams: new Map(), isAnonymous: true,
+  invites: [],
 };
 
 /** Long enough to read, short enough not to linger past the next couple of moves. */
@@ -126,6 +133,7 @@ let draftCaret = 0;
 let justUpgradedTier: Tier | null = null;
 
 let recoveryWatcherStarted = false;
+let invitesWatcherStarted = false;
 
 /** Load lounges and profile. Safe to call repeatedly. */
 export async function loadLounges(rerender: () => void) {
@@ -139,6 +147,15 @@ export async function loadLounges(rerender: () => void) {
       history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
     }
   }
+  if (!invitesWatcherStarted) {
+    invitesWatcherStarted = true;
+    // Live push while they're already on the Lounges screen — a fresh fetch
+    // on every loadLounges() call (below) covers the "invited while they
+    // were elsewhere" case, so this only needs to catch what arrives in between.
+    watchInvites(() => {
+      void pendingInvites().then((list) => { loungeState.invites = list; rerender(); });
+    });
+  }
   if (!loungesAvailable || loungeState.loading) return;
   loungeState.loading = true;
   try {
@@ -148,6 +165,12 @@ export async function loadLounges(rerender: () => void) {
     loungeState.me = me;
     loungeState.isAnonymous = anon;
     loungeState.error = null;
+
+    // Additive, same posture as loadTournament below — an invites fetch
+    // failure must never block walking into the lounges.
+    try {
+      loungeState.invites = await pendingInvites();
+    } catch { /* stays whatever it was */ }
 
     if (anon) {
       const params = new URLSearchParams(window.location.search);
@@ -705,6 +728,10 @@ let bredrinsError: string | null = null;
 /** Ids added this session, so a roster "+" swaps to a confirmation without
  *  waiting on a full bredrins reload. */
 const justAddedBredrin = new Set<string>();
+/** `${bredrinId}:${loungeId}` pairs invited this session, so "Invite here"
+ *  swaps to a confirmation without a reload — keyed by lounge too, since
+ *  moving to a different lounge makes it a genuinely new invite to send. */
+const justInvitedBredrin = new Set<string>();
 
 function loadBredrins(rerender: () => void) {
   bredrinsLoading = true;
@@ -749,11 +776,43 @@ function bredrinsPanel(me: MyProfile, rerender: () => void): HTMLElement {
     for (const b of bredrinsList) {
       const line = el('div', 'person');
       line.append(el('span', undefined, b.username));
-      const where = b.lounge
-        ? loungeState.lounges.find((l) => l.id === b.lounge)?.name ?? 'a lounge'
-        : null;
-      line.append(el('span', 'muted small',
-        where ? `In ${where}` : b.lastSeen ? `Last seen ${timeAgo(b.lastSeen)}` : 'Never seen'));
+      const foundLounge = b.lounge ? loungeState.lounges.find((l) => l.id === b.lounge) : undefined;
+      if (foundLounge) {
+        // Jump straight to where they are — same navigation openLounge
+        // already does from the room list, just triggered from here instead.
+        const where = document.createElement('button');
+        where.className = 'link-plain small';
+        where.textContent = `In ${foundLounge.name}`;
+        where.onclick = () => void openLounge(foundLounge, rerender);
+        line.appendChild(where);
+      } else {
+        line.append(el('span', 'muted small',
+          b.lastSeen ? `Last seen ${timeAgo(b.lastSeen)}` : 'Never seen'));
+      }
+      if (loungeState.current) {
+        // "Tell them what room to join" — the active counterpart to seeing
+        // where they are. Only makes sense while standing in a lounge
+        // yourself, which is exactly when loungeState.current is set.
+        const here = loungeState.current;
+        const inviteKey = `${b.bredrinId}:${here.id}`;
+        const invite = document.createElement('button');
+        invite.className = 'act ghost small';
+        invite.textContent = justInvitedBredrin.has(inviteKey) ? 'Invited' : 'Invite here';
+        invite.disabled = justInvitedBredrin.has(inviteKey);
+        invite.onclick = () => void (async () => {
+          invite.disabled = true;
+          try {
+            await sendInvite(b.bredrinId, here.id);
+            justInvitedBredrin.add(inviteKey);
+          } catch (err) {
+            bredrinsError = err instanceof Error ? err.message : 'could not invite';
+            invite.disabled = false;
+          } finally {
+            rerender();
+          }
+        })();
+        line.appendChild(invite);
+      }
       const remove = document.createElement('button');
       remove.className = 'dismiss';
       remove.textContent = 'Remove';
@@ -905,6 +964,48 @@ function passwordRecoveryPanel(rerender: () => void): HTMLElement {
     }
   })();
   panel.appendChild(submit);
+  return panel;
+}
+
+/**
+ * "Come to this lounge" nudges from bredrins — the active counterpart to
+ * the bredrins list's passive "here is where they last were." Same
+ * not-a-modal posture as upgradePrompt below: this only ever renders inside
+ * loungesView's normal branch, which loungeState.onlineGame's early return
+ * already keeps off screen during a live hand, so there is nothing extra to
+ * gate here.
+ */
+function inviteBanner(invites: Invite[], rerender: () => void): HTMLElement {
+  const panel = el('div', 'panel upgrade-prompt');
+  panel.append(el('div', 'eyebrow', 'Your people'));
+  for (const invite of invites) {
+    const lounge = loungeState.lounges.find((l) => l.id === invite.loungeId);
+    const row = el('div', 'row');
+    row.append(el('p', undefined,
+      `${invite.fromUsername} wants you in ${lounge?.name ?? 'a lounge'}.`));
+    const join = document.createElement('button');
+    join.className = 'act';
+    join.textContent = 'Join';
+    join.onclick = () => void (async () => {
+      join.disabled = true;
+      loungeState.invites = loungeState.invites.filter((i) => i.id !== invite.id);
+      rerender();
+      try { await dismissInvite(invite.id); } catch { /* already gone either way */ }
+      if (lounge) await openLounge(lounge, rerender);
+    })();
+    row.appendChild(join);
+    const dismiss = document.createElement('button');
+    dismiss.className = 'act ghost small';
+    dismiss.textContent = 'Dismiss';
+    dismiss.onclick = () => void (async () => {
+      dismiss.disabled = true;
+      loungeState.invites = loungeState.invites.filter((i) => i.id !== invite.id);
+      rerender();
+      try { await dismissInvite(invite.id); } catch { /* fine, it will just resurface once */ }
+    })();
+    row.appendChild(dismiss);
+    panel.appendChild(row);
+  }
   return panel;
 }
 
@@ -1410,7 +1511,12 @@ export function loungesView(rerender: () => void, goToMembership: () => void): D
     }));
     return frag;
   }
-  return loungeState.current ? room(loungeState.current, rerender) : loungeList(rerender, goToMembership);
+  const body = loungeState.current ? room(loungeState.current, rerender) : loungeList(rerender, goToMembership);
+  if (loungeState.invites.length === 0) return body;
+  const frag = document.createDocumentFragment();
+  frag.appendChild(inviteBanner(loungeState.invites, rerender));
+  frag.appendChild(body);
+  return frag;
 }
 
 // --------------------------------------------------------- membership ----

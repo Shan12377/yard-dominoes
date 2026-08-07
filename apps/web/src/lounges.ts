@@ -608,6 +608,72 @@ export async function whereAreMyBredrins(): Promise<Bredrin[]> {
     .sort((a, b) => a.username.localeCompare(b.username));
 }
 
+// -------------------------------------------------------------- invites --
+// The active counterpart to the bredrins list above: "come to this lounge,"
+// not just "here is where they last were." See 0040_invites.sql — same VIP
+// gate as bredrins, and you can only invite someone already on your list.
+export interface Invite {
+  id: string;
+  fromUserId: string;
+  fromUsername: string;
+  loungeId: string;
+}
+
+/** Enforced again server-side (0040) — this call fails loudly for a Guest,
+ *  a Yardie, or anyone not already a bredrin, rather than pretending to work. */
+export async function sendInvite(toUserId: string, loungeId: string): Promise<void> {
+  const { data: auth } = await db().auth.getUser();
+  if (!auth.user) throw new Error('sign in first');
+  const { error } = await db().from('invites')
+    .insert({ from_user_id: auth.user.id, to_user_id: toUserId, lounge_id: loungeId });
+  if (error) throw new Error(error.message);
+}
+
+export async function pendingInvites(): Promise<Invite[]> {
+  const { data: auth } = await db().auth.getUser();
+  if (!auth.user) return [];
+  const { data, error } = await db().from('invites')
+    .select('id, from_user_id, lounge_id, profiles!invites_from_user_id_fkey(username)')
+    .eq('to_user_id', auth.user.id)
+    .order('created_at', { ascending: false });
+  if (error || !data) return [];
+  return (data as any[]).map((row) => ({
+    id: row.id as string,
+    fromUserId: row.from_user_id as string,
+    fromUsername: row.profiles?.username ?? 'a bredrin',
+    loungeId: row.lounge_id as string,
+  }));
+}
+
+/** Called on both "Join" and "Dismiss" — either way the nudge is consumed. */
+export async function dismissInvite(id: string): Promise<void> {
+  const { data: auth } = await db().auth.getUser();
+  if (!auth.user) throw new Error('sign in first');
+  const { error } = await db().from('invites').delete()
+    .eq('id', id).eq('to_user_id', auth.user.id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Fires `onInsert` whenever a new invite lands for the signed-in player,
+ * regardless of which lounge (or none) they are currently viewing — unlike
+ * `enterLounge`'s channel, this one is not scoped to a single room. Started
+ * once per session from `loadLounges`; RLS restricts delivery to this
+ * player's own rows even without the `filter`, but the filter avoids the
+ * server evaluating the policy against every insert on the table.
+ */
+export function watchInvites(onInsert: () => void): void {
+  void (async () => {
+    const { data: auth } = await db().auth.getUser();
+    if (!auth.user) return;
+    db().channel(`invites:${auth.user.id}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'invites', filter: `to_user_id=eq.${auth.user.id}` },
+        () => onInsert())
+      .subscribe();
+  })();
+}
+
 // -------------------------------------------------------------- coins --
 // Coins never cash out — money in, utility only. See
 // docs/superpowers/plans/2026-07-29-partner-feedback-roadmap.md,
