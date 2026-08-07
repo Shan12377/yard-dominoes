@@ -399,17 +399,14 @@ export function scoreTrack(
   }
   wrap.appendChild(pips);
 
-  if (score === 0) {
-    const note = document.createElement('div');
-    note.className = 'under-love';
-    note.textContent = 'under love';
-    wrap.appendChild(note);
-  } else if (max > 6) {
-    const note = document.createElement('div');
-    note.className = 'under-love';
-    note.textContent = String(score);
-    wrap.appendChild(note);
-  }
+  // Always render the number, not just above 6 points — mobile hides the
+  // pip track to keep the pinned scoreboard from crowding out the felt (see
+  // .sticky-scores in styles.css), so this is the only score readout left
+  // there for sixlove/first-to-six too, not just French.
+  const note = document.createElement('div');
+  note.className = 'under-love';
+  note.textContent = score === 0 ? 'under love' : String(score);
+  wrap.appendChild(note);
 
   // Reading the board is reading who's close to going out — this is the
   // one place that stays on screen the whole hand (the pinned scoreboard),

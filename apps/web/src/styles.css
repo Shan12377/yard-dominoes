@@ -772,6 +772,25 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   }
   .felt-slot { min-height: 0; }
 
+  /* The pinned scoreboard (see .sticky-scores, base rules) now stays on
+     screen through the whole hand, which is exactly what was asked for —
+     but at 188px tall on a 390-wide phone it was squeezing the felt down
+     to almost nothing, recreating the "can't see the board and my hand at
+     once" complaint the desktop/mobile redesigns already fixed once. Same
+     name/score/tile-count, one dense line per seat instead of a decorative
+     pip track plus three stacked lines — the number alone (scoreTrack()
+     now always renders it, not just above 6 points) carries the score. */
+  .sticky-scores { padding: 8px 12px; }
+  .sticky-scores .spread { margin-bottom: 4px; }
+  .sticky-scores .eyebrow { font-size: 10px; }
+  .sticky-scores .act.ghost.small { padding: 2px 8px; font-size: 11px; }
+  .sticky-scores .scoreboard { gap: 6px 16px; }
+  .sticky-scores .side-score { display: flex; align-items: baseline; gap: 6px; }
+  .sticky-scores .side-name { font-size: 11px; }
+  .sticky-scores .pips { display: none; }
+  .sticky-scores .under-love, .sticky-scores .tile-count { margin: 0; }
+  .sticky-scores .under-love::after { content: ' · '; color: var(--muted); }
+
   /* Compact horizontal strip: all seats in one glance, no tall cards. */
   .seat-slot-top, .seat-slot-left, .seat-slot-right, .seat-slot-bottom {
     min-width: 0;
