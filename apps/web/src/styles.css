@@ -122,10 +122,13 @@ h1 { font-size: clamp(28px, 6vw, 44px); line-height: 0.95; }
 h2 { font-size: 20px; }
 p { line-height: 1.55; }
 
+/* Used everywhere as the section-header label ("PLAY", "MEMBERSHIP", "YOUR
+   PLAY") — the single most-repeated small text in the app, so bumping it
+   once here is high-leverage: every panel on every screen reads easier. */
 .eyebrow {
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.18em;
+  font-size: 13px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -141,10 +144,15 @@ p { line-height: 1.55; }
 .brand h1 { font-family: var(--signage); font-size: 24px; color: var(--forest); }
 
 .nav { display: flex; flex-wrap: wrap; gap: 4px; }
+/* This is the single most-used control in the app — "where do I go to
+   play" — so it gets real body text at a real size, not the small
+   uppercase mono treatment (that face is reserved for data: scores,
+   counts, timers, per design.md). A tiny letter-spaced label reads as
+   secondary chrome; the nav is not secondary. */
 .nav button {
-  font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em;
-  text-transform: uppercase; background: none; border: 0;
-  color: var(--muted); padding: 8px 10px; cursor: pointer; border-radius: var(--r);
+  font-family: var(--body); font-size: 15px; font-weight: 700;
+  background: none; border: 0;
+  color: var(--muted); padding: 10px 14px; cursor: pointer; border-radius: var(--r);
 }
 .nav button[aria-current='true'] { color: var(--ink); background: rgba(36, 22, 8, 0.08); }
 .nav button:hover:not([aria-current='true']) { color: var(--ink); }
@@ -268,7 +276,7 @@ textarea { resize: vertical; font-weight: 500; }
 label.field { display: grid; gap: 6px; min-width: 0; }
 label.field > select, label.field > input { width: 100%; min-width: 0; }
 label.field > span {
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em;
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--muted);
 }
 
@@ -289,9 +297,11 @@ label.field > span {
   margin-bottom: 12px;
 }
 .side-score { display: grid; gap: 6px; }
+/* Whose score is whose — this is the pinned scoreboard, on screen for the
+   whole hand, so "who" needs to read at a glance, not be squinted at. */
 .side-name {
-  font-family: var(--mono); font-size: 11px;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  font-family: var(--mono); font-size: 13px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
 }
 .side-name.us { color: var(--gold-deep); }
 .pips { display: flex; gap: 5px; }
@@ -310,8 +320,10 @@ label.field > span {
   0% { background: var(--blood); box-shadow: 0 0 14px rgba(192, 57, 43, 0.7); }
   100% { background: var(--bone-shade); box-shadow: none; }
 }
-.under-love { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.tile-count { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+/* The actual number a player is racing against ("how much do I need to
+   lose") — this carries real weight now, not a footnote next to the pips. */
+.under-love { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--muted); }
+.tile-count { font-family: var(--mono); font-size: 14px; color: var(--muted); margin-top: 2px; }
 
 /* -------------------------------------------------------------- the board */
 .table-felt {
@@ -368,11 +380,11 @@ label.field > span {
    the point of .table-rail is that every section is already visible. */
 .rail-tabs { display: none; }
 .standings { display: grid; gap: 6px; margin-top: 4px; }
-.standing-row { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; }
-.standing-row .seat-score { font-size: 15px; }
+.standing-row { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
+.standing-row .seat-score { font-size: 16px; }
 
 .move-log { display: grid; gap: 4px; max-height: 300px; overflow-y: auto; }
-.move-log-line { font-size: 13px; }
+.move-log-line { font-size: 14.5px; }
 
 /* renderBoard() in render.ts sets grid-template-columns/rows and each tile's
    grid-column/grid-row as inline styles — the line snakes around the felt
@@ -487,8 +499,10 @@ label.field > span {
   display: block; font-family: var(--mono); font-size: 10px;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
 }
-.seat h3 { font-size: 14px; font-family: var(--body); font-weight: 800; }
-.seat .meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.seat h3 { font-size: 15px; font-family: var(--body); font-weight: 800; }
+/* "How many tiles does everyone have left" is core information a player
+   reads constantly to decide how to play — it was sized like a footnote. */
+.seat .meta { font-family: var(--mono); font-size: 13px; color: var(--muted); }
 .seat .seat-score {
   font-family: var(--mono); font-variant-numeric: tabular-nums;
   font-size: 18px; font-weight: 700; color: var(--gold-deep);
@@ -652,8 +666,10 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 .belt.open { border-color: var(--gold); }
 .lesson { padding: 12px 0; border-top: 1px solid rgba(36, 22, 8, 0.10); }
-.lesson h3 { font-family: var(--body); font-weight: 800; font-size: 14px; margin-bottom: 4px; }
-.lesson p { margin: 0; font-size: 13.5px; color: var(--muted); }
+.lesson h3 { font-family: var(--body); font-weight: 800; font-size: 16px; margin-bottom: 4px; }
+/* Academy content is the app teaching someone the game from zero — it has
+   to read easily, not just fit. */
+.lesson p { margin: 0; font-size: 15.5px; color: var(--muted); line-height: 1.5; }
 .terms { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
 .terms span {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
@@ -748,8 +764,8 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 .lounge-card:hover { border-color: var(--gold-deep); }
 .lounge-card.locked { opacity: 0.6; cursor: default; }
-.lounge-card h3 { font-family: var(--body); font-weight: 800; font-size: 15px; }
-.lounge-card .desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.lounge-card h3 { font-family: var(--body); font-weight: 800; font-size: 16px; }
+.lounge-card .desc { font-size: 14.5px; color: var(--muted); margin-top: 2px; }
 .gate {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
   text-transform: uppercase; padding: 3px 8px; border-radius: 99px;
@@ -825,8 +841,8 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   display: grid; gap: 8px; max-height: 340px; overflow-y: auto;
   padding-right: 6px; scrollbar-width: thin;
 }
-.chat-msg { font-size: 13.5px; line-height: 1.45; }
-.chat-msg .who { font-family: var(--mono); font-size: 11px; color: var(--ink); margin-right: 6px; }
+.chat-msg { font-size: 15px; line-height: 1.45; }
+.chat-msg .who { font-family: var(--mono); font-size: 12px; color: var(--ink); margin-right: 6px; }
 .chat-msg .when { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: 6px; }
 .chat-form { display: flex; gap: 8px; margin-top: 10px; }
 .chat-form input { flex: 1; }
@@ -996,7 +1012,7 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 .tier-card.vip .price { color: var(--gold-deep); }
 .tier-card .price { font-family: var(--display); font-size: 22px; color: var(--ink); }
 .tier-card ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
-.tier-card li { font-size: 13px; color: var(--muted); }
+.tier-card li { font-size: 14.5px; color: var(--muted); }
 .offline-note {
   border: 1px dashed rgba(36, 22, 8, 0.28); border-radius: var(--r);
   padding: 14px; font-size: 13.5px; color: var(--muted);
