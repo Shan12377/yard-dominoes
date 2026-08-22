@@ -177,6 +177,43 @@ export function avatarUrl(avatar: Avatar): string {
   return `/avatars/${avatar}.webp`;
 }
 
+export type AvatarAccessory = 'shades' | 'crown' | 'flower' | 'headphones' | 'flagpin';
+
+export const AVATAR_ACCESSORIES: AvatarAccessory[] = [
+  'shades', 'crown', 'flower', 'headphones', 'flagpin',
+];
+
+export const AVATAR_ACCESSORY_LABEL: Record<AvatarAccessory, string> = {
+  shades: 'Black shades',
+  crown: 'Gold crown',
+  flower: 'Pink flower',
+  headphones: 'Teal headphones',
+  flagpin: 'Jamaica flag pin',
+};
+
+export function avatarAccessoryUrl(accessory: AvatarAccessory): string {
+  return `/accessories/${accessory}.svg`;
+}
+
+const LOCAL_ACCESSORY_PREFIX = 'yard:avatar-accessory:';
+/** Set only after migration 0043 is applied to the connected Supabase project. */
+const SHARE_AVATAR_ACCESSORIES = import.meta.env.VITE_AVATAR_ACCESSORIES_DB === 'true';
+
+function localAccessory(userId: string): AvatarAccessory | null {
+  const value = localStorage.getItem(`${LOCAL_ACCESSORY_PREFIX}${userId}`);
+  return AVATAR_ACCESSORIES.includes(value as AvatarAccessory)
+    ? value as AvatarAccessory
+    : null;
+}
+
+function missingAccessoryColumn(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(error && (
+    error.code === '42703'
+    || error.code === 'PGRST204'
+    || error.message?.includes('avatar_accessory')
+  ));
+}
+
 /**
  * Cosmetic yard-scene backdrop, worn behind a seat card — plan §7.1. Purely
  * decorative, no new real-time infra, generated once by `gen_backgrounds.py`.
@@ -205,6 +242,7 @@ export interface MyProfile {
   origin: Origin | null;
   gender: Gender | null;
   avatar: Avatar | null;
+  avatarAccessory: AvatarAccessory | null;
   background: Background | null;
   /**
    * Runs tournaments. Read here only to decide whether to draw the host
@@ -227,9 +265,16 @@ export interface MyProfile {
 export async function myProfile(): Promise<MyProfile | null> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) return null;
-  const { data } = await db().from('profiles')
-    .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin, location')
+  let { data, error } = await (db().from('profiles') as any)
+    .select(SHARE_AVATAR_ACCESSORIES
+      ? 'id, username, tier, tier_expires_at, origin, gender, avatar, avatar_accessory, background, is_host, is_admin, location'
+      : 'id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin, location')
     .eq('id', auth.user.id).single();
+  if (missingAccessoryColumn(error)) {
+    ({ data, error } = await (db().from('profiles') as any)
+      .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin, location')
+      .eq('id', auth.user.id).single());
+  }
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
   return {
@@ -239,6 +284,7 @@ export async function myProfile(): Promise<MyProfile | null> {
     origin: (data.origin ?? null) as Origin | null,
     gender: (data.gender ?? null) as Gender | null,
     avatar: (data.avatar ?? null) as Avatar | null,
+    avatarAccessory: ((data as any).avatar_accessory ?? localAccessory(auth.user.id)) as AvatarAccessory | null,
     background: (data.background ?? null) as Background | null,
     isHost: Boolean(data.is_host),
     isAdmin: Boolean(data.is_admin),
@@ -255,6 +301,7 @@ export interface PublicProfile {
   tier: Tier;
   origin: Origin | null;
   avatar: Avatar | null;
+  avatarAccessory: AvatarAccessory | null;
   location: string | null;
   createdAt: string;
   ratingPartner: number;
@@ -267,11 +314,21 @@ export interface PublicProfile {
 }
 
 export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
-  const { data } = await db().from('profiles')
-    .select(`id, username, tier, tier_expires_at, origin, avatar, location, created_at,
-      rating_partner, rating_cutthroat, rd_partner, rd_cutthroat,
-      hands_played, six_loves_given, six_loves_taken`)
+  const publicColumns = SHARE_AVATAR_ACCESSORIES
+    ? `id, username, tier, tier_expires_at, origin, avatar, avatar_accessory, location, created_at,
+      rating_partner, rating_cutthroat, rd_partner, rd_cutthroat, hands_played, six_loves_given, six_loves_taken`
+    : `id, username, tier, tier_expires_at, origin, avatar, location, created_at,
+      rating_partner, rating_cutthroat, rd_partner, rd_cutthroat, hands_played, six_loves_given, six_loves_taken`;
+  let { data, error } = await (db().from('profiles') as any)
+    .select(publicColumns)
     .eq('id', userId).single();
+  if (missingAccessoryColumn(error)) {
+    ({ data, error } = await (db().from('profiles') as any)
+      .select(`id, username, tier, tier_expires_at, origin, avatar, location, created_at,
+        rating_partner, rating_cutthroat, rd_partner, rd_cutthroat,
+        hands_played, six_loves_given, six_loves_taken`)
+      .eq('id', userId).single());
+  }
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
   return {
@@ -280,6 +337,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     tier: (expired ? 'guest' : data.tier) as Tier,
     origin: (data.origin ?? null) as Origin | null,
     avatar: (data.avatar ?? null) as Avatar | null,
+    avatarAccessory: ((data as any).avatar_accessory ?? localAccessory(userId)) as AvatarAccessory | null,
     location: (data.location ?? null) as string | null,
     createdAt: data.created_at,
     ratingPartner: data.rating_partner,
@@ -304,7 +362,8 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
 export async function saveProfile(
   patch: {
     username?: string; origin?: Origin | null; gender?: Gender | null;
-    avatar?: Avatar | null; background?: Background | null; location?: string | null;
+    avatar?: Avatar | null; avatar_accessory?: AvatarAccessory | null;
+    background?: Background | null; location?: string | null;
   },
 ): Promise<void> {
   const { data: auth } = await db().auth.getUser();
@@ -321,7 +380,17 @@ export async function saveProfile(
     if (loc && loc.length > 60) throw new Error('Location is a bit long — 60 characters max');
     patch = { ...patch, location: loc };
   }
-  const { error } = await db().from('profiles').update(patch).eq('id', auth.user.id);
+  const accessory = patch.avatar_accessory;
+  const dbPatch = SHARE_AVATAR_ACCESSORIES
+    ? patch
+    : (({ avatar_accessory: _localOnly, ...rest }) => rest)(patch);
+  let { error } = await db().from('profiles').update(dbPatch).eq('id', auth.user.id);
+  if (missingAccessoryColumn(error)) {
+    const { avatar_accessory: _unsupported, ...compatiblePatch } = patch;
+    ({ error } = await db().from('profiles').update(compatiblePatch).eq('id', auth.user.id));
+  }
+  if (accessory) localStorage.setItem(`${LOCAL_ACCESSORY_PREFIX}${auth.user.id}`, accessory);
+  else localStorage.removeItem(`${LOCAL_ACCESSORY_PREFIX}${auth.user.id}`);
   if (error) {
     // 23505 is the unique violation on username. Everything else is ours.
     throw new Error(error.code === '23505'

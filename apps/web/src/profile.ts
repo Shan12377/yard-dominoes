@@ -13,9 +13,10 @@ import { el } from './render.ts';
 import { photoUrl, uploadMyPhoto, removeMyPhoto } from './photo.ts';
 import {
   saveProfile, myProfile, TIER_PITCH, AVATARS, AVATAR_LABEL, avatarUrl,
+  AVATAR_ACCESSORIES, AVATAR_ACCESSORY_LABEL, avatarAccessoryUrl,
   BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl, myCoinBalance, buyCoins, COIN_PACK_LABEL,
 } from './lounges.ts';
-import type { Avatar, Background, Gender, MyProfile, Origin } from './lounges.ts';
+import type { Avatar, AvatarAccessory, Background, Gender, MyProfile, Origin } from './lounges.ts';
 import {
   listReports, resolveReport, dismissReport, listAdmins, grantAdmin, revokeAdmin,
 } from './reports.ts';
@@ -39,14 +40,30 @@ export function timeAgo(iso: string): string {
 
 /** The circular portrait worn on a seat. Alt text names the character, not
  *  the filename — a screen reader should hear "gold head-wrap", not "wrap". */
-export function avatarImg(avatar: Avatar, alt = ''): HTMLImageElement {
+export function avatarImg(
+  avatar: Avatar,
+  alt = '',
+  accessory: AvatarAccessory | null = null,
+): HTMLElement {
+  const shell = document.createElement('span');
+  shell.className = 'avatar-shell';
   const img = document.createElement('img');
   img.className = 'avatar';
   img.src = avatarUrl(avatar);
   img.alt = alt;
   img.width = 32;
   img.height = 32;
-  return img;
+  shell.appendChild(img);
+  if (accessory) {
+    const flair = document.createElement('img');
+    flair.className = 'avatar-accessory';
+    flair.src = avatarAccessoryUrl(accessory);
+    flair.alt = '';
+    flair.width = 22;
+    flair.height = 22;
+    shell.appendChild(flair);
+  }
+  return shell;
 }
 
 // ----------------------------------------------------------------- photo --
@@ -553,8 +570,17 @@ export function profilePanel(
 
   panel.append(el('label', 'field-label', 'Presence (optional)'));
   panel.append(el('p', 'muted small',
-    'Pick one face for your seat. You can change it whenever you like.'));
+    'Pick a face, then make it yours with one accessory. Change either anytime.'));
   let avatar: Avatar | null = me.avatar;
+  let avatarAccessory: AvatarAccessory | null = me.avatarAccessory;
+  const lookPreview = el('div', 'avatar-look-preview');
+  const paintLook = () => {
+    lookPreview.replaceChildren();
+    if (avatar) lookPreview.appendChild(avatarImg(avatar, '', avatarAccessory));
+    else lookPreview.append(el('span', 'muted small', 'Choose a face'));
+  };
+  paintLook();
+  panel.appendChild(lookPreview);
   const avatarCaption = el('p', 'muted small', avatar ? AVATAR_LABEL[avatar] : 'None chosen');
   const avatarGrid = el('div', 'avatar-grid');
   const paintAvatars = () => {
@@ -570,11 +596,49 @@ export function profilePanel(
     btn.dataset.value = id;
     btn.setAttribute('aria-label', AVATAR_LABEL[id]);
     btn.appendChild(avatarImg(id));
-    btn.onclick = () => { avatar = avatar === id ? null : id; paintAvatars(); };
+    btn.onclick = () => {
+      avatar = avatar === id ? null : id;
+      paintAvatars();
+      paintLook();
+    };
     avatarGrid.appendChild(btn);
   }
   paintAvatars();
   panel.append(avatarGrid, avatarCaption);
+
+  panel.append(el('label', 'field-label', 'Accessory (optional)'));
+  const accessoryCaption = el('p', 'muted small',
+    avatarAccessory ? AVATAR_ACCESSORY_LABEL[avatarAccessory] : 'No accessory');
+  const accessoryGrid = el('div', 'accessory-grid');
+  const paintAccessories = () => {
+    for (const btn of Array.from(accessoryGrid.children) as HTMLButtonElement[]) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.value === avatarAccessory));
+    }
+    accessoryCaption.textContent = avatarAccessory
+      ? AVATAR_ACCESSORY_LABEL[avatarAccessory]
+      : 'No accessory';
+  };
+  for (const id of AVATAR_ACCESSORIES) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'accessory-choice';
+    btn.dataset.value = id;
+    btn.setAttribute('aria-label', AVATAR_ACCESSORY_LABEL[id]);
+    const img = document.createElement('img');
+    img.src = avatarAccessoryUrl(id);
+    img.alt = '';
+    img.width = 34;
+    img.height = 34;
+    btn.appendChild(img);
+    btn.onclick = () => {
+      avatarAccessory = avatarAccessory === id ? null : id;
+      paintAccessories();
+      paintLook();
+    };
+    accessoryGrid.appendChild(btn);
+  }
+  paintAccessories();
+  panel.append(accessoryGrid, accessoryCaption);
 
   panel.append(el('label', 'field-label', 'Seat backdrop (optional)'));
   panel.append(el('p', 'muted small',
@@ -618,7 +682,10 @@ export function profilePanel(
     profileError = null;
     rerender();
     try {
-      await saveProfile({ username: name.value, origin, gender, avatar, background, location: location.value });
+      await saveProfile({
+        username: name.value, origin, gender, avatar,
+        avatar_accessory: avatarAccessory, background, location: location.value,
+      });
       // Re-read rather than patching the local copy: the server is the only
       // thing that knows whether the name was actually accepted. Null here
       // means the session died between the save and this re-read — too

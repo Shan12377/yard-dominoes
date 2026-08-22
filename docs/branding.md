@@ -109,6 +109,8 @@ these files from an unrelated prompt or substitute Yaadmoji artwork.
 - `apps/web/public/yaaddominoes-social.png` — 1200×630 social card
 - `apps/web/public/avatars/` — twelve 256px human portrait WebPs; source and
   inventory live in `docs/avatar-set.md`
+- `apps/web/public/accessories/` — five composable local SVG flair layers;
+  together with “none,” these turn the twelve portraits into 72 quick looks
 - `apps/web/public/marketing/` — three generated social-play scenes used only
   on marketing/onboarding surfaces, never behind a live board
 

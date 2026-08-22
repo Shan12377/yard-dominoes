@@ -1,9 +1,10 @@
 # YaadDominoes avatar collection
 
-The first collection is twelve Jamaican human portraits, chosen quickly from
-the profile editor. Deep face customization is deliberately deferred. The set
-varies age, gender presentation, skin tone, hair, accessories, and expression
-without turning Jamaican identity into costume.
+The first collection is twelve Jamaican human portraits plus one optional
+accessory layer, chosen quickly from the profile editor. This creates 72 clear
+looks (12 faces × six accessory states, including none) without turning setup
+into a complicated face builder. The set varies age, gender presentation, skin
+tone, hair, and expression without turning Jamaican identity into costume.
 
 ## Art direction
 
@@ -42,3 +43,15 @@ save those four choices.
 
 Store an id, never a URL. `apps/web/public/avatars/<id>.webp` is the only
 rendering path; the database check prevents arbitrary remote-image tracking.
+
+## Accessory layer
+
+The optional ids are `shades`, `crown`, `flower`, `headphones`, and `flagpin`.
+They render from small transparent SVGs in `apps/web/public/accessories/` as a
+corner flair over the portrait, so one asset works reliably across every face
+and at 32px seat-card size. Migration `0043_avatar_accessories.sql` adds the
+checked `profiles.avatar_accessory` column. Apply migrations 0042 and 0043
+before setting `VITE_AVATAR_ACCESSORIES_DB=true`. With the flag off, flair is
+stored as a local preference so the editor remains usable against the current
+schema without breaking profiles or lounges; the shared seat-card layer turns
+on only after the migration lands.

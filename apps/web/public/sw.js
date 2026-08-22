@@ -12,7 +12,7 @@
  *     network.
  */
 
-const VERSION = 'yaaddominoes-v57';
+const VERSION = 'yaaddominoes-v58';
 const SHELL = `${VERSION}-shell`;
 
 // Bumping VERSION invalidates everything below.
@@ -26,6 +26,11 @@ const PRECACHE = [
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',
   '/icons/favicon.ico',
+  '/accessories/shades.svg',
+  '/accessories/crown.svg',
+  '/accessories/flower.svg',
+  '/accessories/headphones.svg',
+  '/accessories/flagpin.svg',
   // The table's own noise. Precached rather than left to the runtime cache
   // because a knock fetched on first play arrives after the tile has already
   // landed — and offline, it would never arrive at all. ~180 KB for all three.

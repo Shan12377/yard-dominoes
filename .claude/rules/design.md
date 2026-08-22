@@ -133,13 +133,16 @@ the playable chain.
 
 The first player collection is twelve human Jamaican portraits. It must vary
 age, skin tone, gender presentation, hair and accessories while staying one
-cohesive editorial illustration system. Selection is intentionally quick;
-deep face customization is a later product decision.
+cohesive editorial illustration system. Selection is intentionally quick: one
+face plus at most one small local accessory layer. Deep facial customization
+remains deferred.
 
 The canonical inventory and generation source are in `docs/avatar-set.md`.
 Production crops are 256px WebP files in `apps/web/public/avatars/`. Existing
 ids are stable profile data and must not be renamed. Regenerate the whole sheet
 if the style changes; never splice in one visibly different character.
+Accessory SVGs live in `apps/web/public/accessories/`; they remain corner flair
+so the same layer aligns across all faces and stays legible at seat-card size.
 
 Never use a real person's likeness for a generated avatar. Human players may
 upload their own photo through the separate photo path.
@@ -199,3 +202,6 @@ easiest to see.
   side rail is allowed only when the board still has genuinely generous space.
 - The player's hand stays in one horizontal, scrollable row so larger hands do
   not wrap into a tall block or shrink the bones below comfortable tap size.
+- Off-board tiles belonging to another player never render, not even as
+  face-down backs. Their seat shows a numeric count only. Across may render
+  both hands because one signed-in player controls both seats.

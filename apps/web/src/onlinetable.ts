@@ -51,8 +51,10 @@ export interface SeatInfo {
   username: string | null;
   /** 'yardie' | 'foreign' | null — self-declared, never inferred. */
   origin: string | null;
-  /** One of the eight ids in docs/avatar-set.md, or null for no character. */
+  /** One of the curated ids in docs/avatar-set.md, or null for no character. */
   avatar: string | null;
+  /** Optional cosmetic layer drawn over the preset avatar. */
+  avatarAccessory: string | null;
   /** One of midday/evening/rain, or null for the plain seat card. */
   background: string | null;
   duppyLevel: string | null;
@@ -74,6 +76,9 @@ function db() {
   if (!supabase) throw new Error('online mode needs Supabase configured');
   return supabase;
 }
+
+/** Enabled only after migration 0043 reaches the connected project. */
+const SHARE_AVATAR_ACCESSORIES = import.meta.env.VITE_AVATAR_ACCESSORIES_DB === 'true';
 
 export class OnlineGame {
   table: TableInfo;
@@ -102,12 +107,8 @@ export class OnlineGame {
    */
   predictedPartnerTiles: TileId[] | null = null;
   /**
-   * The partner's tiles, when the mode grants sight of them. Populated for
-   * `mode === 'openhand'` (read-only) and `mode === 'across'` (the second
-   * seat this same player also plays), only when the player is seated (a
-   * spectator gets nothing extra). Null in every other case, so a bare read
-   * while rendering a partner or cutthroat table returns nothing to display
-   * rather than an accidental peek.
+   * The second hand in Across, where this same signed-in player controls both
+   * seats. Null in every other mode; another person's tiles are never loaded.
    */
   partnerTiles: TileId[] | null = null;
 
@@ -366,6 +367,7 @@ export class OnlineGame {
    */
   private names = new Map<string, {
     username: string; origin: string | null; avatar: string | null;
+    avatarAccessory: string | null;
     background: string | null; rating: number | null; avgMoveMs: number | null;
     fetchedAt: number;
   }>();
@@ -377,6 +379,7 @@ export class OnlineGame {
       username: s.user_id ? this.names.get(s.user_id)?.username ?? null : null,
       origin: s.user_id ? this.names.get(s.user_id)?.origin ?? null : null,
       avatar: s.user_id ? this.names.get(s.user_id)?.avatar ?? null : null,
+      avatarAccessory: s.user_id ? this.names.get(s.user_id)?.avatarAccessory ?? null : null,
       background: s.user_id ? this.names.get(s.user_id)?.background ?? null : null,
       rating: s.user_id ? this.names.get(s.user_id)?.rating ?? null : null,
       avgMoveMs: s.user_id ? this.names.get(s.user_id)?.avgMoveMs ?? null : null,
@@ -400,9 +403,16 @@ export class OnlineGame {
     const due = staleUserIds(this.seats.map((s) => s.userId), this.names, now);
     if (due.length === 0) return;
     const ratingColumn = this.ratingColumn();
-    const { data } = await db().from('profiles')
-      .select(`id, username, origin, avatar, background, total_move_ms, total_moves, ${ratingColumn}`)
+    let { data, error } = await (db().from('profiles') as any)
+      .select(SHARE_AVATAR_ACCESSORIES
+        ? `id, username, origin, avatar, avatar_accessory, background, total_move_ms, total_moves, ${ratingColumn}`
+        : `id, username, origin, avatar, background, total_move_ms, total_moves, ${ratingColumn}`)
       .in('id', due);
+    if (error && (error.code === '42703' || error.code === 'PGRST204' || error.message.includes('avatar_accessory'))) {
+      ({ data, error } = await (db().from('profiles') as any)
+        .select(`id, username, origin, avatar, background, total_move_ms, total_moves, ${ratingColumn}`)
+        .in('id', due));
+    }
     if (!data?.length) return;
     for (const row of data) {
       const totalMoves = (row.total_moves ?? 0) as number;
@@ -410,6 +420,7 @@ export class OnlineGame {
         username: row.username as string,
         origin: (row.origin ?? null) as string | null,
         avatar: (row.avatar ?? null) as string | null,
+        avatarAccessory: (row.avatar_accessory ?? null) as string | null,
         background: (row.background ?? null) as string | null,
         rating: ((row as any)[ratingColumn] ?? null) as number | null,
         avgMoveMs: totalMoves > 0 ? (row.total_move_ms as number) / totalMoves : null,
@@ -421,6 +432,7 @@ export class OnlineGame {
       return known
         ? {
             ...s, username: known.username, origin: known.origin, avatar: known.avatar,
+            avatarAccessory: known.avatarAccessory,
             background: known.background, rating: known.rating, avgMoveMs: known.avgMoveMs,
           }
         : s;
@@ -493,17 +505,15 @@ export class OnlineGame {
         this.emit({ type: 'state' });
       },
       onSeatTiles: (handId, seatIndex, tiles) => {
-        // RLS decides which seat_hands rows reach me: my own always, and my
-        // partner's when the mode is openhand OR across (across's partner
-        // row is populated because it carries MY OWN user_id, not a special
-        // policy — see 0041_across.sql). Route by seat_index — writing
+        // RLS decides which seat_hands rows reach me: my own always. Across's
+        // second row also carries MY OWN user_id (see 0041_across.sql). Route
+        // by seat_index — writing
         // partner tiles into `myTiles` is the bug this callback shape exists
         // to make impossible. A row I do not recognise gets dropped.
         if (handId !== this.hand?.hand_id) return;
         if (seatIndex === this.mySeat) {
           this.myTiles = tiles;
-        } else if (seatIndex === this.partnerSeat()
-          && (this.table.mode === 'openhand' || this.table.mode === 'across')) {
+        } else if (seatIndex === this.partnerSeat() && this.table.mode === 'across') {
           this.partnerTiles = tiles;
         } else {
           return;
@@ -576,13 +586,9 @@ export class OnlineGame {
   }
 
   /**
-   * Read this seat's tiles — and, in openhand or across, the partner's
-   * tiles too.
+   * Read this player's tiles — both controlled seats only in Across.
    *
-   * One round trip, not two: the extended seat_hands RLS in 0016 lets both
-   * rows come back from a single `.in('seat_index', [me, partner])`, so a
-   * partner-open table pays no extra network cost over an ordinary partner
-   * table. Across needs no RLS extension at all for this — both rows already
+   * One round trip, not two. Across needs no RLS extension — both rows already
    * carry the same account's own user_id, so the baseline "your own tiles
    * only" policy already returns both. A seat not covered by RLS is simply
    * not returned; there is no client-side filtering step that could be wrong.
@@ -590,7 +596,7 @@ export class OnlineGame {
   private async loadPrivateTiles(handId: string): Promise<void> {
     if (this.mySeat === null) return;
     const partner = this.partnerSeat();
-    const wantsBothSeats = (this.table.mode === 'openhand' || this.table.mode === 'across') && partner !== null;
+    const wantsBothSeats = this.table.mode === 'across' && partner !== null;
     const seats = wantsBothSeats ? [this.mySeat, partner!] : [this.mySeat];
     const { data } = await db().from('seat_hands').select('seat_index, tiles')
       .eq('hand_id', handId).in('seat_index', seats);

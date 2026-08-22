@@ -683,7 +683,7 @@ function playerProfileCard(rerender: () => void): HTMLElement {
     img.onerror = () => { img.style.display = 'none'; };
     head.appendChild(img);
   } else if (p.avatar) {
-    head.appendChild(avatarImg(p.avatar, ''));
+    head.appendChild(avatarImg(p.avatar, '', p.avatarAccessory));
   }
   const names = el('div');
   names.append(el('h2', undefined, p.username));

@@ -500,6 +500,12 @@ Everything below is live and verified, not just written:
 - Player avatars are now one cohesive twelve-person Jamaican portrait set.
   Source sheet, ids and art rules live in `docs/avatar-set.md`; production WebPs
   live in `apps/web/public/avatars/`.
+- A focused accessory layer now adds shades, crown, flower, headphones or a
+  Jamaica pin to any portrait, producing 72 combinations without a slow face
+  builder. Migration `0043_avatar_accessories.sql` must land before that field
+  is saved or queried in production; keep `VITE_AVATAR_ACCESSORIES_DB=false`
+  until then. The client keeps the choice locally while that flag is off and
+  deliberately avoids querying a missing column.
 - Migration `0042_avatar_collection.sql` widens the profile constraint for the
   four new ids. It must be applied before a deployed client is allowed to save
   `afro`, `braids`, `twists` or `goldtooth`; the original eight ids remain
@@ -515,6 +521,15 @@ Everything below is live and verified, not just written:
 - Phone rules keep chat/watchers/standings/log/profile below the table up to
   1100px, enlarge the playable hand to 44×88px on normal phones, and reserve
   56svh for the felt where height permits.
+- Hidden-hand display is now a seventh product invariant: only off-board tiles
+  controlled by the viewer render. Every other seat shows a numeric count—no
+  face-up pips and no face-down bone silhouettes. Open-hand is no longer
+  offered for new practice or online tables; Across still shows both hands
+  because the same signed-in player controls both.
+- Browser QA at 390×844 confirmed the live practice table renders exactly one
+  face-up seven-bone hand (“Your play”); the other three seats show only “7
+  tiles.” The local production preview also loaded with zero new console errors
+  after the pre-migration accessory fallback was added.
 - Browser QA completed a real four-player practice hand through all 24 played
   bones at 390×844, then rechecked 320×568 and 430×932. The board did not
   overflow in either axis, the hand remained below the felt, the final bone

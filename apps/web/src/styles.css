@@ -612,20 +612,6 @@ label.field > span {
   font-size: 18px; font-weight: 700; color: var(--gold-deep);
   margin-top: 2px;
 }
-.backs { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
-/* A face-down tile, same object language as .tile (top-light gradient, a
-   darker bottom edge for thickness, a soft shadow) — a blank domino lying
-   on the table, not an abstract tick. Sized up from the old 9x18px ticks
-   specifically because they read as too small/abstract to recognize as
-   tiles at a glance; this keeps .tile's 1:2 proportion at roughly double
-   the visual weight. */
-.backs i {
-  width: 18px; height: 36px; border-radius: 4px; display: block;
-  background: linear-gradient(168deg, var(--wood-hi), var(--wood) 70%);
-  box-shadow:
-    0 3px 0 rgba(36, 22, 8, 0.55),
-    0 4px 6px rgba(0, 0, 0, 0.35);
-}
 .passed { color: var(--blood); font-family: var(--mono); font-size: 11px; }
 
 .seat .report { margin-top: 8px; }
@@ -1136,6 +1122,22 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   border: 2px solid var(--bone-shade);
   box-shadow: 0 1px 3px rgba(36, 22, 8, 0.35);
 }
+.avatar-shell {
+  position: relative; display: inline-grid; place-items: center;
+  width: max-content; height: max-content; flex: none; line-height: 0;
+}
+.avatar-accessory {
+  position: absolute; width: 46%; height: 46%; right: -12%; bottom: -10%;
+  object-fit: contain; filter: drop-shadow(0 2px 1px rgba(5, 20, 30, .4));
+  pointer-events: none;
+}
+.avatar-look-preview {
+  min-height: 86px; display: flex; align-items: center; justify-content: center;
+  margin: 4px 0 12px; padding: 10px;
+  background: linear-gradient(135deg, rgba(18, 180, 171, .16), rgba(67, 199, 244, .1));
+  border: 1px solid rgba(67, 199, 244, .3); border-radius: 18px;
+}
+.avatar-look-preview .avatar { width: 68px; height: 68px; object-fit: cover; }
 .avatar-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
   gap: 10px; margin-bottom: 6px;
@@ -1148,6 +1150,21 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 .avatar-choice .avatar { width: 44px; height: 44px; object-fit: cover; }
 .avatar-choice[aria-pressed='true'] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-hi); }
 .avatar-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+.accessory-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, 48px);
+  gap: 10px; margin-bottom: 6px;
+}
+.accessory-choice {
+  width: 48px; height: 48px; display: grid; place-items: center; padding: 7px;
+  cursor: pointer; background: rgba(19, 131, 164, .12); border-radius: 14px;
+  border: 2px solid rgba(67, 199, 244, .35);
+}
+.accessory-choice img { width: 34px; height: 34px; object-fit: contain; }
+.accessory-choice[aria-pressed='true'] {
+  border-color: var(--gold); background: rgba(255, 212, 71, .18);
+  box-shadow: 0 0 0 2px var(--gold-hi);
+}
+.accessory-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 
 /* A real uploaded photo — same circular treatment as .avatar, larger, and
    object-fit as a safety net even though photo.ts already center-crops to a
