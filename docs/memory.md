@@ -505,8 +505,9 @@ Everything below is live and verified, not just written:
   `afro`, `braids`, `twists` or `goldtooth`; the original eight ids remain
   backward compatible.
 - Marketing photography is generated artwork, not customer testimony. The
-  three scenes live under `apps/web/public/marketing/`, load lazily below the
-  play controls, and never appear in a live game.
+  three scenes live under `apps/web/public/marketing/`, load only when their
+  section enters the viewport below the play controls, and never appear in a
+  live game.
 - The live-table signature is now: quick placement settle + recorded knock,
   animated pass card + spoken response, spinning final bone + felt impact, and
   dedicated six-love motion/sound. The global reduced-motion rule preserves
@@ -514,6 +515,23 @@ Everything below is live and verified, not just written:
 - Phone rules keep chat/watchers/standings/log/profile below the table up to
   1100px, enlarge the playable hand to 44×88px on normal phones, and reserve
   56svh for the felt where height permits.
+- Browser QA completed a real four-player practice hand through all 24 played
+  bones at 390×844, then rechecked 320×568 and 430×932. The board did not
+  overflow in either axis, the hand remained below the felt, the final bone
+  used the spin/impact treatment, and the twelve-avatar picker stayed within
+  the phone viewport.
+- Verified preview branch: `design/yaaddominoes-foundation`. The Vercel Git
+  integration deployed it only to project `yard-dominoes` (not the separate
+  `yaadmoji-soundbites` project); production and `main` remain untouched. The
+  stable branch preview is
+  `https://yard-dominoes-git-design-yaaddom-deaf0a-yaadmoji-5201s-projects.vercel.app`.
+- Final post-seven-gate mobile Lighthouse measured **95 performance, 100
+  accessibility, 100 best practices, 100 SEO** (FCP 1.2s, LCP 1.9s, TBT 140ms,
+  CLS 0). The audit showed that below-fold marketing images were still fetched
+  several viewports early by native lazy loading, so they were changed to an
+  IntersectionObserver visibility gate afterward. A repeat audit was blocked
+  by the local runner's network/socket permission limit; do not claim the
+  optimized build is 100 until a fresh production-preview run proves it.
 
 ## Open threads not yet in a phase
 

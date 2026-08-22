@@ -522,6 +522,7 @@ function brandStories(): HTMLElement {
   intro.querySelector('h2')!.id = 'brand-stories-title';
 
   const cards = el('div', 'brand-story-grid');
+  const deferredImages: HTMLImageElement[] = [];
   const stories = [
     {
       src: '/marketing/veranda-game.webp',
@@ -546,18 +547,39 @@ function brandStories(): HTMLElement {
     const figure = document.createElement('figure');
     figure.className = 'brand-story';
     const image = document.createElement('img');
-    image.src = story.src;
+    image.dataset.src = story.src;
     image.alt = story.alt;
     image.width = 1280;
     image.height = 720;
     image.loading = 'lazy';
     image.decoding = 'async';
+    deferredImages.push(image);
     const caption = document.createElement('figcaption');
     caption.append(el('h3', undefined, story.title), el('p', undefined, story.copy));
     figure.append(image, caption);
     cards.appendChild(figure);
   }
   section.append(intro, cards);
+  // Native lazy-loading intentionally starts fetching images several
+  // viewports early. These large editorial scenes are below the primary
+  // action, so wait until the section is genuinely visible instead of making
+  // a first-time player download and decode them before they scroll.
+  const revealImages = () => {
+    for (const image of deferredImages) {
+      if (image.dataset.src) image.src = image.dataset.src;
+      delete image.dataset.src;
+    }
+  };
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      revealImages();
+      observer.disconnect();
+    });
+    observer.observe(section);
+  } else {
+    revealImages();
+  }
   return section;
 }
 
