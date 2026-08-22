@@ -13,7 +13,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
@@ -92,12 +92,13 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   // French used to live only as a third option inside Cut throat's "Set"
   // dropdown — a player who specifically wants French had no way to find it
   // without already knowing it was nested under Cut throat first. It's a
-  // top-level Game choice now, alongside Partner and Cut throat, even
+  // top-level Game choice now, same as Partner/Open hand/Cut throat, even
   // though under the hood it's still cutthroat mode + french format — the
   // server's own createSet() forces that pairing regardless of what this
   // form sends. See resolvedMode/resolvedFormat below.
   const mode = document.createElement('select');
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>`
+    + `<option value="openhand">Open hand — partner sees your tiles</option>`
     + `<option value="across">Across — 2 players, you play both hands</option>`
     + `<option value="cutthroat">Cut throat</option>`
     + `<option value="french">French — race to 100, lowest wins</option>`;
@@ -503,8 +504,7 @@ function seatCard(
   const scoreIndex = isPartnered(game.table.mode) ? sideOf(s.seatIndex, game.table.mode) : s.seatIndex;
   const score = game.scores[scoreIndex] ?? 0;
   card.append(el('div', 'seat-score', String(score)));
-  // Never draw another seat's unplayed bones, including face-down backs.
-  // A plain count is all the public information this card needs.
+  if (s.seatIndex !== game.mySeat) card.append(backsEl(count));
   decorateSeat(card, s.userId, social);
   if (s.userId && s.seatIndex !== game.mySeat) {
     card.appendChild(reportButton(s.userId, game.table.id, rerender));
@@ -746,6 +746,9 @@ export function liveTableView(
   if (!game.hand) {
     frag.appendChild(startHandPanel(game));
   } else {
+    if (!game.isSpectator && game.partnerTiles && game.table.mode === 'openhand') {
+      frag.appendChild(partnerHandPanel(game.partnerTiles));
+    }
     if (game.hand.status !== 'active' && game.hand.result) {
       frag.appendChild(handResultPanel(game, rerender));
     }
@@ -923,10 +926,23 @@ function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
   return wrap;
 }
 
+function partnerHandPanel(tiles: string[]): HTMLElement {
+  const panel = el('div', 'panel partner-hand');
+  panel.append(el('div', 'eyebrow', 'Partner'));
+  const row = el('div', 'hand');
+  for (const tile of tiles) {
+    const node = tileEl(tile);
+    node.classList.add('sm', 'dead');
+    row.appendChild(node);
+  }
+  panel.appendChild(row);
+  return panel;
+}
+
 /**
  * Across only — whichever of my own two hands is NOT live right now. Same
- * plain, unselectable display, labelled for what it actually is here: my own
- * second hand waiting its turn, never another person's tiles.
+ * plain, unselectable display as partnerHandPanel, labelled for what it
+ * actually is here: my own second hand waiting its turn.
  */
 function myOtherHandPanel(tiles: string[]): HTMLElement {
   const panel = el('div', 'panel partner-hand');

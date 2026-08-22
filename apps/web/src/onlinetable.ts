@@ -107,8 +107,8 @@ export class OnlineGame {
    */
   predictedPartnerTiles: TileId[] | null = null;
   /**
-   * The second hand in Across, where this same signed-in player controls both
-   * seats. Null in every other mode; another person's tiles are never loaded.
+   * The partner's tiles when the mode grants sight of them: Open hand is
+   * read-only; Across is the second seat controlled by the same player.
    */
   partnerTiles: TileId[] | null = null;
 
@@ -505,15 +505,15 @@ export class OnlineGame {
         this.emit({ type: 'state' });
       },
       onSeatTiles: (handId, seatIndex, tiles) => {
-        // RLS decides which seat_hands rows reach me: my own always. Across's
-        // second row also carries MY OWN user_id (see 0041_across.sql). Route
-        // by seat_index — writing
+        // RLS decides which seat_hands rows reach me: my own always, and my
+        // partner's when the mode is Open hand or Across. Route by seat_index — writing
         // partner tiles into `myTiles` is the bug this callback shape exists
         // to make impossible. A row I do not recognise gets dropped.
         if (handId !== this.hand?.hand_id) return;
         if (seatIndex === this.mySeat) {
           this.myTiles = tiles;
-        } else if (seatIndex === this.partnerSeat() && this.table.mode === 'across') {
+        } else if (seatIndex === this.partnerSeat()
+          && (this.table.mode === 'openhand' || this.table.mode === 'across')) {
           this.partnerTiles = tiles;
         } else {
           return;
@@ -586,7 +586,7 @@ export class OnlineGame {
   }
 
   /**
-   * Read this player's tiles — both controlled seats only in Across.
+   * Read this seat's tiles — and, in Open hand or Across, the partner's tiles too.
    *
    * One round trip, not two. Across needs no RLS extension — both rows already
    * carry the same account's own user_id, so the baseline "your own tiles
@@ -596,7 +596,7 @@ export class OnlineGame {
   private async loadPrivateTiles(handId: string): Promise<void> {
     if (this.mySeat === null) return;
     const partner = this.partnerSeat();
-    const wantsBothSeats = this.table.mode === 'across' && partner !== null;
+    const wantsBothSeats = (this.table.mode === 'openhand' || this.table.mode === 'across') && partner !== null;
     const seats = wantsBothSeats ? [this.mySeat, partner!] : [this.mySeat];
     const { data } = await db().from('seat_hands').select('seat_index, tiles')
       .eq('hand_id', handId).in('seat_index', seats);

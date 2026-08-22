@@ -14,7 +14,7 @@ function formatLabel(format: SetFormat): string {
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { tileEl, renderBoard, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
+import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -717,12 +717,13 @@ function lobby(): HTMLElement {
   // French used to live only as a third option inside Cut throat's "Set"
   // dropdown — a player who specifically wants French had no way to find it
   // without already knowing it was nested under Cut throat first. It's a
-  // top-level Game choice now, alongside Partner and Cut throat, even
+  // top-level Game choice now, same as Partner/Open hand/Cut throat, even
   // though under the hood it's still cutthroat mode + french format (see
   // resolvedMode/resolvedFormat below) — the engine's own createSet() forces
   // that pairing regardless of what this form sends.
   const mode = document.createElement('select');
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>
+                    <option value="openhand">Open hand — partner sees your tiles</option>
                     <option value="cutthroat">Cut throat — every man for himself</option>
                     <option value="french">French — race to 100, lowest wins</option>`;
   const resolvedMode = (): GameMode => mode.value === 'french' ? 'cutthroat' : (mode.value as GameMode);
@@ -870,9 +871,7 @@ function seats(g: LocalGame): HTMLElement {
     card.append(el('h3', undefined, g.seatLabel(seat)));
     const count = g.hand?.hands[seat].length ?? 0;
     card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
-    // Hidden means hidden. Opponents are represented by a number only; even
-    // face-down bone silhouettes made it look as though part of their hand
-    // had leaked onto the table.
+    if (seat !== g.mySeat) card.append(backsEl(count));
 
     // Show what their passes gave away. This is Belt 4 Lesson 1, surfaced in
     // the table itself so the habit forms by seeing it, not by being told.
@@ -917,6 +916,19 @@ const ARM_DIRECTION_ARROW: Record<'right' | 'left' | 'up' | 'down', { glyph: str
   up: { glyph: '↑', label: 'top' },
   down: { glyph: '↓', label: 'bottom' },
 };
+
+function partnerHandPanel(tiles: string[]): HTMLElement {
+  const panel = el('div', 'panel partner-hand');
+  panel.append(el('div', 'eyebrow', 'Partner'));
+  const row = el('div', 'hand');
+  for (const tile of tiles) {
+    const node = tileEl(tile);
+    node.classList.add('sm', 'dead');
+    row.appendChild(node);
+  }
+  panel.appendChild(row);
+  return panel;
+}
 
 function myHand(g: LocalGame): HTMLElement {
   const panel = el('div', 'panel my-hand-panel');
@@ -1385,8 +1397,13 @@ function tableView(g: LocalGame): DocumentFragment {
   // used to render after seats()/soundToggle(), which on a phone pushed the
   // hand below the board far enough that playing meant scrolling down to
   // read the hand, then back up to read the board.
-  // Only this player's own hand belongs below the board. Partner and opponent
-  // tiles stay hidden in every mode; the seat cards expose counts only.
+  // Openhand: your partner's tiles above your own, on the same terms as the
+  // online table — small, non-interactive, labelled. LocalGame holds the full
+  // engine state, so this is a direct read; no RLS or subscription involved.
+  if (g.options.mode === 'openhand' && g.hand) {
+    const partnerSeat = g.mySeat ^ 2;
+    room.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
+  }
   room.appendChild(myHand(g));
 
   room.appendChild(seats(g));

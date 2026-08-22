@@ -368,6 +368,13 @@ function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {
   });
 }
 
+export function backsEl(count: number): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'backs';
+  for (let i = 0; i < count; i++) wrap.appendChild(document.createElement('i'));
+  return wrap;
+}
+
 /** Six pips per side. They light one at a time and go out all together. */
 export function scoreTrack(
   label: string,

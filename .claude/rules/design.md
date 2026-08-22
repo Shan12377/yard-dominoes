@@ -208,6 +208,3 @@ easiest to see.
   side rail is allowed only when the board still has genuinely generous space.
 - The player's hand stays in one horizontal, scrollable row so larger hands do
   not wrap into a tall block or shrink the bones below comfortable tap size.
-- Off-board tiles belonging to another player never render, not even as
-  face-down backs. Their seat shows a numeric count only. Across may render
-  both hands because one signed-in player controls both seats.

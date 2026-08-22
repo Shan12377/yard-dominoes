@@ -612,6 +612,14 @@ label.field > span {
   font-size: 18px; font-weight: 700; color: var(--gold-deep);
   margin-top: 2px;
 }
+.backs { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.backs i {
+  width: 18px; height: 36px; border-radius: 4px; display: block;
+  background: linear-gradient(168deg, var(--wood-hi), var(--wood) 70%);
+  box-shadow:
+    0 3px 0 rgba(36, 22, 8, 0.55),
+    0 4px 6px rgba(0, 0, 0, 0.35);
+}
 .passed { color: var(--blood); font-family: var(--mono); font-size: 11px; }
 
 .seat .report { margin-top: 8px; }

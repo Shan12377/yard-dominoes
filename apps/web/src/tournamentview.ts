@@ -406,7 +406,8 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
 
   const mode = document.createElement('select');
   mode.innerHTML = '<option value="cutthroat">Cut throat</option>'
-    + '<option value="partner">Partner — 2 v 2</option>';
+    + '<option value="partner">Partner — 2 v 2</option>'
+    + '<option value="openhand">Open hand — partner sees your tiles</option>';
 
   const row = el('div', 'row');
   row.append(name, starts, mode);

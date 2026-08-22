@@ -521,15 +521,15 @@ Everything below is live and verified, not just written:
 - Phone rules keep chat/watchers/standings/log/profile below the table up to
   1100px, enlarge the playable hand to 44×88px on normal phones, and reserve
   56svh for the felt where height permits.
-- Hidden-hand display is now a seventh product invariant: only off-board tiles
-  controlled by the viewer render. Every other seat shows a numeric count—no
-  face-up pips and no face-down bone silhouettes. Open-hand is no longer
-  offered for new practice or online tables; Across still shows both hands
-  because the same signed-in player controls both.
-- Browser QA at 390×844 confirmed the live practice table renders exactly one
-  face-up seven-bone hand (“Your play”); the other three seats show only “7
-  tiles.” The local production preview also loaded with zero new console errors
-  after the pre-migration accessory fallback was added.
+- The 2026-08-22 hidden-hand UI change was a misunderstanding and has been
+  reverted. Opponents intentionally retain face-down bone backs as public hand
+  counts, and Open hand intentionally reveals a partner's tiles. The privacy
+  correction applies only to human marketing artwork: photographs must never
+  show a player's unplayed pip faces to the camera or other players.
+- All three marketing photographs were regenerated on 2026-08-22 around the
+  same art direction but with one connected legal played chain, a crosswise
+  double, and private hands facing their owners. Future image work must be
+  checked against the domino-accuracy rule in `docs/branding.md` before ship.
 - Seat backdrops were replaced with five vibrant, people-free environmental
   scenes on 2026-08-22. They intentionally contain no dominoes, hands, faces,
   text or flags; this prevents decorative art from reading as leaked tiles at

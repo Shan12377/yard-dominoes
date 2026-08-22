@@ -84,6 +84,12 @@ hands/dominoes, and generic tropical-resort scenes. Do not present generated
 people as real customers. A marketing sequence should normally lead with the
 actual product, then use one human scene to communicate atmosphere.
 
+Domino accuracy is a release requirement, not decorative latitude. A photo may
+show only one connected played chain; adjoining values must match, doubles sit
+crosswise, and every unplayed hand faces its owner so the camera and opponents
+see only backs or edges. Never allow disconnected face-up rows, loose public
+bones, or a rack whose pips face another player.
+
 ## Source-of-truth files
 
 - `docs/branding.md` — brand strategy and visual guardrails
@@ -116,7 +122,8 @@ these files from an unrelated prompt or substitute Yaadmoji artwork.
   They use environmental color rather than extra figures or dominoes so hidden
   hands can never be confused with decorative art.
 - `apps/web/public/marketing/` — three generated social-play scenes used only
-  on marketing/onboarding surfaces, never behind a live board
+  on marketing/onboarding surfaces, never behind a live board. Their domino
+  arrangements were accuracy-corrected on 2026-08-22.
 
 The hero must remain a static responsive image, not hundreds of pip DOM nodes.
 That conversion materially improved mobile paint and main-thread performance.

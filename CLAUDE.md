@@ -50,7 +50,7 @@ Node 22+ runs TypeScript directly. The engine has no build step.
 
 Detailed rules live in `.claude/rules/` and load when you touch matching files.
 
-## The seven invariants
+## The six invariants
 
 Breaking any of these breaks the product's reason to exist. They are not
 preferences.
@@ -69,10 +69,6 @@ preferences.
    `hand_public.server_seed` while `status = 'active'`.
 6. **No real-money play in this codebase.** Not behind a flag, not as hidden
    UI. See "Money" below.
-7. **Only tiles controlled by the viewing player may render off the board.**
-   Every other seat exposes a numeric count only—no pip faces and no face-down
-   bone silhouettes. Across may show both hands because one player controls both.
-
 ## Rules competitors get wrong
 
 Jamaican players notice these immediately. All are covered by tests.
