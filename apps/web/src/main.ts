@@ -347,6 +347,8 @@ function nagLater(g: LocalGame, level: DuppyLevel, sent = 0) {
 let recentPlayedTile: string | null = null;
 let recentPassSeat: number | null = null;
 let winningTile: string | null = null;
+/** The hero line makes its entrance once per page load, not on every render. */
+let heroHasEntered = false;
 
 async function startGame(opts: {
   mode: GameMode; format: SetFormat; duppy: DuppyLevel; tournament: boolean;
@@ -495,7 +497,8 @@ function hero(): HTMLElement {
   copy.appendChild(row);
 
   const line = document.createElement('img');
-  line.className = 'hero-domino-line';
+  line.className = `hero-domino-line${heroHasEntered ? '' : ' entering'}`;
+  heroHasEntered = true;
   line.src = '/art/hero-domino-line-360.webp';
   line.srcset = '/art/hero-domino-line-360.webp 360w, /art/hero-domino-line.webp 720w';
   line.sizes = '(max-width: 807px) calc(100vw - 66px), 720px';

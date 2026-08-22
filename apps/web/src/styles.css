@@ -877,6 +877,17 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   display: block; width: min(100%, 720px); height: auto; margin: auto;
   pointer-events: none;
 }
+.hero-domino-line.entering {
+  transform-origin: 50% 72%;
+  will-change: transform, opacity;
+  animation: hero-line-arrive 920ms cubic-bezier(.18,.78,.2,1.08) 90ms backwards;
+}
+@keyframes hero-line-arrive {
+  0% { transform: translateY(-34px) rotate(-2.5deg) scale(.94); opacity: 0; }
+  58% { transform: translateY(5px) rotate(.6deg) scale(1.015); opacity: 1; }
+  76% { transform: translateY(-3px) rotate(-.25deg) scale(.995); }
+  100% { transform: none; opacity: 1; }
+}
 
 .brand-stories { display: grid; gap: 14px; margin-top: 20px; }
 .brand-stories-copy {

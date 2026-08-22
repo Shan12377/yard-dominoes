@@ -482,6 +482,10 @@ Everything below is live and verified, not just written:
   stacks. Optional global statistics and service-worker registration are
   delayed beyond first paint. Do not reverse these choices without measuring
   the production build.
+- The optimized hero WebP still has a one-time load entrance: the whole
+  connected domino line drops, rebounds and settles with transform/opacity.
+  `heroHasEntered` prevents ordinary rerenders from replaying it, while the
+  global reduced-motion rule collapses the entrance for players who request it.
 - Lighthouse was run against the local production preview, not Vite dev. The
   clean desktop audit scored **100 in every category** (performance,
   accessibility, best practices, SEO, and agentic browsing). Mobile scored 100

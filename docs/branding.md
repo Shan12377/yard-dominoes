@@ -152,6 +152,9 @@ these files from an unrelated prompt or substitute Yaadmoji artwork.
 
 The hero must remain a static responsive image, not hundreds of pip DOM nodes.
 That conversion materially improved mobile paint and main-thread performance.
+On the first homepage render only, the complete connected line drops in,
+rebounds and settles using transform/opacity. It does not replay during normal
+rerenders or when returning from another section in the same page session.
 
 ## Motion and sound signature
 
