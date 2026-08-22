@@ -490,6 +490,11 @@ Everything below is live and verified, not just written:
   light `--ink`, while the age gate's light bone field uses dark `--pip` text
   and caret. Placeholders and native select options are also explicitly
   coloured; do not allow a light value to inherit onto a light field again.
+- An online table with no `game.hand` is explicitly **undealt**, not a hand in
+  which every player holds zero. Its Start hand panel renders before the table,
+  seats say “Waiting for deal”, the felt says “Start the hand to deal the
+  tiles”, and no bone backs render until `hand_sizes` exists. This is display
+  state only; it must never invent a hand or alter engine/deal authority.
 - Lighthouse was run against the local production preview, not Vite dev. The
   clean desktop audit scored **100 in every category** (performance,
   accessibility, best practices, SEO, and agentic browsing). Mobile scored 100

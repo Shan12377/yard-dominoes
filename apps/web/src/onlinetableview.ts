@@ -487,8 +487,10 @@ function seatCard(
       s.origin === 'yardie' ? 'Yardie' : 'Foreign'));
   }
   card.appendChild(who);
-  const count = game.hand?.hand_sizes[s.seatIndex] ?? 0;
-  card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
+  const count = game.hand?.hand_sizes[s.seatIndex];
+  card.append(el('div', 'meta', count === undefined
+    ? 'Waiting for deal'
+    : `${count} tile${count === 1 ? '' : 's'}`));
   // Closes a gap CLAUDE.md names by name: rating and pace are the two things
   // JamDom shows per-seat that we didn't. Rating is the raw number (an
   // ordinal leaderboard rank needs a real ranked query — separate feature).
@@ -504,7 +506,7 @@ function seatCard(
   const scoreIndex = isPartnered(game.table.mode) ? sideOf(s.seatIndex, game.table.mode) : s.seatIndex;
   const score = game.scores[scoreIndex] ?? 0;
   card.append(el('div', 'seat-score', String(score)));
-  if (s.seatIndex !== game.mySeat) card.append(backsEl(count));
+  if (count !== undefined && s.seatIndex !== game.mySeat) card.append(backsEl(count));
   decorateSeat(card, s.userId, social);
   if (s.userId && s.seatIndex !== game.mySeat) {
     card.appendChild(reportButton(s.userId, game.table.id, rerender));
@@ -626,6 +628,7 @@ export function liveTableView(
   const feltSlot = el('div', 'felt-slot');
   const felt = el('div', 'table-felt live-felt');
   const line = el('div', 'line');
+  if (!game.hand) line.classList.add('awaiting-deal');
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
   // measured.
@@ -690,6 +693,8 @@ export function liveTableView(
     cross.appendChild(wrap);
   });
 
+  if (!game.hand) frag.appendChild(startHandPanel(game));
+
   const room = el('div', 'table-room');
   room.appendChild(cross);
 
@@ -739,9 +744,7 @@ export function liveTableView(
 
   frag.appendChild(room);
 
-  if (!game.hand) {
-    frag.appendChild(startHandPanel(game));
-  } else {
+  if (game.hand) {
     if (!game.isSpectator && game.partnerTiles && game.table.mode === 'openhand') {
       frag.appendChild(partnerHandPanel(game.partnerTiles));
     }
@@ -835,12 +838,12 @@ function moveLogPanel(game: OnlineGame): HTMLElement {
 }
 
 function startHandPanel(game: OnlineGame): HTMLElement {
-  const panel = el('div', 'panel');
+  const panel = el('div', 'panel start-hand-panel');
   if (game.isSpectator) {
-    panel.append(el('p', 'muted', 'Waiting for the players to start the first hand.'));
+    panel.append(el('p', 'muted', 'No tiles have been dealt yet. Waiting for the players to start the first hand.'));
     return panel;
   }
-  panel.append(el('p', 'muted', 'Everyone\'s seated. Ready when you are.'));
+  panel.append(el('p', 'muted', 'No tiles have been dealt yet. Everyone\'s seated—start the hand when the table is ready.'));
   const go = document.createElement('button');
   go.className = 'act';
   go.textContent = 'Start hand';
