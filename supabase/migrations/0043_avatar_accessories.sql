@@ -11,6 +11,7 @@ alter table public.profiles
 comment on column public.profiles.avatar_accessory is
   'Optional cosmetic layer over a preset avatar. A known local asset id, never a URL.';
 
-grant update (
-  username, flag, bio, origin, gender, avatar, avatar_accessory, background, location
-) on public.profiles to authenticated;
+-- Existing profile migrations already grant each editable base field. Keep
+-- this migration's permission change scoped to the one new column instead of
+-- silently re-granting a broad field list that can drift from the policy.
+grant update (avatar_accessory) on public.profiles to authenticated;

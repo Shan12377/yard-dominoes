@@ -515,9 +515,11 @@ Everything below is live and verified, not just written:
   section enters the viewport below the play controls, and never appear in a
   live game.
 - The live-table signature is now: quick placement settle + recorded knock,
-  animated pass card + spoken response, spinning final bone + felt impact, and
-  dedicated six-love motion/sound. The global reduced-motion rule preserves
-  every state while collapsing the movement.
+  animated pass card + spoken response, a foreground final-bone spin + felt
+  impact, and dedicated six-love motion/sound. The real winning bone remains
+  in its legal board position while an aria-hidden visual clone performs the
+  airborne celebration. Reduced-motion hides that clone and leaves the winning
+  bone highlighted, so every state remains clear without movement.
 - Phone rules keep chat/watchers/standings/log/profile below the table up to
   1100px, enlarge the playable hand to 44×88px on normal phones, and reserve
   56svh for the felt where height permits.

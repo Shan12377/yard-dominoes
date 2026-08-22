@@ -14,7 +14,7 @@ function formatLabel(format: SetFormat): string {
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
+import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -1366,10 +1366,11 @@ function tableView(g: LocalGame): DocumentFragment {
   const animateTile = () => {
     const tile = winningTile ?? recentPlayedTile;
     if (!tile) return;
-    line.querySelector(`[data-tile="${tile}"]`)?.classList.add(
-      winningTile ? 'final-spin' : 'placed-now',
-    );
-    if (winningTile) felt.classList.add('shake');
+    if (winningTile) {
+      celebrateWinningTile(winningTile, line, felt);
+    } else {
+      line.querySelector(`[data-tile="${tile}"]`)?.classList.add('placed-now');
+    }
   };
   animateTile();
   felt.appendChild(line);

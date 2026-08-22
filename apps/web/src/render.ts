@@ -45,6 +45,32 @@ export function tileEl(id: TileId): HTMLElement {
   return el;
 }
 
+/**
+ * Give a domino win one deliberate, theatrical beat without touching the
+ * board state. The real winning bone remains in its legal position; this is
+ * an aria-hidden visual clone that rises toward the player and disappears.
+ * Keeping it here means local and online tables share exactly the same
+ * treatment, and the clone always uses the canonical upright tile artwork.
+ */
+export function celebrateWinningTile(
+  id: TileId,
+  line: HTMLElement,
+  felt: HTMLElement,
+): void {
+  const landed = line.querySelector(`[data-tile="${id}"]`);
+  landed?.classList.add('final-spin');
+  felt.classList.add('shake');
+
+  // A resize can rebuild the line during the animation. Never stack a second
+  // foreground bone inside the same felt when that happens.
+  if (felt.querySelector('.final-bone-hero')) return;
+  const hero = tileEl(id);
+  hero.classList.add('final-bone-hero');
+  hero.setAttribute('aria-hidden', 'true');
+  hero.removeAttribute('role');
+  felt.appendChild(hero);
+}
+
 function boardTile(p: TilePlacement): HTMLElement {
   const el = document.createElement('div');
   // The cross board's centre hub is the one placement with a SQUARE

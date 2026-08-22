@@ -13,7 +13,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
@@ -529,11 +529,7 @@ function tagWinningTile(line: HTMLElement, felt: HTMLElement, game: OnlineGame):
   if (!game.hand || game.justWonByDominoHandId !== game.hand.hand_id) return;
   const lastMove = game.hand.move_log[game.hand.move_log.length - 1];
   const tileId = lastMove && 'tile' in lastMove ? lastMove.tile : null;
-  if (tileId) {
-    const el_ = line.querySelector(`[data-tile="${tileId}"]`);
-    el_?.classList.add('final-spin');
-    felt.classList.add('shake');
-  }
+  if (tileId) celebrateWinningTile(tileId, line, felt);
 }
 
 export function liveTableView(

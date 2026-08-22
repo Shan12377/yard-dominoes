@@ -158,8 +158,10 @@ That conversion materially improved mobile paint and main-thread performance.
 - Ordinary tiles arrive quickly with a small bone-on-table settle and the
   recorded knock.
 - A pass is communicated by the seat card and table voice, never color alone.
-- The final domino drops, spins, settles and shakes the felt. This is the one
-  deliberately theatrical gameplay moment.
+- The final domino remains in its legal board position while a visual clone
+  rises toward the player, spins in the air, settles and shakes the felt. This
+  is the one deliberately theatrical gameplay moment; it must never mutate or
+  obscure the underlying game state.
 - Six love gets the gold result banner and its own recorded sound.
 - `prefers-reduced-motion` collapses all transforms and transitions without
   removing the state or result text.

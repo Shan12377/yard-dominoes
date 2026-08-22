@@ -567,13 +567,40 @@ label.field > span {
 .final-spin {
   position: relative;
   z-index: 4;
-  animation: final-bone 760ms cubic-bezier(.16,.84,.22,1.12);
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  animation: final-bone-land 720ms cubic-bezier(.16,.84,.22,1.12);
 }
-@keyframes final-bone {
-  0% { transform: translateY(-52px) rotate(-210deg) scale(1.28); opacity: .3; }
+@keyframes final-bone-land {
+  0% { transform: translateY(-18px) scale(1.12); opacity: .55; }
   62% { transform: translateY(4px) rotate(12deg) scale(.96); opacity: 1; }
   78% { transform: translateY(-3px) rotate(-4deg) scale(1.04); }
   100% { transform: none; }
+}
+
+/* A visual clone of the winning bone comes toward the player, like the
+   exuberant real-table gesture in the reference. The actual board tile never
+   leaves its legal position. Only transform and opacity animate, keeping the
+   celebration smooth on phones. */
+.final-bone-hero {
+  width: clamp(72px, 13vw, 112px);
+  height: clamp(144px, 26vw, 224px);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 8;
+  pointer-events: none;
+  transform-origin: 50% 58%;
+  filter: drop-shadow(0 22px 18px rgba(0,0,0,.48));
+  will-change: transform, opacity;
+  animation: final-bone-hero 1120ms cubic-bezier(.18,.72,.18,1) both;
+}
+@keyframes final-bone-hero {
+  0%   { transform: translate(-50%, 12%) rotateX(64deg) rotateZ(-32deg) scale(.22); opacity: 0; }
+  20%  { transform: translate(-50%, -58%) rotateX(28deg) rotateZ(145deg) scale(.72); opacity: 1; }
+  58%  { transform: translate(-50%, -72%) rotateX(-9deg) rotateZ(425deg) scale(1.22); opacity: 1; }
+  82%  { transform: translate(-50%, -34%) rotateX(8deg) rotateZ(525deg) scale(.78); opacity: .96; }
+  100% { transform: translate(-50%, 3%) rotateX(0) rotateZ(550deg) scale(.34); opacity: 0; }
 }
 .table-felt.shake { animation: shake 260ms ease; }
 @keyframes shake {
@@ -892,6 +919,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .final-bone-hero { display: none; }
 }
 
 :focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
