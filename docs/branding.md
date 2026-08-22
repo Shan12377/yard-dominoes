@@ -100,6 +100,11 @@ Before approving a four-player scene, account for all four seats explicitly:
 winner = zero bones; left loser = small hand directly under the left player's
 hand; right loser = small hand directly beneath that player; far-right loser =
 small hand beside that player. No losing hand may disappear during an edit.
+Four-player partner scenes must show one player at each edge of a square table,
+with partners/opponents physically opposite—not four people lined along one
+side. In the canonical night scene, coral is directly across from blue, while
+green is directly across from yellow. Visible table corners should separate all
+four seats.
 Keep a late-game chain compact and clearly centered with visible bare table
 around it; no endpoint should aim toward, touch, or overhang a table edge.
 The played chain must remain open with exactly two visibly separated ends. A

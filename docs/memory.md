@@ -532,11 +532,11 @@ Everything below is live and verified, not just written:
   checked against the domino-accuracy rule in `docs/branding.md` before ship.
 - The night final-bone scene was discarded and regenerated completely from
   scratch on 2026-08-22 after iterative edits became soft and confused hand
-  ownership. The new WebP quality-90 master is a sharp original generation:
-  raised-fist winner has zero bones and an obviously empty hand; left woman has
-  two concealed bones in her hand; right woman has two; far-right man has one;
-  the remaining bones form one open centered chain with two separated ends.
-  Never reuse any of the rejected edited derivatives.
+  ownership. Its final quality-90 master uses a square table with one player per
+  edge: green winner opposite yellow, and coral directly opposite blue. The
+  raised-fist winner has zero bones; every losing hand remains beside its owner;
+  played bones form one open centered line. Never reuse rejected derivatives or
+  place coral and blue beside one another.
 - Seat backdrops were replaced with five vibrant, people-free environmental
   scenes on 2026-08-22. They intentionally contain no dominoes, hands, faces,
   text or flags; this prevents decorative art from reading as leaked tiles at
