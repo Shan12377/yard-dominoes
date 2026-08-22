@@ -177,7 +177,7 @@ p { line-height: 1.55; }
 .nav button {
   font-family: var(--body); font-size: 15px; font-weight: 700;
   background: none; border: 0;
-  color: var(--muted); padding: 10px 14px; cursor: pointer; border-radius: var(--r);
+  color: var(--muted); min-height: 44px; padding: 10px 14px; cursor: pointer; border-radius: var(--r);
 }
 .nav button[aria-current='true'] { color: var(--signal-lo); background: var(--gold); }
 .nav button:hover:not([aria-current='true']) { color: var(--ink); }
@@ -439,7 +439,8 @@ label.field > span {
   padding: 10px 4px 12px;
   scrollbar-width: thin;
 }
-.practice-room { display: grid; gap: 10px; }
+.practice-room { display: grid; gap: 10px; width: 100%; min-width: 0; }
+.practice-room > *, .table-room > * { min-width: 0; max-width: 100%; }
 .practice-seats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -700,7 +701,7 @@ label.field > span {
    itself from the very tokens it would set. One place defines each felt. */
 .felt-pick { display: flex; gap: 6px; align-items: center; }
 .felt-pick button {
-  width: 22px; height: 22px; padding: 0; cursor: pointer;
+  width: 44px; height: 44px; padding: 0; cursor: pointer;
   border: 2px solid var(--felt-rim); border-radius: 50%;
   background: linear-gradient(165deg, var(--felt-hi), var(--felt) 60%);
 }
@@ -965,7 +966,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   }
   .live-table-head { padding: 8px 10px; }
   .live-table-head h2 { font-size: 17px; }
-  .live-table-head .act { min-height: 40px; padding: 7px 10px; }
+  .live-table-head .act { min-height: 44px; padding: 7px 10px; }
 
   /* The pinned scoreboard (see .sticky-scores, base rules) now stays on
      screen through the whole hand, which is exactly what was asked for —
@@ -978,7 +979,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .sticky-scores { padding: 8px 12px; }
   .sticky-scores .spread { margin-bottom: 4px; }
   .sticky-scores .eyebrow { font-size: 10px; }
-  .sticky-scores .act.ghost.small { padding: 2px 8px; font-size: 11px; }
+  .sticky-scores .act.ghost.small { min-height: 44px; padding: 6px 10px; font-size: 11px; }
   .sticky-scores .scoreboard {
     display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px 12px;
@@ -1271,7 +1272,7 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   border: 1px solid rgba(90, 58, 30, 0.22); border-radius: var(--r);
   font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
   text-transform: uppercase; cursor: pointer;
-  justify-self: start; padding: 7px 12px;
+  justify-self: start; min-height: 44px; padding: 7px 12px;
   transition: color 140ms ease, border-color 140ms ease;
 }
 .dismiss:hover { color: var(--ink); border-color: rgba(90, 58, 30, 0.45); }
