@@ -530,10 +530,13 @@ Everything below is live and verified, not just written:
   same art direction but with one connected legal played chain, a crosswise
   double, and private hands facing their owners. Future image work must be
   checked against the domino-accuracy rule in `docs/branding.md` before ship.
-- The night final-bone scene was refined again: the raised-fist winner has zero
-  unplayed bones, the other hands are nearly empty and concealed, and most of
-  the set is already on the table in one compact centered chain. A winner shown
-  with a rack—or a chain approaching the table edge—is always wrong.
+- The night final-bone scene was discarded and regenerated completely from
+  scratch on 2026-08-22 after iterative edits became soft and confused hand
+  ownership. The new WebP quality-90 master is a sharp original generation:
+  raised-fist winner has zero bones and an obviously empty hand; left woman has
+  two concealed bones in her hand; right woman has two; far-right man has one;
+  the remaining bones form one open centered chain with two separated ends.
+  Never reuse any of the rejected edited derivatives.
 - Seat backdrops were replaced with five vibrant, people-free environmental
   scenes on 2026-08-22. They intentionally contain no dominoes, hands, faces,
   text or flags; this prevents decorative art from reading as leaked tiles at

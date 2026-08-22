@@ -93,8 +93,22 @@ bones, or a rack whose pips face another player.
 In a final-bone celebration, the celebrating player must have no rack and no
 unplayed bones. Most bones belong in the connected table chain, while any
 losing players still holding bones should have only small concealed hands.
+The tabletop directly in front of the winner must be visibly bare between their
+body/resting hand and the played chain; do not place another player's concealed
+bones where they can be misread as the winner's hand.
+Before approving a four-player scene, account for all four seats explicitly:
+winner = zero bones; left loser = small hand directly under the left player's
+hand; right loser = small hand directly beneath that player; far-right loser =
+small hand beside that player. No losing hand may disappear during an edit.
 Keep a late-game chain compact and clearly centered with visible bare table
 around it; no endpoint should aim toward, touch, or overhang a table edge.
+The played chain must remain open with exactly two visibly separated ends. A
+closed rectangle, ring, or loop reads as a locked board and can never represent
+a player winning by laying the final bone.
+Always rebuild marketing artwork from its clean source in one edit. Repeated
+AI edits soften faces and texture; iterative derivatives are not production
+masters. Export human photography at WebP quality 90 unless measurement shows
+a smaller setting is visually indistinguishable.
 
 ## Source-of-truth files
 
