@@ -1,57 +1,64 @@
 /* =============================================================================
-   Yard — Jamaican Dominoes
+   YaadDominoes — Kingston Signal
 
-   Sunday Yard: midday, not midnight. A concrete yard at noon — sun-bleached
-   cream, not a dark room under one bulb. Green and gold are full-strength
-   surfaces here, not accents rationed to a dark theme; black is ink and
-   nothing else — never the room, never a background.
+   A modern Jamaican sound-system translated into a domino interface: signal
+   blue is the room, electric green is the table, mango calls the action,
+   coral carries emotion, and bone belongs to the dominoes.
    ========================================================================== */
 
 :root {
-  --sand:       #FAF3E1;
-  --sand-hi:    #FFFBF0;
+  --sand:       #073B5C;
+  --sand-hi:    #0C4F73;
 
-  --forest:     #146B3A;
-  --forest-hi:  #1C8449;
-  --forest-lo:  #0E4F2A;
+  --forest:     #00A859;
+  --forest-hi:  #2DD46F;
+  --forest-lo:  #007A3E;
 
-  --wood:       #5A3A1E;
-  --wood-hi:    #7A5230;
+  --wood:       #052B43;
+  --wood-hi:    #10698F;
 
-  --gold:       #E0A400;
-  --gold-hi:    #F4C430;
-  --gold-deep:  #8F6600;
+  --gold:       #FFC928;
+  --gold-hi:    #FFE16A;
+  --gold-deep:  #FFC928;
 
-  --bone:       #FDF6E3;
-  --bone-shade: #D9CCA8;
-  --pip:        #241608;
+  --bone:       #FFF9EA;
+  --bone-shade: #DCCFAB;
+  --pip:        #17130F;
 
-  --ink:   #241608;
-  --muted: #786243;
+  --ink:   #FFF9EA;
+  --muted: #B9DCEB;
 
-  --blood:      #C0392B;
+  --blood:      #FF5A3C;
+  --coral:      #FF5A3C;
+  --sky:        #43C7F4;
+  --signal:     #073B5C;
+  --signal-hi:  #0C4F73;
+  --signal-lo:  #052B43;
 
-  --display: 'Anton', system-ui, sans-serif;
-  --body: 'Karla', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', ui-monospace, monospace;
-  --signage: 'Bungee', system-ui, sans-serif;
+  /* Local stacks are deliberate: the first design loaded four Google font
+     files before painting and cost ~1.76s in Lighthouse. These retain the
+     condensed poster/body/score/signage roles with zero network dependency. */
+  --display: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+  --body: ui-rounded, 'Avenir Next', Avenir, system-ui, sans-serif;
+  --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --signage: 'Arial Black', 'Avenir Next Heavy', Impact, sans-serif;
 
   --r: 6px;
   --gap: 12px;
 
-  /* The felt. Defaults duplicate [data-felt="brown"] below so the table is
+  /* The felt. Defaults duplicate [data-felt="green"] below so the table is
      never unpainted in the moment before felt.ts sets the attribute. These are
      deliberately NOT --forest: that green is the brand, used on buttons, links
      and the logo, and a player recolouring their table must not restyle the
      whole app. */
-  --felt-hi:  #8A5A2E;
-  --felt:     #6B4423;
-  --felt-lo:  #462C14;
-  --felt-rim: #33200E;
+  --felt-hi:  #22A45B;
+  --felt:     #147A42;
+  --felt-lo:  #09522B;
+  --felt-rim: #5A3A1E;
 }
 
-/* Wood, the default — a yard table is plywood or a board over a drum, not
-   casino baize. */
+/* Bare wood remains an option for players who want the literal yard-table
+   look, but the vibrant green surface is the first impression. */
 [data-felt="brown"] {
   --felt-hi:  #8A5A2E;
   --felt:     #6B4423;
@@ -70,9 +77,9 @@
 }
 
 [data-felt="green"] {
-  --felt-hi:  #1C8449;
-  --felt:     #146B3A;
-  --felt-lo:  #0E4F2A;
+  --felt-hi:  #22A45B;
+  --felt:     #147A42;
+  --felt-lo:  #09522B;
   --felt-rim: #5A3A1E;
 }
 
@@ -97,9 +104,10 @@ html, body {
 
 body {
   background-image:
-    radial-gradient(120% 80% at 50% -10%, rgba(224, 164, 0, 0.10), transparent 60%),
-    linear-gradient(var(--sand), #F5EAD2);
-  background-attachment: fixed;
+    radial-gradient(circle at 8% 8%, rgba(67, 199, 244, 0.17) 0 2px, transparent 3px),
+    radial-gradient(circle at 92% 14%, rgba(255, 201, 40, 0.14), transparent 24%),
+    linear-gradient(145deg, var(--signal-hi), var(--signal) 48%, var(--signal-lo));
+  background-size: 28px 28px, auto, auto;
 }
 
 #app {
@@ -113,8 +121,16 @@ body {
    only exists in the DOM while actually seated at or watching a real table,
    so this can't reach any other screen — no JS change needed, this is
    purely "does #app currently contain a live table." */
-#app:has(.table-room) {
+#app:has(.table-room),
+#app:has(.practice-room) {
   max-width: 1400px;
+}
+
+/* Defer below-the-fold panels on menu screens. Live tables stay fully laid
+   out so tile placement and turn feedback are always immediate. */
+#app:not(:has(.practice-room, .table-room)) > .panel {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
 }
 
 h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: 0.01em; margin: 0; }
@@ -137,11 +153,20 @@ p { line-height: 1.55; }
 
 /* ------------------------------------------------------------------ chrome */
 .topbar {
-  display: flex; align-items: baseline; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
 }
-.brand { display: flex; align-items: baseline; gap: 10px; }
-.brand h1 { font-family: var(--signage); font-size: 24px; color: var(--forest); }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 44px; height: 44px; flex: none; filter: drop-shadow(0 5px 8px rgba(0,0,0,0.22)); }
+.brand-copy { display: grid; gap: 1px; }
+.brand h1 {
+  font-family: var(--signage); font-size: 25px; color: var(--bone);
+  letter-spacing: -0.04em; text-shadow: 3px 3px 0 rgba(0,0,0,0.22);
+  white-space: nowrap;
+}
+.brand .word-yaad { color: var(--gold); }
+.brand .word-dominoes { color: var(--bone); }
+.brand .eyebrow { color: var(--sky); font-size: 9px; letter-spacing: 0.18em; }
 
 .nav { display: flex; flex-wrap: wrap; gap: 4px; }
 /* This is the single most-used control in the app — "where do I go to
@@ -154,7 +179,7 @@ p { line-height: 1.55; }
   background: none; border: 0;
   color: var(--muted); padding: 10px 14px; cursor: pointer; border-radius: var(--r);
 }
-.nav button[aria-current='true'] { color: var(--ink); background: rgba(36, 22, 8, 0.08); }
+.nav button[aria-current='true'] { color: var(--signal-lo); background: var(--gold); }
 .nav button:hover:not([aria-current='true']) { color: var(--ink); }
 
 /* ------------------------------------------------------------------- cards */
@@ -162,16 +187,16 @@ p { line-height: 1.55; }
    light from above, a warm bottom edge for thickness, a shadow that sits.
    design.md calls flat rectangles the thing that makes an app look amateur. */
 .panel {
-  background: linear-gradient(180deg, #FFFDF4, var(--sand-hi) 46%, #FBF2DA);
-  border: 1px solid rgba(90, 58, 30, 0.18);
-  border-bottom-color: rgba(90, 58, 30, 0.30);
-  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(16, 105, 143, 0.96), var(--signal-hi) 55%, #083D5B);
+  border: 1px solid rgba(185, 220, 235, 0.22);
+  border-bottom-color: rgba(0, 0, 0, 0.34);
+  border-radius: 14px;
   padding: 20px;
   margin-bottom: 16px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 1px 0 rgba(90, 58, 30, 0.10),
-    0 8px 20px -10px rgba(90, 58, 30, 0.30);
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 0 rgba(0, 0, 0, 0.28),
+    0 16px 30px -18px rgba(0, 0, 0, 0.72);
 }
 
 /* A just-paid member's one chance to secure the account before it's easy to
@@ -186,15 +211,16 @@ p { line-height: 1.55; }
 
 /* ------------------------------------------------------------- the front door
    Everything a first-time visitor sees before they sit down speaks in the
-   poster voice — Bungee, the same face as the hero. The interface voice
-   (Anton) starts at the table. Mixing them on one screen is what made the
-   page read as two different sites stacked on top of each other. */
+   local signage voice, the same family as the hero. The compact display voice
+   starts at the table. Keeping those roles stable makes the product feel like
+   one deliberate system. */
 .door h2 {
   font-family: var(--signage);
   font-size: clamp(19px, 3.4vw, 25px);
   line-height: 1.15;
   letter-spacing: -0.005em;
   color: var(--ink);
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.18);
 }
 .door > .eyebrow + h2 { margin-top: 3px; }
 /* A gold rule under the heading, the width of the words above it. */
@@ -205,21 +231,23 @@ p { line-height: 1.55; }
   background: linear-gradient(90deg, var(--gold), var(--gold-hi));
 }
 
-/* --------------------------------------------------------------- yard band
-   Bridges the green hero into the cream page. Decorative only — the SVG
-   carries role="presentation" and nothing here is announced. */
+/* ------------------------------------------------------------- signal band
+   Speaker cones and angled cuts replace postcard scenery. The geometry is
+   shared by domino pips and a sound-system stack, so it belongs to YaadDominoes
+   without leaning on flags, palms, or tourist imagery. */
 .yard-band {
-  aspect-ratio: 1200 / 200;
+  height: 112px;
   width: 100%;
-  margin: -2px 0 14px;
-  background: url('/art/yard-band.svg') center bottom / contain no-repeat;
+  margin: -8px 0 18px;
+  border-radius: 0 0 18px 18px;
+  background:
+    radial-gradient(circle at 8% 50%, var(--signal) 0 8px, var(--sky) 9px 18px, var(--signal) 19px 24px, transparent 25px),
+    radial-gradient(circle at 22% 48%, var(--signal) 0 13px, var(--coral) 14px 27px, var(--signal) 28px 34px, transparent 35px),
+    radial-gradient(circle at 78% 48%, var(--signal) 0 13px, var(--gold) 14px 27px, var(--signal) 28px 34px, transparent 35px),
+    radial-gradient(circle at 92% 50%, var(--signal) 0 8px, var(--forest-hi) 9px 18px, var(--signal) 19px 24px, transparent 25px),
+    linear-gradient(165deg, transparent 0 36%, var(--coral) 37% 44%, var(--gold) 45% 52%, var(--forest) 53% 60%, transparent 61%),
+    var(--signal-lo);
 }
-/* Deliberately `contain` at every width, including phones where it lands
-   around 60px tall. Zooming the band on mobile was tried and reverted: the
-   palms sit near the artboard edges, so any crop slices them in half and the
-   band reads as stray green shapes. A small whole picture beats a big broken
-   one — if this ever needs more presence on a phone, it wants a second,
-   tighter composition, not a crop of this one. */
 
 .row { display: flex; gap: var(--gap); flex-wrap: wrap; align-items: center; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: var(--gap); }
@@ -244,12 +272,12 @@ button.ghost:hover { border-color: var(--gold-deep); color: var(--gold-deep); }
    from. appearance:none takes the control back; the chevron below is ours. */
 select, input, textarea {
   font-family: var(--body); font-size: 14px; font-weight: 600;
-  background: linear-gradient(180deg, #FFFDF4, var(--sand-hi));
+  background: var(--signal-lo);
   color: var(--ink);
-  border: 1.5px solid rgba(90, 58, 30, 0.28);
+  border: 1.5px solid rgba(185, 220, 235, 0.32);
   border-radius: var(--r);
   padding: 11px 13px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 0 rgba(90, 58, 30, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 0 rgba(0,0,0,0.3);
   transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 select {
@@ -257,7 +285,7 @@ select {
   padding-right: 34px; cursor: pointer;
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%238F6600' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
-    linear-gradient(180deg, #FFFDF4, var(--sand-hi));
+    linear-gradient(var(--signal-lo), var(--signal-lo));
   background-repeat: no-repeat, no-repeat;
   background-position: right 13px center, 0 0;
   background-size: 11px auto, auto;
@@ -327,17 +355,18 @@ label.field > span {
 
 /* -------------------------------------------------------------- the board */
 .table-felt {
+  position: relative;
+  isolation: isolate;
   background:
     repeating-linear-gradient(115deg, rgba(255,255,255,0.045) 0 2px, transparent 2px 6px),
     radial-gradient(120% 90% at 50% -15%, rgba(255, 255, 255, 0.14), transparent 55%),
     linear-gradient(165deg, var(--felt-hi), var(--felt) 45%, var(--felt-lo));
-  border: 10px solid transparent;
-  border-image: linear-gradient(160deg, var(--wood-hi), var(--wood)) 1;
-  border-radius: 10px;
+  border: 10px solid var(--signal-lo);
+  border-radius: 18px;
   box-shadow:
-    inset 0 0 0 1px var(--wood-hi),
+    inset 0 0 0 2px rgba(67, 199, 244, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 14px 34px rgba(90, 58, 30, 0.28);
+    0 18px 38px rgba(0, 0, 0, 0.36);
   padding: 14px 12px;
   min-height: 96px;
   max-height: min(72vh, 680px);
@@ -345,6 +374,22 @@ label.field > span {
   display: flex; align-items: center;
   scrollbar-width: thin;
 }
+
+/* Cropped speaker/pip cones live only in the corners, keeping the centre quiet
+   enough to read every bone while making the table unmistakably YaadDominoes. */
+.table-felt:not(.hero)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0 0, transparent 0 32px, rgba(255,201,40,.28) 33px 44px, transparent 45px 59px, rgba(67,199,244,.18) 60px 72px, transparent 73px),
+    radial-gradient(circle at 100% 100%, transparent 0 38px, rgba(255,90,60,.26) 39px 51px, transparent 52px 68px, rgba(255,201,40,.14) 69px 82px, transparent 83px),
+    linear-gradient(135deg, rgba(255,255,255,.05) 0 1px, transparent 1px 14px);
+  opacity: 1;
+}
+.table-felt:not(.hero) > .line { position: relative; z-index: 1; }
 
 /* ------------------------------------------------------------ table-cross
    Seats surround the felt instead of stacking below it — spec
@@ -370,6 +415,40 @@ label.field > span {
 .seat-slot-right { grid-area: right; }
 .seat-slot-bottom { grid-area: bottom; }
 .table-cross .seat .avatar { width: 44px; height: 44px; }
+
+/* A live table is an object, not a stack of cards. Give the felt a dependable
+   physical presence even before a long line of bones forces it taller. */
+.table-room .live-felt,
+.practice-room .live-felt {
+  min-height: clamp(500px, 62vh, 700px);
+  max-height: none;
+}
+.live-table-head { padding: 10px 14px; }
+.live-table-head .spread { gap: 8px; }
+.live-table-head h2 { margin-right: auto; }
+.felt-slot > .clock,
+.felt-slot > .my-hand-panel { margin-top: 10px; }
+.my-hand-panel {
+  background: linear-gradient(145deg, rgba(5,43,67,.97), rgba(12,79,115,.92));
+  border-color: rgba(67,199,244,.3);
+}
+.my-hand-panel .hand {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 10px 4px 12px;
+  scrollbar-width: thin;
+}
+.practice-room { display: grid; gap: 10px; }
+.practice-seats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.practice-seats .seat { min-width: 0; }
+.practice-seats .seat h3 {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* Desktop: cross + rail side by side. Collapses in Task 6's mobile pass. */
 .table-room { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
@@ -472,10 +551,27 @@ label.field > span {
 .reveal-hand .tile.sm { --w: 22px; --h: 44px; cursor: default; }
 .reveal-hand .tile.sm:hover { transform: none; }
 
+.placed-now { animation: place-bone 260ms cubic-bezier(0.2, 0.9, 0.2, 1.15); }
+@keyframes place-bone {
+  0% { transform: translateY(-14px) scale(1.08); opacity: .72; }
+  70% { transform: translateY(2px) scale(.98); opacity: 1; }
+  100% { transform: none; }
+}
 .slammed { animation: slam 320ms cubic-bezier(0.2, 0.9, 0.2, 1.2); }
 @keyframes slam {
   0% { transform: translateY(-26px) scale(1.16); }
   60% { transform: translateY(2px) scale(0.97); }
+  100% { transform: none; }
+}
+.final-spin {
+  position: relative;
+  z-index: 4;
+  animation: final-bone 760ms cubic-bezier(.16,.84,.22,1.12);
+}
+@keyframes final-bone {
+  0% { transform: translateY(-52px) rotate(-210deg) scale(1.28); opacity: .3; }
+  62% { transform: translateY(4px) rotate(12deg) scale(.96); opacity: 1; }
+  78% { transform: translateY(-3px) rotate(-4deg) scale(1.04); }
   100% { transform: none; }
 }
 .table-felt.shake { animation: shake 260ms ease; }
@@ -484,10 +580,16 @@ label.field > span {
   25% { transform: translate(-2px, 1px) rotate(-0.25deg); }
   75% { transform: translate(2px, -1px) rotate(0.25deg); }
 }
+.seat.pass-pop { animation: pass-pop 480ms cubic-bezier(.2,.9,.2,1.15); }
+@keyframes pass-pop {
+  0% { transform: scale(.92); border-color: var(--blood); }
+  45% { transform: scale(1.04) rotate(-1deg); border-color: var(--blood); }
+  100% { transform: none; }
+}
 
 /* ---------------------------------------------------------------- seating */
 .seat {
-  border: 1px solid rgba(36, 22, 8, 0.14); border-radius: var(--r);
+  border: 1px solid rgba(67, 199, 244, 0.2); border-radius: var(--r);
   padding: 10px 12px; background: var(--sand-hi);
 }
 .seat.turn {
@@ -495,6 +597,7 @@ label.field > span {
   box-shadow: 0 0 0 2px var(--gold) inset, 0 0 16px 2px rgba(224, 164, 0, 0.45);
 }
 .seat.partner { border-left: 3px solid var(--forest-hi); }
+.seat.mine { border-color: rgba(67,199,244,.65); }
 .seat-number {
   display: block; font-family: var(--mono); font-size: 10px;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
@@ -685,11 +788,21 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   font-family: var(--signage); font-size: 22px; text-align: center;
   color: #2A1B00; border-color: var(--gold);
   background: var(--gold);
-  animation: flare 700ms ease;
+  position: relative; overflow: hidden;
+  animation: six-love-arrive 900ms cubic-bezier(.16,.84,.22,1.08);
+  box-shadow: 0 0 0 3px rgba(255,201,40,.24), 0 16px 40px rgba(255,201,40,.3);
 }
-@keyframes flare {
-  from { transform: scale(0.94); opacity: 0; }
-  to { transform: none; opacity: 1; }
+.banner.six-love::after {
+  content: '•• 6 · 6 ••';
+  position: absolute; inset: auto 0 2px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .5em;
+  color: rgba(23,19,15,.55);
+}
+@keyframes six-love-arrive {
+  0% { transform: scale(.72) rotate(-3deg); opacity: 0; }
+  55% { transform: scale(1.08) rotate(1deg); opacity: 1; }
+  72% { transform: scale(.98); }
+  100% { transform: none; }
 }
 
 .rating-delta {
@@ -738,10 +851,43 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .hero-copy button.ghost { color: #FFFBF0; border-color: rgba(255, 251, 240, 0.45); }
 .hero-copy button.ghost:hover { border-color: var(--gold-hi); color: var(--gold-hi); }
 
-.line.demo { pointer-events: none; }
-.line.demo .tile {
-  animation: slam 340ms cubic-bezier(0.2, 0.9, 0.2, 1.2) backwards;
-  animation-delay: calc(var(--i) * 150ms);
+.hero-domino-line {
+  display: block; width: min(100%, 720px); height: auto; margin: auto;
+  pointer-events: none;
+}
+
+.brand-stories { display: grid; gap: 14px; margin-top: 20px; }
+.brand-stories-copy {
+  max-width: 640px; padding-left: 14px; border-left: 4px solid var(--gold);
+}
+.brand-stories-copy h2 { font-family: var(--signage); font-size: clamp(24px, 4vw, 34px); }
+.brand-stories-copy p { margin: 6px 0 0; }
+.brand-story-grid {
+  display: grid; grid-template-columns: 1.35fr 1fr; gap: 12px;
+}
+.brand-story {
+  position: relative; min-height: 240px; margin: 0; overflow: hidden;
+  border: 1px solid rgba(67,199,244,.28); border-radius: 16px;
+  background: var(--signal-hi); box-shadow: var(--shadow);
+}
+.brand-story:first-child { grid-row: span 2; }
+.brand-story img { width: 100%; height: 100%; min-height: 240px; object-fit: cover; display: block; }
+.brand-story:first-child img { min-height: 492px; }
+.brand-story::after {
+  content: ''; position: absolute; inset: 40% 0 0;
+  background: linear-gradient(transparent, rgba(5,43,67,.96)); pointer-events: none;
+}
+.brand-story figcaption {
+  position: absolute; z-index: 1; inset: auto 16px 15px;
+  color: var(--bone); text-shadow: 0 2px 8px rgba(0,0,0,.5);
+}
+.brand-story h3 { font-family: var(--signage); font-size: 21px; }
+.brand-story p { margin: 4px 0 0; max-width: 42ch; font-size: 14px; line-height: 1.4; }
+
+@media (max-width: 700px) {
+  .brand-story-grid { grid-template-columns: 1fr; }
+  .brand-story:first-child { grid-row: auto; }
+  .brand-story, .brand-story img, .brand-story:first-child img { min-height: 250px; }
 }
 
 @media (max-width: 560px) {
@@ -774,10 +920,33 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .gate.vip { border-color: var(--gold); background: rgba(224, 164, 0, 0.14); color: var(--gold-deep); }
 
 .room { display: grid; grid-template-columns: 1fr 240px; gap: 14px; }
+
+/* Until there is enough width for a genuinely large board AND a useful rail,
+   the social tools belong below the table behind tabs. At the old 700px
+   cutoff, an ordinary tablet/laptop donated 300px to the rail and made the
+   central domino line needlessly small. */
+@media (max-width: 1100px) {
+  .table-room { grid-template-columns: 1fr; }
+  .rail-tabs {
+    display: flex; gap: 6px; margin-bottom: 8px;
+    overflow-x: auto; scrollbar-width: thin;
+  }
+  .rail-tab {
+    flex: 1 0 max-content; min-height: 44px; padding: 8px 12px;
+    border-radius: var(--r);
+    border: 1px solid rgba(67,199,244,.26); background: var(--sand-hi);
+    color: var(--ink); font-family: var(--body); font-weight: 700;
+    font-size: 12.5px;
+  }
+  .rail-tab.active {
+    background: var(--gold); border-color: var(--gold); color: var(--pip);
+  }
+  .rail-section { display: none; }
+  .rail-section-active { display: block; }
+}
+
 @media (max-width: 700px) {
   .room { grid-template-columns: 1fr; }
-
-  .table-room { grid-template-columns: 1fr; }
 
   /* Board first, uncontested — the spec's top priority for mobile. */
   .table-cross {
@@ -787,6 +956,16 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
       "bottom left right top";
   }
   .felt-slot { min-height: 0; }
+  .table-room .live-felt,
+  .practice-room .live-felt {
+    min-height: clamp(390px, 56svh, 560px);
+    max-height: none;
+    border-width: 7px;
+    padding: 10px 8px;
+  }
+  .live-table-head { padding: 8px 10px; }
+  .live-table-head h2 { font-size: 17px; }
+  .live-table-head .act { min-height: 40px; padding: 7px 10px; }
 
   /* The pinned scoreboard (see .sticky-scores, base rules) now stays on
      screen through the whole hand, which is exactly what was asked for —
@@ -800,9 +979,17 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .sticky-scores .spread { margin-bottom: 4px; }
   .sticky-scores .eyebrow { font-size: 10px; }
   .sticky-scores .act.ghost.small { padding: 2px 8px; font-size: 11px; }
-  .sticky-scores .scoreboard { gap: 6px 16px; }
-  .sticky-scores .side-score { display: flex; align-items: baseline; gap: 6px; }
-  .sticky-scores .side-name { font-size: 11px; }
+  .sticky-scores .scoreboard {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 12px;
+  }
+  .sticky-scores .side-score {
+    display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap;
+  }
+  .sticky-scores .side-name {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 10px;
+  }
   .sticky-scores .pips { display: none; }
   .sticky-scores .under-love, .sticky-scores .tile-count { margin: 0; }
   .sticky-scores .under-love::after { content: ' · '; color: var(--muted); }
@@ -812,29 +999,59 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
     min-width: 0;
   }
   .table-cross .seat {
-    display: flex; align-items: center; gap: 6px;
-    padding: 6px 8px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center; gap: 2px 4px;
+    min-height: 62px; padding: 5px 6px;
+    border-radius: 8px;
   }
-  .table-cross .seat .who { flex-direction: row; align-items: center; gap: 4px; }
-  .table-cross .seat .avatar { width: 22px; height: 22px; }
-  .table-cross .seat h3 { font-size: 11px; }
-  .table-cross .seat .meta { display: none; }
-  .table-cross .seat .backs { gap: 2px; }
-  .table-cross .seat .backs i { width: 10px; height: 20px; }
+  .table-cross .seat .who {
+    min-width: 0; flex-direction: row; align-items: center; gap: 4px;
+    grid-column: 1 / -1;
+  }
+  .table-cross .seat .avatar { width: 24px; height: 24px; flex: none; }
+  .table-cross .seat .seat-number { display: none; }
+  .table-cross .seat h3 {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11px;
+  }
+  .table-cross .seat .meta { display: block; font-size: 9px; }
+  .table-cross .seat .seat-stats { display: none; }
+  .table-cross .seat .backs { display: none; }
   .table-cross .seat .origin-yardie, .table-cross .seat .origin-foreign { display: none; }
-  .table-cross .seat .seat-score { font-size: 13px; margin-top: 0; margin-left: auto; }
+  .table-cross .seat .partner-badge { display: none; }
+  .table-cross .seat .seat-score {
+    grid-column: 2; grid-row: 2; font-size: 14px; margin: 0;
+  }
   .table-cross .seat .report { display: none; }
 
-  /* Rail becomes tabs: one section visible at a time. */
-  .rail-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
-  .rail-tab {
-    flex: 1; padding: 8px; border-radius: var(--r);
-    border: 1px solid rgba(90, 58, 30, 0.28); background: var(--sand-hi);
-    font-family: var(--body); font-weight: 700; font-size: 12.5px;
+  .felt-slot > .clock { padding: 8px 10px; }
+  .felt-slot > .clock .clock-left { font-size: 18px; }
+  .felt-slot > .clock .clock-track { margin-top: 5px; }
+  .my-hand-panel { padding: 9px 10px; }
+  .my-hand-panel .hand .tile { --w: 44px; --h: 88px; }
+  .my-hand-panel .hand { gap: 7px; }
+
+  .practice-seats { gap: 4px; }
+  .practice-seats .seat {
+    min-height: 58px; padding: 6px;
+    border-radius: 8px;
   }
-  .rail-tab.active { background: var(--gold); border-color: var(--gold-deep); }
-  .rail-section { display: none; }
-  .rail-section-active { display: block; }
+  .practice-seats .seat h3 { font-size: 11px; }
+  .practice-seats .seat .meta { font-size: 9px; }
+  .practice-seats .seat .backs { display: none; }
+  .practice-seats .seat .passed { font-size: 9px; }
+  .practice-seats .seat .talk { display: none; }
+}
+
+@media (max-width: 360px) {
+  .table-room .live-felt,
+  .practice-room .live-felt { min-height: 350px; }
+  .my-hand-panel .hand .tile { --w: 40px; --h: 80px; }
+}
+
+@media (max-height: 620px) and (max-width: 900px) {
+  .table-room .live-felt,
+  .practice-room .live-felt { min-height: 310px; }
 }
 
 .chat-log {
@@ -918,12 +1135,16 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   border: 2px solid var(--bone-shade);
   box-shadow: 0 1px 3px rgba(36, 22, 8, 0.35);
 }
-.avatar-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.avatar-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 10px; margin-bottom: 6px;
+}
 .avatar-choice {
-  padding: 3px; cursor: pointer; line-height: 0;
+  width: 54px; height: 54px; padding: 3px; cursor: pointer; line-height: 0;
   background: var(--sand-hi); border-radius: 50%;
   border: 2px solid rgba(90, 58, 30, 0.28);
 }
+.avatar-choice .avatar { width: 44px; height: 44px; object-fit: cover; }
 .avatar-choice[aria-pressed='true'] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-hi); }
 .avatar-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 
@@ -1021,13 +1242,13 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 
 /* ------------------------------------------------------------------ install */
 .install-card {
-  border: 1px solid rgba(90, 58, 30, 0.22);
-  border-bottom-color: rgba(90, 58, 30, 0.34);
-  border-radius: 10px;
-  background: linear-gradient(180deg, #FFFDF4, var(--sand-hi) 46%, #F8EDD2);
+  border: 1px solid rgba(185, 220, 235, 0.22);
+  border-bottom-color: rgba(0, 0, 0, 0.34);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(16, 105, 143, 0.96), var(--signal-hi) 55%, #083D5B);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 8px 20px -12px rgba(90, 58, 30, 0.32);
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 16px 30px -18px rgba(0, 0, 0, 0.72);
   padding: 20px; margin-bottom: 16px;
   display: grid; gap: 12px; justify-items: start;
 }

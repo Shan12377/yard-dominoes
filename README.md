@@ -1,4 +1,4 @@
-# Yard — Jamaican Dominoes
+# YaadDominoes
 
 Phase 1: the rules engine. Pure TypeScript, zero dependencies, 44 passing tests.
 

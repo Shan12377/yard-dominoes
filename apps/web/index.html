@@ -3,21 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#FAF3E1" />
-    <title>Beat Di Table — Jamaican Dominoes</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Karla:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap"
-      rel="stylesheet" />
+    <meta name="theme-color" content="#073B5C" />
+    <meta name="color-scheme" content="dark" />
+    <title>YaadDominoes — Jamaican Dominoes</title>
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preload" href="/art/hero-domino-line-360.webp" as="image" type="image/webp"
+      imagesrcset="/art/hero-domino-line-360.webp 360w, /art/hero-domino-line.webp 720w"
+      imagesizes="(max-width: 807px) calc(100vw - 66px), 720px" fetchpriority="high" />
     <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" />
+    <link rel="icon" href="/icons/favicon.ico" sizes="any" />
+    <link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#073B5C" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Beat Di Table" />
+    <meta name="apple-mobile-web-app-title" content="YaadDominoes" />
     <meta name="description" content="Jamaican dominoes played the real way. Cut throat, partners, six love." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="YaadDominoes — Beat di table." />
+    <meta property="og:description" content="Jamaican dominoes played the real way. Cut throat, partners, six love." />
+    <meta property="og:image" content="/yaaddominoes-social.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="YaadDominoes — Beat di table." />
+    <meta name="twitter:description" content="Jamaican dominoes played the real way." />
+    <meta name="twitter:image" content="/yaaddominoes-social.png" />
     <!-- iOS shows a white flash on launch without these. -->
     <link rel="apple-touch-startup-image" href="/icons/splash-1170x2532.png"
       media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
@@ -30,7 +41,7 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <div id="app"></div>
+    <main id="app"></main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

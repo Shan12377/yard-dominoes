@@ -23,8 +23,8 @@ import { el } from './render.ts';
  * change and no stale company name hiding in a paragraph somewhere.
  */
 export const ENTITY = {
-  /** Registered company name, e.g. 'Beat Di Table LLC'. */
-  legalName: 'Beat Di Table LLC (pending formation)',
+  /** Registered company name, e.g. 'Yaad Dominoes LLC'. */
+  legalName: 'Yaad Dominoes LLC (pending formation)',
   /** Registered agent's address — NOT a home address. See docs. */
   address: '[registered agent address — to be added]',
   /** A monitored inbox. Required: this is where privacy requests land. */
@@ -33,7 +33,7 @@ export const ENTITY = {
   jurisdiction: 'the State of Florida, United States',
 } as const;
 
-export const PRODUCT = 'Beat Di Table';
+export const PRODUCT = 'YaadDominoes';
 export const LAST_UPDATED = '1 August 2026';
 
 /** COPPA's line. Below this, no chat, no voice, no tables with strangers. */

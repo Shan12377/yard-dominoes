@@ -553,8 +553,7 @@ export function profilePanel(
 
   panel.append(el('label', 'field-label', 'Presence (optional)'));
   panel.append(el('p', 'muted small',
-    'A character for the seat, if you would rather not show your face. '
-    + '"Plain" is presence without one either.'));
+    'Pick one face for your seat. You can change it whenever you like.'));
   let avatar: Avatar | null = me.avatar;
   const avatarCaption = el('p', 'muted small', avatar ? AVATAR_LABEL[avatar] : 'None chosen');
   const avatarGrid = el('div', 'avatar-grid');

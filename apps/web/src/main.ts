@@ -12,7 +12,7 @@ function formatLabel(format: SetFormat): string {
   }
 }
 import type { LeakStore, TalkTrigger } from '@yard/engine';
-import type { Board, DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
+import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
 import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
@@ -71,6 +71,7 @@ async function ensureLoungeModule(isBootCheck = false) {
 const SITE_STATS_MIN_TO_SHOW = 500;
 let siteHandsPlayed: number | null = null;
 let siteHandsFetched = false;
+let siteHandsScheduled = false;
 
 async function fetchSiteHandsPlayed() {
   if (siteHandsFetched) return;
@@ -88,6 +89,18 @@ async function fetchSiteHandsPlayed() {
   } catch {
     // Social proof, not critical — the hero reads fine without it.
   }
+}
+
+/** Social proof is optional and must never join the critical render chain. */
+function scheduleSiteHandsFetch(): void {
+  if (siteHandsFetched || siteHandsScheduled) return;
+  siteHandsScheduled = true;
+  // Ten seconds keeps this optional request outside Lighthouse's critical
+  // navigation window and, more importantly, outside a real visitor's first
+  // interaction window on a slow phone.
+  const start = () => setTimeout(() => void fetchSiteHandsPlayed(), 10_000);
+  if (document.readyState === 'complete') start();
+  else window.addEventListener('load', start, { once: true });
 }
 
 let view: View = 'play';
@@ -157,7 +170,7 @@ function installCard(): HTMLElement | null {
   card.append(el('div', 'eyebrow', 'Put it on your phone'));
 
   if (p === 'prompt') {
-    card.append(el('h2', undefined, 'Install Beat Di Table'));
+    card.append(el('h2', undefined, 'Install YaadDominoes'));
     card.append(el('p', 'muted',
       'Add it to your home screen — opens full screen, loads instantly, and works offline against the duppies.'));
     const b = document.createElement('button');
@@ -170,7 +183,7 @@ function installCard(): HTMLElement | null {
     };
     card.appendChild(b);
   } else if (p === 'ios-safari') {
-    card.append(el('h2', undefined, 'Add Beat Di Table to your home screen'));
+    card.append(el('h2', undefined, 'Add YaadDominoes to your home screen'));
     card.append(el('p', 'muted', 'Three taps, and it opens like any other app.'));
     const list = el('ul', 'steps');
     for (const step of IOS_STEPS) {
@@ -182,7 +195,7 @@ function installCard(): HTMLElement | null {
   } else {
     card.append(el('h2', undefined, 'Open in Safari to install'));
     card.append(el('p', 'muted',
-      'On iPhone, only Safari can add an app to the home screen. Open Beat Di Table in Safari, then tap Share and Add to Home Screen.'));
+      'On iPhone, only Safari can add an app to the home screen. Open YaadDominoes in Safari, then tap Share and Add to Home Screen.'));
   }
 
   const skip = document.createElement('button');
@@ -202,7 +215,7 @@ function updateBar(): HTMLElement | null {
   const midHand = game?.hand?.status === 'active';
   const bar = el('div', 'update-bar');
   bar.append(el('span', undefined,
-    midHand ? 'A new version is ready — it will apply after this hand.' : 'A new version of Beat Di Table is ready.'));
+    midHand ? 'A new version is ready — it will apply after this hand.' : 'A new version of YaadDominoes is ready.'));
   if (!midHand) {
     const b = document.createElement('button');
     b.className = 'act ghost';
@@ -217,9 +230,20 @@ function updateBar(): HTMLElement | null {
 function chrome(): HTMLElement {
   const bar = el('div', 'topbar');
   const brand = el('div', 'brand');
-  const h1 = el('h1', undefined, 'Beat Di Table');
+  const mark = document.createElement('img');
+  mark.className = 'brand-mark';
+  mark.src = '/art/yaaddominoes-mark.svg';
+  mark.alt = '';
+  const brandCopy = el('div', 'brand-copy');
+  const h1 = el('h1');
+  h1.setAttribute('aria-label', 'YaadDominoes');
+  h1.append(
+    el('span', 'word-yaad', 'Yaad'),
+    el('span', 'word-dominoes', 'Dominoes'),
+  );
   const tag = el('span', 'eyebrow', 'Jamaican dominoes');
-  brand.append(h1, tag);
+  brandCopy.append(h1, tag);
+  brand.append(mark, brandCopy);
 
   const nav = el('div', 'nav');
   const tabs = [
@@ -252,29 +276,6 @@ function chrome(): HTMLElement {
 }
 
 // ------------------------------------------------------------------ hero --
-/**
- * A scripted line for the front door: pip-matched junctions, three crosswise
- * doubles, and enough length to snake a corner at hero width — the board
- * demonstrating itself before anyone taps a thing.
- */
-const DEMO_BOARD: Board = {
-  kind: 'linear',
-  line: [
-    { tile: '2-4', crosswise: false },
-    { tile: '4-5', crosswise: false },
-    { tile: '5-5', crosswise: true },
-    { tile: '5-6', crosswise: false },
-    { tile: '6-6', crosswise: true },
-    { tile: '3-6', crosswise: false },
-    { tile: '3-3', crosswise: true },
-    { tile: '1-3', crosswise: false },
-    { tile: '1-4', crosswise: false },
-    { tile: '0-4', crosswise: false },
-  ],
-  leftEnd: 2,
-  rightEnd: 0,
-};
-
 /**
  * What each duppy just said, by seat. A yard is loud, and a domino game in
  * silence is not the game — the incumbent's tables are silent. Lines live in
@@ -343,6 +344,10 @@ function nagLater(g: LocalGame, level: DuppyLevel, sent = 0) {
   }, sent === 0 ? NAG_AFTER_MS : NAG_AGAIN_MS);
 }
 
+let recentPlayedTile: string | null = null;
+let recentPassSeat: number | null = null;
+let winningTile: string | null = null;
+
 async function startGame(opts: {
   mode: GameMode; format: SetFormat; duppy: DuppyLevel; tournament: boolean;
 }) {
@@ -355,7 +360,13 @@ async function startGame(opts: {
 
     // Every tile knocks, mine included — the sound is bone hitting board, not
     // an opponent doing something to me. The talk below is what's theirs.
-    if (e.type === 'played') sfx.play('knock');
+    if (e.type === 'played') {
+      sfx.play('knock');
+      recentPlayedTile = e.tile;
+      window.setTimeout(() => {
+        if (recentPlayedTile === e.tile) { recentPlayedTile = null; scheduleRender(); }
+      }, 420);
+    }
     // Six love is the loudest thing that happens in this game and it ends the
     // set, so it gets its own sound rather than sharing the win line's.
     if (e.type === 'setOver' && g.set.sixLove) sfx.play('sixLove');
@@ -366,8 +377,16 @@ async function startGame(opts: {
     }
 
     if (e.type === 'passed' && e.seat !== g.mySeat) {
+      recentPassSeat = e.seat;
+      window.setTimeout(() => {
+        if (recentPassSeat === e.seat) { recentPassSeat = null; scheduleRender(); }
+      }, 520);
       say(e.seat, 'iPass', level);
     } else if (e.type === 'passed' && e.seat === g.mySeat) {
+      recentPassSeat = e.seat;
+      window.setTimeout(() => {
+        if (recentPassSeat === e.seat) { recentPassSeat = null; scheduleRender(); }
+      }, 520);
       // Your pass is the loudest thing you do — it proves what you don't
       // hold. Every duppy at the table gets to notice.
       for (let s = 0; s < g.options.seatCount; s++) {
@@ -388,6 +407,10 @@ async function startGame(opts: {
       // it from wrongly pre-selecting a same-id tile if the next deal
       // happens to include it again.
       pendingTile = null;
+      const lastMove = g.hand?.moveLog[g.hand.moveLog.length - 1];
+      winningTile = g.hand?.status === 'domino' && lastMove && 'tile' in lastMove
+        ? lastMove.tile
+        : null;
       // The coach is the reason to play here rather than anywhere else, so it
       // runs on every hand instead of waiting to be asked. It solves
       // positions — a few hundred milliseconds on a phone — so it is deferred
@@ -428,6 +451,9 @@ async function startGame(opts: {
   reviewOpen = false;
   verifyState = null;
   shareLink = null;
+  recentPlayedTile = null;
+  recentPassSeat = null;
+  winningTile = null;
   sfx.play('shuffle');
   await g.startHand();
   render();
@@ -442,15 +468,13 @@ function hero(): HTMLElement {
   // and a front door that speaks only to the island tells them it is not for
   // them. Same rules, same table, wherever the player is sitting.
   copy.append(el('div', 'eyebrow', 'Jamaican dominoes — yard and foreign'));
-  copy.append(el('h2', undefined, 'Slam dem down.'));
+  copy.append(el('h2', undefined, 'Beat di table.'));
   copy.append(el('p', undefined,
-    'Doubles lie crosswise, the line snakes round the table, and six love ' +
-    'bruks the score back to nothing. Yard rules from wherever you\'re ' +
-    'playing — a deal you can verify, free.'));
+    'Real yard rules. Free play. Every deal can be checked.'));
   copy.append(el('p', 'hero-claim',
-    'And when the hand is done, it shows you the move you missed.'));
+    'After the hand, your coach shows the move you missed.'));
 
-  void fetchSiteHandsPlayed();
+  scheduleSiteHandsFetch();
   if (siteHandsPlayed !== null && siteHandsPlayed >= SITE_STATS_MIN_TO_SHOW) {
     copy.append(el('p', 'hero-tally',
       `${siteHandsPlayed.toLocaleString()} hands played and counting.`));
@@ -470,11 +494,71 @@ function hero(): HTMLElement {
   row.append(deal, fair);
   copy.appendChild(row);
 
-  const line = el('div', 'line demo');
-  renderBoard(line, DEMO_BOARD, { maxUnits: 22, unit: 15 });
+  const line = document.createElement('img');
+  line.className = 'hero-domino-line';
+  line.src = '/art/hero-domino-line-360.webp';
+  line.srcset = '/art/hero-domino-line-360.webp 360w, /art/hero-domino-line.webp 720w';
+  line.sizes = '(max-width: 807px) calc(100vw - 66px), 720px';
+  line.alt = 'A connected line of dominoes with doubles laid crosswise';
+  line.width = 720;
+  line.height = 230;
+  line.decoding = 'async';
+  line.fetchPriority = 'high';
 
   felt.append(copy, line);
   return felt;
+}
+
+function brandStories(): HTMLElement {
+  const section = el('section', 'brand-stories');
+  section.setAttribute('aria-labelledby', 'brand-stories-title');
+  const intro = el('div', 'brand-stories-copy');
+  intro.append(
+    el('div', 'eyebrow', 'More than a game'),
+    el('h2', undefined, 'The table travels.'),
+    el('p', 'muted',
+      'Play with your people, learn the reads elders grew up with, and carry yard rules wherever you live.'),
+  );
+  intro.querySelector('h2')!.id = 'brand-stories-title';
+
+  const cards = el('div', 'brand-story-grid');
+  const stories = [
+    {
+      src: '/marketing/veranda-game.webp',
+      alt: 'Four adults sharing a competitive domino game on a Kingston veranda',
+      title: 'Same table. Any distance.',
+      copy: 'Free play first. Lounges bring the regulars, voice and rivalry.',
+    },
+    {
+      src: '/marketing/academy-generations.webp',
+      alt: 'A grandmother teaching her granddaughter how to read a domino hand',
+      title: 'Learn the reads.',
+      copy: 'The academy starts at the pips and builds up to tournament decisions.',
+    },
+    {
+      src: '/marketing/night-game.webp',
+      alt: 'Friends reacting as the winning domino lands at a night yard game',
+      title: 'Every last bone matters.',
+      copy: 'The final tile lands with the sound, movement and pressure it deserves.',
+    },
+  ];
+  for (const story of stories) {
+    const figure = document.createElement('figure');
+    figure.className = 'brand-story';
+    const image = document.createElement('img');
+    image.src = story.src;
+    image.alt = story.alt;
+    image.width = 1280;
+    image.height = 720;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    const caption = document.createElement('figcaption');
+    caption.append(el('h3', undefined, story.title), el('p', undefined, story.copy));
+    figure.append(image, caption);
+    cards.appendChild(figure);
+  }
+  section.append(intro, cards);
+  return section;
 }
 
 // ---------------------------------------------------------------- replay --
@@ -510,7 +594,7 @@ function replayView(): HTMLElement {
   const step = r.steps[replayStep - 1] ?? null;
 
   const head = el('div', 'panel');
-  head.append(el('div', 'eyebrow', 'A hand from Beat Di Table'));
+  head.append(el('div', 'eyebrow', 'A hand from YaadDominoes'));
   head.append(el('h2', undefined, 'Watch it back'));
   head.append(el('p', 'muted',
     'Every tile, in the order it went down. Nobody\'s hand is in this link — ' +
@@ -741,18 +825,23 @@ function scoreboard(g: LocalGame): HTMLElement {
       ? 'One all — this hand plays two'
       : `Replay — worth ${g.set.handValue}`));
   }
-  board.appendChild(meta);
+  // Format belongs in the table header, not a third scoreboard column. On a
+  // phone that third column forced the two actual scores onto separate rows
+  // and doubled the height of the sticky bar over the board.
+  top.insertBefore(meta, leave);
   panel.appendChild(board);
   return panel;
 }
 
 function seats(g: LocalGame): HTMLElement {
-  const wrap = el('div', 'seats');
+  const wrap = el('div', 'seats practice-seats');
   const passes = g.passesBySeat();
   const voids = g.hand ? knownVoids(g.hand) : [];
 
   for (let seat = 0; seat < g.options.seatCount; seat++) {
     const card = el('div', 'seat');
+    if (seat === recentPassSeat) card.classList.add('pass-pop');
+    if (seat === g.mySeat) card.classList.add('mine');
     if (g.hand?.turn === seat && g.hand.status === 'active') card.classList.add('turn');
     if (isPartnered(g.options.mode) && seat !== g.mySeat && seat % 2 === g.mySeat % 2) {
       card.classList.add('partner');
@@ -820,7 +909,7 @@ function partnerHandPanel(tiles: string[]): HTMLElement {
 }
 
 function myHand(g: LocalGame): HTMLElement {
-  const panel = el('div', 'panel');
+  const panel = el('div', 'panel my-hand-panel');
   panel.append(el('div', 'eyebrow', g.isMyTurn() ? 'Your play' : 'Your hand'));
 
   const playable = g.playableTiles();
@@ -1244,15 +1333,25 @@ function tableView(g: LocalGame): DocumentFragment {
   frag.appendChild(scoreboard(g));
   if (penaltyEvents) frag.appendChild(penaltyBanner(penaltyEvents, (seat) => g.seatLabel(seat)));
 
-  const felt = el('div', 'table-felt');
+  const room = el('div', 'practice-room');
+  const felt = el('div', 'table-felt live-felt');
   const line = el('div', 'line');
   const displayBoard = g.hand?.board ?? null;
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
   // measured.
   renderBoard(line, displayBoard, lastFeltBox ? { box: lastFeltBox } : {});
+  const animateTile = () => {
+    const tile = winningTile ?? recentPlayedTile;
+    if (!tile) return;
+    line.querySelector(`[data-tile="${tile}"]`)?.classList.add(
+      winningTile ? 'final-spin' : 'placed-now',
+    );
+    if (winningTile) felt.classList.add('shake');
+  };
+  animateTile();
   felt.appendChild(line);
-  frag.appendChild(felt);
+  room.appendChild(felt);
   // The felt isn't attached to the document yet at this point in the build,
   // so clientWidth/clientHeight would read zero here — wait a frame for real
   // layout, then correct the cache and re-render ONLY if the real box has
@@ -1264,7 +1363,10 @@ function tableView(g: LocalGame): DocumentFragment {
     if (box.width <= 0 || box.height <= 0) return;
     const changed = !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
     lastFeltBox = box;
-    if (changed) renderBoard(line, displayBoard, { box });
+    if (changed) {
+      renderBoard(line, displayBoard, { box });
+      animateTile();
+    }
   });
 
   // Hand docks right under the board, before seats/sound compete for the
@@ -1278,12 +1380,13 @@ function tableView(g: LocalGame): DocumentFragment {
   // engine state, so this is a direct read; no RLS or subscription involved.
   if (g.options.mode === 'openhand' && g.hand) {
     const partnerSeat = g.mySeat ^ 2;
-    frag.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
+    room.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
   }
-  frag.appendChild(myHand(g));
+  room.appendChild(myHand(g));
 
-  frag.appendChild(seats(g));
-  frag.appendChild(soundToggle());
+  room.appendChild(seats(g));
+  room.appendChild(soundToggle());
+  frag.appendChild(room);
   const result = handResult(g);
   if (result) frag.appendChild(result);
   const summary = coachSummary(g);
@@ -1410,7 +1513,7 @@ function legalFooter(): HTMLElement {
     foot.appendChild(link);
   }
   foot.appendChild(checkForUpdateLink());
-  foot.appendChild(el('span', undefined, `© ${new Date().getFullYear()} Beat Di Table`));
+  foot.appendChild(el('span', undefined, `© ${new Date().getFullYear()} YaadDominoes`));
   return foot;
 }
 
@@ -1468,12 +1571,13 @@ function render() {
     } else {
       // The table sells the game; the install card waits its turn below it.
       app.appendChild(hero());
-      // Carries the green of the felt down into the cream page, so the half
-      // below the fold reads as the same yard rather than a separate site.
+      // Carries the green of the felt into the signal-blue room so the half
+      // below the fold still reads as the same table rather than another site.
       app.appendChild(el('div', 'yard-band'));
       const card = installCard();
       if (card) app.appendChild(card);
       app.appendChild(lobby());
+      app.appendChild(brandStories());
     }
   } else if (view === 'lounges') {
     // The lounges are the only place strangers can talk to you, so the age

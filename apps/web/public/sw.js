@@ -1,4 +1,4 @@
-/* Beat Di Table service worker.
+/* YaadDominoes service worker.
  *
  * Deliberately conservative. Three rules drive everything here:
  *
@@ -12,16 +12,20 @@
  *     network.
  */
 
-const VERSION = 'bdt-v52';
+const VERSION = 'yaaddominoes-v57';
 const SHELL = `${VERSION}-shell`;
 
 // Bumping VERSION invalidates everything below.
 const PRECACHE = [
   '/',
   '/manifest.webmanifest',
+  '/art/yaaddominoes-mark.svg',
+  '/art/hero-domino-line-360.webp',
+  '/art/hero-domino-line.webp',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',
+  '/icons/favicon.ico',
   // The table's own noise. Precached rather than left to the runtime cache
   // because a knock fetched on first play arrives after the tile has already
   // landed — and offline, it would never arrive at all. ~180 KB for all three.

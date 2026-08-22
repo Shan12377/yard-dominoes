@@ -48,7 +48,7 @@ Node 22+ runs TypeScript directly. The engine has no build step.
 - `supabase/functions/` — Edge Functions, the game authority
 - `apps/web/` — Vite client, PWA
 
-Detailed rules live in `.claude/rules/` and load when you touch matching files.
+Detailed rules live in `.Codex/rules/` and load when you touch matching files.
 
 ## The six invariants
 
@@ -133,7 +133,7 @@ Do not relitigate these without asking.
   are normal conditions, not exceptions. Mute must actually stop transmitting
   and leaving must stop every track — a mute that only mutes the UI, or a
   recording light left on after leaving, loses trust permanently.
-  `.claude/rules/voice.md` has the full failure list and loads when you open
+  `.Codex/rules/voice.md` has the full failure list and loads when you open
   the file. Two tabs in one browser share a session and are not two players;
   verify with two real clients.
 
@@ -171,7 +171,7 @@ review. Stripe is the only payment path. Guest free, Yardie $24/yr, VIP $69/yr �
 the game is free, the subscription buys the social layer.
 
 Access is decided by `effective_tier()` in SQL and enforced in RLS. A tier check
-in client code is a suggestion, not a paywall. See `.claude/rules/billing.md`
+in client code is a suggestion, not a paywall. See `.Codex/rules/billing.md`
 for the subscription lifecycle.
 
 **Cash-stakes gaming is a separate problem from subscriptions.** Being web-only
@@ -219,6 +219,6 @@ legal opinion and processor.
   wired up for it — online only so far.
   Shipping it first missed optimistic prediction on the partner seat, which
   looked like a stuck/delayed hand rather than just a slower one — see
-  `.claude/rules/client.md`'s "Every playable seat needs optimistic
+  `.Codex/rules/client.md`'s "Every playable seat needs optimistic
   prediction" before touching `OnlineGame.play()` again.
 - Prefer editing existing files over creating new ones.

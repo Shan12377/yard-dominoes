@@ -1,11 +1,10 @@
 /**
  * The colour of the table.
  *
- * Brown is the default because that is what a real yard table is — plywood,
- * or a board laid over a drum — and because the business partner asked for it
- * twice, unprompted, in two separate calls. Green is the casino baize the
- * rival app uses; it stays available, but it is no longer what a new player
- * sees first.
+ * Green is the default because the table is the app's largest surface and the
+ * first thing that should carry YaadDominoes' vibrancy. Brown remains available
+ * for players who want a bare plywood-yard table, but it no longer defines a
+ * new player's first impression.
  *
  * Being able to change it at all matters more than which one wins. Players
  * sit at this table for hours, and the rival app lets them pick — this is one
@@ -22,14 +21,14 @@ export interface Felt {
 }
 
 export const FELTS: Felt[] = [
-  { id: 'brown', label: 'Yard brown' },
+  { id: 'green', label: 'Yaad green' },
+  { id: 'brown', label: 'Yard wood' },
   { id: 'clay', label: 'Clay' },
-  { id: 'green', label: 'Green' },
   { id: 'blue', label: 'Blue' },
 ];
 
 const KEY = 'yard:felt';
-const DEFAULT = 'brown';
+const DEFAULT = 'green';
 
 /**
  * An unknown stored value falls back to the default rather than being written

@@ -5,6 +5,43 @@ still coming. Update this file whenever a doc lands, a phase finishes, or a
 decision gets made — this is the single place to check status instead of
 re-deriving it from chat history.
 
+## Current product identity and connected systems (2026-08-22)
+
+- **Correction recorded 2026-08-22:** **YaadDominoes** is the confirmed
+  user-facing product and brand name. Yaadmoji is a separate app owned by the
+  user and must never be used for this repository, its Vercel project, or its
+  domain. No commit, push, or deployment occurred while the mistaken Yaadmoji
+  name was present; it existed only in the local working tree.
+- A bare “Yard” is a prior working product name. Historical plans may retain it
+  as historical record; new UI and current-facing docs should use YaadDominoes.
+- **“Beat di table.” is the confirmed slogan**, not a former product name.
+  “Slam dem down” is retired.
+- Stable internal identifiers are deliberately unchanged: private GitHub repo
+  `Shan12377/yard-dominoes`, package `@yard/engine`, and `yard:*` localStorage
+  keys. Yard/Yardie terms that describe gameplay, culture, tiers, lounges, or
+  the Sunday Yard art direction also remain valid.
+- GitHub and Vercel are connected. `main` auto-deploys through Vercel, so a push
+  can change production; do not push or deploy merely to preview design work.
+- The current legal entity placeholder is distinct from the YaadDominoes product
+  brand and must not be guessed or renamed before formation is confirmed.
+- **Brand direction: Kingston Signal.** The prior cream “Sunday Yard” room and
+  brown-default table were rejected on 2026-08-22 as too muted. Current system:
+  deep signal-blue room, electric-green table, mango actions/wins, coral
+  emotion, sky-blue social accents, and bone-white dominoes. Visual language
+  comes from dancehall sign rhythm plus sound-system/pip geometry; no palm or
+  flag template inside live gameplay. The scalable mark is
+  `apps/web/public/art/yaaddominoes-mark.svg`.
+- The complete canonical brand handoff lives in `docs/branding.md` and must be
+  read before visual or marketing changes.
+- The confirmed wordmark treatment is one unbroken name with two colors:
+  mango **Yaad** + bone **Dominoes** on signal blue.
+- **Board-first hand layout completed 2026-08-22:** practice and online tables
+  share a large felt, the player's hand docks directly below it, mobile seats
+  form one compact four-player strip, and the online social rail becomes tabs
+  below the board through 1100px. The prior stacked mobile seat cards and
+  300px tablet rail were the primary causes of the “board is too small” issue
+  and must not be restored.
+
 ## Incoming docs (5 expected)
 
 | # | Topic | Status |
@@ -432,6 +469,51 @@ Everything below is live and verified, not just written:
   multiplayer, Academy drills/progress, bredrins list, and username editing
   were found to have **no UI at all** — backend exists for some, nothing
   built for others. This is what kicked off the current build phase.
+
+## Done — Kingston Signal brand and performance pass (2026-08-22)
+
+- The confirmed product is **YaadDominoes**, never Yaadmoji, with the public
+  slogan **“Beat di table.”** `docs/branding.md` is the brand source of truth.
+- The complete production asset family now ships from the canonical
+  `yaaddominoes-mark.svg`: PWA/favicon sizes, maskable icon, iOS splash screens,
+  responsive hero WebPs, editable hero SVG, and a 1200×630 social card.
+- The landing hero changed from a large pip-by-pip DOM illustration to a
+  responsive static WebP. External Google Fonts were removed in favor of local
+  stacks. Optional global statistics and service-worker registration are
+  delayed beyond first paint. Do not reverse these choices without measuring
+  the production build.
+- Lighthouse was run against the local production preview, not Vite dev. The
+  clean desktop audit scored **100 in every category** (performance,
+  accessibility, best practices, SEO, and agentic browsing). Mobile scored 100
+  in every non-performance category; performance varied with throttling, with
+  a best observed score of 97 and a clean final run of 92. Do not report mobile
+  as 100 until an actual audit produces it.
+- Nothing from this pass was pushed or deployed. `main` auto-deploys to the
+  YaadDominoes Vercel project, so local approval remains the gate.
+
+## Done — design foundation completion (2026-08-22)
+
+- The seven requested design gates were implemented together before the final
+  audit: board-first mobile layout, complete browser/PWA/domain assets, twelve
+  human avatars, gameplay motion and sound, three human marketing scenes, copy
+  cleanup, and a preview-only release workflow.
+- Player avatars are now one cohesive twelve-person Jamaican portrait set.
+  Source sheet, ids and art rules live in `docs/avatar-set.md`; production WebPs
+  live in `apps/web/public/avatars/`.
+- Migration `0042_avatar_collection.sql` widens the profile constraint for the
+  four new ids. It must be applied before a deployed client is allowed to save
+  `afro`, `braids`, `twists` or `goldtooth`; the original eight ids remain
+  backward compatible.
+- Marketing photography is generated artwork, not customer testimony. The
+  three scenes live under `apps/web/public/marketing/`, load lazily below the
+  play controls, and never appear in a live game.
+- The live-table signature is now: quick placement settle + recorded knock,
+  animated pass card + spoken response, spinning final bone + felt impact, and
+  dedicated six-love motion/sound. The global reduced-motion rule preserves
+  every state while collapsing the movement.
+- Phone rules keep chat/watchers/standings/log/profile below the table up to
+  1100px, enlarge the playable hand to 44×88px on normal phones, and reserve
+  56svh for the felt where height permits.
 
 ## Open threads not yet in a phase
 

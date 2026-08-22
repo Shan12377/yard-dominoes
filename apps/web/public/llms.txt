@@ -1,0 +1,9 @@
+# YaadDominoes
+
+YaadDominoes is a mobile-first Jamaican dominoes PWA with authentic partner,
+cut-throat, open-hand, French, and six-love play plus a learning academy.
+
+- [Play YaadDominoes](/?view=play)
+- [Enter the lounges](/?view=lounges)
+- [Learn in the Academy](/?view=academy)
+- [Read how deals are verified](/?view=fair)

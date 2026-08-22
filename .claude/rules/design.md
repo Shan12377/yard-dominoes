@@ -3,14 +3,15 @@
 The goal is not "a domino app that works." It is work that makes people ask who
 designed it. Every decision below serves that.
 
-## Direction: Sunday Yard
+## Direction: Kingston Signal
 
-Midday, not midnight. A concrete yard at noon — sun-bleached cream, not a dark
-room under one bulb. This replaced an earlier night-room direction after
-research into the actual visual language (the flag, dancehall/sound-system
-culture, Caribbean branding broadly) showed it skews sun-drenched and loud,
-not dim and moody. A dark felt table under a single bulb read as a high-end
-poker lounge — competent, but not actually Jamaican.
+A modern Jamaican sound system translated into a domino interface. Deep signal
+blue is the room; electric green is the playing surface; mango calls the
+action; coral carries emotion; sky blue carries social connection; bone white
+belongs primarily to the dominoes. The system takes its rhythm from hand-painted
+dancehall signs and its geometry from speaker stacks and domino pips. It is
+vibrant and culturally specific without turning the flag, palms, or tourist
+scenery into a template.
 
 ## The trap to avoid
 
@@ -21,57 +22,50 @@ material weight this app already put into the table and tiles: real warmth,
 real texture, real thickness. The palette is Jamaican and unapologetically so;
 the execution is what has to be expensive-looking.
 
-Rule of thumb: **cream is the room, green is a surface, gold is a bold
-accent, black is ink and nothing else.** Gold is used generously here —
-score, primary actions, wins — but it is never the room itself, and it never
-substitutes for the actual surface materials (felt, wood, bone).
+Rule of thumb: **signal blue is the room, green is the table, mango is action,
+coral is emotion, sky is social, and bone is the domino.** Do not drift back
+to beige lifestyle branding, all-black casino rooms, or flag colours pasted
+onto generic cards.
 
 ## Palette
 
 ```css
---sand:       #FAF3E1;  /* the room. sun-bleached cream, never white, never dark */
---sand-hi:    #FFFBF0;  /* panels/cards sitting slightly above the room */
-
---forest:     #146B3A;  /* the table. flag green, full strength, not a hint of it */
---forest-hi:  #1C8449;
---forest-lo:  #0E4F2A;
-
---wood:       #5A3A1E;  /* table edge framing the felt */
---wood-hi:    #7A5230;
-
---gold:       #E0A400;  /* flag gold, deepened to hold contrast on cream */
---gold-hi:    #F4C430;
---gold-deep:  #8F6600;
-
---bone:       #FDF6E3;  /* tile face. Deliberately distinct from --sand-hi (#FFFBF0)
-                            — a tile that matches its panel disappears into it — and
-                            from the tile gradient's own hardcoded highlight stop
-                            (#FFFEFA), which needs its own lighter value or the
-                            gradient flattens to a single flat colour. */
---bone-shade: #D9CCA8;  /* tile bottom edge — this is what gives it thickness */
---pip:        #241608;
-
---ink:        #241608;  /* text. warm near-black. NEVER a background, NEVER the room */
---muted:      #786243;  /* secondary text. Must clear 4.5:1 on both --sand and
-                            --sand-hi (WCAG AA) — check before ever touching this. */
---blood:      #C0392B;  /* bruk, and nothing else */
+--sand:       #073B5C;  /* legacy token name; now the signal-blue room */
+--sand-hi:    #0C4F73;  /* legacy token name; tonal blue panels */
+--forest:     #00A859;  /* electric green table and active states */
+--forest-hi:  #2DD46F;
+--forest-lo:  #007A3E;
+--wood:       #052B43;  /* legacy token name; sound-system frame */
+--wood-hi:    #10698F;
+--gold:       #FFC928;  /* mango action, scores and wins */
+--gold-hi:    #FFE16A;
+--gold-deep:  #FFC928;
+--bone:       #FFF9EA;
+--bone-shade: #DCCFAB;
+--pip:        #17130F;
+--ink:        #FFF9EA;
+--muted:      #B9DCEB;
+--blood:      #FF5A3C;  /* coral: bruk, passes and emotional warnings */
+--sky:        #43C7F4;  /* social connection and secondary energy */
 ```
 
 ## Type
 
-- **Display** — `Anton`. Condensed, poster-weight, reads like a sound-system
-  flyer.
-- **Body** — `Karla`. Warm, slightly quirky, not a default UI face.
-- **Mono** — `IBM Plex Mono`. Scores, counts, join codes, timers.
-- **`Bungee`** — the poster voice: the wordmark, the six-love celebration, and
+- **Display** — the local `Impact`/condensed fallback stack. Poster-weight and
+  reads like a sound-system flyer without delaying paint for a font download.
+- **Body** — the local rounded Avenir/system stack. Warm and highly readable.
+- **Mono** — the local SF Mono/Menlo stack. Scores, counts, join codes, timers.
+- **Signage** — the local Arial Black/heavy stack: the wordmark, the six-love celebration, and
   the headings on the front door (the hero and the cards a visitor sees before
-  they sit down). It is a signage face and it stops at the table — inside a
-  live game, headings are Anton. Mixing the two faces on one screen is what
-  made the front page read as two different sites stacked on each other: a
-  Bungee hero over Anton section headings.
+  they sit down). It is a signage face and it stops at the table; live-game
+  headings use the compact local display stack. Mixing competing display faces
+  on one screen makes the product read as two different sites stacked together.
 
-  Bungee is bright gold on the felt and `--ink` on cream. Never bright gold on
-  cream — it fails contrast.
+  Signage type is bright gold on deep signal blue and bone white on green. Keep it
+  off pale surfaces where mango loses contrast.
+
+Do not restore render-blocking web-font requests. The 2026-08-22 Lighthouse
+baseline measured roughly 1.76 seconds of avoidable delay from Google Fonts.
 
 Patois goes in the interface, not just the copy: pose, bruk, under love, count,
 slam, sporting, duppy, bredrin. Never translate these into generic game words.
@@ -86,11 +80,12 @@ design:
    and the edges fall away slightly.
 2. **Tiles have thickness.** A 3–4px `--bone-shade` bottom edge and a tight
    dark shadow. They must read as objects lying on a surface, not as divs.
-3. **Wood frames the felt.** A grained border around the table, which is what
-   makes the green read as a domino table rather than a CSS background.
+3. **The sound-system frame holds the felt.** A deep signal-blue rim with
+   speaker/pip geometry makes the green read as YaadDominoes rather than casino
+   baize. Brown wood remains an optional table theme, not the brand default.
 4. **Light comes from above.** One bright, warm, direct source — noon sun, not
    a bulb. Gradients run top-light to bottom-dark, consistently, everywhere,
-   including on the cream room itself (a very slight vignette keeps the
+   including on the signal-blue room itself (a slight vignette keeps the
    content area from reading as a flat fill).
 5. **Cards are objects too.** Panels get the same treatment as tiles: a
    top-light gradient, a slightly darker bottom border for thickness, and a
@@ -104,49 +99,50 @@ design:
 
 ## Illustration
 
-`apps/web/public/art/yard-band.svg` is the house motif: coconut palms, a midday
-sun, and a line of bones stood up in the yard, flat vector in four palette
-colours. It sits between the felt hero and the cream cards and carries the
-green down the page.
-
-The register is a dancehall flyer silhouette, **not** a travel-brochure beach —
-that distinction is the whole point, because postcard-tropical is exactly the
-cliché that makes a Caribbean product look generic. The standing bones are what
-make it this game's picture rather than stock palm art; keep them in anything
-that replaces it.
-
-It renders `contain` at every width. Do not "fix" the small phone rendering by
-cropping it — the palms sit near the artboard edges and a crop slices them in
-half. More presence on a phone means a second, tighter composition.
+The house graphic language is sound-system geometry: speaker cones, cropped
+pip circles, stacked rectangles, angled colour cuts, and hand-painted-sign
+typographic rhythm. Keep the middle of a live table quiet. Geometry may occupy
+corners and frames; palms, flags, scenery, and branding do not sit underneath
+the playable chain.
 
 ## Motion
 
 - **The slam** — the winning tile drops from above, lands hard, the felt shakes,
   a faint dust puff. This is the emotional peak of Jamaican dominoes and it
   should feel physical.
-- **Six-love** — a gold sweep across the board, `Bungee` at full width. Earn it:
+- **Six-love** — a gold sweep across the board, signage type at full width. Earn it:
   this fires once in ~37 hands, so it can afford to be enormous.
 - **Bruk** — all six pips flare `--blood`, then go out together. The rule is the
   animation.
 - Everything else stays quiet. Honour `prefers-reduced-motion`.
 
+## Performance guardrails
+
+- Load no render-blocking third-party fonts or scripts.
+- Keep the landing domino chain as the responsive WebP asset with its SVG as
+  the editable source. Do not rebuild it as a large DOM illustration.
+- Keep optional global data requests and service-worker registration out of
+  the critical first-paint path.
+- Run Lighthouse against `npm run build` plus the production preview, not the
+  Vite development server. Mobile Lighthouse is throttled and can vary between
+  runs; report the measured result rather than rounding it.
+- Preserve the main landmark, valid `robots.txt`, `llms.txt`, social metadata,
+  and zero-layout-shift image dimensions.
+
 ## Avatars
 
-Five, and they map to the five duppy tiers — this is deliberate, not decorative:
+The first player collection is twelve human Jamaican portraits. It must vary
+age, skin tone, gender presentation, hair and accessories while staying one
+cohesive editorial illustration system. Selection is intentionally quick;
+deep face customization is a later product decision.
 
-| Duppy | Character |
-|---|---|
-| Pickney | A youth, maybe 19, cap, learning the game |
-| Yard | Working man in his 30s, relaxed, plays most evenings |
-| Ranker | Woman in her 30s, confident, sharp-eyed, gold hoops |
-| Don | Man in his 50s, hat, unreadable, been playing forty years |
-| General | Elder woman, grey locs, the one nobody wants to sit across from |
+The canonical inventory and generation source are in `docs/avatar-set.md`.
+Production crops are 256px WebP files in `apps/web/public/avatars/`. Existing
+ids are stable profile data and must not be renamed. Regenerate the whole sheet
+if the style changes; never splice in one visibly different character.
 
-Midday light, shallow depth of field, shot as portraits at a domino table —
-not studio headshots, not smiling stock photos. Square, 512px, generated once
-and committed to `public/avatars/`.
-
-Never use a real person's likeness. Human players upload their own photo.
+Never use a real person's likeness for a generated avatar. Human players may
+upload their own photo through the separate photo path.
 
 ## Teaching art — read this before generating anything
 
@@ -194,3 +190,12 @@ tiles that landed in an already-used cell. The hand stays thumb-reachable at
 the bottom; nothing important sits in the top third. Test at 390×844 before
 anything wider — it has the tightest width, so turns happen soonest and are
 easiest to see.
+
+- **Board-first layout is settled.** Both practice and online play give the
+  felt about 52% of a modern phone viewport, keep the player's hand directly
+  beneath it, and compress all four seats into one comparison strip. Do not
+  restore vertically stacked full-size seat cards on mobile.
+- The social rail collapses below the board at widths up to 1100px. A permanent
+  side rail is allowed only when the board still has genuinely generous space.
+- The player's hand stays in one horizontal, scrollable row so larger hands do
+  not wrap into a tall block or shrink the bones below comfortable tap size.

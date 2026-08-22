@@ -98,7 +98,12 @@ export function registerServiceWorker(onUpdateReady: () => void) {
   if (import.meta.env.DEV) return;
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
+    // Installing the offline shell decodes/caches audio and icons. Doing that
+    // in the first interaction window produced the only remaining 300–500ms
+    // long task in Lighthouse. Offline readiness is important, but it is not
+    // more important than the first tap; register once the opening experience
+    // has been quiet for ten seconds.
+    setTimeout(() => navigator.serviceWorker.register('/sw.js').then((reg) => {
       if (reg.waiting) { waitingWorker = reg.waiting; onUpdateReady(); }
       reg.addEventListener('updatefound', () => {
         const next = reg.installing;
@@ -123,7 +128,7 @@ export function registerServiceWorker(onUpdateReady: () => void) {
       });
     }).catch(() => {
       // No worker means no offline shell. The app still works.
-    });
+    }), 10_000);
   });
 
   // `controllerchange` does not mean "a new version replaced the old one" —

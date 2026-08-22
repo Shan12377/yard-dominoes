@@ -143,25 +143,33 @@ export const ORIGIN_LABEL: Record<Origin, string> = {
 };
 
 /**
- * Presence without a photo — docs/avatar-set.md. `plain` is the deliberate
- * default: some players want presence without a character too, not just
- * without their own face.
+ * Presence without a photo — docs/avatar-set.md. The original ids remain
+ * stable so an existing profile never breaks when the art direction evolves.
  */
-export type Avatar = 'tam' | 'wrap' | 'granny' | 'straw' | 'hoops' | 'cap' | 'phones' | 'plain';
+export type Avatar = 'tam' | 'wrap' | 'granny' | 'straw' | 'hoops' | 'cap'
+  | 'phones' | 'plain' | 'afro' | 'braids' | 'twists' | 'goldtooth';
 
-export const AVATARS: Avatar[] = ['tam', 'wrap', 'granny', 'straw', 'hoops', 'cap', 'phones', 'plain'];
+export const AVATARS: Avatar[] = [
+  'hoops', 'plain', 'granny', 'tam',
+  'wrap', 'straw', 'phones', 'afro',
+  'braids', 'cap', 'twists', 'goldtooth',
+];
 
 /** What each character is wearing — read aloud by a screen reader in place
  *  of a filename, and shown as the caption under the picker grid. */
 export const AVATAR_LABEL: Record<Avatar, string> = {
-  tam: 'Knitted tam',
-  wrap: 'Gold head-wrap',
-  granny: 'Curlers and glasses',
+  tam: 'Short locs and knitted tam',
+  wrap: 'Gold headwrap',
+  granny: 'Silver curls and reading glasses',
   straw: 'Straw yard hat',
-  hoops: 'Gold hoops',
-  cap: 'Flat cap',
-  phones: 'Headphones',
-  plain: 'Plain',
+  hoops: 'Bantu knots and gold hoops',
+  cap: 'Grey beard and flat cap',
+  phones: 'High-top curls and headphones',
+  plain: 'Close-cropped hair and beard',
+  afro: 'Natural afro and gold studs',
+  braids: 'Long braids and coral bandana',
+  twists: 'Short twists and clear glasses',
+  goldtooth: 'Big laugh and gold tooth',
 };
 
 /** `apps/web/public/avatars/<id>.webp` is the only thing that ever renders one. */

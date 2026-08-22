@@ -1,6 +1,6 @@
 {
-  "name": "Beat Di Table — Jamaican Dominoes",
-  "short_name": "Beat Di Table",
+  "name": "YaadDominoes — Jamaican Dominoes",
+  "short_name": "YaadDominoes",
   "description": "Jamaican dominoes played the real way. Cut throat, partners, six love.",
   "id": "/",
   "start_url": "/?src=pwa",
@@ -8,8 +8,8 @@
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#FAF3E1",
-  "theme_color": "#FAF3E1",
+  "background_color": "#073B5C",
+  "theme_color": "#073B5C",
   "categories": ["games", "entertainment"],
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

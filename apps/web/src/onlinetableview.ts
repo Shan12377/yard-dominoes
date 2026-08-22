@@ -420,6 +420,7 @@ function seatCard(
   s: SeatInfo, game: OnlineGame, rerender: () => void, social?: TableSocial,
 ): HTMLElement {
   const card = el('div', 'seat');
+  if (s.seatIndex === game.mySeat) card.classList.add('mine');
   if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
   // Partner mode had no online cue at all for which seat is your partner —
   // the border existed only in offline play (main.ts's seats()). Seats are
@@ -431,7 +432,7 @@ function seatCard(
   // Cosmetic only — plan §7.1. A faint backdrop behind the seat's own
   // content, never anything that could compete with tile/turn legibility.
   if (s.userId && s.background) {
-    card.style.backgroundImage = `linear-gradient(rgba(255,251,240,0.86), rgba(255,251,240,0.86)), url(${backgroundUrl(s.background as Background)})`;
+    card.style.backgroundImage = `linear-gradient(rgba(5,43,67,0.84), rgba(5,43,67,0.84)), url(${backgroundUrl(s.background as Background)})`;
     card.style.backgroundSize = 'cover';
     card.style.backgroundPosition = 'center';
   }
@@ -516,7 +517,7 @@ function tagWinningTile(line: HTMLElement, felt: HTMLElement, game: OnlineGame):
   const tileId = lastMove && 'tile' in lastMove ? lastMove.tile : null;
   if (tileId) {
     const el_ = line.querySelector(`[data-tile="${tileId}"]`);
-    el_?.classList.add('slammed');
+    el_?.classList.add('final-spin');
     felt.classList.add('shake');
   }
 }
@@ -529,14 +530,14 @@ export function liveTableView(
 ): DocumentFragment {
   const frag = document.createDocumentFragment();
 
-  const head = el('div', 'panel');
+  const head = el('div', 'panel live-table-head');
   if (social?.loungeName) head.append(el('div', 'eyebrow', social.loungeName));
   const top = el('div', 'spread');
   top.append(el('h2', undefined, `Table ${game.table.joinCode}`));
   const sfxOff = sfx.muted();
   const sound = document.createElement('button');
   sound.className = 'act ghost small';
-  sound.textContent = sfxOff ? 'Table sound off' : 'Table sound on';
+  sound.textContent = sfxOff ? 'Sound off' : 'Sound on';
   sound.setAttribute('aria-pressed', String(!sfxOff));
   sound.onclick = () => { sfx.setMuted(!sfxOff); rerender(); };
   top.appendChild(sound);
@@ -613,7 +614,7 @@ export function liveTableView(
   const displayBoard = game.predictedBoard ?? game.hand?.board ?? null;
 
   const feltSlot = el('div', 'felt-slot');
-  const felt = el('div', 'table-felt');
+  const felt = el('div', 'table-felt live-felt');
   const line = el('div', 'line');
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
@@ -966,7 +967,7 @@ const ARM_DIRECTION_ARROW: Record<'right' | 'left' | 'up' | 'down', { glyph: str
 };
 
 function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
-  const panel = el('div', 'panel');
+  const panel = el('div', 'panel my-hand-panel');
   // A tile tapped right before the hand ended (legal or not) must not carry
   // into the result screen, or wrongly pre-select a same-id tile if the
   // next deal happens to include it again — same reasoning as main.ts's
