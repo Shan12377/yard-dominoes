@@ -486,6 +486,10 @@ Everything below is live and verified, not just written:
   connected domino line drops, rebounds and settles with transform/opacity.
   `heroHasEntered` prevents ordinary rerenders from replaying it, while the
   global reduced-motion rule collapses the entrance for players who request it.
+- Form values follow one explicit contrast rule: dark-blue shared controls use
+  light `--ink`, while the age gate's light bone field uses dark `--pip` text
+  and caret. Placeholders and native select options are also explicitly
+  coloured; do not allow a light value to inherit onto a light field again.
 - Lighthouse was run against the local production preview, not Vite dev. The
   clean desktop audit scored **100 in every category** (performance,
   accessibility, best practices, SEO, and agentic browsing). Mobile scored 100
