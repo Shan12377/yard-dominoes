@@ -635,6 +635,10 @@ export function liveTableView(
   renderBoard(line, displayBoard, lastFeltBox ? { box: lastFeltBox } : {});
   tagWinningTile(line, felt, game);
   felt.appendChild(line);
+  // An undealt table is still a game surface, not a form page. Keep the
+  // only action needed to begin the game directly on the felt so nobody has
+  // to scroll away from the board to find it.
+  if (!game.hand) felt.appendChild(startHandPanel(game));
   feltSlot.appendChild(felt);
   // The felt isn't attached to the document yet at this point in the build,
   // so getBoundingClientRect() would read all zeros here — wait a frame for
@@ -692,8 +696,6 @@ export function liveTableView(
     wrap.appendChild(seatCard(s, game, rerender, social));
     cross.appendChild(wrap);
   });
-
-  if (!game.hand) frag.appendChild(startHandPanel(game));
 
   const room = el('div', 'table-room');
   room.appendChild(cross);

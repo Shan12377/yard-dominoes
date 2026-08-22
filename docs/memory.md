@@ -5,6 +5,17 @@ still coming. Update this file whenever a doc lands, a phase finishes, or a
 decision gets made — this is the single place to check status instead of
 re-deriving it from chat history.
 
+## Live-table viewport rule (2026-08-22)
+
+- The board, four seat summaries, scores, turn clock, and the player's rack
+  must remain together inside the live-game viewport. Chat, standings, logs,
+  profile and other social tools may scroll or collapse; they must never push
+  the board or rack out of view.
+- Before the first deal, `Start hand` belongs on the empty felt itself. Never
+  place the only action needed to begin below or above a full-sized board.
+- This is a presentation rule only. Do not alter dealing, tile visibility,
+  turn order, scoring, or any engine/server authority to achieve the layout.
+
 ## Current product identity and connected systems (2026-08-22)
 
 - **Correction recorded 2026-08-22:** **YaadDominoes** is the confirmed
@@ -491,10 +502,10 @@ Everything below is live and verified, not just written:
   and caret. Placeholders and native select options are also explicitly
   coloured; do not allow a light value to inherit onto a light field again.
 - An online table with no `game.hand` is explicitly **undealt**, not a hand in
-  which every player holds zero. Its Start hand panel renders before the table,
-  seats say “Waiting for deal”, the felt says “Start the hand to deal the
-  tiles”, and no bone backs render until `hand_sizes` exists. This is display
-  state only; it must never invent a hand or alter engine/deal authority.
+  which every player holds zero. Its Start hand action renders directly on the
+  empty felt, seats say “Waiting for deal”, and no bone backs render until
+  `hand_sizes` exists. This is display state only; it must never invent a hand
+  or alter engine/deal authority.
 - Lighthouse was run against the local production preview, not Vite dev. The
   clean desktop audit scored **100 in every category** (performance,
   accessibility, best practices, SEO, and agentic browsing). Mobile scored 100

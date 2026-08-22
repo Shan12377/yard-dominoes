@@ -126,6 +126,15 @@ body {
   max-width: 1400px;
 }
 
+/* A live match is one screen, like a physical table, rather than a long
+   document. The app chrome, score, seats, felt and the player's rack share
+   the viewport; social tools scroll inside their rail instead of making the
+   board scroll out of sight. */
+#app:has(.table-room) {
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
 /* Defer below-the-fold panels on menu screens. Live tables stay fully laid
    out so tile placement and turn feedback are always immediate. */
 #app:not(:has(.practice-room, .table-room)) > .panel {
@@ -330,6 +339,37 @@ label.field > span {
   z-index: 20;
   margin-bottom: 12px;
 }
+
+/* On a table, the score is a glanceable strip. The full pip ceremony still
+   lives here, but it must not take a board-sized share of the screen. */
+#app:has(.table-room) .sticky-scores {
+  position: relative;
+  top: auto;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+#app:has(.table-room) .sticky-scores .scoreboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 16px;
+}
+#app:has(.table-room) .sticky-scores .side-score {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+#app:has(.table-room) .sticky-scores .side-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  font-size: 11px;
+}
+#app:has(.table-room) .sticky-scores .pips i { width: 11px; height: 11px; }
+#app:has(.table-room) .sticky-scores .under-love,
+#app:has(.table-room) .sticky-scores .tile-count { font-size: 11px; margin: 0; }
 .side-score { display: grid; gap: 6px; }
 /* Whose score is whose — this is the pinned scoreboard, on screen for the
    whole hand, so "who" needs to read at a glance, not be squinted at. */
@@ -458,8 +498,78 @@ label.field > span {
 }
 
 /* Desktop: cross + rail side by side. Collapses in Task 6's mobile pass. */
-.table-room { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
-.table-rail { display: grid; gap: 12px; }
+.table-room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 12px;
+  align-items: stretch;
+  height: calc(100svh - 164px);
+  min-height: 440px;
+  max-height: 820px;
+}
+.table-room .table-cross {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(48px, auto) minmax(0, 1fr) minmax(48px, auto);
+  gap: 6px 10px;
+}
+.table-room .felt-slot {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+.table-room .live-felt {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+}
+.table-room .seat {
+  padding: 6px 8px;
+  min-height: 0;
+}
+.table-room .seat-slot-top .seat,
+.table-room .seat-slot-bottom .seat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.table-room .seat-slot-top .seat > *,
+.table-room .seat-slot-bottom .seat > * { margin: 0; }
+.table-room .seat-slot-top .backs,
+.table-room .seat-slot-bottom .backs { margin-left: auto; }
+.table-room .seat-slot-top .seat-stats,
+.table-room .seat-slot-bottom .seat-stats { display: none; }
+.table-room .seat-slot-left .seat .avatar,
+.table-room .seat-slot-right .seat .avatar { width: 30px; height: 30px; }
+.table-room .seat-slot-left .seat-stats,
+.table-room .seat-slot-right .seat-stats { display: none; }
+.table-room .table-rail {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.start-hand-panel {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100% - 32px));
+  margin: 0;
+  padding: 16px;
+  text-align: center;
+  background: rgba(5, 43, 67, 0.94);
+  border-color: rgba(255, 201, 40, 0.55);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(10px);
+}
+.start-hand-panel p { margin: 0 0 12px; color: rgba(255,255,255,.88); }
+.start-hand-panel .act { width: 100%; }
 /* The tab strip only makes sense once the rail's three sections can't all
    show at once — mobile's @media block below turns it back on. Without
    this, the tab buttons render with no styling at all above 700px, where
@@ -967,7 +1077,18 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
    cutoff, an ordinary tablet/laptop donated 300px to the rail and made the
    central domino line needlessly small. */
 @media (max-width: 1100px) {
-  .table-room { grid-template-columns: 1fr; }
+  .table-room {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+  .table-room .table-cross {
+    height: calc(100svh - 164px);
+    min-height: 440px;
+    max-height: 820px;
+  }
+  .table-room .table-rail { max-height: none; overflow: visible; }
   .rail-tabs {
     display: flex; gap: 6px; margin-bottom: 8px;
     overflow-x: auto; scrollbar-width: thin;
@@ -996,6 +1117,13 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
       "felt felt felt felt"
       "bottom left right top";
   }
+  .table-room .table-cross {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    grid-template-rows: auto;
+  }
+  .table-room .felt-slot { height: auto; display: block; }
   .felt-slot { min-height: 0; }
   .table-room .live-felt,
   .practice-room .live-felt {
