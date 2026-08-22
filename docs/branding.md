@@ -90,6 +90,12 @@ crosswise, and every unplayed hand faces its owner so the camera and opponents
 see only backs or edges. Never allow disconnected face-up rows, loose public
 bones, or a rack whose pips face another player.
 
+In a final-bone celebration, the celebrating player must have no rack and no
+unplayed bones. Most bones belong in the connected table chain, while any
+losing players still holding bones should have only small concealed hands.
+Keep a late-game chain compact and clearly centered with visible bare table
+around it; no endpoint should aim toward, touch, or overhang a table edge.
+
 ## Source-of-truth files
 
 - `docs/branding.md` — brand strategy and visual guardrails
