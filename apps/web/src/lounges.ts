@@ -223,10 +223,10 @@ export type Background = 'midday' | 'evening' | 'rain' | 'beach' | 'shop';
 export const BACKGROUNDS: Background[] = ['midday', 'evening', 'rain', 'beach', 'shop'];
 
 export const BACKGROUND_LABEL: Record<Background, string> = {
-  midday: 'Midday yard',
-  evening: 'Evening string-lights',
+  midday: 'Kingston midday',
+  evening: 'Evening lights',
   rain: 'Rain on the zinc',
-  beach: 'Beach game',
+  beach: 'South coast',
   shop: 'Corner shop',
 };
 

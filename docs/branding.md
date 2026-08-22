@@ -111,6 +111,10 @@ these files from an unrelated prompt or substitute Yaadmoji artwork.
   inventory live in `docs/avatar-set.md`
 - `apps/web/public/accessories/` — five composable local SVG flair layers;
   together with “none,” these turn the twelve portraits into 72 quick looks
+- `apps/web/public/backgrounds/` — five people-free 480×320 seat atmospheres:
+  Kingston midday, evening lights, rain on zinc, south coast, and corner shop.
+  They use environmental color rather than extra figures or dominoes so hidden
+  hands can never be confused with decorative art.
 - `apps/web/public/marketing/` — three generated social-play scenes used only
   on marketing/onboarding surfaces, never behind a live board
 

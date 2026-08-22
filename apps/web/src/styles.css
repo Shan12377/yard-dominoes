@@ -1176,13 +1176,24 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   box-shadow: 0 1px 3px rgba(36, 22, 8, 0.35);
 }
 
-.background-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
-.background-choice {
-  padding: 3px; cursor: pointer; line-height: 0;
-  background: var(--sand-hi); border-radius: var(--r);
-  border: 2px solid rgba(90, 58, 30, 0.28);
+.background-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  gap: 10px; margin-bottom: 4px;
 }
-.background-choice img { display: block; border-radius: calc(var(--r) - 2px); }
+.background-choice {
+  min-width: 0; padding: 4px; cursor: pointer; overflow: hidden;
+  display: grid; gap: 7px; text-align: left;
+  background: rgba(19, 131, 164, .10); border-radius: 14px;
+  border: 2px solid rgba(67, 199, 244, .35);
+}
+.background-choice img {
+  display: block; width: 100%; height: auto; aspect-ratio: 3 / 2;
+  object-fit: cover; border-radius: 9px;
+}
+.background-choice span {
+  padding: 0 5px 4px; font-size: 12px; font-weight: 800;
+  line-height: 1.2; color: var(--ink);
+}
 .background-choice[aria-pressed='true'] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-hi); }
 .background-choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 

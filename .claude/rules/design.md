@@ -144,6 +144,12 @@ if the style changes; never splice in one visibly different character.
 Accessory SVGs live in `apps/web/public/accessories/`; they remain corner flair
 so the same layer aligns across all faces and stays legible at seat-card size.
 
+Seat backdrops are environmental atmosphere, not miniature game scenes. Keep
+them people-free, tile-free and text-free, with a calm dark central-left zone
+for the player label. The canonical five live in
+`apps/web/public/backgrounds/`; use vivid Kingston Signal color rather than a
+brown/cream or Jamaican-flag-only treatment.
+
 Never use a real person's likeness for a generated avatar. Human players may
 upload their own photo through the separate photo path.
 

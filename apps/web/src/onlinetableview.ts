@@ -429,10 +429,11 @@ function seatCard(
   const isMyPartner = isPartnered(game.table.mode) && game.mySeat !== null
     && s.seatIndex !== game.mySeat && s.seatIndex % 2 === game.mySeat % 2;
   if (isMyPartner) card.classList.add('partner');
-  // Cosmetic only — plan §7.1. A faint backdrop behind the seat's own
-  // content, never anything that could compete with tile/turn legibility.
+  // The art keeps a deliberately quiet left-side text zone. This asymmetric
+  // veil preserves that color at the outer edge while guaranteeing names and
+  // scores remain readable over every scene.
   if (s.userId && s.background) {
-    card.style.backgroundImage = `linear-gradient(rgba(5,43,67,0.84), rgba(5,43,67,0.84)), url(${backgroundUrl(s.background as Background)})`;
+    card.style.backgroundImage = `linear-gradient(90deg, rgba(5,24,50,.92) 0%, rgba(5,43,67,.72) 62%, rgba(5,43,67,.42) 100%), url(${backgroundUrl(s.background as Background)})`;
     card.style.backgroundSize = 'cover';
     card.style.backgroundPosition = 'center';
   }

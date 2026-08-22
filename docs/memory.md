@@ -530,6 +530,12 @@ Everything below is live and verified, not just written:
   face-up seven-bone hand (“Your play”); the other three seats show only “7
   tiles.” The local production preview also loaded with zero new console errors
   after the pre-migration accessory fallback was added.
+- Seat backdrops were replaced with five vibrant, people-free environmental
+  scenes on 2026-08-22. They intentionally contain no dominoes, hands, faces,
+  text or flags; this prevents decorative art from reading as leaked tiles at
+  seat-card scale. The profile picker now names every scene and the live card
+  uses an asymmetric navy veil instead of flattening all artwork under 84%
+  opacity.
 - Browser QA completed a real four-player practice hand through all 24 played
   bones at 390×844, then rechecked 320×568 and 430×932. The board did not
   overflow in either axis, the hand remained below the felt, the final bone

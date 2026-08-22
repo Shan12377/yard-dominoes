@@ -664,7 +664,7 @@ export function profilePanel(
     img.alt = '';
     img.width = 96;
     img.height = 64;
-    btn.appendChild(img);
+    btn.append(img, el('span', undefined, BACKGROUND_LABEL[id]));
     btn.onclick = () => { background = background === id ? null : id; paintBackgrounds(); };
     backgroundGrid.appendChild(btn);
   }
