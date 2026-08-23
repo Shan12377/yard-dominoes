@@ -1317,10 +1317,19 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-domino-chain .hero-bone {
-    animation: none !important;
-    opacity: 1;
+    animation-name: hero-bone-cascade-reduced !important;
+    animation-duration: 6.4s !important;
+    animation-delay: var(--hero-delay) !important;
+    animation-timing-function: ease-in-out !important;
+    animation-iteration-count: infinite !important;
+    animation-fill-mode: both !important;
     transform: translate(-50%, -50%) rotate(var(--rest-rotate));
   }
+}
+@keyframes hero-bone-cascade-reduced {
+  0%, 4% { opacity: 0; }
+  10%, 82% { opacity: 1; }
+  88%, 100% { opacity: 0; }
 }
 
 .brand-stories { display: grid; gap: 14px; margin-top: 20px; }

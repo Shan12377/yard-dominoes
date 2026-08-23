@@ -657,7 +657,8 @@ Everything below is live and verified, not just written:
   to form a matched bent chain whose bones arrive in sequence. Keep the cascade
   and corner turn; never move this animation into an external SVG image because
   browsers can drop its nested pip layers or embedded animation. Reduced-motion
-  visitors see the completed chain without animation.
+  visitors get the same sequence as a gentle opacity cascade without spatial
+  travel; this keeps the story legible in browsers that force that preference.
 - The 2026-08-22 dependency audit findings were build-tool-only (Vite,
   esbuild, nanoid). Vite was upgraded from 5.4 to 8.2.2, the lockfile now
   carries patched transitive versions, and `npm audit` reports zero findings.
