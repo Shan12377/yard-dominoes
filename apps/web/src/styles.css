@@ -510,28 +510,28 @@ label.field > span {
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 12px;
   align-items: stretch;
-  height: calc(100svh - 164px);
-  min-height: 440px;
-  max-height: 820px;
+  height: auto;
+  min-height: 0;
+  max-height: none;
 }
 .table-room .table-cross {
-  height: 100%;
+  height: auto;
   min-height: 0;
-  grid-template-rows: minmax(48px, auto) minmax(0, 1fr) minmax(48px, auto);
+  grid-template-rows: minmax(48px, auto) auto minmax(48px, auto);
   gap: 6px 10px;
 }
 .table-room .felt-slot {
-  height: 100%;
+  height: auto;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto auto;
 }
-.table-room .felt-shell { height: 100%; }
+.table-room .felt-shell { height: auto; }
 .table-room .live-felt {
   width: 100%;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
+  height: clamp(380px, 56svh, 620px);
+  min-height: 380px;
+  max-height: 620px;
 }
 .table-room .seat {
   padding: 6px 8px;
@@ -1489,9 +1489,9 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
     max-height: none;
   }
   .table-room .table-cross {
-    height: calc(100svh - 164px);
-    min-height: 440px;
-    max-height: 820px;
+    height: auto;
+    min-height: 0;
+    max-height: none;
   }
   .table-room .table-rail { max-height: none; overflow: visible; }
   .rail-tabs {
@@ -1549,8 +1549,9 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .felt-slot { min-height: 0; }
   .table-room .live-felt,
   .practice-room .live-felt {
+    height: clamp(390px, 56svh, 560px);
     min-height: clamp(390px, 56svh, 560px);
-    max-height: none;
+    max-height: 560px;
     border-width: 7px;
     padding: 10px 8px;
   }
@@ -1636,13 +1637,13 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 
 @media (max-width: 360px) {
   .table-room .live-felt,
-  .practice-room .live-felt { min-height: 350px; }
+  .practice-room .live-felt { height: 350px; min-height: 350px; max-height: 350px; }
   .my-hand-panel .hand .tile { --w: 40px; --h: 80px; }
 }
 
 @media (max-height: 620px) and (max-width: 900px) {
   .table-room .live-felt,
-  .practice-room .live-felt { min-height: 310px; }
+  .practice-room .live-felt { height: 310px; min-height: 310px; max-height: 310px; }
 }
 
 .chat-log {
