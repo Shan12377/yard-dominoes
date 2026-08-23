@@ -451,7 +451,8 @@ label.field > span {
   grid-template-areas:
     ".    top    ."
     "left felt   right"
-    ".    bottom .";
+    ".    bottom ."
+    ".    result .";
   gap: 10px;
   align-items: center;
 }
@@ -467,6 +468,7 @@ label.field > span {
 .seat-slot-left { grid-area: left; }
 .seat-slot-right { grid-area: right; }
 .seat-slot-bottom { grid-area: bottom; }
+.hand-result-dock { grid-area: result; margin-top: 4px; }
 .table-cross .seat .avatar { width: 44px; height: 44px; }
 
 /* A live table is an object, not a stack of cards. Give the felt a dependable
@@ -520,7 +522,7 @@ label.field > span {
 .table-room .table-cross {
   height: auto;
   min-height: 0;
-  grid-template-rows: minmax(48px, auto) auto minmax(48px, auto);
+  grid-template-rows: minmax(48px, auto) auto minmax(48px, auto) auto;
   gap: 6px 10px;
 }
 .table-room .felt-slot {
@@ -1540,7 +1542,8 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
     grid-template-columns: repeat(4, 1fr);
     grid-template-areas:
       "felt felt felt felt"
-      "bottom left right top";
+      "bottom left right top"
+      "result result result result";
   }
   .table-room .table-cross {
     height: auto;

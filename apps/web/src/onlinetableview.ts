@@ -756,6 +756,16 @@ export function liveTableView(
     cross.appendChild(wrap);
   });
 
+  // Keep the completed-hand actions with the game, directly below the
+  // player's bottom seat. Appending this after `.table-room` made a tall
+  // chat/standings rail push Verify, Coach and Deal next hand far below the
+  // screen, where players had no reason to look for them.
+  if (game.hand?.status !== 'active' && game.hand?.result) {
+    const result = handResultPanel(game, rerender);
+    result.classList.add('hand-result-dock');
+    cross.appendChild(result);
+  }
+
   const room = el('div', 'table-room');
   room.appendChild(cross);
 
@@ -825,12 +835,6 @@ export function liveTableView(
     });
   };
   frag.appendChild(openTalk);
-
-  if (game.hand) {
-    if (game.hand.status !== 'active' && game.hand.result) {
-      frag.appendChild(handResultPanel(game, rerender));
-    }
-  }
 
   return frag;
 }
