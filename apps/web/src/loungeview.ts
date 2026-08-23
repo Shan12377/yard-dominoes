@@ -324,6 +324,11 @@ function reactionBar(rerender: () => void): HTMLElement {
   // never be joined at all. A button that silently does nothing is the failure
   // mode voice.md calls out by name — disable it and say why instead.
   const ready = me !== null && loungeState.room !== null;
+  if (!ready) {
+    const status = el('p', 'social-connecting', 'Connecting stickers…');
+    status.setAttribute('role', 'status');
+    bar.append(status);
+  }
   for (const r of REACTIONS) {
     const b = document.createElement('button');
     b.className = 'reaction';

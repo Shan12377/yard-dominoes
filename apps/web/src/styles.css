@@ -1063,6 +1063,8 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .coach-outcome { display: block; max-width: 74ch; color: var(--bone); line-height: 1.45; }
 .coach-why p { margin: 5px 0 0; max-width: 74ch; line-height: 1.55; }
 .rail-help { margin: 5px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.table-talk-jump { display: none; }
+.social-connecting { flex: 1 0 100%; margin: 0 0 4px; color: var(--muted); font-size: 12px; }
 .academy-game-guides { margin-top: 16px; }
 .academy-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
 .academy-guide { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--signal); }
@@ -1396,6 +1398,23 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   }
   .rail-section { display: none; }
   .rail-section-active { display: block; }
+  .table-talk-jump {
+    display: block;
+    position: fixed;
+    z-index: 20;
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    min-height: 48px;
+    padding: 10px 15px;
+    border: 2px solid var(--gold);
+    border-radius: 999px;
+    background: var(--signal-lo);
+    color: var(--bone);
+    box-shadow: 0 10px 28px rgba(0,0,0,.42);
+    font-family: var(--body);
+    font-weight: 800;
+  }
+  .table-talk-jump:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; }
 }
 
 @media (max-width: 700px) {

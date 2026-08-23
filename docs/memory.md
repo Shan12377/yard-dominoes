@@ -649,6 +649,10 @@ Everything below is live and verified, not just written:
 - Watching is live lounge presence, Standings is the current set score, and
   Log is the current hand's move history. Their panels explain those jobs.
   Watching has an explicit empty state instead of opening a blank mobile tab.
+- During an online hand, Chat, quick words and reaction stickers are one Table
+  talk surface. On phone and tablet, a persistent `Chat & stickers` button
+  scrolls directly to that surface without reducing the board. Never render
+  quick words or stickers as loose controls below the full table again.
 - The 2026-08-22 dependency audit findings were build-tool-only (Vite,
   esbuild, nanoid). Vite was upgraded from 5.4 to 8.2.2, the lockfile now
   carries patched transitive versions, and `npm audit` reports zero findings.

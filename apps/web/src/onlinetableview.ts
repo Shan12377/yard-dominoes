@@ -716,7 +716,7 @@ export function liveTableView(
 
   const tabs = el('div', 'rail-tabs');
   const tabDefs: { id: typeof activeRailTab; label: string }[] = [
-    { id: 'chat', label: 'Chat' },
+    { id: 'chat', label: 'Table talk' },
     { id: 'watchers', label: 'Watching' },
     { id: 'standings', label: 'Standings' },
     { id: 'log', label: 'Log' },
@@ -731,11 +731,20 @@ export function liveTableView(
   }
   rail.appendChild(tabs);
 
-  if (social?.chatPanel) {
-    social.chatPanel.classList.add('rail-section', 'rail-section-chat');
-    social.chatPanel.classList.toggle('rail-section-active', activeRailTab === 'chat');
-    rail.appendChild(social.chatPanel);
+  const talk = social?.chatPanel ?? el('div', 'panel');
+  if (!social?.chatPanel) {
+    talk.append(el('div', 'eyebrow', 'Table talk'));
+    talk.append(el('p', 'muted', 'Connecting chat to this table…'));
   }
+  if (social?.quickChatBar) {
+    talk.append(el('div', 'rail-help', 'Quick words'), social.quickChatBar);
+  }
+  if (social?.reactionBar) {
+    talk.append(el('div', 'rail-help', 'Stickers'), social.reactionBar);
+  }
+  talk.classList.add('rail-section', 'rail-section-chat');
+  talk.classList.toggle('rail-section-active', activeRailTab === 'chat');
+  rail.appendChild(talk);
   const crowd = watchersPanel(game, social);
   crowd.classList.add('rail-section', 'rail-section-watchers');
   crowd.classList.toggle('rail-section-active', activeRailTab === 'watchers');
@@ -756,6 +765,20 @@ export function liveTableView(
 
   frag.appendChild(room);
 
+  const openTalk = document.createElement('button');
+  openTalk.type = 'button';
+  openTalk.className = 'table-talk-jump';
+  openTalk.textContent = 'Chat & stickers';
+  openTalk.setAttribute('aria-label', 'Open table chat, quick words and stickers');
+  openTalk.onclick = () => {
+    activeRailTab = 'chat';
+    rerender();
+    requestAnimationFrame(() => {
+      document.querySelector('.table-rail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+  frag.appendChild(openTalk);
+
   if (game.hand) {
     if (!game.isSpectator && game.partnerTiles && game.table.mode === 'openhand') {
       frag.appendChild(partnerHandPanel(game.partnerTiles));
@@ -764,12 +787,6 @@ export function liveTableView(
       frag.appendChild(handResultPanel(game, rerender));
     }
   }
-
-  // Reactions and quick chat sit last, beside the hand — thumb reach, and free
-  // for guests. Spectators get them too: heckling from the side of the yard is
-  // the point. Words above pictures, because words are what get used mid-hand.
-  if (social?.quickChatBar) frag.appendChild(social.quickChatBar);
-  if (social?.reactionBar) frag.appendChild(social.reactionBar);
 
   return frag;
 }
