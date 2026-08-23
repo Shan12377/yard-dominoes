@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0042_penalty_log.sql
+-- 0044_penalty_log.sql
 --
 -- French's penalty EVENTS (who got +10 and why: board-pass, triple-pass,
 -- no-double-to-pose) were never given a column of their own, unlike the

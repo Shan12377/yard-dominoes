@@ -141,7 +141,7 @@ export function toState(row: HandRow, seatCount: number, mode: GameMode, format:
     // and just as load-bearing: without this, a penalty earned earlier in
     // the hand vanished the moment the NEXT move rehydrated HandState from
     // this row, even though `penalties` (the numbers) survived via its own
-    // column. Found live 2026-08-23 — see 0042_penalty_log.sql.
+    // column. Found live 2026-08-23 — see 0044_penalty_log.sql.
     penaltyLog: row.penalty_log ?? [],
     status: row.status as HandState['status'],
     result: row.result,
