@@ -1,5 +1,5 @@
-// Stripe webhook. The ONLY writer to profiles.tier, payments and coin_ledger
-// purchase/refund rows.
+// Stripe webhook. The ONLY writer to profiles.tier, payments, coin_ledger
+// purchase/refund rows, and referral_commissions.
 //
 // Env: STRIPE_WEBHOOK_SECRET, STRIPE_SECRET_KEY. Set verify_jwt = false for
 // this function (Stripe cannot send a Supabase JWT).
@@ -26,6 +26,7 @@ import {
   tierFromInvoice, userFromInvoice,
 } from '../_shared/billing.ts';
 import type { StripeSubscription } from '../_shared/billing.ts';
+import { creditReferralCommission } from '../_shared/referrals.ts';
 
 const enc = new TextEncoder();
 
@@ -123,6 +124,7 @@ Deno.serve(async (req) => {
         amount_cents: session.amount_total ?? 0,
         currency: session.currency ?? 'usd',
       });
+      await creditReferralCommission(db, userId, session.amount_total ?? 0, session.id);
     }
   }
 
@@ -141,6 +143,17 @@ Deno.serve(async (req) => {
       const customer = customerOf(invoice);
       if (userId) await db.from('profiles').update(patch).eq('id', userId);
       else if (customer) await db.from('profiles').update(patch).eq('stripe_customer_id', customer);
+
+      // A renewal earns the referrer exactly like the first payment did.
+      // Subscriptions sold before checkout stamped subscription metadata
+      // have no userId here, so fall back to the customer match above.
+      const resolvedUserId = userId ?? (customer
+        ? (await db.from('profiles').select('id').eq('stripe_customer_id', customer).maybeSingle()).data?.id ?? null
+        : null);
+      if (resolvedUserId) {
+        const amountPaid = typeof invoice.amount_paid === 'number' ? invoice.amount_paid : 0;
+        await creditReferralCommission(db, resolvedUserId, amountPaid, invoice.id);
+      }
     }
   }
 

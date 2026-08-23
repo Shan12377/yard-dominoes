@@ -10,6 +10,7 @@
 /// <reference types="vite/client" />
 import { createClient, type SupabaseClient, type RealtimeChannel, FunctionsHttpError } from '@supabase/supabase-js';
 import type { AnyBoard, ClockName, GameMode, HandReceipt, HandReview, Move, PenaltyEvent, TileId } from '@yard/engine';
+import { takeReferralCode } from './referral.ts';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -27,7 +28,13 @@ function client(): SupabaseClient {
 
 /** Guest play. No Facebook, no email, no wall in front of a first game. */
 export async function signInAsGuest() {
-  const { data, error } = await client().auth.signInAnonymously();
+  // Consumed exactly once, here — the only place a brand-new auth.users row
+  // (and with it, handle_new_user()'s profile insert) actually gets created.
+  // See referral.ts and 0045_referrals.sql.
+  const referralCode = takeReferralCode();
+  const { data, error } = await client().auth.signInAnonymously(
+    referralCode ? { options: { data: { referral_code: referralCode } } } : undefined,
+  );
   if (error) throw error;
   return data.user;
 }

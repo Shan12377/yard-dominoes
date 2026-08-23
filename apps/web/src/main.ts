@@ -14,6 +14,11 @@ function formatLabel(format: SetFormat): string {
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { LocalGame } from './local.ts';
+import { captureReferralCode } from './referral.ts';
+
+// Stash a ?ref=CODE the instant the app loads, before online.ts (and the
+// Supabase client it drags in) is ever touched. See referral.ts.
+captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
 import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
