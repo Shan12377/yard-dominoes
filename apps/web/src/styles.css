@@ -1133,6 +1133,44 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 .academy-check summary { color: var(--bone); font-weight: 800; cursor: pointer; line-height: 1.45; }
 .academy-check p { margin-top: 10px; color: var(--bone); }
+.academy-drill {
+  margin-top: 10px; padding: 0 13px; border: 1px solid rgba(16, 105, 143, .32);
+  border-radius: 10px; background: rgba(7, 59, 92, .035);
+}
+.academy-drill.open { padding-bottom: 14px; border-color: var(--sky); background: var(--signal); }
+.academy-drill-head {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 0;
+  border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer;
+}
+.academy-drill.open .academy-drill-head { color: var(--bone); }
+.academy-drill-head:focus-visible,
+.academy-drill-choice:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.lesson .academy-drill-setup { margin: 4px 0 12px; color: var(--ink); font-weight: 700; }
+.academy-drill.open .academy-drill-setup { color: var(--bone); }
+.academy-drill-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.academy-drill-choice {
+  min-height: 48px; padding: 9px 10px; border: 2px solid var(--sky); border-radius: 8px;
+  background: var(--bone); color: var(--ink); font: 800 14px/1.25 var(--body); cursor: pointer;
+}
+.academy-drill-choice:has(.tile) {
+  display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 86px;
+}
+.academy-drill-choice .tile { --w: 28px; --h: 56px; }
+.academy-drill-choice:hover:not(:disabled) { border-color: var(--gold); transform: translateY(-1px); }
+.academy-drill-choice.correct { border-color: var(--forest-hi); background: #E7F8ED; }
+.academy-drill-choice.wrong { border-color: var(--coral); background: #FFF0EC; }
+.academy-drill-choice:disabled { cursor: default; opacity: .82; }
+.academy-drill-result {
+  margin-top: 10px; padding: 11px 12px; border-left: 4px solid var(--forest-hi);
+  border-radius: 7px; background: rgba(45, 212, 111, .12); color: var(--bone);
+}
+.academy-drill-result.wrong { border-left-color: var(--coral); background: rgba(255, 90, 60, .12); }
+.academy-drill-result p { margin: 4px 0 0; color: var(--bone); }
+.academy-drill-result .act { margin-top: 10px; }
+@media (max-width: 620px) {
+  .academy-drill-choices { grid-template-columns: 1fr; }
+}
 
 .banner {
   padding: 12px 14px; border-radius: var(--r); font-size: 14px;

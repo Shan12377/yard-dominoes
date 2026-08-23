@@ -112,6 +112,11 @@ Do not relitigate these without asking.
   hashes live under Technical details. Never charge coins for trust, never
   reveal a live hand, and never expose the `hands` table itself.
 - **No auto-play.** A tile fitting both ends prompts for which end.
+- **Academy teaching is visual and interactive.** Every declared lesson has a
+  deterministic SVG in `apps/web/public/art/boards/`, generated from
+  `scripts/gen-diagrams.ts`; every declared drill resolves through
+  `academycontent.ts` to one unambiguous, explained decision. Do not replace
+  either with decorative AI imagery or a list of inert prompts.
 - **Timed-out seats play a legal move, they do not forfeit.**
 - **Voice is a peer-to-peer mesh, never an SFU.** Live table voice ships in
   `apps/web/src/voice.ts`: each of the four seats sends audio straight to the

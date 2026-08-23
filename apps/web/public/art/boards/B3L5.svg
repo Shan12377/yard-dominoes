@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-labelledby="title description">
+  <title id="title">Heavy tiles lose blocked hands</title><desc id="description">Six-six and five-six carry much more count than two-one.</desc>
+  <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
+  <rect width="760" height="380" rx="18" fill="#052B43"/>
+  <rect x="12" y="12" width="736" height="356" rx="13" fill="url(#felt)" stroke="#10698F" stroke-width="3"/>
+  
+  <g transform="translate(90 135) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="18" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g><g transform="translate(185 135) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g><g transform="translate(280 135) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g>
+<g transform="translate(145 90)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FF5A3C"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">12</text></g><g transform="translate(240 90)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FF5A3C"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">11</text></g><g transform="translate(335 90)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#2DD46F"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">3</text></g>
+<text x="380" y="330" text-anchor="middle" fill="#FFF9EA" font-family="system-ui,sans-serif" font-size="19" font-weight="800">12 + 11 pips are expensive weight</text>
+  </svg>

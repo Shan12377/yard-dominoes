@@ -12,9 +12,10 @@ function formatLabel(format: SetFormat): string {
   }
 }
 import type { LeakStore, TalkTrigger } from '@yard/engine';
-import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
+import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { LocalGame } from './local.ts';
 import { coachReviewView } from './coachview.ts';
+import { ACADEMY_VISUALS, scenarioFor } from './academycontent.ts';
 import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -122,6 +123,8 @@ let reviewPending = false;
 let reviewOpen = false;
 let openBelt: string | null = null;
 let openLesson: string | null = null;
+let openDrill: string | null = null;
+const drillAnswers = new Map<string, number>();
 let verifyState: { ok: boolean; reason?: string } | null = null;
 let installDismissed = false;
 /** The link for the hand just played, once it has been asked for. */
@@ -1423,32 +1426,6 @@ function tableView(g: LocalGame): DocumentFragment {
 }
 
 // --------------------------------------------------------------- academy --
-const ACADEMY_VISUALS: Record<string, {
-  alt: string; notice: string; takeaway: string; tryIt: string; answer: string;
-}> = {
-  B1L2: {
-    alt: 'A three-one tile joining an open three while a four-two is rejected because it does not match.',
-    notice: 'The touching halves carry the same number. The other half becomes the new open end.',
-    takeaway: 'Match either open end. Nothing goes into the middle of the line.',
-    tryIt: 'If the open ends are 3 and 5, can a 2-5 play?',
-    answer: 'Yes. Put its 5 against the open 5; the 2 becomes the new end.',
-  },
-  B2L6: {
-    alt: 'Four blocked hands: north has 10 pips, east 4, south 2 and west 6. South has the lowest individual count, so north and south win.',
-    notice: 'North and South hold 12 together—more than East and West—but South alone has the lowest hand.',
-    takeaway: 'Count every player separately first. The lowest individual wins the block for their side.',
-    tryIt: 'If your partner has 11, you have 3, and both opponents have 4, who wins?',
-    answer: 'Your side. Your individual 3 is the lowest count; your partner’s 11 does not cancel it.',
-  },
-  B4L1: {
-    alt: 'East passes while four and one are open, creating permanent no-four and no-one markers beside East as later tiles change the board.',
-    notice: 'Passing proves the player held neither open suit at that moment. Tiles cannot return to a hand later.',
-    takeaway: 'Write the two suits beside that player mentally and never erase them for the rest of the hand.',
-    tryIt: 'A player passes on 4 and 1. Two turns later the ends are 6 and 1. Which end is known to stop them?',
-    answer: 'The 1. Their earlier pass already proved they have no ones.',
-  },
-};
-
 function academyView(): DocumentFragment {
   const frag = document.createDocumentFragment();
   const intro = el('div', 'panel');
@@ -1494,7 +1471,7 @@ function academyView(): DocumentFragment {
     const titles = el('div', 'stack');
     titles.append(el('h2', undefined, b.title), el('div', 'muted', b.subtitle));
     head.append(titles);
-    head.onclick = () => { openBelt = isOpen ? null : b.id; openLesson = null; render(); };
+    head.onclick = () => { openBelt = isOpen ? null : b.id; openLesson = null; openDrill = null; render(); };
     card.appendChild(head);
 
     if (isOpen) {
@@ -1510,7 +1487,7 @@ function academyView(): DocumentFragment {
           el('strong', undefined, lesson.title),
           el('span', 'academy-lesson-toggle', lessonIsOpen ? 'Close' : 'Open'),
         );
-        lessonHead.onclick = () => { openLesson = lessonIsOpen ? null : lesson.id; render(); };
+        lessonHead.onclick = () => { openLesson = lessonIsOpen ? null : lesson.id; openDrill = null; render(); };
         item.appendChild(lessonHead);
 
         if (lessonIsOpen) {
@@ -1552,8 +1529,68 @@ function academyView(): DocumentFragment {
         card.appendChild(item);
       }
       const drills = el('div', 'lesson');
-      drills.append(el('h3', undefined, 'Drills'));
-      for (const d of b.drills) drills.append(el('p', 'muted', d.prompt));
+      drills.append(el('div', 'eyebrow', 'Practise the read'), el('h3', undefined, 'Drills'));
+      for (const d of b.drills) {
+        const active = openDrill === d.id;
+        const card = el('section', `academy-drill${active ? ' open' : ''}`);
+        const trigger = document.createElement('button');
+        trigger.className = 'academy-drill-head';
+        trigger.setAttribute('aria-expanded', String(active));
+        trigger.append(
+          el('span', 'academy-lesson-id', d.id),
+          el('strong', undefined, d.prompt),
+          el('span', 'academy-lesson-toggle', active ? 'Close' : 'Start'),
+        );
+        trigger.onclick = () => {
+          openDrill = active ? null : d.id;
+          openLesson = null;
+          if (!active) drillAnswers.delete(d.id);
+          render();
+        };
+        card.appendChild(trigger);
+        if (active) {
+          const scenario = scenarioFor(d);
+          card.append(el('p', 'academy-drill-setup', scenario.setup));
+          const choices = el('div', 'academy-drill-choices');
+          const selected = drillAnswers.get(d.id);
+          scenario.choices.forEach((choice, index) => {
+            const button = document.createElement('button');
+            button.className = 'academy-drill-choice';
+            if (selected === index) button.classList.add(choice.correct ? 'correct' : 'wrong');
+            if (/^[0-6]-[0-6]$/.test(choice.label)) {
+              button.setAttribute('aria-label', `Choose ${choice.label}`);
+              const tile = tileEl(choice.label as TileId);
+              tile.setAttribute('aria-hidden', 'true');
+              tile.removeAttribute('role');
+              button.append(tile, el('span', undefined, choice.label));
+            } else {
+              button.textContent = choice.label;
+            }
+            button.disabled = selected !== undefined;
+            button.onclick = () => { drillAnswers.set(d.id, index); render(); };
+            choices.appendChild(button);
+          });
+          card.appendChild(choices);
+          if (selected !== undefined) {
+            const choice = scenario.choices[selected];
+            const result = el('div', `academy-drill-result ${choice.correct ? 'correct' : 'wrong'}`);
+            result.setAttribute('role', 'status');
+            result.append(
+              el('strong', undefined, choice.correct ? 'You read it right.' : 'Look at the table again.'),
+              el('p', undefined, choice.explanation),
+            );
+            if (!choice.correct) {
+              const retry = document.createElement('button');
+              retry.className = 'act ghost';
+              retry.textContent = 'Try again';
+              retry.onclick = () => { drillAnswers.delete(d.id); render(); };
+              result.appendChild(retry);
+            }
+            card.appendChild(result);
+          }
+        }
+        drills.appendChild(card);
+      }
       card.appendChild(drills);
     }
     frag.appendChild(card);

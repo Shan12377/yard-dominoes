@@ -138,7 +138,7 @@ npx cap sync
 | `packages/engine` | Rules, provably fair shuffle, duppy AI, the Coach, curriculum. Zero dependencies, 56 tests. |
 | `supabase/migrations` | Schema and RLS. Clients hold no write permission on any game table. |
 | `supabase/functions` | `create-table`, `join-table`, `start-hand`, `play-move`, `review-hand`, `expire-turns`, `french-reshuffle`. |
-| `apps/web` | Vite client. Playable local table, Coach panel, Academy, deal verification. 14 kB gzipped. |
+| `apps/web` | Vite client. Playable local table, visual Coach, 33 illustrated Academy lessons, 11 interactive drills, and deal verification. |
 
 ## The duppies
 
@@ -194,6 +194,8 @@ lounge chat even with a patched bundle.
 
 ## Still open
 
-- Drill UI (kinds are declared in `academy.ts`, screens aren't written)
+- Account-synced Academy progress and multi-question belt exams. The lesson
+  diagrams and first interactive drill collection are complete; progress is
+  currently session-local.
 - Across-the-Table mode — deliberately unspecified until a Jamaican consultant defines it
 - Belts 4–5 want review by a strong player before shipping

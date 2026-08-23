@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-labelledby="title description">
+  <title id="title">Count a suit out</title><desc id="description">Six fives are already visible and the seventh five glows in your hand.</desc>
+  <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
+  <rect width="760" height="380" rx="18" fill="#052B43"/>
+  <rect x="12" y="12" width="736" height="356" rx="13" fill="url(#felt)" stroke="#10698F" stroke-width="3"/>
+  
+  <g transform="translate(90 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g><g transform="translate(185 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g><g transform="translate(280 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g><g transform="translate(375 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g><g transform="translate(470 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g><g transform="translate(565 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g><g transform="translate(585 205) scale(1)" opacity="1"><g transform="rotate(0 28 56)">
+    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#FFC928" stroke-width="3"/>
+    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
+    <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
+  </g></g>
+<g transform="translate(270 75)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FF5A3C"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">SIX SEEN</text></g><g transform="translate(620 245)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">LAST 5</text></g>
+<text x="380" y="330" text-anchor="middle" fill="#FFF9EA" font-family="system-ui,sans-serif" font-size="19" font-weight="800">You hold 5-6 · fives belong to you</text>
+  </svg>
