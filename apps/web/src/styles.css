@@ -1273,16 +1273,54 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .hero-copy button.ghost { color: #FFFBF0; border-color: rgba(255, 251, 240, 0.45); }
 .hero-copy button.ghost:hover { border-color: var(--gold-hi); color: var(--gold-hi); }
 
-.hero-domino-line {
-  display: block; width: min(100%, 720px); height: auto; margin: auto;
+.hero-domino-chain {
+  position: relative;
+  width: min(100%, 720px);
+  aspect-ratio: 720 / 270;
+  margin: auto;
+  overflow: hidden;
   pointer-events: none;
 }
-.hero-domino-line.entering {
-  animation: hero-line-reveal 260ms ease-out backwards;
+.hero-domino-chain .hero-bone {
+  --w: clamp(27px, 8.333vw, 60px);
+  --h: calc(var(--w) * 2);
+  --rest-rotate: 0deg;
+  --entry-rotate: -12deg;
+  position: absolute;
+  left: calc(var(--hero-x) / 720 * 100%);
+  top: calc(var(--hero-y) / 270 * 100%);
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: hero-bone-cascade 6.4s cubic-bezier(.2,.8,.25,1) var(--hero-delay) infinite both;
 }
-@keyframes hero-line-reveal {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.hero-domino-chain .hero-bone-horizontal {
+  --rest-rotate: 90deg;
+  --entry-rotate: 76deg;
+}
+@keyframes hero-bone-cascade {
+  0%, 4% {
+    opacity: 0;
+    transform: translate(-75%, -85%) rotate(var(--entry-rotate)) scale(.88);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-47%, -46%) rotate(var(--rest-rotate)) scale(1.025);
+  }
+  13%, 82% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--rest-rotate)) scale(1);
+  }
+  88%, 100% {
+    opacity: 0;
+    transform: translate(-46%, -47%) rotate(var(--rest-rotate)) scale(.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-domino-chain .hero-bone {
+    animation: none !important;
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--rest-rotate));
+  }
 }
 
 .brand-stories { display: grid; gap: 14px; margin-top: 20px; }

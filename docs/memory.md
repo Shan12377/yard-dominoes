@@ -653,9 +653,11 @@ Everything below is live and verified, not just written:
   talk surface. On phone and tablet, a persistent `Chat & stickers` button
   scrolls directly to that surface without reducing the board. Never render
   quick words or stickers as loose controls below the full table again.
-- The homepage hero uses a bent domino chain whose bones arrive in sequence.
-  Keep the cascade and corner turn; do not replace it with a whole-image shake
-  or bob. Reduced-motion visitors see the completed chain without animation.
+- The homepage hero uses canonical HTML `.tile` components, with visible pips,
+  to form a matched bent chain whose bones arrive in sequence. Keep the cascade
+  and corner turn; never move this animation into an external SVG image because
+  browsers can drop its nested pip layers or embedded animation. Reduced-motion
+  visitors see the completed chain without animation.
 - The 2026-08-22 dependency audit findings were build-tool-only (Vite,
   esbuild, nanoid). Vite was upgraded from 5.4 to 8.2.2, the lockfile now
   carries patched transitive versions, and `npm audit` reports zero findings.

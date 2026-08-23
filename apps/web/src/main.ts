@@ -353,7 +353,6 @@ let recentPlayedTile: string | null = null;
 let recentPassSeat: number | null = null;
 let winningTile: string | null = null;
 /** The hero line makes its entrance once per page load, not on every render. */
-let heroHasEntered = false;
 
 async function startGame(opts: {
   mode: GameMode; format: SetFormat; duppy: DuppyLevel; tournament: boolean;
@@ -501,15 +500,29 @@ function hero(): HTMLElement {
   row.append(deal, fair);
   copy.appendChild(row);
 
-  const line = document.createElement('img');
-  line.className = `hero-domino-line${heroHasEntered ? '' : ' entering'}`;
-  heroHasEntered = true;
-  line.src = '/art/hero-domino-line.svg';
-  line.alt = 'A connected line of dominoes cascading around a bend';
-  line.width = 720;
-  line.height = 270;
-  line.decoding = 'async';
-  line.fetchPriority = 'high';
+  const line = el('div', 'hero-domino-chain');
+  line.setAttribute('role', 'img');
+  line.setAttribute('aria-label', 'A matched line of dominoes cascading around a bend');
+  const bones: { id: TileId; x: number; y: number; horizontal: boolean }[] = [
+    { id: '2-4', x: 70, y: 80, horizontal: true },
+    { id: '4-5', x: 190, y: 80, horizontal: true },
+    { id: '5-5', x: 280, y: 80, horizontal: false },
+    { id: '5-6', x: 370, y: 80, horizontal: true },
+    { id: '6-6', x: 460, y: 80, horizontal: false },
+    { id: '3-6', x: 550, y: 80, horizontal: true },
+    { id: '1-3', x: 640, y: 140, horizontal: false },
+    { id: '1-2', x: 580, y: 230, horizontal: true },
+  ];
+  bones.forEach((bone, index) => {
+    const tile = tileEl(bone.id);
+    tile.classList.add('hero-bone', bone.horizontal ? 'hero-bone-horizontal' : 'hero-bone-vertical');
+    tile.style.setProperty('--hero-x', `${bone.x}px`);
+    tile.style.setProperty('--hero-y', `${bone.y}px`);
+    tile.style.setProperty('--hero-delay', `${index * 130}ms`);
+    tile.setAttribute('aria-hidden', 'true');
+    tile.removeAttribute('role');
+    line.append(tile);
+  });
 
   felt.append(copy, line);
   return felt;
