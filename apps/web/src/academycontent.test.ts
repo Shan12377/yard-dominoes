@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { BELTS } from '@yard/engine';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
 
@@ -49,4 +49,14 @@ test('the French guide is a legal four-arm cross with every inner half matching 
     assert.equal(halves[inwardHalf[arm.place]], centerA,
       `${arm.place} arm must point its matching half toward the centre`);
   }
+});
+
+test('the first pip-counting diagram labels the three and five halves correctly', async () => {
+  const svg = await readFile(new URL('../public/art/boards/B1L1.svg', import.meta.url), 'utf8');
+  const upperCallout = svg.match(/<g transform="translate\(260 145\)">([\s\S]*?)<\/g>/)?.[1] ?? '';
+  const lowerCallout = svg.match(/<g transform="translate\(500 245\)">([\s\S]*?)<\/g>/)?.[1] ?? '';
+  assert.match(upperCallout, />3 pips<\/text>/,
+    'the callout beside the upper three must say 3 pips');
+  assert.match(lowerCallout, />5 pips<\/text>/,
+    'the callout beside the lower five must say 5 pips');
 });
