@@ -37,18 +37,25 @@ export async function openTablesPanel(
   onJoin: (tableId: string) => void,
   rerender: () => void,
 ): Promise<HTMLElement> {
-  const wrap = el('div', 'panel');
+  const wrap = el('div', 'panel open-tables-panel');
   wrap.append(el('div', 'eyebrow', 'Open tables'), el('h2', undefined, 'Sit down'));
 
   let tables: OpenTable[] = [];
   try { tables = await listLoungeTables(loungeId); } catch { /* shown as empty below */ }
+  // A player came here to sit down. Put available seats before spectating,
+  // then fuller waiting tables first so the fastest game is the first choice.
+  tables.sort((a, b) => {
+    const aJoinable = a.status === 'waiting' ? 0 : 1;
+    const bJoinable = b.status === 'waiting' ? 0 : 1;
+    return aJoinable - bJoinable || b.occupiedSeats - a.occupiedSeats;
+  });
 
   if (tables.length === 0) {
     wrap.append(el('p', 'muted', 'No tables running here yet. Start one.'));
   } else {
-    const list = el('div', 'stack');
+    const list = el('div', 'open-table-grid');
     for (const t of tables) {
-      const row = el('div', 'row');
+      const row = el('div', `open-table-card ${t.status === 'waiting' ? 'joinable' : 'watchable'}`);
       const modeLabel = t.mode === 'partner' ? 'Partner'
         : t.mode === 'openhand' ? 'Open hand'
           : t.mode === 'across' ? 'Across'
@@ -56,10 +63,15 @@ export async function openTablesPanel(
       const formatLabel = t.format === 'sixlove' ? 'Six love'
         : t.format === 'french' ? 'French'
           : 'First to six';
-      row.append(el('span', undefined, `${modeLabel} · ${formatLabel}`));
-      row.append(el('span', 'muted', `${t.occupiedSeats}/${t.seatCount}`));
+      const details = el('div', 'open-table-details');
+      details.append(
+        el('strong', 'open-table-mode', modeLabel),
+        el('span', 'open-table-format', formatLabel),
+      );
+      row.appendChild(details);
+      row.append(el('span', 'open-table-seats', `${t.occupiedSeats}/${t.seatCount} seated`));
       const join = document.createElement('button');
-      join.className = 'act ghost';
+      join.className = t.status === 'waiting' ? 'act' : 'act ghost';
       join.textContent = t.status === 'waiting' ? 'Sit down' : 'Watch';
       join.onclick = () => void (async () => {
         try {

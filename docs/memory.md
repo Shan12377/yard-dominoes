@@ -16,6 +16,16 @@ re-deriving it from chat history.
 - This is a presentation rule only. Do not alter dealing, tile visibility,
   turn order, scoring, or any engine/server authority to achieve the layout.
 
+## Fast game and account entry (2026-08-22)
+
+- Open lounge tables render as a responsive compact card grid, not a tall
+  one-row-per-table list. Mode, format, occupancy and the Sit down/Watch action
+  must be scannable together, with joinable tables receiving the stronger cue.
+- On Membership, “Already have an account? Sign in” reveals the actual email
+  and password form immediately below the membership heading and focuses the
+  email field. Never make a returning member scroll through pricing, profile,
+  and account controls to discover whether the sign-in action worked.
+
 ## Current product identity and connected systems (2026-08-22)
 
 - **Correction recorded 2026-08-22:** **YaadDominoes** is the confirmed

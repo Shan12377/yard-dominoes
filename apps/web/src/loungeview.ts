@@ -886,7 +886,6 @@ let accountMessage: string | null = null;
 // timer — see tournamentview.ts's scheduleTick). Same fix as the chat
 // draft above: hold the values and caret outside the DOM and restore them.
 let accountEmailDraft = '';
-let accountEmailCaret = 0;
 let accountPasswordDraft = '';
 let accountPasswordCaret = 0;
 let accountFocusedField: 'email' | 'password' | null = null;
@@ -1064,7 +1063,6 @@ function accountPanel(rerender: () => void): HTMLElement {
   email.value = accountEmailDraft;
   email.oninput = () => {
     accountEmailDraft = email.value;
-    accountEmailCaret = email.selectionStart ?? accountEmailDraft.length;
   };
   email.onfocus = () => { accountFocusedField = 'email'; };
   panel.append(el('label', 'field-label', 'Email'), email);
@@ -1086,7 +1084,10 @@ function accountPanel(rerender: () => void): HTMLElement {
   // Restore focus and caret only to whichever field was actually being typed
   // in — otherwise both fields' focus() calls fight and the wrong one wins.
   if (accountFocusedField === 'email') {
-    requestAnimationFrame(() => { email.focus(); email.setSelectionRange(accountEmailCaret, accountEmailCaret); });
+    // type="email" does not support setSelectionRange in every browser. A
+    // direct focus still places the insertion point at the restored value's
+    // end and avoids throwing as soon as the inline sign-in form opens.
+    requestAnimationFrame(() => { email.focus(); });
   } else if (accountFocusedField === 'password') {
     requestAnimationFrame(() => {
       password.focus();
@@ -1551,14 +1552,24 @@ export function membershipView(rerender: () => void): DocumentFragment {
       accountMode = 'signin';
       accountError = null;
       accountMessage = null;
+      accountFocusedField = 'email';
       rerender();
-      requestAnimationFrame(() => {
-        document.getElementById('account-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
     };
     head.appendChild(signIn);
   }
   frag.appendChild(head);
+
+  // Returning members asked to sign in here, so the actual fields belong
+  // here too. Previously this link opened a form after pricing, profile and
+  // account controls at the bottom of the page; on a phone that looked as if
+  // the link had done nothing. Keep this before the tier cards and focus the
+  // email field so the result is immediate and unambiguous.
+  const signInAtTop = accountOpen && accountMode === 'signin';
+  if (signInAtTop) {
+    const inlineAccount = accountPanel(rerender);
+    inlineAccount.classList.add('inline-account-panel');
+    frag.appendChild(inlineAccount);
+  }
 
   const grid = el('div', 'tiers');
   for (const tier of ['guest', 'yardie', 'vip'] as Tier[]) {
@@ -1653,7 +1664,7 @@ export function membershipView(rerender: () => void): DocumentFragment {
         'This is a guest session tied to this browser. Secure account keeps it from being '
         + 'lost, or Sign in if you already secured one elsewhere.'));
     }
-    if (accountOpen) frag.appendChild(accountPanel(rerender));
+    if (accountOpen && !signInAtTop) frag.appendChild(accountPanel(rerender));
 
     const bredrinsBtn = document.createElement('button');
     bredrinsBtn.className = 'act ghost small';

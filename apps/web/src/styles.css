@@ -582,6 +582,54 @@ label.field > span {
 .move-log { display: grid; gap: 4px; max-height: 300px; overflow-y: auto; }
 .move-log-line { font-size: 14.5px; }
 
+/* Open tables are choices, not a feed. A compact card grid lets players scan
+   mode, format and occupancy without spending a full row on each table. */
+.open-tables-panel { container-type: inline-size; }
+.open-table-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 9px;
+  margin-top: 12px;
+}
+.open-table-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "details seats"
+    "details action";
+  gap: 5px 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(67,199,244,.26);
+  border-radius: 11px;
+  background: rgba(5,43,67,.46);
+}
+.open-table-card.joinable {
+  border-color: rgba(255,201,40,.48);
+  background: linear-gradient(145deg, rgba(13,87,118,.72), rgba(5,43,67,.56));
+}
+.open-table-details { grid-area: details; min-width: 0; display: grid; gap: 2px; }
+.open-table-mode,
+.open-table-format { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.open-table-mode { font-size: 15px; color: var(--ink); }
+.open-table-format { font-size: 12px; color: var(--muted); }
+.open-table-seats {
+  grid-area: seats;
+  justify-self: end;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.open-table-card .act {
+  grid-area: action;
+  justify-self: end;
+  min-height: 38px;
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
 /* renderBoard() in render.ts sets grid-template-columns/rows and each tile's
    grid-column/grid-row as inline styles — the line snakes around the felt
    like a real table, so the grid's shape is different every render. Cells are
@@ -1435,6 +1483,10 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 
 /* ------------------------------------------------------------------ tiers */
 .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.inline-account-panel {
+  border-color: rgba(255,201,40,.54);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 12px 28px -18px rgba(0,0,0,.72);
+}
 .tier-card {
   border: 1px solid rgba(36, 22, 8, 0.16); border-radius: var(--r);
   padding: 16px; background: var(--sand-hi); display: grid; gap: 10px;
