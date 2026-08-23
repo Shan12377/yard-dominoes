@@ -25,7 +25,12 @@ Deno.serve(handled(async (req) => {
 
   const cached = await db.from('hand_reviews').select('*')
     .eq('hand_id', handId).eq('user_id', user.id).maybeSingle();
-  if (cached.data) return json({ ok: true, review: cached.data.review, cached: true });
+  if (cached.data) return json({
+    ok: true,
+    review: cached.data.review,
+    accuracy: cached.data.accuracy,
+    cached: true,
+  });
 
   // One NEW review a day on Guest — re-opening a hand already graded today
   // stays free forever (the cache check above returns before this runs).

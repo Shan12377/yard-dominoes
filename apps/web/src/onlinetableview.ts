@@ -5,6 +5,7 @@
 // reads it and calls back into it.
 
 import { OnlineGame } from './onlinetable.ts';
+import { coachReviewView } from './coachview.ts';
 import type { SeatInfo } from './onlinetable.ts';
 import {
   listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL,
@@ -18,7 +19,7 @@ import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
 import { describeMoveLine, describeSeat } from './movelog.ts';
-import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, GRADE_LABEL, isPartnered, sideOf } from '@yard/engine';
+import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 import * as sfx from './sfx.ts';
 
@@ -1125,21 +1126,35 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   return panel;
 }
 
-/**
- * The 2-coin "show the hand" purchase — every seat's starting tiles, which
- * the free share-link replay deliberately never includes. See
- * OnlineGame.reveal() / revealedDeal for the state machine and
- * reveal-hand's own header for why this differs from the already-free
- * move-by-move replay rather than paywalling it.
- */
+/** A completed hand's free, browser-verified visual deal receipt. */
 function revealSection(game: OnlineGame): HTMLElement {
-  const wrap = el('div', 'reveal');
+  const wrap = el('section', 'deal-check');
   const partnered = isPartnered(game.table.mode);
 
-  if (game.revealedDeal) {
+  if (game.revealedDeal && game.dealVerification) {
+    const verification = game.dealVerification;
+    const verdict = el('div', `deal-verdict ${verification.ok ? 'ok' : 'bad'}`);
+    verdict.setAttribute('role', 'status');
+    verdict.append(
+      el('div', 'eyebrow', 'Visual deal check'),
+      el('h2', undefined, verification.ok ? 'Deal verified' : 'Deal could not be verified'),
+      el('p', 'muted', verification.ok
+        ? 'Your browser rebuilt the locked shuffle. These are the exact starting hands it produced.'
+        : `The reconstructed deal did not match: ${verification.reason ?? 'unknown difference'}.`),
+    );
+    wrap.appendChild(verdict);
+
+    const checks = el('div', 'deal-checks');
+    const messages = verification.ok
+      ? ['Shuffle locked before play', 'Revealed key matches that lock', 'Every starting hand matches', 'Every tile is accounted for']
+      : ['At least one verification check failed'];
+    for (const message of messages) checks.append(el('div', undefined, `${verification.ok ? '✓' : '!'} ${message}`));
+    wrap.appendChild(checks);
+
+    const table = el('div', 'verified-table');
     for (let seat = 0; seat < game.revealedDeal.length; seat++) {
-      const row = el('div', 'reveal-hand');
-      row.append(el('span', 'muted', describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide)));
+      const row = el('div', `reveal-hand verified-seat seat-${seat}`);
+      row.append(el('strong', undefined, describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide)));
       const tiles = el('div', 'hand');
       for (const tile of game.revealedDeal[seat]) {
         const t = tileEl(tile);
@@ -1147,16 +1162,40 @@ function revealSection(game: OnlineGame): HTMLElement {
         tiles.appendChild(t);
       }
       row.appendChild(tiles);
-      wrap.appendChild(row);
+      table.appendChild(row);
     }
+    if (verification.boneyard.length > 0) {
+      const yard = el('div', 'reveal-hand verified-boneyard');
+      yard.append(el('strong', undefined, 'Boneyard'));
+      const tiles = el('div', 'hand');
+      for (const tile of verification.boneyard) { const t = tileEl(tile); t.classList.add('sm'); tiles.append(t); }
+      yard.append(tiles);
+      table.append(yard);
+    }
+    wrap.appendChild(table);
+
+    const technical = document.createElement('details');
+    technical.className = 'deal-technical';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Technical details';
+    technical.append(summary);
+    const receipt = verification.receipt;
+    technical.append(
+      el('div', 'muted', 'Commitment'), el('code', 'seed', receipt.commitment),
+      el('div', 'muted', 'Revealed key'), el('code', 'seed', receipt.serverSeed),
+      el('div', 'muted', 'Hand'), el('code', 'seed', receipt.handId),
+    );
+    wrap.appendChild(technical);
     return wrap;
   }
 
   const button = document.createElement('button');
   button.className = 'act ghost';
-  button.textContent = game.revealPending ? 'Revealing…' : 'Show the hand — 2 coins';
+  button.textContent = game.revealPending ? 'Checking the deal…' : 'Verify the deal — free';
   button.disabled = game.revealPending;
   button.onclick = () => void game.reveal();
+  wrap.append(el('p', 'muted',
+    'After the hand, your browser can rebuild the locked shuffle and show every starting hand.'));
   wrap.appendChild(button);
   return wrap;
 }
@@ -1182,28 +1221,32 @@ function coachSection(game: OnlineGame): HTMLElement {
       `${r.reviews.length} real decision${r.reviews.length === 1 ? '' : 's'} this hand`));
     const acc = el('div', 'stack');
     acc.style.textAlign = 'right';
-    acc.append(el('div', 'accuracy', `${game.reviewAccuracy}%`), el('div', 'side-name', 'accuracy'));
+    acc.append(el('div', 'accuracy', `${game.reviewAccuracy}%`), el('div', 'side-name', 'decision score'));
     head.append(left, acc);
     wrap.appendChild(head);
 
-    if (!r.exact) {
-      wrap.append(el('p', 'muted',
-        'One position was too big to solve exactly, so part of this is an estimate.'));
-    }
-
-    for (const move of r.reviews) {
-      const row = el('div', 'review-move');
-      if (move.ply === r.criticalPly) row.classList.add('critical');
-      row.append(el('div', 'ply', `#${move.ply + 1}`));
-      row.append(el('span', `grade ${move.grade}`, GRADE_LABEL[move.grade]));
-      const played = 'tile' in move.move ? move.move.tile : 'pass';
-      const best = 'tile' in move.best ? move.best.tile : 'pass';
-      row.append(el('div', 'note',
-        move.grade === 'best'
-          ? `You played ${played}. Correct.`
-          : `You played ${played} — ${best} was stronger. ${move.note}`));
-      wrap.appendChild(row);
-    }
+    wrap.append(el('div', 'muted',
+      r.reviews.length === 0
+        ? 'No real choices this hand.'
+        : `${r.reviews.length} decision${r.reviews.length === 1 ? '' : 's'} reviewed · ` +
+          `${r.counts.best + r.counts.fine} held up`));
+    const open = document.createElement('button');
+    open.className = 'act ghost';
+    open.textContent = r.criticalPly === null ? 'Review the decisions' : 'Review the key decision';
+    open.disabled = r.reviews.length === 0;
+    open.onclick = () => {
+      const reviewView = coachReviewView({
+        review: r,
+        score: game.reviewAccuracy ?? 100,
+        onClose: () => reviewView.replaceWith(coachSection(game)),
+        onLesson: () => {
+          document.querySelector<HTMLButtonElement>('button[data-view="academy"]')?.click();
+        },
+      });
+      wrap.replaceWith(reviewView);
+      reviewView.scrollIntoView({ block: 'start' });
+    };
+    wrap.appendChild(open);
     return wrap;
   }
 

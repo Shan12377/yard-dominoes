@@ -1,5 +1,5 @@
 import {
-  BELTS, lessonByRef, knownVoids, GRADE_LABEL, duppyLine, halves, TALK_CHANCE,
+  BELTS, lessonByRef, knownVoids, duppyLine, halves, TALK_CHANCE,
   EMPTY_LEAKS, recordHand, standoutLeak, describeLeak, isPartnered, sideOf,
 } from '@yard/engine';
 
@@ -14,6 +14,7 @@ function formatLabel(format: SetFormat): string {
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat } from '@yard/engine';
 import { LocalGame } from './local.ts';
+import { coachReviewView } from './coachview.ts';
 import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -253,6 +254,7 @@ function chrome(): HTMLElement {
   for (const [id, label] of tabs) {
     const b = document.createElement('button');
     b.textContent = label;
+    b.dataset.view = id;
     b.setAttribute('aria-current', String(view === id));
     b.onclick = () => {
       if (view === 'lounges' && id !== 'lounges') loungeModule?.leaveCurrentLounge();
@@ -1116,7 +1118,7 @@ function handResult(g: LocalGame): HTMLElement | null {
 
   const check = document.createElement('button');
   check.className = 'act ghost';
-  check.textContent = 'Verify this deal';
+  check.textContent = 'Verify the deal — free';
   check.onclick = async () => { verifyState = await g.verify(); render(); };
   row.appendChild(check);
 
@@ -1159,16 +1161,47 @@ function handResult(g: LocalGame): HTMLElement | null {
   }
 
   if (verifyState) {
-    const v = el('div', 'verify ' + (verifyState.ok ? 'ok' : 'bad'));
-    v.append(el('span', 'dot'));
-    v.append(el('span', undefined, verifyState.ok
-      ? 'Deal matches the commitment published before the tiles went out.'
-      : `Check failed: ${verifyState.reason}`));
-    panel.appendChild(v);
-    if (g.fairness) {
-      panel.append(el('div', 'muted', 'Seed'), Object.assign(
-        el('code', 'seed', g.fairness.serverSeed), {}));
+    const v = el('section', 'deal-check');
+    const verdict = el('div', `deal-verdict ${verifyState.ok ? 'ok' : 'bad'}`);
+    verdict.setAttribute('role', 'status');
+    verdict.append(
+      el('div', 'eyebrow', 'Visual deal check'),
+      el('h2', undefined, verifyState.ok ? 'Deal verified' : 'Deal could not be verified'),
+      el('p', 'muted', verifyState.ok
+        ? 'Your browser rebuilt the locked shuffle. These are the exact starting hands it produced.'
+        : `The reconstructed deal did not match: ${verifyState.reason}`),
+    );
+    v.appendChild(verdict);
+    if (verifyState.ok) {
+      const checks = el('div', 'deal-checks');
+      for (const message of ['Shuffle locked before play', 'Revealed key matches that lock', 'Every starting hand matches', 'Every tile is accounted for']) {
+        checks.append(el('div', undefined, `✓ ${message}`));
+      }
+      v.appendChild(checks);
+      const table = el('div', 'verified-table');
+      for (let seat = 0; seat < g.dealt.length; seat++) {
+        const hand = el('div', `reveal-hand verified-seat seat-${seat}`);
+        hand.append(el('strong', undefined, g.seatLabel(seat)));
+        const tiles = el('div', 'hand');
+        for (const id of g.dealt[seat]) { const tile = tileEl(id); tile.classList.add('sm'); tiles.append(tile); }
+        hand.append(tiles); table.append(hand);
+      }
+      v.appendChild(table);
     }
+    if (g.fairness) {
+      const technical = document.createElement('details');
+      technical.className = 'deal-technical';
+      const summary = document.createElement('summary');
+      summary.textContent = 'Technical details';
+      technical.append(
+        summary,
+        el('div', 'muted', 'Commitment'), el('code', 'seed', g.fairness.commitment),
+        el('div', 'muted', 'Revealed key'), el('code', 'seed', g.fairness.serverSeed),
+        el('div', 'muted', 'Hand'), el('code', 'seed', g.fairness.handId),
+      );
+      v.appendChild(technical);
+    }
+    panel.appendChild(v);
   }
   return panel;
 }
@@ -1197,9 +1230,14 @@ function coachSummary(g: LocalGame): HTMLElement | null {
   const left = el('div', 'stack');
   left.append(el('div', 'eyebrow', 'The coach'));
   left.append(el('h2', undefined, r.summary));
+  left.append(el('div', 'muted',
+    r.reviews.length === 0
+      ? 'No real choices this hand.'
+      : `${r.reviews.length} decision${r.reviews.length === 1 ? '' : 's'} reviewed · ` +
+        `${r.counts.best + r.counts.fine} held up`));
   const acc = el('div', 'stack');
   acc.style.textAlign = 'right';
-  acc.append(el('div', 'accuracy', `${g.reviewAccuracy(r)}%`), el('div', 'side-name', 'accuracy'));
+  acc.append(el('div', 'accuracy', `${g.reviewAccuracy(r)}%`), el('div', 'side-name', 'decision score'));
   head.append(left, acc);
   panel.appendChild(head);
 
@@ -1244,62 +1282,25 @@ function coachSummary(g: LocalGame): HTMLElement | null {
 
   const more = document.createElement('button');
   more.className = 'act ghost';
-  more.textContent = reviewOpen
-    ? 'Hide the detail'
-    : `See all ${r.reviews.length} decision${r.reviews.length === 1 ? '' : 's'}`;
+  more.textContent = critical
+    ? 'Review the key decision'
+    : `Review ${r.reviews.length === 1 ? 'the decision' : `all ${r.reviews.length} decisions`}`;
+  more.disabled = r.reviews.length === 0;
   more.onclick = () => { reviewOpen = !reviewOpen; render(); };
   panel.appendChild(more);
   return panel;
 }
 
 function coachPanel(g: LocalGame, r: HandReview): HTMLElement {
-  const panel = el('div', 'panel');
-  panel.append(el('div', 'eyebrow', 'The coach'));
-
-  const head = el('div', 'spread');
-  const left = el('div', 'stack');
-  left.append(el('h2', undefined, r.summary));
-  left.append(el('div', 'muted',
-    `${r.reviews.length} real decision${r.reviews.length === 1 ? '' : 's'} this hand`));
-  const acc = el('div', 'stack');
-  acc.style.textAlign = 'right';
-  acc.append(el('div', 'accuracy', `${g.reviewAccuracy(r)}%`), el('div', 'side-name', 'accuracy'));
-  head.append(left, acc);
-  panel.appendChild(head);
-
-  if (!r.exact) {
-    panel.append(el('p', 'muted',
-      'One position was too big to solve exactly, so part of this is an estimate.'));
-  }
-
-  for (const move of r.reviews) {
-    const row = el('div', 'review-move');
-    if (move.ply === r.criticalPly) row.classList.add('critical');
-    row.append(el('div', 'ply', `#${move.ply + 1}`));
-    row.append(el('span', `grade ${move.grade}`, GRADE_LABEL[move.grade]));
-
-    const body = el('div', 'stack');
-    const played = 'tile' in move.move ? move.move.tile : 'pass';
-    const best = 'tile' in move.best ? move.best.tile : 'pass';
-    body.append(el('div', 'note',
-      move.grade === 'best'
-        ? `You played ${played}. Correct.`
-        : `You played ${played} — ${best} was stronger. ${move.note}`));
-
-    if (move.lesson) {
-      const link = document.createElement('button');
-      link.className = 'lesson';
-      link.textContent = `→ ${move.lesson}`;
-      link.onclick = () => {
-        const lesson = lessonByRef(move.lesson!);
-        if (lesson) { view = 'academy'; openLesson = lesson.id; render(); }
-      };
-      body.appendChild(link);
-    }
-    row.appendChild(body);
-    panel.appendChild(row);
-  }
-  return panel;
+  return coachReviewView({
+    review: r,
+    score: g.reviewAccuracy(r),
+    onClose: () => { reviewOpen = false; render(); },
+    onLesson: (reference) => {
+      const lesson = lessonByRef(reference);
+      if (lesson) { reviewOpen = false; view = 'academy'; openLesson = lesson.id; render(); }
+    },
+  });
 }
 
 /**
@@ -1422,6 +1423,32 @@ function tableView(g: LocalGame): DocumentFragment {
 }
 
 // --------------------------------------------------------------- academy --
+const ACADEMY_VISUALS: Record<string, {
+  alt: string; notice: string; takeaway: string; tryIt: string; answer: string;
+}> = {
+  B1L2: {
+    alt: 'A three-one tile joining an open three while a four-two is rejected because it does not match.',
+    notice: 'The touching halves carry the same number. The other half becomes the new open end.',
+    takeaway: 'Match either open end. Nothing goes into the middle of the line.',
+    tryIt: 'If the open ends are 3 and 5, can a 2-5 play?',
+    answer: 'Yes. Put its 5 against the open 5; the 2 becomes the new end.',
+  },
+  B2L6: {
+    alt: 'Four blocked hands: north has 10 pips, east 4, south 2 and west 6. South has the lowest individual count, so north and south win.',
+    notice: 'North and South hold 12 together—more than East and West—but South alone has the lowest hand.',
+    takeaway: 'Count every player separately first. The lowest individual wins the block for their side.',
+    tryIt: 'If your partner has 11, you have 3, and both opponents have 4, who wins?',
+    answer: 'Your side. Your individual 3 is the lowest count; your partner’s 11 does not cancel it.',
+  },
+  B4L1: {
+    alt: 'East passes while four and one are open, creating permanent no-four and no-one markers beside East as later tiles change the board.',
+    notice: 'Passing proves the player held neither open suit at that moment. Tiles cannot return to a hand later.',
+    takeaway: 'Write the two suits beside that player mentally and never erase them for the rest of the hand.',
+    tryIt: 'A player passes on 4 and 1. Two turns later the ends are 6 and 1. Which end is known to stop them?',
+    answer: 'The 1. Their earlier pass already proved they have no ones.',
+  },
+};
+
 function academyView(): DocumentFragment {
   const frag = document.createDocumentFragment();
   const intro = el('div', 'panel');
@@ -1460,8 +1487,9 @@ function academyView(): DocumentFragment {
     const isOpen = openBelt === b.id || b.lessons.some((l) => l.id === openLesson);
     if (isOpen) card.classList.add('open');
 
-    const head = el('div', 'row');
-    head.style.cursor = 'pointer';
+    const head = document.createElement('button');
+    head.className = 'row belt-head';
+    head.setAttribute('aria-expanded', String(isOpen));
     head.append(el('div', 'num', String(b.index)));
     const titles = el('div', 'stack');
     titles.append(el('h2', undefined, b.title), el('div', 'muted', b.subtitle));
@@ -1472,13 +1500,54 @@ function academyView(): DocumentFragment {
     if (isOpen) {
       for (const lesson of b.lessons) {
         const item = el('div', 'lesson');
-        if (lesson.id === openLesson) item.classList.add('critical');
-        item.append(el('h3', undefined, lesson.title));
-        item.append(el('p', undefined, lesson.body));
-        if (lesson.terms?.length) {
-          const terms = el('div', 'terms');
-          for (const t of lesson.terms) terms.append(el('span', undefined, t));
-          item.appendChild(terms);
+        const lessonIsOpen = lesson.id === openLesson;
+        if (lessonIsOpen) item.classList.add('critical', 'lesson-open');
+        const lessonHead = document.createElement('button');
+        lessonHead.className = 'academy-lesson-head';
+        lessonHead.setAttribute('aria-expanded', String(lessonIsOpen));
+        lessonHead.append(
+          el('span', 'academy-lesson-id', lesson.id),
+          el('strong', undefined, lesson.title),
+          el('span', 'academy-lesson-toggle', lessonIsOpen ? 'Close' : 'Open'),
+        );
+        lessonHead.onclick = () => { openLesson = lessonIsOpen ? null : lesson.id; render(); };
+        item.appendChild(lessonHead);
+
+        if (lessonIsOpen) {
+          const visual = ACADEMY_VISUALS[lesson.id];
+          if (visual) {
+            const figure = document.createElement('figure');
+            figure.className = 'academy-figure';
+            const image = document.createElement('img');
+            image.src = `/art/boards/${lesson.id}.svg`;
+            image.alt = visual.alt;
+            image.width = 760;
+            image.height = 380;
+            figure.append(image);
+            figure.append(el('figcaption', undefined, visual.notice));
+            item.appendChild(figure);
+          }
+          const explanation = el('div', 'academy-explanation');
+          explanation.append(el('div', 'eyebrow', 'Why it matters'));
+          explanation.append(el('p', undefined, lesson.body));
+          item.appendChild(explanation);
+          if (visual) {
+            const take = el('div', 'academy-takeaway');
+            take.append(el('div', 'eyebrow', 'Take it to the table'));
+            take.append(el('strong', undefined, visual.takeaway));
+            item.appendChild(take);
+            const check = document.createElement('details');
+            check.className = 'academy-check';
+            const prompt = document.createElement('summary');
+            prompt.textContent = `Try it · ${visual.tryIt}`;
+            check.append(prompt, el('p', undefined, visual.answer));
+            item.appendChild(check);
+          }
+          if (lesson.terms?.length) {
+            const terms = el('div', 'terms');
+            for (const t of lesson.terms) terms.append(el('span', undefined, t));
+            item.appendChild(terms);
+          }
         }
         card.appendChild(item);
       }

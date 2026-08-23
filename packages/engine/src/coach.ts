@@ -18,7 +18,7 @@
 import { legalMoves, applyMove, openEnds } from './hand.ts';
 import { handCount, halves, isDouble, sideOf, tileCount } from './tiles.ts';
 import { suitStrength, publicView, hardEnds, deadDoubles, hasKey } from './bots.ts';
-import type { HandState, Move, Pip, TileId } from './types.ts';
+import type { AnyBoard, HandState, Move, Pip, TileId } from './types.ts';
 
 /** Table talk, not digits — a Jamaican player calls it "hard six", not "hard 6". */
 const PIP_WORD: Record<Pip, string> = {
@@ -48,6 +48,18 @@ export interface MoveReview {
   /** Curriculum reference, e.g. "Belt 4 · Lesson 1". */
   lesson: string | null;
   exact: boolean;
+  /**
+   * The position the player actually faced, retained for the visual Coach.
+   * This is deliberately a redacted teaching snapshot: the public board,
+   * this seat's own hand, and the legal choices. It can safely cross the
+   * review-hand boundary after a hand without exposing another seat's tiles.
+   */
+  position: {
+    board: AnyBoard | null;
+    hand: TileId[];
+    legal: Move[];
+    ends: Pip[];
+  };
 }
 
 export interface HandReview {
@@ -343,6 +355,12 @@ export function reviewHand(
           ply, seat, move, best: bestMove,
           valueActual: actualValue, valueBest: bestValue,
           loss, grade, note, lesson, exact: !budget.exhausted,
+          position: {
+            board: s.board,
+            hand: [...s.hands[seat]],
+            legal: options_.map((candidate) => ({ ...candidate })),
+            ends: s.board ? openEnds(s.board) : [],
+          },
         });
       }
     }

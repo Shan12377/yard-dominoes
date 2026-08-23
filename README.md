@@ -69,7 +69,7 @@ verifications (hand_id, verified_by, verified_at, ok)
 
 **`tiles.ts`** — the 28-tile set, pip counting, matching, seat/side mapping. Seats are numbered in play order, which is anti-clockwise, so the next seat is the player to your physical right and partners land opposite each other automatically.
 
-**`shuffle.ts`** — provably fair dealing. Server commits to `SHA-256(serverSeed)` before the deal, every client contributes a seed, the shuffle is a deterministic Fisher-Yates keyed on `HMAC(serverSeed, clientSeeds ‖ handId)`, and the seed is revealed when the hand ends. `verifyHand()` is what the "Verify this hand" button calls. Tests prove it catches both a swapped seed and a tampered deal.
+**`shuffle.ts`** — provably fair dealing. Server commits to `SHA-256(serverSeed)` before the deal, every client contributes a seed, the shuffle is a deterministic Fisher-Yates keyed on `HMAC(serverSeed, clientSeeds ‖ handId)`, and the seed is revealed when the hand ends. `verifyHand()` runs in the player’s browser; the visual Deal Check shows the reconstructed starting hands and keeps seeds/hashes under Technical details. It is free. Tests prove it catches both a swapped seed and a tampered deal.
 
 **`hand.ts`** — legal moves, move application, blocked-hand resolution. Includes `knownVoids()`, which extracts what each player's passes have permanently revealed. That function exists because it is simultaneously the core Belt 4 lesson, the input to the stronger duppies, and a Coach primitive.
 

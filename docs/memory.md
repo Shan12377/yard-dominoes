@@ -596,6 +596,16 @@ Everything below is live and verified, not just written:
   IntersectionObserver visibility gate afterward. A repeat audit was blocked
   by the local runner's network/socket permission limit; do not claim the
   optimized build is 100 until a fresh production-preview run proves it.
+- The 2026-08-22 Coach clarity pass replaced the long grade report with one
+  visual decision at a time. `MoveReview.position` is a deliberately redacted
+  snapshot: public board, reviewed seat's own hand, legal choices, and open
+  ends—never another seat's tiles. Local and online use the same
+  `coachview.ts`; its sticky Back/Done bar is the permanent exit.
+- Deal verification is now a free trust feature, not a two-coin reveal. After
+  a hand ends, `reveal-hand` returns a participant-only commit-reveal receipt;
+  the browser runs `verifyHand()` itself and displays every starting hand plus
+  four plain-language checks. The live `hands` table remains inaccessible,
+  spectators receive no receipt, and technical seeds stay collapsed.
 
 ## Open threads not yet in a phase
 
@@ -622,8 +632,12 @@ Everything below is live and verified, not just written:
   `profiles.rating_partner` / `rating_cutthroat`, never surfaced anywhere).
   Doc #1 says: build immediately after online play v1 ships.
   - `"Quick Ting"` short-game mode — explicitly skipped, not adopted.
-- Academy drill UI + `academy_progress` persistence — lesson content exists
-  in `academy.ts`, no screens, no progress tracking.
+- Academy visual teaching is in progress. The shared deterministic SVG
+  renderer and first three canonical diagrams (B1L2 matching, B2L6 lowest
+  individual blocked count, B4L1 pass permanence) shipped in the 2026-08-22
+  clarity pass. Lessons now open one at a time using See it / Why it matters /
+  Take it to the table / Try it. The remaining lesson diagrams, true drill
+  interactions, and `academy_progress` persistence are still open.
 - Bredrins list UI (VIP's "see where your people are") — backend exists
   (`addBredrin`, `whereAreMyBredrins`), no UI.
 - Google/Apple sign-in — `signInWithProvider` exists in code, no button, and

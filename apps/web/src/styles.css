@@ -709,8 +709,8 @@ label.field > span {
 .partner-hand .tile.sm { --w: 22px; --h: 44px; cursor: default; }
 .partner-hand .tile.sm:hover { transform: none; }
 
-/* The 2-coin post-hand reveal — every seat's starting tiles, static and
- * small, laid out as one labelled row per seat. */
+/* The free post-hand visual deal receipt: every starting hand, static and
+ * compact, returned only after play to a participant. */
 .reveal { display: grid; gap: 8px; margin: 10px 0; }
 .reveal-hand { display: grid; gap: 4px; }
 .reveal-hand .hand { gap: 4px; }
@@ -945,6 +945,138 @@ label.field > span {
 .verify.bad .dot { background: var(--blood); }
 code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word-break: break-all; }
 
+.deal-check { margin-top: 14px; }
+.deal-verdict {
+  padding: 16px; border: 1px solid var(--wood-hi); border-left-width: 5px;
+  border-radius: 10px; background: var(--signal-lo);
+}
+.deal-verdict.ok { border-left-color: var(--forest-hi); }
+.deal-verdict.bad { border-left-color: var(--coral); }
+.deal-verdict h2 { margin: 4px 0; }
+.deal-verdict p { margin: 0; }
+.deal-checks {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px;
+  margin: 10px 0; font: 700 12px/1.4 var(--mono); color: var(--bone);
+}
+.deal-checks > div { padding: 9px 10px; border-radius: 6px; background: var(--signal); }
+.verified-table {
+  display: grid; grid-template-areas: '. north .' 'west yard east' '. south .';
+  grid-template-columns: minmax(0, 1fr) minmax(120px, .7fr) minmax(0, 1fr);
+  gap: 9px; padding: 12px; border: 6px solid var(--signal-lo); border-radius: 12px;
+  background: radial-gradient(circle, var(--felt-hi), var(--felt));
+}
+.verified-seat, .verified-boneyard {
+  min-width: 0; padding: 9px; border-radius: 8px; background: rgba(5, 43, 67, .92);
+}
+.verified-seat strong, .verified-boneyard strong { display: block; margin-bottom: 7px; font-size: 12px; }
+.verified-seat .hand, .verified-boneyard .hand { display: flex; gap: 4px; overflow-x: auto; padding: 2px 2px 5px; }
+.verified-seat .tile.sm, .verified-boneyard .tile.sm { --w: 24px; --h: 48px; flex: none; }
+.verified-seat.seat-0 { grid-area: south; }
+.verified-seat.seat-1 { grid-area: east; }
+.verified-seat.seat-2 { grid-area: north; }
+.verified-seat.seat-3 { grid-area: west; }
+.verified-boneyard { grid-area: yard; align-self: center; }
+.deal-technical {
+  margin-top: 10px; padding: 12px; border: 1px solid var(--wood-hi); border-radius: 8px;
+  background: var(--signal-lo);
+}
+.deal-technical summary { cursor: pointer; color: var(--muted); font-weight: 800; }
+.deal-technical code { display: block; margin: 3px 0 10px; }
+
+@media (max-width: 620px) {
+  .deal-checks { grid-template-columns: 1fr; }
+  .verified-table {
+    grid-template-areas: 'north' 'east' 'yard' 'south' 'west'; grid-template-columns: 1fr;
+  }
+}
+
+/* --------------------------------------------------------- visual Coach */
+.coach-review-surface {
+  position: relative; z-index: 30; overflow: clip; margin: 14px 0;
+  border: 2px solid var(--sky); border-radius: 14px;
+  background: var(--signal-lo); color: var(--ink);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, .24);
+}
+.coach-review-bar {
+  position: sticky; top: 0; z-index: 31;
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 10px; min-height: 58px; padding: 8px 12px;
+  background: rgba(5, 43, 67, .96); border-bottom: 1px solid rgba(67, 199, 244, .45);
+  backdrop-filter: blur(12px);
+}
+.coach-close, .coach-done {
+  min-height: 44px; border: 0; background: transparent; color: var(--bone);
+  font: 800 14px/1 var(--body); cursor: pointer;
+}
+.coach-close { justify-self: start; }
+.coach-done { justify-self: end; color: var(--gold); }
+.coach-close:focus-visible, .coach-done:focus-visible {
+  outline: 3px solid var(--gold); outline-offset: 2px;
+}
+.coach-decision-head {
+  display: flex; justify-content: space-between; align-items: start; gap: 16px;
+  padding: 22px 22px 12px;
+}
+.coach-decision-head h2 { margin: 4px 0 0; max-width: 650px; }
+.coach-kicker, .coach-choice-label {
+  font-family: var(--mono); font-size: 11px; font-weight: 800;
+  letter-spacing: .13em; text-transform: uppercase; color: var(--muted);
+}
+.coach-grade {
+  flex: none; padding: 7px 10px; border-radius: 99px;
+  font: 800 11px/1 var(--mono); letter-spacing: .05em;
+  background: var(--signal-hi); border: 1px solid var(--wood-hi);
+}
+.coach-grade.best { color: var(--gold); border-color: var(--gold); }
+.coach-grade.fine { color: var(--forest-hi); border-color: var(--forest-hi); }
+.coach-grade.loose { color: var(--gold-hi); border-color: var(--gold-hi); }
+.coach-grade.blunder { color: var(--coral); border-color: var(--coral); }
+.coach-position { padding: 0 22px; }
+.coach-felt {
+  display: grid; place-items: center; min-height: 280px; margin-top: 9px; padding: 14px;
+  overflow: auto; border: 7px solid #07334d; border-radius: 12px;
+  background:
+    repeating-linear-gradient(125deg, rgba(255,255,255,.035) 0 2px, transparent 2px 9px),
+    radial-gradient(circle at 50% 42%, var(--felt-hi), var(--felt));
+  box-shadow: inset 0 0 0 2px rgba(67, 199, 244, .2), inset 0 16px 35px rgba(255,255,255,.04);
+}
+.coach-line { display: grid; place-content: center; min-width: max-content; }
+.coach-hand-block { margin-top: 12px; padding: 12px; border-radius: 9px; background: var(--signal); }
+.coach-hand { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; padding: 2px 2px 7px; }
+.coach-hand .tile, .coach-choice .tile { --w: 42px; --h: 84px; flex: none; }
+.coach-hand .coach-played-tile { box-shadow: 0 0 0 4px var(--coral), 0 8px 16px rgba(0,0,0,.28); }
+.coach-hand .coach-best-tile { box-shadow: 0 0 0 4px var(--gold), 0 8px 16px rgba(0,0,0,.28); }
+.coach-compare {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  padding: 14px 22px 0;
+}
+.coach-choice {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
+  min-height: 112px; padding: 12px 14px; border-radius: 10px;
+  background: var(--signal); border: 1px solid var(--wood-hi);
+}
+.coach-choice.actual { border-left: 4px solid var(--coral); }
+.coach-choice.best { border-left: 4px solid var(--gold); }
+.coach-pass { font-family: var(--display); font-size: 25px; color: var(--bone); }
+.coach-why { margin: 14px 22px 0; padding: 15px 16px; border-left: 4px solid var(--sky); background: var(--signal); }
+.coach-why p { margin: 5px 0 0; max-width: 74ch; line-height: 1.55; }
+.coach-actions { display: flex; justify-content: space-between; gap: 10px; padding: 18px 22px 22px; }
+.coach-actions .act:last-child { margin-left: auto; }
+.coach-empty { min-height: 240px; display: grid; place-content: center; text-align: center; padding: 28px; }
+.coach-muted { color: var(--muted); }
+
+@media (max-width: 600px) {
+  .coach-decision-head, .coach-position { padding-left: 12px; padding-right: 12px; }
+  .coach-decision-head { flex-direction: column; }
+  .coach-felt { min-height: 230px; padding: 8px; }
+  .coach-compare { padding: 12px 12px 0; }
+  .coach-choice { min-height: 100px; padding: 9px; }
+  .coach-hand .tile, .coach-choice .tile { --w: 36px; --h: 72px; }
+  .coach-why { margin: 12px 12px 0; }
+  .coach-actions { padding: 14px 12px 18px; flex-wrap: wrap; }
+  .coach-actions .act { flex: 1 1 42%; }
+}
+
 /* --------------------------------------------------------------- academy */
 .belt {
   border: 1px solid rgba(36, 22, 8, 0.14); border-radius: var(--r);
@@ -955,6 +1087,11 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   line-height: 1; min-width: 34px;
 }
 .belt.open { border-color: var(--gold); }
+.belt-head {
+  width: 100%; min-height: 48px; padding: 0; border: 0; background: transparent;
+  color: var(--ink); text-align: left; cursor: pointer;
+}
+.belt-head:focus-visible { outline: 3px solid var(--gold); outline-offset: 5px; }
 .lesson { padding: 12px 0; border-top: 1px solid rgba(36, 22, 8, 0.10); }
 .lesson h3 { font-family: var(--body); font-weight: 800; font-size: 16px; margin-bottom: 4px; }
 /* Academy content is the app teaching someone the game from zero — it has
@@ -966,6 +1103,36 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   border: 1px solid rgba(36, 22, 8, 0.2); color: var(--muted);
   padding: 2px 7px; border-radius: 99px;
 }
+.academy-lesson-head {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 0;
+  border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer;
+}
+.academy-lesson-head:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+.academy-lesson-id, .academy-lesson-toggle {
+  font: 800 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+}
+.academy-lesson-id { color: var(--sky); }
+.academy-lesson-toggle { color: var(--gold); }
+.lesson-open { padding-bottom: 18px; }
+.academy-figure { margin: 12px 0 16px; }
+.academy-figure img {
+  display: block; width: 100%; height: auto; border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .22);
+}
+.academy-figure figcaption {
+  max-width: 70ch; margin: 9px 2px 0; color: var(--muted); font-size: 14px; line-height: 1.5;
+}
+.academy-explanation, .academy-takeaway { padding: 13px 14px; border-radius: 8px; background: var(--signal); }
+.academy-explanation { border-left: 4px solid var(--sky); }
+.academy-takeaway { margin-top: 9px; border-left: 4px solid var(--gold); }
+.academy-takeaway strong { display: block; margin-top: 5px; line-height: 1.45; }
+.academy-check {
+  margin-top: 9px; padding: 12px 14px; border: 1px solid var(--forest-hi); border-radius: 8px;
+  background: rgba(0, 168, 89, .1);
+}
+.academy-check summary { color: var(--bone); font-weight: 800; cursor: pointer; line-height: 1.45; }
+.academy-check p { margin-top: 10px; color: var(--bone); }
 
 .banner {
   padding: 12px 14px; border-radius: var(--r); font-size: 14px;

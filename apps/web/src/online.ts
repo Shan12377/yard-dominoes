@@ -9,7 +9,7 @@
 
 /// <reference types="vite/client" />
 import { createClient, type SupabaseClient, type RealtimeChannel, FunctionsHttpError } from '@supabase/supabase-js';
-import type { AnyBoard, ClockName, GameMode, HandReview, Move, PenaltyEvent, TileId } from '@yard/engine';
+import type { AnyBoard, ClockName, GameMode, HandReceipt, HandReview, Move, PenaltyEvent, TileId } from '@yard/engine';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -189,7 +189,7 @@ export const requestReview = (handId: string) =>
 /** 2 coins for every seat's starting tiles on a finished hand — see
  *  reveal-hand's own header for what this adds beyond the free replay. */
 export const revealHand = (handId: string) =>
-  call<{ ok: true; deal: TileId[][] }>('reveal-hand', { handId });
+  call<{ ok: true; deal: TileId[][]; receipt: HandReceipt }>('reveal-hand', { handId });
 
 /** French's paid mid-hand reshuffle — 2 coins, once per set, only while your
  *  own score sits between 50 and 70. See french-reshuffle's own header. */

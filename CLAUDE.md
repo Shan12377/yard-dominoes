@@ -106,6 +106,11 @@ Do not relitigate these without asking.
 - **No social login is ever required.** Anonymous sign-in is on.
 - **No modal during a live hand.** Not a gift, not a rate prompt, not an ad,
   not a service worker update.
+- **Deal verification is free and visual.** After a hand ends, a participant
+  may ask for the immutable starting deal and commit-reveal receipt. Their
+  browser reconstructs the shuffle and shows every starting hand; seeds and
+  hashes live under Technical details. Never charge coins for trust, never
+  reveal a live hand, and never expose the `hands` table itself.
 - **No auto-play.** A tile fitting both ends prompts for which end.
 - **Timed-out seats play a legal move, they do not forfeit.**
 - **Voice is a peer-to-peer mesh, never an SFU.** Live table voice ships in

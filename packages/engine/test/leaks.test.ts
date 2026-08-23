@@ -11,6 +11,7 @@ function move(grade: Grade, lesson: string | null, loss: number): MoveReview {
     move: { kind: 'pass', seat: 0 },
     best: { kind: 'pass', seat: 0 },
     valueActual: 0, valueBest: 0, loss, grade, note: '', lesson, exact: true,
+    position: { board: null, hand: [], legal: [], ends: [] },
   };
 }
 

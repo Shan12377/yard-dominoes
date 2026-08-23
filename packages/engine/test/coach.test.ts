@@ -68,3 +68,20 @@ test('a clean hand is never told it gave up a winnable hand', async () => {
     }
   }
 });
+
+test('visual Coach positions retain only the reviewed seat hand', async () => {
+  const { initial, final } = await playedHand(7);
+  const review = reviewHand(
+    { ...initial, hands: initial.hands.map((h) => [...h]) },
+    final.moveLog,
+    0,
+  );
+  for (const decision of review.reviews) {
+    assert.ok(Array.isArray(decision.position.hand));
+    assert.equal('hands' in decision.position, false,
+      'a Coach snapshot must never contain every seat hand');
+    assert.equal('boneyard' in decision.position, false,
+      'a Coach snapshot must not smuggle hidden tiles through the boneyard');
+    assert.ok(Array.isArray(decision.position.legal));
+  }
+});

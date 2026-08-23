@@ -69,6 +69,10 @@ the small descriptor “Jamaican dominoes.”
 - Prefer one clear primary action per screen.
 - Maintain strong contrast and minimum 44px touch targets.
 - Live-hand UI must never be interrupted by a modal.
+- “A deal you can verify. Free.” means an understandable visual proof, not a
+  seed dumped onto the page. After play, participants see the reconstructed
+  starting hands and four plain-language checks; cryptographic inputs remain
+  available under Technical details. Verification can never cost coins.
 
 ## Photography and generated imagery
 

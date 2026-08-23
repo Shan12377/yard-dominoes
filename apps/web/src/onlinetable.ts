@@ -16,8 +16,8 @@ import {
 } from './online.ts';
 import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
-import { isPartnered, legalMoves, sideOf } from '@yard/engine';
-import type { AnyBoard, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
+import { isPartnered, legalMoves, provablyFairShuffle, sideOf, verifyHand as verifyReceipt } from '@yard/engine';
+import type { AnyBoard, GameMode, HandReceipt, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { predictMyMove } from './predict.ts';
 
 export interface TableInfo {
@@ -121,13 +121,18 @@ export class OnlineGame {
   }
 
   /**
-   * Every seat's starting tiles for the just-finished hand, bought with
-   * `reveal()` for 2 coins — the one thing the free share-link replay
-   * deliberately never shows (see replay.ts). Cleared the moment a new
+   * Every seat's starting tiles for the just-finished hand, returned only to
+   * a participant as part of the free verification receipt. Cleared the moment a new
    * hand begins (a fresh hand_id in onPublic), not on every board update,
    * so it survives whatever else changes about the current hand's row.
    */
   revealedDeal: TileId[][] | null = null;
+  dealVerification: {
+    ok: boolean;
+    reason?: string;
+    receipt: HandReceipt;
+    boneyard: TileId[];
+  } | null = null;
   revealPending = false;
 
   /** The Coach, requested for the just-finished hand. Cleared on a new deal
@@ -477,6 +482,7 @@ export class OnlineGame {
         }
         if (!prev || hand.hand_id !== prev.hand_id) {
           this.revealedDeal = null;
+          this.dealVerification = null;
           this.review = null;
           this.reviewAccuracy = null;
         }
@@ -697,14 +703,21 @@ export class OnlineGame {
     }
   }
 
-  /** 2 coins, once per finished hand — see revealedDeal's own comment. */
+  /** Free after a finished hand. The browser independently reconstructs it. */
   async reveal(): Promise<void> {
     if (!this.hand || this.revealPending || this.revealedDeal) return;
     this.revealPending = true;
     this.emit({ type: 'state' });
     try {
-      const { deal } = await apiRevealHand(this.hand.hand_id);
+      const { deal, receipt } = await apiRevealHand(this.hand.hand_id);
+      const result = await verifyReceipt(receipt);
+      const order = await provablyFairShuffle(receipt);
       this.revealedDeal = deal;
+      this.dealVerification = {
+        ...result,
+        receipt,
+        boneyard: order.slice(deal.flat().length),
+      };
     } catch (err) {
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not reveal the hand' });
     } finally {
@@ -714,7 +727,7 @@ export class OnlineGame {
   }
 
   /** Grades every decision on the just-finished hand. Free (rate-limited
-   *  server-side for guests) — unlike reveal(), no coin spend here. */
+   *  server-side for guests). */
   async requestCoachReview(): Promise<void> {
     if (!this.hand || this.reviewPending || this.review) return;
     this.reviewPending = true;
