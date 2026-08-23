@@ -4,7 +4,7 @@
 // the exact same rules code that the tests cover is what validates live moves.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import type { GameMode, HandState, Move, SetFormat, TileId } from '../_shared/engine/types.ts';
+import type { GameMode, HandState, Move, PenaltyEvent, SetFormat, TileId } from '../_shared/engine/types.ts';
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -95,6 +95,7 @@ export interface HandRow {
   pose_must_be_any_double: boolean;
   version: number;
   penalties: number[];
+  penalty_log: PenaltyEvent[];
 }
 
 /**
@@ -136,6 +137,12 @@ export function toState(row: HandRow, seatCount: number, mode: GameMode, format:
     // dealt before this column existed — both read the same as "nothing
     // accrued yet", not a data error.
     penalties: row.penalties && row.penalties.length > 0 ? row.penalties : new Array(seatCount).fill(0),
+    // Same "empty reads as nothing accrued yet" story as `penalties` above —
+    // and just as load-bearing: without this, a penalty earned earlier in
+    // the hand vanished the moment the NEXT move rehydrated HandState from
+    // this row, even though `penalties` (the numbers) survived via its own
+    // column. Found live 2026-08-23 — see 0042_penalty_log.sql.
+    penaltyLog: row.penalty_log ?? [],
     status: row.status as HandState['status'],
     result: row.result,
     poseMustBeDoubleSix: row.pose_must_be_double_six,
@@ -195,6 +202,7 @@ export async function persist(
     p_result: state.result,
     p_expires: expires,
     p_penalties: state.penalties,
+    p_penalty_log: state.penaltyLog ?? [],
   });
   if (error) throw new Error(error.message);
   if (newVersion === null) throw new Conflict();
