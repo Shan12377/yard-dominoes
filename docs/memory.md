@@ -657,6 +657,22 @@ Everything below is live and verified, not just written:
   Its motion is a smooth highlight that travels from 2/4 through each connected
   bone to the last tile. Do not rearrange, replace, lift, drop or shake the
   bones; motion belongs in clipped overlays above the original artwork.
+- **Production correction recorded 2026-08-23:** `www.yaaddominoes.com` was
+  manually promoted from `design/yaaddominoes-foundation`, not deployed by a
+  push or merge to `main`. Vercel confirms production is READY at commit
+  `dc2742c` (`fix: close the dead gap in the homepage domino cascade loop`).
+  This release includes the mobile table-talk work from `a2492f7`, every later
+  committed change on the branch through `dc2742c`, and the full Kingston
+  Signal/YaadDominoes brand foundation. The cascade was measured again on the
+  real production URL and retained the verified 0.03 opacity trough with no
+  dead pause.
+- `origin/main` remains a stale, disconnected baseline and is not evidence of
+  what is live. Future agents must inspect the Vercel project's current
+  production target and its commit SHA before reporting deployment status.
+  Likewise, read actual project files before reporting documentation drift:
+  `.claude/rules/design.md` already specifies Kingston Signal. The earlier
+  claim that it still required the cream palette came from stale conversation
+  context, not the repository.
 - The 2026-08-22 dependency audit findings were build-tool-only (Vite,
   esbuild, nanoid). Vite was upgraded from 5.4 to 8.2.2, the lockfile now
   carries patched transitive versions, and `npm audit` reports zero findings.

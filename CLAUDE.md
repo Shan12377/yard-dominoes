@@ -50,6 +50,23 @@ Node 22+ runs TypeScript directly. The engine has no build step.
 
 Detailed rules live in `.claude/rules/` and load when you touch matching files.
 
+## Production deployment truth
+
+- Production is currently promoted manually from
+  `design/yaaddominoes-foundation` with `vercel --prod`. A push or merge to
+  `main` is not the production mechanism for this project.
+- `origin/main` is a stale, disconnected development baseline. Never infer
+  what is live from `main`; inspect the YaadDominoes Vercel project's current
+  production deployment and its exact commit SHA.
+- As of 2026-08-23, `www.yaaddominoes.com` serves commit `dc2742c`
+  (`fix: close the dead gap in the homepage domino cascade loop`). Vercel
+  records it as a READY production deployment from
+  `design/yaaddominoes-foundation`.
+- Before claiming that a project rule or brand document is stale, read the
+  real repository file. Conversation attachments and compacted context may
+  contain older versions. The current `.claude/rules/design.md` specifies the
+  Kingston Signal system; `docs/branding.md` is the canonical brand reference.
+
 ## The six invariants
 
 Breaking any of these breaks the product's reason to exist. They are not
