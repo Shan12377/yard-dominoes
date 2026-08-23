@@ -435,7 +435,7 @@ label.field > span {
     linear-gradient(135deg, rgba(255,255,255,.05) 0 1px, transparent 1px 14px);
   opacity: 1;
 }
-.table-felt:not(.hero) > .line { position: relative; z-index: 1; }
+.table-felt:not(.hero) > .line { position: relative; z-index: 2; }
 
 /* ------------------------------------------------------------ table-cross
    Seats surround the felt instead of stacking below it — spec
@@ -812,6 +812,44 @@ label.field > span {
     0 3px 0 rgba(36, 22, 8, 0.55),
     0 4px 6px rgba(0, 0, 0, 0.35);
 }
+.table-rack {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 5px rgba(5, 24, 50, .28));
+}
+.table-rack .backs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 0;
+}
+.table-rack .backs i {
+  width: 20px;
+  height: 40px;
+  margin-left: -7px;
+  border: 1px solid rgba(255, 251, 240, .48);
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(67, 199, 244, .72) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 50% 72%, rgba(67, 199, 244, .72) 0 1.5px, transparent 2px),
+    linear-gradient(150deg, #147ba3, var(--signal) 70%);
+  box-shadow: 0 2px 0 #052b43, 0 3px 5px rgba(0, 0, 0, .28);
+}
+.table-rack .backs i:first-child { margin-left: 0; }
+.table-rack-top { top: 10px; left: 50%; transform: translateX(-50%); }
+.table-rack-left { left: 10px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.table-rack-right { right: 10px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+.table-rack-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
+.table-rack-open { gap: 2px; }
+.table-rack-open .tile { --w: 20px; --h: 40px; }
+.table-rack-left.table-rack-open,
+.table-rack-right.table-rack-open { gap: 1px; }
+.table-rack-left.table-rack-open .tile,
+.table-rack-right.table-rack-open .tile { transform: rotate(90deg); }
 .passed { color: var(--blood); font-family: var(--mono); font-size: 11px; }
 
 .seat .report { margin-top: 8px; }

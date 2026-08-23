@@ -19,6 +19,7 @@ import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
 import { describeMoveLine, describeSeat, seatName } from './movelog.ts';
+import { tableRackPresentation } from './table-rack.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 import * as sfx from './sfx.ts';
@@ -518,12 +519,46 @@ function seatCard(
   const scoreIndex = isPartnered(game.table.mode) ? sideOf(s.seatIndex, game.table.mode) : s.seatIndex;
   const score = game.scores[scoreIndex] ?? 0;
   card.append(el('div', 'seat-score', String(score)));
-  if (count !== undefined && s.seatIndex !== game.mySeat) card.append(backsEl(count));
   decorateSeat(card, s.userId, social);
   if (s.userId && s.seatIndex !== game.mySeat) {
     card.appendChild(reportButton(s.userId, game.table.id, rerender));
   }
   return card;
+}
+
+/**
+ * A physical-looking rack on the felt edge. Hidden racks are built only from
+ * hand_sizes, which is already public; no opponent TileId ever reaches this
+ * function. Open hand is the one exception the server authorizes, so the
+ * partner's real bones can be shown face-up at their opposite seat.
+ */
+function tableRack(s: SeatInfo, game: OnlineGame, slot: 'top' | 'left' | 'right' | 'bottom'): HTMLElement | null {
+  const count = game.hand?.hand_sizes[s.seatIndex];
+  const presentation = tableRackPresentation({
+    mode: game.table.mode,
+    seat: s.seatIndex,
+    mySeat: game.mySeat,
+    partnerSeat: game.partnerSeat(),
+    count,
+    partnerTiles: game.partnerTiles,
+  });
+  if (presentation.kind === 'none') return null;
+
+  const rack = el('div', `table-rack table-rack-${slot}`);
+  if (presentation.kind === 'open') {
+    rack.classList.add('table-rack-open');
+    rack.setAttribute('aria-label', `${seatName(s)} has ${presentation.tiles.length} face-up tiles`);
+    for (const tile of presentation.tiles) {
+      const node = tileEl(tile);
+      node.classList.add('sm', 'dead');
+      rack.appendChild(node);
+    }
+  } else {
+    rack.classList.add('table-rack-hidden');
+    rack.setAttribute('aria-label', `${seatName(s)} has ${presentation.count} hidden tile${presentation.count === 1 ? '' : 's'}`);
+    rack.appendChild(backsEl(presentation.count));
+  }
+  return rack;
 }
 
 /**
@@ -647,6 +682,14 @@ export function liveTableView(
   renderBoard(line, displayBoard, lastFeltBox ? { box: lastFeltBox } : {});
   tagWinningTile(line, felt, game);
   felt.appendChild(line);
+  // Put each unplayed hand where that person is physically sitting. These
+  // overlays are visual counters around the board edge, never hidden data.
+  for (const s of game.seats) {
+    const slot = seatPosition(s.seatIndex, game.mySeat, game.table.seatCount);
+    if (!slot) continue;
+    const rack = tableRack(s, game, slot);
+    if (rack) felt.appendChild(rack);
+  }
   // An undealt table is still a game surface, not a form page. Keep the
   // only action needed to begin the game directly on the felt so nobody has
   // to scroll away from the board to find it.
@@ -780,9 +823,6 @@ export function liveTableView(
   frag.appendChild(openTalk);
 
   if (game.hand) {
-    if (!game.isSpectator && game.partnerTiles && game.table.mode === 'openhand') {
-      frag.appendChild(partnerHandPanel(game.partnerTiles));
-    }
     if (game.hand.status !== 'active' && game.hand.result) {
       frag.appendChild(handResultPanel(game, rerender));
     }
@@ -961,19 +1001,6 @@ function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
   tick();
 
   return wrap;
-}
-
-function partnerHandPanel(tiles: string[]): HTMLElement {
-  const panel = el('div', 'panel partner-hand');
-  panel.append(el('div', 'eyebrow', 'Partner'));
-  const row = el('div', 'hand');
-  for (const tile of tiles) {
-    const node = tileEl(tile);
-    node.classList.add('sm', 'dead');
-    row.appendChild(node);
-  }
-  panel.appendChild(row);
-  return panel;
 }
 
 /**

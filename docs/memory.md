@@ -653,6 +653,13 @@ Everything below is live and verified, not just written:
   talk surface. On phone and tablet, a persistent `Chat & stickers` button
   scrolls directly to that surface without reducing the board. Never render
   quick words or stickers as loose controls below the full table again.
+- Online unplayed hands belong on the felt edge at their physical seats. Other
+  players render as compact face-down blue racks made only from the public hand
+  count, and the rack loses one bone whenever that count drops. The local
+  player's playable hand remains large below the felt. In Open Hand only, the
+  authorized partner rack is face-up; opponents remain hidden. Across keeps
+  both controlled hands together below the felt and does not duplicate one as
+  decoration. Never pass opponent TileIds to a rack to achieve this effect.
 - The homepage keeps the original completed domino-line WebP exactly as drawn.
   Its motion is a smooth highlight that travels from 2/4 through each connected
   bone to the last tile. Do not rearrange, replace, lift, drop or shake the
