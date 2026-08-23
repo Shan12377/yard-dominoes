@@ -79,7 +79,7 @@ export const BELTS: Belt[] = [
     lessons: [
       {
         id: 'B2L1', title: 'The full twenty-eight',
-        body: 'A set is 28 tiles, and every suit appears on exactly seven of them. Seven blanks, seven ones, all the way up. Remember that number — everything you learn later is built on it.',
+        body: 'A set is 28 tiles, and every suit appears on exactly seven of them. Seven blanks, seven ones, all the way up. Remember that number. Everything you learn later is built on it.',
       },
       {
         id: 'B2L2', title: 'The pose',
@@ -92,7 +92,7 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B2L4', title: 'When you cannot go',
-        body: 'If neither end matches anything in your hand, you pass. You are not out — you just wait.',
+        body: 'If neither end matches anything in your hand, you pass. You are not out. You just wait.',
       },
       {
         id: 'B2L5', title: 'Blocked boards and counting',
@@ -101,11 +101,11 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B2L6', title: 'The rule that surprises people',
-        body: 'On a blocked board it is the LOWEST SINGLE HAND that wins, and in partners that player\'s team takes it — no matter what his partner is holding. A team can win while holding more spots overall. Learn this one properly; plenty of people play their whole lives getting it wrong.',
+        body: 'On a blocked board it is the LOWEST SINGLE HAND that wins, and in partners that player\'s team takes it regardless of what the partner holds. A team can win while holding more spots overall. Learn this one properly; plenty of people play their whole lives getting it wrong.',
       },
       {
         id: 'B2L7', title: 'Six love',
-        body: 'Winning six hands in a row while they stay on nothing is six love. If they win one, your score bruks — back to nothing, start again. Being on nothing is being under love.',
+        body: 'Winning six hands in a row while they stay on nothing is six love. If they win one, your score bruks. Back to nothing, start again. Being on nothing is being under love.',
         terms: ['six love', 'bruk', 'under love'],
       },
       {
@@ -114,7 +114,7 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B2L9', title: 'Cut throat and partner',
-        body: 'In partner you play with the person opposite. In cut throat every man for himself — every tub on its own bottom.',
+        body: 'In partner you play with the person opposite. In cut throat it is every man for himself: every tub on its own bottom.',
       },
     ],
     drills: [
@@ -127,12 +127,12 @@ export const BELTS: Belt[] = [
     id: 'player',
     index: 3,
     title: 'Player',
-    subtitle: 'Fundamentals — most players live here',
+    subtitle: 'Fundamentals. Most players live here',
     voiced: false,
     lessons: [
       {
         id: 'B3L1', title: 'Read your hand first',
-        body: 'Before you touch a tile, look at what you actually have. How many of each suit? Where are you long — three or more? Where are you void? How many doubles? Every skill after this depends on the habit.',
+        body: 'Before you touch a tile, look at what you actually have. How many of each suit? Where are you long, with three or more? Where are you void? How many doubles? Every skill after this depends on the habit.',
       },
       {
         id: 'B3L2', title: 'The pose that does three jobs',
@@ -148,7 +148,7 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B3L5', title: 'Shedding weight',
-        body: 'Heavy tiles are a liability. If the board jams, that is what beats you. Move them early — unless they are doing real work.',
+        body: 'Heavy tiles are a liability. If the board jams, that is what beats you. Move them early unless they are doing real work.',
       },
       {
         id: 'B3L6', title: 'Doubles',
@@ -170,11 +170,11 @@ export const BELTS: Belt[] = [
     lessons: [
       {
         id: 'B4L1', title: 'A pass is permanent',
-        body: 'When somebody passes, he has just told you he holds nothing in either suit showing — and that never stops being true for the rest of the hand. Most players notice a pass and forget it two turns later. Champions never do. This single habit is worth more than everything in Belt 3 combined.',
+        body: 'When somebody passes, he has just told you he holds nothing in either suit showing. That never stops being true for the rest of the hand. Most players notice a pass and forget it two turns later. Champions never do. This single habit is worth more than everything in Belt 3 combined.',
       },
       {
         id: 'B4L2', title: 'Counting a suit out',
-        body: 'Seven tiles carry each suit. Count what has shown. When six fives are down and you hold the seventh, that suit belongs to you — leaving it open is safe for you and death for everybody else.',
+        body: 'Seven tiles carry each suit. Count what has shown. When six fives are down and you hold the seventh, that suit belongs to you. Leaving it open is safe for you and death for everybody else.',
       },
       {
         id: 'B4L3', title: 'The void map',
@@ -182,7 +182,7 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B4L4', title: 'Talking without talking',
-        body: 'Your first tile names your suit. If your partner passes on a suit, stop feeding it — immediately and for good. If he plays a suit twice, he is long there; open it for him. When you cannot go out yourself, play to put him out.',
+        body: 'Your first tile names your suit. If your partner passes on a suit, stop feeding it immediately and for good. If he plays a suit twice, he is long there; open it for him. When you cannot go out yourself, play to put him out.',
       },
       {
         id: 'B4L5', title: 'Jamming the board',
@@ -190,11 +190,11 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B4L6', title: 'The endgame switch',
-        body: 'Around three tiles left, change what you are optimising. Stop racing to go out and start protecting your count, because if it jams it is your own hand that decides it — not your partner\'s.',
+        body: 'Around three tiles left, change what you are optimising. Stop racing to go out and start protecting your count, because if it jams it is your own hand that decides it, not your partner\'s.',
       },
       {
         id: 'B4L7', title: 'Hard ends, dead doubles, and the key',
-        body: 'Lesson 2 showed you how to count a suit out. Three named reads follow straight from that count, and real tables call all three by name. A HARD END is an open end where only one tile of that suit is still unaccounted for anywhere — whoever holds it is the only player left who can ever answer there. A DEAD DOUBLE is a double sitting in your own hand that the board can no longer reach at all: every other tile of its suit is already gone, and it never comes home. Hold the last tile of two different suits at the same time and you have a KEY — a position nobody at the table can break, because you decide where the board goes in both suits at once. Learn to spot all three on sight and the Coach will start naming them in your own hands.',
+        body: 'Lesson 2 showed you how to count a suit out. Three named reads follow straight from that count, and real tables call all three by name. A HARD END is an open end where only one tile of that suit is still unaccounted for anywhere. Whoever holds it is the only player left who can ever answer there. A DEAD DOUBLE is a double sitting in your own hand that the board can no longer reach at all: every other tile of its suit is already gone, and it never comes home. Hold the last tile of two different suits at the same time and you have a KEY, a position nobody at the table can break because you decide where the board goes in both suits at once. Learn to spot all three on sight and the Coach will start naming them in your own hands.',
         terms: ['hard end', 'dead double', 'key'],
       },
     ],
@@ -214,15 +214,15 @@ export const BELTS: Belt[] = [
     lessons: [
       {
         id: 'B5L1', title: 'Reasoning about what is left',
-        body: 'You know your seven. You can see what is down. You know who passed on what. That is enough to narrow what each player can be holding — not memorising, just ruling things out.',
+        body: 'You know your seven. You can see what is down. You know who passed on what. That is enough to narrow what each player can be holding. You are not memorising, just ruling things out.',
       },
       {
         id: 'B5L2', title: 'The six love meta',
-        body: 'The scoreline changes the correct play, and almost nobody thinks about it. Five nil up, take the safe block and close it out — do not gamble for style. Nil five down, play for the jam, because any hand you win bruks them straight back to nothing. If one all play two is on, that hand is worth double: play it like a final.',
+        body: 'The scoreline changes the correct play, and almost nobody thinks about it. Five nil up, take the safe block and close it out. Do not gamble for style. Nil five down, play for the jam, because any hand you win bruks them straight back to nothing. If one all play two is on, that hand is worth double: play it like a final.',
       },
       {
         id: 'B5L3', title: 'Lying with your tiles',
-        body: 'Once your signalling is automatic you can send a false one. Not before — you cannot lie in a language you do not speak.',
+        body: 'Once your signalling is automatic you can send a false one. Not before. You cannot lie in a language you do not speak.',
       },
       {
         id: 'B5L4', title: 'Reading the player',
@@ -230,7 +230,7 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B5L5', title: 'Tempo and tilt',
-        body: 'Play at the same speed whether your hand is beautiful or hopeless — hesitation is information you are giving away free. And have a plan for the hand after a bad one.',
+        body: 'Play at the same speed whether your hand is beautiful or hopeless. Hesitation is information you are giving away free. And have a plan for the hand after a bad one.',
       },
       {
         id: 'B5L6', title: 'Tournament rules',

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { access } from 'node:fs/promises';
 import { BELTS } from '@yard/engine';
-import { ACADEMY_VISUALS, scenarioFor } from './academycontent.ts';
+import { ACADEMY_VISUALS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
 
 test('every Academy lesson has teaching copy and a generated diagram', async () => {
   for (const lesson of BELTS.flatMap((belt) => belt.lessons)) {
@@ -23,5 +23,13 @@ test('every declared drill is answerable and has exactly one correct choice', ()
       1,
       `${drill.id} must have one unambiguous answer`,
     );
+  }
+});
+
+test('the Academy explains the two modes that change board or seat control', () => {
+  assert.deepEqual(GAME_GUIDES.map((guide) => guide.id), ['french', 'across']);
+  for (const guide of GAME_GUIDES) {
+    assert.ok(guide.body.length > 100, `${guide.id} guide is too thin to teach the mode`);
+    assert.ok(guide.takeaway.length > 30, `${guide.id} guide needs a usable takeaway`);
   }
 });

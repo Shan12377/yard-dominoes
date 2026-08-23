@@ -34,13 +34,36 @@ function moveTile(move: Move): TileId | null {
   return move.kind === 'pass' || move.kind === 'draw' ? null : move.tile;
 }
 
+function moveDetail(move: Move): string | null {
+  if (move.kind === 'play') return `Played on the ${move.end} end`;
+  if (move.kind === 'playcross') return `Played on arm ${move.arm + 1}`;
+  if (move.kind === 'pose') return 'Opened the hand';
+  return null;
+}
+
 function choice(label: string, move: Move, className: string): HTMLElement {
   const card = node('div', `coach-choice ${className}`);
   card.append(node('span', 'coach-choice-label', label));
   const tile = moveTile(move);
   if (tile) card.append(tileEl(tile));
   else card.append(node('strong', 'coach-pass', moveName(move)));
+  const detail = moveDetail(move);
+  if (detail) card.append(node('span', 'coach-move-detail', detail));
   return card;
+}
+
+export function outcomeReason(review: MoveReview): string | null {
+  if (!review.exact || review.grade === 'best') return null;
+  if (review.valueActual === -1 && review.valueBest === 1) {
+    return 'Your choice leaves a forced loss against best play. The stronger choice keeps a winning route.';
+  }
+  if (review.valueActual === -1 && review.valueBest === 0) {
+    return 'Your choice leaves a forced loss. The stronger choice can still save a tied block.';
+  }
+  if (review.valueActual === 0 && review.valueBest === 1) {
+    return 'Your choice settles for a tied block. The stronger choice keeps a winning route.';
+  }
+  return null;
 }
 
 function decisionReason(review: MoveReview): string {
@@ -140,6 +163,8 @@ export function coachReviewView(options: CoachViewOptions): HTMLElement {
 
     const why = node('div', 'coach-why');
     why.append(node('div', 'coach-kicker', 'Why it matters'));
+    const outcome = outcomeReason(current);
+    if (outcome) why.append(node('strong', 'coach-outcome', outcome));
     why.append(node('p', undefined, decisionReason(current)));
     root.append(why);
 

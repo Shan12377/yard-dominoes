@@ -1058,8 +1058,36 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .coach-choice.actual { border-left: 4px solid var(--coral); }
 .coach-choice.best { border-left: 4px solid var(--gold); }
 .coach-pass { font-family: var(--display); font-size: 25px; color: var(--bone); }
+.coach-move-detail { color: var(--muted); font-size: 13px; text-align: center; }
 .coach-why { margin: 14px 22px 0; padding: 15px 16px; border-left: 4px solid var(--sky); background: var(--signal); }
+.coach-outcome { display: block; max-width: 74ch; color: var(--bone); line-height: 1.45; }
 .coach-why p { margin: 5px 0 0; max-width: 74ch; line-height: 1.55; }
+.rail-help { margin: 5px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.academy-game-guides { margin-top: 16px; }
+.academy-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.academy-guide { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--signal); }
+.academy-guide h3 { margin: 4px 0 8px; }
+.academy-guide p { line-height: 1.55; }
+.academy-guide-takeaway { display: block; margin-top: 12px; color: var(--gold); line-height: 1.4; }
+.academy-guide-visual { position: relative; height: 190px; margin-bottom: 16px; border-radius: 10px; background: var(--felt); overflow: hidden; }
+.academy-guide-visual .tile { --w: 34px; --h: 68px; position: absolute; }
+.academy-guide-visual.french .centre { inset: 50% auto auto 50%; transform: translate(-50%, -50%); }
+.academy-guide-visual.french .north { inset: 8px auto auto 50%; transform: translateX(-50%); }
+.academy-guide-visual.french .east { inset: 50% 22px auto auto; transform: translateY(-50%) rotate(90deg); }
+.academy-guide-visual.french .south { inset: auto auto 8px 50%; transform: translateX(-50%); }
+.academy-guide-visual.french .west { inset: 50% auto auto 22px; transform: translateY(-50%) rotate(90deg); }
+.academy-guide-visual.across { display: grid; place-items: center; }
+.guide-seat { position: absolute; padding: 7px 9px; border: 2px solid; border-radius: 999px; font: 700 12px var(--mono); background: var(--signal-lo); }
+.guide-seat.north { top: 12px; left: 50%; transform: translateX(-50%); }
+.guide-seat.east { right: 10px; top: 50%; transform: translateY(-50%); }
+.guide-seat.south { bottom: 12px; left: 50%; transform: translateX(-50%); }
+.guide-seat.west { left: 10px; top: 50%; transform: translateY(-50%); }
+.guide-seat.you { color: var(--gold); border-color: var(--gold); }
+.guide-seat.them { color: var(--sky); border-color: var(--sky); }
+.guide-side { position: absolute; top: calc(50% - 13px); font: 700 11px var(--mono); text-transform: uppercase; }
+.guide-side.you { left: calc(50% - 64px); color: var(--gold); }
+.guide-side.them { right: calc(50% - 82px); color: var(--sky); }
+@media (max-width: 680px) { .academy-guide-grid { grid-template-columns: 1fr; } }
 .coach-actions { display: flex; justify-content: space-between; gap: 10px; padding: 18px 22px 22px; }
 .coach-actions .act:last-child { margin-left: auto; }
 .coach-empty { min-height: 240px; display: grid; place-content: center; text-align: center; padding: 28px; }

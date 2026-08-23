@@ -292,7 +292,10 @@ function explain(
   }
 
   return {
-    note: 'There was a stronger tile here.',
+    note:
+      played.kind === 'play' && best.kind === 'play' && played.tile === best.tile
+        ? 'The tile was right, but the end mattered. Compare which numbers each placement leaves open.'
+        : 'Compare the numbers each choice leaves open and which tiles remain in your hand.',
     lesson: 'Belt 3 · Lesson 4',
   };
 }

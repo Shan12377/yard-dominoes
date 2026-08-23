@@ -59,12 +59,12 @@ test('in partner mode, an opposing seat still shows their real name', () => {
   assert.equal(line, 'Bob passed');
 });
 
-test('a duppy seat shows "Duppy · <level>"', () => {
+test('a duppy seat shows its stable player number and level', () => {
   const line = describeMoveLine({ kind: 'pass', seat: 2 }, seats, 0, false, null);
-  assert.equal(line, 'Duppy · pickney passed');
+  assert.equal(line, 'Duppy 3 · pickney passed');
 });
 
-test('a human seat with no username falls back to "Seat N"', () => {
+test('a human seat with no username falls back to its one-based player number', () => {
   const line = describeMoveLine({ kind: 'pass', seat: 3 }, seats, 0, false, null);
-  assert.equal(line, 'Seat 3 passed');
+  assert.equal(line, 'Player 4 passed');
 });

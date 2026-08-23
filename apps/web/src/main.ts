@@ -15,7 +15,7 @@ import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { LocalGame } from './local.ts';
 import { coachReviewView } from './coachview.ts';
-import { ACADEMY_VISUALS, scenarioFor } from './academycontent.ts';
+import { ACADEMY_VISUALS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
 import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -1458,6 +1458,46 @@ function academyView(): DocumentFragment {
       'Keep playing and the coach will tell you which lesson you personally need.'));
   }
   frag.appendChild(intro);
+
+  const guides = el('section', 'panel academy-game-guides');
+  guides.append(el('div', 'eyebrow', 'Game guides'));
+  guides.append(el('h2', undefined, 'Know which table you joined'));
+  guides.append(el('p', 'muted', 'The belts teach the shared domino skills. These guides explain the modes that change the board or who controls each seat.'));
+  const guideGrid = el('div', 'academy-guide-grid');
+  for (const guide of GAME_GUIDES) {
+    const card = el('article', `academy-guide academy-guide-${guide.id}`);
+    const visual = el('div', `academy-guide-visual ${guide.id}`);
+    visual.setAttribute('role', 'img');
+    visual.setAttribute('aria-label', guide.id === 'french'
+      ? 'French board with a double in the centre and four arms'
+      : 'Across seating with one person controlling Players 1 and 3, and the opponent controlling Players 2 and 4');
+    if (guide.id === 'french') {
+      for (const [tile, place] of [['0-2', 'north'], ['0-3', 'east'], ['0-4', 'south'], ['0-5', 'west'], ['0-0', 'centre']] as const) {
+        const bone = tileEl(tile);
+        bone.classList.add(place);
+        bone.setAttribute('aria-hidden', 'true');
+        visual.append(bone);
+      }
+    } else {
+      for (const [label, place, side] of [
+        ['Player 3', 'north', 'you'], ['Player 2', 'east', 'them'],
+        ['Player 1', 'south', 'you'], ['Player 4', 'west', 'them'],
+      ] as const) {
+        visual.append(el('span', `guide-seat ${place} ${side}`, label));
+      }
+      visual.append(el('span', 'guide-side you', 'You'), el('span', 'guide-side them', 'Opponent'));
+    }
+    card.append(
+      visual,
+      el('div', 'eyebrow', guide.eyebrow),
+      el('h3', undefined, guide.title),
+      el('p', undefined, guide.body),
+      el('strong', 'academy-guide-takeaway', guide.takeaway),
+    );
+    guideGrid.append(card);
+  }
+  guides.append(guideGrid);
+  frag.append(guides);
 
   for (const b of BELTS) {
     const card = el('div', 'belt');

@@ -5,8 +5,10 @@ import type { SeatInfo } from './onlinetable.ts';
  *  (onlinetableview.ts) — kept identical here rather than introducing a
  *  shared helper for a two-line expression used in three places, matching
  *  how this codebase already handles the duplication. */
-function seatName(seat: SeatInfo): string {
-  return seat.userId ? (seat.username ?? `Seat ${seat.seatIndex}`) : `Duppy · ${seat.duppyLevel}`;
+export function seatName(seat: SeatInfo): string {
+  return seat.userId
+    ? (seat.username ?? `Player ${seat.seatIndex + 1}`)
+    : `Duppy ${seat.seatIndex + 1} · ${seat.duppyLevel}`;
 }
 
 /**
@@ -31,7 +33,7 @@ export function describeSeat(
     return 'Partner';
   }
   const seat = seats.find((s) => s.seatIndex === seatIndex);
-  return seat ? seatName(seat) : `Seat ${seatIndex}`;
+  return seat ? seatName(seat) : `Player ${seatIndex + 1}`;
 }
 
 /**

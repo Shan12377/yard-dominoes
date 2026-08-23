@@ -18,7 +18,7 @@ export const ACADEMY_VISUALS: Record<string, AcademyVisual> = {
   B1L2: { alt: 'A three-one tile joins an open three while a four-two is rejected.', notice: 'The touching halves carry the same number.', takeaway: 'Match either open end. Nothing goes into the middle.', tryIt: 'With ends 3 and 5, can 2-5 play?', answer: 'Yes. Put 5 against 5; 2 becomes the new end.' },
   B1L3: { alt: 'Five connected tiles form one line with arrows at its two open ends.', notice: 'Only the two outside ends are open for the next tile.', takeaway: 'Follow the line and play at an end.', tryIt: 'Can a tile be added beside the middle double?', answer: 'No. Only an open end accepts the next tile.' },
   B1L4: { alt: 'Your seven tiles are face up while all three opponents show blue tile backs.', notice: 'You see your own faces; everybody else sees only your tile count.', takeaway: 'Protect your hand. Read opponents from plays and passes.', tryIt: 'Can the duppy see the pips in your hand?', answer: 'No. It receives the public board and hand sizes, never your tiles.' },
-  B1L5: { alt: 'A hand shrinks from three tiles to two, one and finally empty.', notice: 'The last tile leaves the hand and ends the hand immediately.', takeaway: 'First player with no tiles wins the hand.', tryIt: 'You hold one legal tile. What happens when you play it?', answer: 'You domino—the hand is over.' },
+  B1L5: { alt: 'A hand shrinks from three tiles to two, one and finally empty.', notice: 'The last tile leaves the hand and ends the hand immediately.', takeaway: 'First player with no tiles wins the hand.', tryIt: 'You hold one legal tile. What happens when you play it?', answer: 'You domino. The hand is over.' },
 
   B2L1: { alt: 'The complete double-six set is arranged in seven rows, with all seven tiles carrying a three highlighted.', notice: 'Every suit appears on exactly seven tiles in the full set.', takeaway: 'Seven is the number behind counting suits out.', tryIt: 'Six tiles carrying a five are visible and you hold the seventh. Who controls fives?', answer: 'You do. No unseen player can hold another five.' },
   B2L2: { alt: 'Tournament play forces the double-six while casual sporting allows another opening tile.', notice: 'The same hand has different legal openings under different table rules.', takeaway: 'Tournament: lead 6-6. Casual: sporting must be declared.', tryIt: 'Can tournament play open 2-5 while holding 6-6?', answer: 'No. The double-six must be led.' },
@@ -33,15 +33,15 @@ export const ACADEMY_VISUALS: Record<string, AcademyVisual> = {
   B3L1: { alt: 'Seven tiles sit beside a suit tally that marks a long five suit and a blank void.', notice: 'The tally shows where the hand is long, short and empty before play begins.', takeaway: 'Read your own suit shape before choosing a plan.', tryIt: 'You hold four tiles carrying five. What is your long suit?', answer: 'Fives.' },
   B3L2: { alt: 'A hand long in fives poses double-five with three callouts around the tile.', notice: 'The pose keeps a route home, denies fives and signals the partner.', takeaway: 'Pose the double of your strongest suit when the rules allow it.', tryIt: 'You are long in fives and hold 5-5. Strong casual pose?', answer: '5-5.' },
   B3L3: { alt: 'Two boards compare ends your hand can answer with ends that shut your hand out.', notice: 'Control means the open ends keep returning to suits you hold.', takeaway: 'Shape the ends toward your long suits.', tryIt: 'Both ends match tiles in your hand. Who has control?', answer: 'You have ways back into the board.' },
-  B3L4: { alt: 'Two legal plays branch to show what each opens for the player on your right.', notice: 'A legal tile can still feed the next player exactly what they want.', takeaway: 'Judge the new end, not only the tile leaving your hand.', tryIt: 'Your right-hand opponent has shown fives. Should you open a five without a reason?', answer: 'Usually no—you may be feeding them.' },
+  B3L4: { alt: 'Two legal plays branch to show what each opens for the player on your right.', notice: 'A legal tile can still feed the next player exactly what they want.', takeaway: 'Judge the new end, not only the tile leaving your hand.', tryIt: 'Your right-hand opponent has shown fives. Should you open a five without a reason?', answer: 'Usually no. You may be feeding them.' },
   B3L5: { alt: 'Heavy six-six and six-five tiles are flagged beside a blocked-board count.', notice: 'Heavy tiles become expensive when the hand blocks.', takeaway: 'Shed weight early unless the tile is controlling the board.', tryIt: 'Which costs more in a block: 6-5 or 2-1?', answer: '6-5: eleven pips instead of three.' },
   B3L6: { alt: 'Playing four-four leaves four open while playing four-one changes the end to one.', notice: 'A double repeats its suit; a mixed tile moves the board on.', takeaway: 'Play a double when keeping that suit open helps you.', tryIt: 'What end remains after 4-4 is played on a four?', answer: 'Four.' },
 
   B4L1: { alt: 'East passes on open four and one; permanent no-four and no-one badges remain as the board changes.', notice: 'The pass proves two voids, and tiles never return to that hand.', takeaway: 'Record both open suits mentally and never erase them.', tryIt: 'A player passes on 4 and 1; later ends are 6 and 1. Which end stops them?', answer: 'The 1.' },
-  B4L2: { alt: 'Six tiles carrying five are crossed off and the seventh five glows in your hand.', notice: 'All seven fives are accounted for.', takeaway: 'When you hold the seventh, that suit belongs to you.', tryIt: 'Six fours are visible and you hold the only remaining four. Is four safe to leave open?', answer: 'Yes—only you can answer it.' },
+  B4L2: { alt: 'Six tiles carrying five are crossed off and the seventh five glows in your hand.', notice: 'All seven fives are accounted for.', takeaway: 'When you hold the seventh, that suit belongs to you.', tryIt: 'Six fours are visible and you hold the only remaining four. Is four safe to leave open?', answer: 'Yes. Only you can answer it.' },
   B4L3: { alt: 'Three opponent seats each carry a short permanent list of suits they passed on.', notice: 'The void map grows with every pass and never shrinks.', takeaway: 'Track three small lists, not twenty-eight hidden tiles.', tryIt: 'West passed on 2 and 6, then later on 3 and 6. What is West void in?', answer: '2, 3 and 6.' },
   B4L4: { alt: 'Four frames show a partner signal, a pass, stopping a feed and opening the partner’s repeated suit.', notice: 'Legal plays and passes form a conversation across the table.', takeaway: 'Support the partner’s long suit; stop feeding a suit they passed on.', tryIt: 'Partner passes on fives. Should you keep opening five?', answer: 'No. The pass proved they cannot answer it.' },
-  B4L5: { alt: 'A sequence plays into known voids until passes stack and the board jams.', notice: 'The plan changes from racing out to closing the board on purpose.', takeaway: 'Use known voids to force the passes that create a winning block.', tryIt: 'You are light on count and both opponents are void in six. Useful end?', answer: 'Six—it can force their passes and help jam the board.' },
+  B4L5: { alt: 'A sequence plays into known voids until passes stack and the board jams.', notice: 'The plan changes from racing out to closing the board on purpose.', takeaway: 'Use known voids to force the passes that create a winning block.', tryIt: 'You are light on count and both opponents are void in six. Useful end?', answer: 'Six. It can force their passes and help jam the board.' },
   B4L6: { alt: 'With three tiles left, one branch races out and loses the block while the other protects count and wins.', notice: 'Late in the hand, the lowest count can matter more than the fastest exit.', takeaway: 'At three tiles, compare your go-out plan with your block count.', tryIt: 'You cannot force domino and one play sheds eleven pips. What should matter?', answer: 'Protecting your individual count.' },
   B4L7: { alt: 'A board marks a hard six, a stranded dead double and two last-suit tiles forming a key.', notice: 'All three reads come from accounting for seven tiles in a suit.', takeaway: 'Count first; then name the hard end, dead double or key.', tryIt: 'You hold the last answering tile in two open suits. What do you have?', answer: 'The key.' },
 
@@ -63,6 +63,23 @@ export interface DrillScenario {
   setup: string;
   choices: DrillChoice[];
 }
+
+export const GAME_GUIDES = [
+  {
+    id: 'french',
+    title: 'French',
+    eyebrow: 'Four-way cross',
+    body: 'The opening double sits in the middle and the board grows along four arms. After round one, the winner must pose a double. Scores are the pips left in each hand, with French penalties added. The set stops when any score reaches 100, and the lowest score wins.',
+    takeaway: 'Low score wins. Watch all four arms and avoid the ten-point penalties.',
+  },
+  {
+    id: 'across',
+    title: 'Across',
+    eyebrow: 'Two people, four seats',
+    body: 'Across uses partner rules, but two people control the four seats. You play Player 1 and Player 3, which sit opposite. Your opponent plays Player 2 and Player 4. Each seat keeps its own hidden hand and acts only on its proper turn.',
+    takeaway: 'Follow the player number. One person controls the two opposite seats on each side.',
+  },
+] as const;
 
 const SCENARIOS: Record<string, DrillScenario> = {
   B1D1: { setup: 'The open ends are 3 and 5.', choices: [
@@ -105,8 +122,8 @@ const SCENARIOS: Record<string, DrillScenario> = {
     { label: 'Ignore both reads', explanation: 'Partner play is public information you should use.' },
   ] },
   B4D3: { setup: 'A jam is likely. You hold 1-1 and 1-2; your opponent’s lightest possible hand is 4 pips.', choices: [
-    { label: 'Yes—protect the 1-1 count', correct: true, explanation: 'Two pips can win the block if it remains your lowest hand.' },
-    { label: 'No—partner’s total decides', explanation: 'The partner’s pips do not decide the lowest individual.' },
+    { label: 'Yes. Protect the 1-1 count', correct: true, explanation: 'Two pips can win the block if it remains your lowest hand.' },
+    { label: 'No. Partner’s total decides', explanation: 'The partner’s pips do not decide the lowest individual.' },
   ] },
   B5D1: { setup: 'You lead 5-0. One play keeps control; another chases a flashy domino but opens their long suit.', choices: [
     { label: 'Keep control', correct: true, explanation: 'At 5-0, the safe hand closes six-love.' },

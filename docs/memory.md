@@ -640,6 +640,14 @@ Everything below is live and verified, not just written:
   retry path. Guard tests require every future lesson and drill to keep that
   contract. Account-synced `academy_progress` and multi-question belt exams
   remain open; the current drill result is session-local.
+- Duppies use a stable one-based seat label wherever a player follows the
+  action, for example `Duppy 3 · pickney`. The Coach states a proven outcome
+  before its heuristic and names the end or French arm used, so two placements
+  of the same tile never look identical. French and Across now have visual
+  game guides above the five shared-skill belts.
+- Watching is live lounge presence, Standings is the current set score, and
+  Log is the current hand's move history. Their panels explain those jobs.
+  Watching has an explicit empty state instead of opening a blank mobile tab.
 - The 2026-08-22 dependency audit findings were build-tool-only (Vite,
   esbuild, nanoid). Vite was upgraded from 5.4 to 8.2.2, the lockfile now
   carries patched transitive versions, and `npm audit` reports zero findings.

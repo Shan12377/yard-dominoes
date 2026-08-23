@@ -207,6 +207,10 @@ legal opinion and processor.
 
 ## Working style
 
+- Use em dashes only where the sentence genuinely needs an interruption. Do
+  not use them as automatic decoration, list separators, or substitutes for
+  commas, colons, parentheses, and full stops. Keep established compounds such
+  as `anti-clockwise` unchanged.
 - Run `npm test` and `npm run typecheck` before saying a task is done.
 - When a test fails, work out whether the test or the code is wrong before
   changing either. Several tests encode rules that look wrong and are not.

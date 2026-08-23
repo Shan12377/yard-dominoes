@@ -209,7 +209,7 @@ export class LocalGame {
     if (isPartnered(this.options.mode) && sideOf(seat, this.options.mode) === this.mySide) {
       return 'Partner';
     }
-    return `Duppy ${seat}`;
+    return `Duppy ${seat + 1} · ${this.options.duppy}`;
   }
 
   /** Seats that have passed at least once, and what that revealed. */

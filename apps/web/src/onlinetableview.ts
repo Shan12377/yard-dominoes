@@ -18,7 +18,7 @@ import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, french
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition } from './seatlayout.ts';
-import { describeMoveLine, describeSeat } from './movelog.ts';
+import { describeMoveLine, describeSeat, seatName } from './movelog.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
 import type { ClockName, GameMode } from '@yard/engine';
 import * as sfx from './sfx.ts';
@@ -491,8 +491,7 @@ function seatCard(
   // pickney" alone is not, and it's the one identifier every seat has
   // regardless of whether it's a real player or a bot filling the chair.
   who.append(el('span', 'seat-number', `Player ${s.seatIndex + 1}`));
-  who.append(el('h3', undefined,
-    s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`));
+  who.append(el('h3', undefined, seatName(s)));
   if (isMyPartner) who.append(el('span', 'badge partner-badge', 'Your partner'));
   // Yard or foreign, if they said. A duppy is from nowhere.
   if (s.origin === 'yardie' || s.origin === 'foreign') {
@@ -738,11 +737,9 @@ export function liveTableView(
     rail.appendChild(social.chatPanel);
   }
   const crowd = watchersPanel(game, social);
-  if (crowd) {
-    crowd.classList.add('rail-section', 'rail-section-watchers');
-    crowd.classList.toggle('rail-section-active', activeRailTab === 'watchers');
-    rail.appendChild(crowd);
-  }
+  crowd.classList.add('rail-section', 'rail-section-watchers');
+  crowd.classList.toggle('rail-section-active', activeRailTab === 'watchers');
+  rail.appendChild(crowd);
   const standings = standingsPanel(game);
   standings.classList.add('rail-section', 'rail-section-standings');
   standings.classList.toggle('rail-section-active', activeRailTab === 'standings');
@@ -782,17 +779,24 @@ export function liveTableView(
  * they are already on screen as seats, and listing them twice makes a
  * four-hander look like it has an audience of four.
  *
- * Returns null rather than an empty panel when nobody is watching: a standing
- * "Nobody is watching" is a worse thing to read every hand than no panel.
+ * Always returns a panel because the mobile tab must never open into a blank
+ * space. The empty state also explains what watching means to a new player.
  */
-function watchersPanel(game: OnlineGame, social?: TableSocial): HTMLElement | null {
-  if (!social?.watching) return null;
+function watchersPanel(game: OnlineGame, social?: TableSocial): HTMLElement {
+  const panel = el('div', 'panel');
+  panel.append(el('div', 'eyebrow', 'Watching'));
+  panel.append(el('p', 'rail-help', 'People watching this table appear here. They can follow the hand without seeing anyone\'s hidden tiles.'));
+  if (!social?.watching) {
+    panel.append(el('div', 'muted', 'Nobody is watching yet.'));
+    return panel;
+  }
   const seated = new Set(game.seats.map((s) => s.userId).filter(Boolean));
   const crowd = social.watching.filter((p) => !seated.has(p.user_id));
-  if (crowd.length === 0) return null;
-
-  const panel = el('div', 'panel');
-  panel.append(el('div', 'eyebrow', `Watching — ${crowd.length}`));
+  if (crowd.length === 0) {
+    panel.append(el('div', 'muted', 'Nobody is watching yet.'));
+    return panel;
+  }
+  panel.querySelector('.eyebrow')!.textContent = `Watching · ${crowd.length}`;
   const list = el('div', 'watchers');
   for (const p of crowd) {
     const who = el('span', 'watcher', p.username);
@@ -808,6 +812,7 @@ function watchersPanel(game: OnlineGame, social?: TableSocial): HTMLElement | nu
 function standingsPanel(game: OnlineGame): HTMLElement {
   const panel = el('div', 'panel');
   panel.append(el('div', 'eyebrow', 'Standings'));
+  panel.append(el('p', 'rail-help', 'The current set score. It updates when each hand ends.'));
   const list = el('div', 'standings');
   if (isPartnered(game.table.mode)) {
     const labels = ['You & partner', 'Them'];
@@ -820,7 +825,7 @@ function standingsPanel(game: OnlineGame): HTMLElement {
   } else {
     game.seats.forEach((s) => {
       const line = el('div', 'standing-row');
-      const label = s.userId ? (s.username ?? `Seat ${s.seatIndex}`) : `Duppy · ${s.duppyLevel}`;
+      const label = seatName(s);
       line.append(el('span', undefined, label));
       line.append(el('span', 'seat-score', String(game.scores[s.seatIndex] ?? 0)));
       list.appendChild(line);
@@ -836,6 +841,7 @@ function standingsPanel(game: OnlineGame): HTMLElement {
 function moveLogPanel(game: OnlineGame): HTMLElement {
   const panel = el('div', 'panel');
   panel.append(el('div', 'eyebrow', 'Log'));
+  panel.append(el('p', 'rail-help', 'A turn-by-turn record of every tile played, draw and pass in this hand.'));
   const list = el('div', 'move-log');
   const moves = game.hand?.move_log ?? [];
   if (moves.length === 0) {
