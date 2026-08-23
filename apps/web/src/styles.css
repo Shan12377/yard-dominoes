@@ -1274,17 +1274,27 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .hero-domino-line {
   display: block; width: min(100%, 720px); height: auto; margin: auto;
   pointer-events: none;
+  transform-origin: 50% 72%;
+  will-change: transform;
+  animation: hero-line-alive 4.8s cubic-bezier(.45,0,.55,1) infinite;
 }
 .hero-domino-line.entering {
-  transform-origin: 50% 72%;
   will-change: transform, opacity;
-  animation: hero-line-arrive 920ms cubic-bezier(.18,.78,.2,1.08) 90ms backwards;
+  animation:
+    hero-line-arrive 920ms cubic-bezier(.18,.78,.2,1.08) 90ms backwards,
+    hero-line-alive 4.8s cubic-bezier(.45,0,.55,1) 1100ms infinite;
 }
 @keyframes hero-line-arrive {
   0% { transform: translateY(-34px) rotate(-2.5deg) scale(.94); opacity: 0; }
   58% { transform: translateY(5px) rotate(.6deg) scale(1.015); opacity: 1; }
   76% { transform: translateY(-3px) rotate(-.25deg) scale(.995); }
   100% { transform: none; opacity: 1; }
+}
+@keyframes hero-line-alive {
+  0%, 100% { transform: translateY(0) rotate(-.35deg) scale(1); }
+  28% { transform: translateY(-9px) rotate(.7deg) scale(1.018); }
+  52% { transform: translateY(-3px) rotate(-.15deg) scale(1.006); }
+  76% { transform: translateY(7px) rotate(-.65deg) scale(.992); }
 }
 
 .brand-stories { display: grid; gap: 14px; margin-top: 20px; }

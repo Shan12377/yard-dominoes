@@ -503,10 +503,11 @@ Everything below is live and verified, not just written:
   stacks. Optional global statistics and service-worker registration are
   delayed beyond first paint. Do not reverse these choices without measuring
   the production build.
-- The optimized hero WebP still has a one-time load entrance: the whole
-  connected domino line drops, rebounds and settles with transform/opacity.
-  `heroHasEntered` prevents ordinary rerenders from replaying it, while the
-  global reduced-motion rule collapses the entrance for players who request it.
+- The optimized hero WebP has a clear load entrance followed by a continuous,
+  slow lift-and-tilt rhythm. `heroHasEntered` prevents ordinary rerenders from
+  replaying the entrance, but the ambient motion stays alive throughout the
+  landing page. Both animations use transforms only, and the global
+  reduced-motion rule collapses them for players who request it.
 - Form values follow one explicit contrast rule: dark-blue shared controls use
   light `--ink`, while the age gate's light bone field uses dark `--pip` text
   and caret. Placeholders and native select options are also explicitly
