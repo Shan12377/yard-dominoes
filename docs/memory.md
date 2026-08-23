@@ -653,6 +653,10 @@ Everything below is live and verified, not just written:
   talk surface. On phone and tablet, a persistent `Chat & stickers` button
   scrolls directly to that surface without reducing the board. Never render
   quick words or stickers as loose controls below the full table again.
+- The homepage keeps the original completed domino-line WebP exactly as drawn.
+  Its motion is a smooth highlight that travels from 2/4 through each connected
+  bone to the last tile. Do not rearrange, replace, lift, drop or shake the
+  bones; motion belongs in clipped overlays above the original artwork.
 - The 2026-08-22 dependency audit findings were build-tool-only (Vite,
   esbuild, nanoid). Vite was upgraded from 5.4 to 8.2.2, the lockfile now
   carries patched transitive versions, and `npm audit` reports zero findings.

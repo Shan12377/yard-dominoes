@@ -1273,18 +1273,42 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .hero-copy button.ghost { color: #FFFBF0; border-color: rgba(255, 251, 240, 0.45); }
 .hero-copy button.ghost:hover { border-color: var(--gold-hi); color: var(--gold-hi); }
 
-.hero-domino-line {
-  display: block; width: min(100%, 720px); height: auto; margin: auto;
+.hero-domino-cascade {
+  position: relative;
+  width: min(100%, 720px);
+  aspect-ratio: 720 / 230;
+  margin: auto;
+  overflow: visible;
   pointer-events: none;
-  transform-origin: 50% 72%;
-  will-change: transform;
-  animation: hero-line-alive 4.8s cubic-bezier(.45,0,.55,1) infinite;
 }
-.hero-domino-line.entering {
-  will-change: transform, opacity;
-  animation:
-    hero-line-arrive 920ms cubic-bezier(.18,.78,.2,1.08) 90ms backwards,
-    hero-line-alive 4.8s cubic-bezier(.45,0,.55,1) 1100ms infinite;
+.hero-domino-cascade.entering {
+  animation: hero-line-arrive 920ms cubic-bezier(.18,.78,.2,1.08) 90ms backwards;
+}
+.hero-domino-line,
+.hero-domino-pulse {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.hero-domino-pulse {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  filter: brightness(1.34) saturate(1.08) drop-shadow(0 0 8px rgba(255, 201, 40, .78));
+  will-change: opacity, filter;
+  animation: hero-domino-snake 4.2s ease-in-out infinite both;
+}
+.hero-domino-pulse-1 { clip-path: inset(37% 83.33% 37% 0); animation-delay: 0ms; }
+.hero-domino-pulse-2 { clip-path: inset(37% 66.67% 37% 16.67%); animation-delay: 180ms; }
+.hero-domino-pulse-3 { clip-path: inset(24% 58.33% 24% 33.33%); animation-delay: 360ms; }
+.hero-domino-pulse-4 { clip-path: inset(37% 41.67% 37% 41.67%); animation-delay: 540ms; }
+.hero-domino-pulse-5 { clip-path: inset(24% 33.33% 24% 58.33%); animation-delay: 720ms; }
+.hero-domino-pulse-6 { clip-path: inset(37% 16.67% 37% 66.67%); animation-delay: 900ms; }
+.hero-domino-pulse-7 { clip-path: inset(37% 8.33% 11% 83.33%); animation-delay: 1080ms; }
+@keyframes hero-domino-snake {
+  0%, 5%, 28%, 100% { opacity: 0; filter: brightness(1) saturate(1); }
+  11% { opacity: .98; filter: brightness(1.38) saturate(1.1) drop-shadow(0 0 9px rgba(255, 201, 40, .82)); }
+  18% { opacity: .34; filter: brightness(1.15) saturate(1.04) drop-shadow(0 0 4px rgba(255, 201, 40, .38)); }
 }
 @keyframes hero-line-arrive {
   0% { transform: translateY(-34px) rotate(-2.5deg) scale(.94); opacity: 0; }
@@ -1292,11 +1316,11 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   76% { transform: translateY(-3px) rotate(-.25deg) scale(.995); }
   100% { transform: none; opacity: 1; }
 }
-@keyframes hero-line-alive {
-  0%, 100% { transform: translateY(0) rotate(-.35deg) scale(1); }
-  28% { transform: translateY(-9px) rotate(.7deg) scale(1.018); }
-  52% { transform: translateY(-3px) rotate(-.15deg) scale(1.006); }
-  76% { transform: translateY(7px) rotate(-.65deg) scale(.992); }
+@media (prefers-reduced-motion: reduce) {
+  .hero-domino-pulse {
+    animation-duration: 4.2s !important;
+    animation-iteration-count: infinite !important;
+  }
 }
 
 .brand-stories { display: grid; gap: 14px; margin-top: 20px; }

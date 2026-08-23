@@ -501,17 +501,31 @@ function hero(): HTMLElement {
   row.append(deal, fair);
   copy.appendChild(row);
 
-  const line = document.createElement('img');
-  line.className = `hero-domino-line${heroHasEntered ? '' : ' entering'}`;
+  const line = el('div', `hero-domino-cascade${heroHasEntered ? '' : ' entering'}`);
   heroHasEntered = true;
-  line.src = '/art/hero-domino-line-360.webp';
-  line.srcset = '/art/hero-domino-line-360.webp 360w, /art/hero-domino-line.webp 720w';
-  line.sizes = '(max-width: 807px) calc(100vw - 66px), 720px';
-  line.alt = 'A connected line of dominoes with doubles laid crosswise';
-  line.width = 720;
-  line.height = 230;
-  line.decoding = 'async';
-  line.fetchPriority = 'high';
+  line.setAttribute('role', 'img');
+  line.setAttribute('aria-label', 'A connected line of dominoes with doubles laid crosswise');
+
+  const dominoImage = (className: string) => {
+    const image = document.createElement('img');
+    image.className = className;
+    image.src = '/art/hero-domino-line-360.webp';
+    image.srcset = '/art/hero-domino-line-360.webp 360w, /art/hero-domino-line.webp 720w';
+    image.sizes = '(max-width: 807px) calc(100vw - 66px), 720px';
+    image.alt = '';
+    image.width = 720;
+    image.height = 230;
+    image.decoding = 'async';
+    return image;
+  };
+  const base = dominoImage('hero-domino-line');
+  base.fetchPriority = 'high';
+  line.append(base);
+  for (let step = 1; step <= 7; step++) {
+    const pulse = dominoImage(`hero-domino-pulse hero-domino-pulse-${step}`);
+    pulse.setAttribute('aria-hidden', 'true');
+    line.append(pulse);
+  }
 
   felt.append(copy, line);
   return felt;
