@@ -1296,19 +1296,19 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   opacity: 0;
   filter: brightness(1.34) saturate(1.08) drop-shadow(0 0 8px rgba(255, 201, 40, .78));
   will-change: opacity, filter;
-  animation: hero-domino-snake 4.2s ease-in-out infinite both;
+  animation: hero-domino-snake 2.8s ease-in-out infinite both;
 }
 .hero-domino-pulse-1 { clip-path: inset(37% 83.33% 37% 0); animation-delay: 0ms; }
-.hero-domino-pulse-2 { clip-path: inset(37% 66.67% 37% 16.67%); animation-delay: 180ms; }
-.hero-domino-pulse-3 { clip-path: inset(24% 58.33% 24% 33.33%); animation-delay: 360ms; }
-.hero-domino-pulse-4 { clip-path: inset(37% 41.67% 37% 41.67%); animation-delay: 540ms; }
-.hero-domino-pulse-5 { clip-path: inset(24% 33.33% 24% 58.33%); animation-delay: 720ms; }
-.hero-domino-pulse-6 { clip-path: inset(37% 16.67% 37% 66.67%); animation-delay: 900ms; }
-.hero-domino-pulse-7 { clip-path: inset(37% 8.33% 11% 83.33%); animation-delay: 1080ms; }
+.hero-domino-pulse-2 { clip-path: inset(37% 66.67% 37% 16.67%); animation-delay: 220ms; }
+.hero-domino-pulse-3 { clip-path: inset(24% 58.33% 24% 33.33%); animation-delay: 440ms; }
+.hero-domino-pulse-4 { clip-path: inset(37% 41.67% 37% 41.67%); animation-delay: 660ms; }
+.hero-domino-pulse-5 { clip-path: inset(24% 33.33% 24% 58.33%); animation-delay: 880ms; }
+.hero-domino-pulse-6 { clip-path: inset(37% 16.67% 37% 66.67%); animation-delay: 1100ms; }
+.hero-domino-pulse-7 { clip-path: inset(37% 8.33% 11% 83.33%); animation-delay: 1320ms; }
 @keyframes hero-domino-snake {
-  0%, 5%, 28%, 100% { opacity: 0; filter: brightness(1) saturate(1); }
-  11% { opacity: .98; filter: brightness(1.38) saturate(1.1) drop-shadow(0 0 9px rgba(255, 201, 40, .82)); }
-  18% { opacity: .34; filter: brightness(1.15) saturate(1.04) drop-shadow(0 0 4px rgba(255, 201, 40, .38)); }
+  0%, 3%, 27%, 100% { opacity: 0; filter: brightness(1) saturate(1); }
+  10% { opacity: .98; filter: brightness(1.38) saturate(1.1) drop-shadow(0 0 9px rgba(255, 201, 40, .82)); }
+  19% { opacity: .38; filter: brightness(1.16) saturate(1.04) drop-shadow(0 0 4px rgba(255, 201, 40, .4)); }
 }
 @keyframes hero-line-arrive {
   0% { transform: translateY(-34px) rotate(-2.5deg) scale(.94); opacity: 0; }
@@ -1318,7 +1318,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-domino-pulse {
-    animation-duration: 4.2s !important;
+    animation-duration: 2.8s !important;
     animation-iteration-count: infinite !important;
   }
 }
