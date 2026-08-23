@@ -509,7 +509,10 @@ label.field > span {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 12px;
-  align-items: stretch;
+  /* The information rail can be much taller than the game. Do not stretch
+     the table cross to match it: auto grid tracks would absorb that height
+     as blank space and push the felt below the fold. */
+  align-items: start;
   height: auto;
   min-height: 0;
   max-height: none;
