@@ -504,12 +504,10 @@ function hero(): HTMLElement {
   const line = document.createElement('img');
   line.className = `hero-domino-line${heroHasEntered ? '' : ' entering'}`;
   heroHasEntered = true;
-  line.src = '/art/hero-domino-line-360.webp';
-  line.srcset = '/art/hero-domino-line-360.webp 360w, /art/hero-domino-line.webp 720w';
-  line.sizes = '(max-width: 807px) calc(100vw - 66px), 720px';
-  line.alt = 'A connected line of dominoes with doubles laid crosswise';
+  line.src = '/art/hero-domino-line.svg';
+  line.alt = 'A connected line of dominoes cascading around a bend';
   line.width = 720;
-  line.height = 230;
+  line.height = 270;
   line.decoding = 'async';
   line.fetchPriority = 'high';
 
