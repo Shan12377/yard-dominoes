@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { access } from 'node:fs/promises';
 import { BELTS } from '@yard/engine';
-import { ACADEMY_VISUALS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
+import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
 
 test('every Academy lesson has teaching copy and a generated diagram', async () => {
   for (const lesson of BELTS.flatMap((belt) => belt.lessons)) {
@@ -31,5 +31,22 @@ test('the Academy explains the two modes that change board or seat control', () 
   for (const guide of GAME_GUIDES) {
     assert.ok(guide.body.length > 100, `${guide.id} guide is too thin to teach the mode`);
     assert.ok(guide.takeaway.length > 30, `${guide.id} guide needs a usable takeaway`);
+  }
+});
+
+test('the French guide is a legal four-arm cross with every inner half matching the centre', () => {
+  const [centerA, centerB] = FRENCH_GUIDE_CROSS.center.split('-').map(Number);
+  assert.equal(centerA, centerB, 'the centre must be a double');
+  assert.equal(FRENCH_GUIDE_CROSS.arms.length, 4);
+  assert.deepEqual(FRENCH_GUIDE_CROSS.arms.map((arm) => arm.place).sort(),
+    ['east', 'north', 'south', 'west']);
+
+  const inwardHalf = { north: 1, east: 0, south: 0, west: 1 } as const;
+  for (const arm of FRENCH_GUIDE_CROSS.arms) {
+    const halves = arm.tile.split('-').map(Number);
+    assert.equal(arm.horizontal, arm.place === 'east' || arm.place === 'west',
+      `${arm.place} arm must lie along its direction from the centre`);
+    assert.equal(halves[inwardHalf[arm.place]], centerA,
+      `${arm.place} arm must point its matching half toward the centre`);
   }
 });

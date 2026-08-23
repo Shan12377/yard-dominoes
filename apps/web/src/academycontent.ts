@@ -81,6 +81,21 @@ export const GAME_GUIDES = [
   },
 ] as const;
 
+/**
+ * One small, legal French opening used by the Academy guide. Keep the data
+ * here, beside the teaching copy, rather than arranging arbitrary bones in
+ * CSS: every arm must touch the centre double with the matching half.
+ */
+export const FRENCH_GUIDE_CROSS = {
+  center: '0-0',
+  arms: [
+    { place: 'north', tile: '2-0', horizontal: false },
+    { place: 'east', tile: '0-3', horizontal: true },
+    { place: 'south', tile: '0-4', horizontal: false },
+    { place: 'west', tile: '5-0', horizontal: true },
+  ],
+} as const;
+
 const SCENARIOS: Record<string, DrillScenario> = {
   B1D1: { setup: 'The open ends are 3 and 5.', choices: [
     { label: '2-5', correct: true, explanation: 'The five matches the open five.' },

@@ -1124,11 +1124,11 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .academy-guide-takeaway { display: block; margin-top: 12px; color: var(--gold); line-height: 1.4; }
 .academy-guide-visual { position: relative; height: 190px; margin-bottom: 16px; border-radius: 10px; background: var(--felt); overflow: hidden; }
 .academy-guide-visual .tile { --w: 34px; --h: 68px; position: absolute; }
-.academy-guide-visual.french .centre { inset: 50% auto auto 50%; transform: translate(-50%, -50%); }
-.academy-guide-visual.french .north { inset: 8px auto auto 50%; transform: translateX(-50%); }
-.academy-guide-visual.french .east { inset: 50% 22px auto auto; transform: translateY(-50%) rotate(90deg); }
-.academy-guide-visual.french .south { inset: auto auto 8px 50%; transform: translateX(-50%); }
-.academy-guide-visual.french .west { inset: 50% auto auto 22px; transform: translateY(-50%) rotate(90deg); }
+.academy-guide-visual.french .centre { --w: 48px; --h: 48px; inset: 50% auto auto 50%; transform: translate(-50%, -50%); }
+.academy-guide-visual.french .north { bottom: calc(50% + 24px); left: 50%; transform: translateX(-50%); }
+.academy-guide-visual.french .east { --w: 68px; --h: 34px; left: calc(50% + 24px); top: 50%; transform: translateY(-50%); }
+.academy-guide-visual.french .south { top: calc(50% + 24px); left: 50%; transform: translateX(-50%); }
+.academy-guide-visual.french .west { --w: 68px; --h: 34px; right: calc(50% + 24px); top: 50%; transform: translateY(-50%); }
 .academy-guide-visual.across { display: grid; place-items: center; }
 .guide-seat { position: absolute; padding: 7px 9px; border: 2px solid; border-radius: 999px; font: 700 12px var(--mono); background: var(--signal-lo); }
 .guide-seat.north { top: 12px; left: 50%; transform: translateX(-50%); }

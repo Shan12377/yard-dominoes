@@ -20,7 +20,7 @@ import { captureReferralCode } from './referral.ts';
 // Supabase client it drags in) is ever touched. See referral.ts.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
-import { ACADEMY_VISUALS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
+import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
 import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -1491,9 +1491,16 @@ function academyView(): DocumentFragment {
       ? 'French board with a double in the centre and four arms'
       : 'Across seating with one person controlling Players 1 and 3, and the opponent controlling Players 2 and 4');
     if (guide.id === 'french') {
-      for (const [tile, place] of [['0-2', 'north'], ['0-3', 'east'], ['0-4', 'south'], ['0-5', 'west'], ['0-0', 'centre']] as const) {
-        const bone = tileEl(tile);
-        bone.classList.add(place);
+      const centre = el('div', 'tile hub centre');
+      centre.dataset.tile = FRENCH_GUIDE_CROSS.center;
+      centre.setAttribute('role', 'img');
+      centre.setAttribute('aria-label', 'double blank');
+      centre.setAttribute('aria-hidden', 'true');
+      visual.append(centre);
+      for (const arm of FRENCH_GUIDE_CROSS.arms) {
+        const bone = tileEl(arm.tile);
+        bone.classList.add(arm.place);
+        if (arm.horizontal) bone.classList.add('h');
         bone.setAttribute('aria-hidden', 'true');
         visual.append(bone);
       }
