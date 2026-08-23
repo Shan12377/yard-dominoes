@@ -673,6 +673,7 @@ export function liveTableView(
   const displayBoard = game.predictedBoard ?? game.hand?.board ?? null;
 
   const feltSlot = el('div', 'felt-slot');
+  const feltShell = el('div', 'felt-shell');
   const felt = el('div', 'table-felt live-felt');
   const line = el('div', 'line');
   if (!game.hand) line.classList.add('awaiting-deal');
@@ -682,19 +683,22 @@ export function liveTableView(
   renderBoard(line, displayBoard, lastFeltBox ? { box: lastFeltBox } : {});
   tagWinningTile(line, felt, game);
   felt.appendChild(line);
+  feltShell.appendChild(felt);
   // Put each unplayed hand where that person is physically sitting. These
-  // overlays are visual counters around the board edge, never hidden data.
+  // visual counters straddle the outer rim rather than consuming playable
+  // felt. They are siblings of the scrolling felt so they cannot be clipped
+  // or crossed by a long line of played bones.
   for (const s of game.seats) {
     const slot = seatPosition(s.seatIndex, game.mySeat, game.table.seatCount);
     if (!slot) continue;
     const rack = tableRack(s, game, slot);
-    if (rack) felt.appendChild(rack);
+    if (rack) feltShell.appendChild(rack);
   }
   // An undealt table is still a game surface, not a form page. Keep the
   // only action needed to begin the game directly on the felt so nobody has
   // to scroll away from the board to find it.
   if (!game.hand) felt.appendChild(startHandPanel(game));
-  feltSlot.appendChild(felt);
+  feltSlot.appendChild(feltShell);
   // The felt isn't attached to the document yet at this point in the build,
   // so getBoundingClientRect() would read all zeros here — wait a frame for
   // real layout, then correct the cache and re-render ONLY if the real box

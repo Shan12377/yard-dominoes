@@ -456,6 +456,13 @@ label.field > span {
   align-items: center;
 }
 .felt-slot { grid-area: felt; min-width: 0; }
+.felt-shell {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 20px;
+}
 .seat-slot-top { grid-area: top; }
 .seat-slot-left { grid-area: left; }
 .seat-slot-right { grid-area: right; }
@@ -519,6 +526,7 @@ label.field > span {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto auto;
 }
+.table-room .felt-shell { height: 100%; }
 .table-room .live-felt {
   width: 100%;
   height: 100%;
@@ -814,7 +822,7 @@ label.field > span {
 }
 .table-rack {
   position: absolute;
-  z-index: 1;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -840,10 +848,10 @@ label.field > span {
   box-shadow: 0 2px 0 #052b43, 0 3px 5px rgba(0, 0, 0, .28);
 }
 .table-rack .backs i:first-child { margin-left: 0; }
-.table-rack-top { top: 10px; left: 50%; transform: translateX(-50%); }
-.table-rack-left { left: 10px; top: 50%; transform: translateY(-50%) rotate(90deg); }
-.table-rack-right { right: 10px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
-.table-rack-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
+.table-rack-top { top: 20px; left: 50%; transform: translate(-50%, -50%); }
+.table-rack-left { left: 20px; top: 50%; transform: translate(-50%, -50%) rotate(90deg); }
+.table-rack-right { right: 20px; top: 50%; transform: translate(50%, -50%) rotate(-90deg); }
+.table-rack-bottom { bottom: 20px; left: 50%; transform: translate(-50%, 50%); }
 .table-rack-open { gap: 2px; }
 .table-rack-open .tile { --w: 20px; --h: 40px; }
 .table-rack-left.table-rack-open,
