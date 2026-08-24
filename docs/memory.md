@@ -667,6 +667,9 @@ Everything below is live and verified, not just written:
   the felt and does not duplicate one as decoration. Never pass opponent TileIds
   to a rack to achieve this effect. Played bones always render above racks so
   an open end cannot be hidden.
+- A pass is a visible table event: show a compact gold `PASS` callout at the
+  passing player's physical felt edge in Practice and online play. It may
+  never obscure the played line or become a substitute for the move log.
 - The homepage keeps the original completed domino-line WebP exactly as drawn.
   Its motion is a smooth highlight that travels from 2/4 through each connected
   bone to the last tile. Do not rearrange, replace, lift, drop or shake the

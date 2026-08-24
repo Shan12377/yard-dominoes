@@ -374,6 +374,8 @@ async function startGame(opts: {
     // an opponent doing something to me. The talk below is what's theirs.
     if (e.type === 'played') {
       sfx.play('knock');
+      // PASS is a board fact, not a blink. The next real move replaces it.
+      recentPassSeat = null;
       recentPlayedTile = e.tile;
       window.setTimeout(() => {
         if (recentPlayedTile === e.tile) { recentPlayedTile = null; scheduleRender(); }
@@ -390,15 +392,9 @@ async function startGame(opts: {
 
     if (e.type === 'passed' && e.seat !== g.mySeat) {
       recentPassSeat = e.seat;
-      window.setTimeout(() => {
-        if (recentPassSeat === e.seat) { recentPassSeat = null; scheduleRender(); }
-      }, 520);
       say(e.seat, 'iPass', level);
     } else if (e.type === 'passed' && e.seat === g.mySeat) {
       recentPassSeat = e.seat;
-      window.setTimeout(() => {
-        if (recentPassSeat === e.seat) { recentPassSeat = null; scheduleRender(); }
-      }, 520);
       // Your pass is the loudest thing you do — it proves what you don't
       // hold. Every duppy at the table gets to notice.
       for (let s = 0; s < g.options.seatCount; s++) {
@@ -931,6 +927,15 @@ function practiceTableRack(g: LocalGame, seat: number): HTMLElement | null {
   return rack;
 }
 
+function practicePassCallout(g: LocalGame): HTMLElement | null {
+  if (recentPassSeat === null) return null;
+  const slot = (['bottom', 'right', 'top', 'left'] as const)[recentPassSeat];
+  const callout = el('div', `table-pass-callout table-pass-${slot}`, 'PASS');
+  callout.setAttribute('role', 'status');
+  callout.setAttribute('aria-label', `${g.seatLabel(recentPassSeat)} passed`);
+  return callout;
+}
+
 let pendingTile: string | null = null;
 /**
  * The felt's real measured size, cached across renders — see tableView()'s
@@ -1418,6 +1423,8 @@ function tableView(g: LocalGame): DocumentFragment {
     const rack = practiceTableRack(g, seat);
     if (rack) felt.appendChild(rack);
   }
+  const passCallout = practicePassCallout(g);
+  if (passCallout) felt.appendChild(passCallout);
   room.appendChild(felt);
   // The felt isn't attached to the document yet at this point in the build,
   // so clientWidth/clientHeight would read zero here — wait a frame for real

@@ -561,6 +561,21 @@ function tableRack(s: SeatInfo, game: OnlineGame, slot: 'top' | 'left' | 'right'
   return rack;
 }
 
+/** The last confirmed pass stays visibly attached to that player's table side
+ * until the next move replaces it. It is a public fact, not a private-hand cue. */
+function passCallout(game: OnlineGame): HTMLElement | null {
+  const lastMove = game.hand?.move_log.at(-1);
+  if (!lastMove || lastMove.kind !== 'pass') return null;
+  const slot = seatPosition(lastMove.seat, game.mySeat, game.table.seatCount);
+  if (!slot) return null;
+  const player = game.seats.find((seat) => seat.seatIndex === lastMove.seat);
+  const name = player ? seatName(player) : `Player ${lastMove.seat + 1}`;
+  const callout = el('div', `table-pass-callout table-pass-${slot}`, 'PASS');
+  callout.setAttribute('role', 'status');
+  callout.setAttribute('aria-label', `${name} passed`);
+  return callout;
+}
+
 /**
  * "The slam" — the winning tile drops in and lands hard, the felt shakes.
  * design.md calls this the emotional peak of the game; it existed only as
@@ -694,6 +709,8 @@ export function liveTableView(
     const rack = tableRack(s, game, slot);
     if (rack) feltShell.appendChild(rack);
   }
+  const lastPass = passCallout(game);
+  if (lastPass) feltShell.appendChild(lastPass);
   // An undealt table is still a game surface, not a form page. Keep the
   // only action needed to begin the game directly on the felt so nobody has
   // to scroll away from the board to find it.
