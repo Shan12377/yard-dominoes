@@ -253,6 +253,10 @@ let countdownTimer: ReturnType<typeof setTimeout> | null = null;
  * real re-measure-and-rebuild when the box has actually changed.
  */
 let lastFeltBox: { width: number; height: number } | null = null;
+// A pre-deal board occupies the whole felt; a dealt local hand reserves the
+// lower rail. Keep their measurements separate so the first dealt frame does
+// not briefly render below the rail.
+let lastFeltHasHandRail: boolean | null = null;
 
 /**
  * The social layer, handed in by whoever owns the Realtime channel it rides on.
@@ -690,14 +694,22 @@ export function liveTableView(
   const feltSlot = el('div', 'felt-slot');
   const feltShell = el('div', 'felt-shell');
   const felt = el('div', 'table-felt live-felt');
+  // Keep a single controlled hand in the lower edge of the felt. Spectators
+  // have no hand, and Across deliberately keeps its two controlled hands
+  // below the board where both remain readable.
+  const handOnFelt = !game.isSpectator && !!game.hand && game.table.mode !== 'across';
+  const boardStage = handOnFelt ? el('div', 'board-stage') : felt;
+  if (handOnFelt) felt.classList.add('hand-on-felt');
   const line = el('div', 'line');
   if (!game.hand) line.classList.add('awaiting-deal');
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
   // measured.
-  renderBoard(line, displayBoard, lastFeltBox ? { box: lastFeltBox } : {});
+  const cachedBox = lastFeltHasHandRail === handOnFelt ? lastFeltBox : null;
+  renderBoard(line, displayBoard, cachedBox ? { box: cachedBox } : {});
   tagWinningTile(line, felt, game);
-  felt.appendChild(line);
+  boardStage.appendChild(line);
+  if (handOnFelt) felt.appendChild(boardStage);
   feltShell.appendChild(felt);
   // Put each unplayed hand where that person is physically sitting. These
   // visual counters straddle the outer rim rather than consuming playable
@@ -725,10 +737,15 @@ export function liveTableView(
   requestAnimationFrame(() => {
     // -32 matches CHROME_X/CHROME_Y's existing padding-subtraction
     // convention (felt padding + line padding), not a new magic number.
-    const box = { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
+    const fitHost = handOnFelt ? boardStage : felt;
+    const box = handOnFelt
+      ? { width: fitHost.clientWidth - 20, height: fitHost.clientHeight - 20 }
+      : { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
     if (box.width <= 0 || box.height <= 0) return;
-    const changed = !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
+    const changed = lastFeltHasHandRail !== handOnFelt
+      || !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
     lastFeltBox = box;
+    lastFeltHasHandRail = handOnFelt;
     if (changed) {
       renderBoard(line, displayBoard, { box });
       tagWinningTile(line, felt, game);
@@ -742,6 +759,7 @@ export function liveTableView(
   // appended after .table-room closed, which pushed it below the fold.
   // Same guards as the old call site: only a seated player with a dealt
   // hand gets one.
+  let handActions: HTMLElement | null = null;
   if (!game.isSpectator && game.hand) {
     if (game.table.mode === 'across') {
       // Both of my hands dock under the felt together — the reason across
@@ -760,9 +778,17 @@ export function liveTableView(
         feltSlot.appendChild(myHandPanel(game, rerender));
       }
     } else {
-      feltSlot.appendChild(myHandPanel(game, rerender));
+      const hand = myHandPanel(game, rerender);
+      if (handOnFelt) {
+        hand.classList.add('in-felt-hand');
+        handActions = takeHandActions(hand);
+        felt.appendChild(hand);
+      } else {
+        feltSlot.appendChild(hand);
+      }
     }
   }
+  if (handActions) feltSlot.appendChild(handActions);
   cross.appendChild(feltSlot);
 
   game.seats.forEach((s) => {
@@ -1199,6 +1225,17 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     }
   }
   return panel;
+}
+
+/** See main.ts: preserve the fixed in-felt hand rail during a live choice. */
+function takeHandActions(panel: HTMLElement): HTMLElement | null {
+  const actions = [...panel.children].filter((child) =>
+    !child.classList.contains('eyebrow') && !child.classList.contains('hand'),
+  );
+  if (!actions.length) return null;
+  const dock = el('div', 'hand-actions-dock');
+  actions.forEach((action) => dock.appendChild(action));
+  return dock;
 }
 
 /** A completed hand's free, browser-verified visual deal receipt. */

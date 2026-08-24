@@ -435,7 +435,60 @@ label.field > span {
     linear-gradient(135deg, rgba(255,255,255,.05) 0 1px, transparent 1px 14px);
   opacity: 1;
 }
-.table-felt:not(.hero) > .line { position: relative; z-index: 2; }
+.table-felt:not(.hero) .line { position: relative; z-index: 2; }
+
+/* Your hand is physically part of the table, not a card stranded below it.
+   The board-stage owns all space above the hand rail, so a long chain is
+   fitted there and can never land underneath a playable bone. */
+.table-felt.hand-on-felt {
+  display: grid;
+  /* A fixed rail keeps a two-end decision from stealing board height. */
+  grid-template-rows: minmax(0, 1fr) 118px;
+  align-items: stretch;
+  gap: 7px;
+  overflow: hidden;
+}
+.board-stage {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The board alone may scroll on an extreme device. The hand rail remains
+     present at the table edge, where a player needs it while deciding. */
+  overflow: auto;
+}
+.table-felt.hand-on-felt > .my-hand-panel.in-felt-hand {
+  position: relative;
+  z-index: 4;
+  min-width: 0;
+  margin: 0;
+  padding: 7px 9px 5px;
+  border-color: rgba(255, 201, 40, .62);
+  background: linear-gradient(145deg, rgba(4, 35, 52, .96), rgba(9, 73, 104, .94));
+  box-shadow: 0 -8px 22px rgba(0, 0, 0, .22);
+}
+.table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .eyebrow { margin-bottom: 2px; }
+.table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand {
+  justify-content: center;
+  padding: 5px 3px 7px;
+}
+.hand-actions-dock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(67, 199, 244, .28);
+  border-radius: 12px;
+  background: rgba(4, 35, 52, .84);
+}
+.hand-actions-dock .row { margin: 0; flex: 1 1 280px; }
+.hand-actions-dock > .act { margin: 0; }
+.hand-actions-dock > .muted { margin: 0; flex-basis: 100%; }
 
 /* A replay is reading material, not a live hand: reserve a stable box so
    the renderer can fit the entire completed chain rather than sizing itself
@@ -1680,6 +1733,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .table-room .live-felt,
   .practice-room .live-felt { height: 350px; min-height: 350px; max-height: 350px; }
   .my-hand-panel .hand .tile { --w: 40px; --h: 80px; }
+  .table-felt.hand-on-felt { grid-template-rows: minmax(0, 1fr) 108px; }
 }
 
 @media (max-height: 620px) and (max-width: 900px) {

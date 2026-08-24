@@ -964,6 +964,10 @@ let pendingTile: string | null = null;
  * for a real re-measure-and-rebuild when the box has actually changed.
  */
 let lastFeltBox: { width: number; height: number } | null = null;
+// A board fitted before the deal uses the full felt. Once a hand arrives the
+// protected hand rail reduces the playable stage, so never reuse a box from
+// the other layout for even one frame.
+let lastFeltHasHandRail: boolean | null = null;
 
 /**
  * Matches CrossArm['direction'] — the felt lays a French board's four arms
@@ -1084,6 +1088,22 @@ function myHand(g: LocalGame): HTMLElement {
     panel.append(el('p', 'muted', 'Nothing fits either end. Passing tells the table you are void in both.'));
   }
   return panel;
+}
+
+/**
+ * A dealt hand can sit inside the lower rim of the table, but a temporary
+ * decision (which end, pass, reshuffle) must not enlarge that fixed rail and
+ * squeeze the board. Move only those transient controls into a compact dock
+ * immediately below the felt; the tiles themselves remain on the table.
+ */
+function takeHandActions(panel: HTMLElement): HTMLElement | null {
+  const actions = [...panel.children].filter((child) =>
+    !child.classList.contains('eyebrow') && !child.classList.contains('hand'),
+  );
+  if (!actions.length) return null;
+  const dock = el('div', 'hand-actions-dock');
+  actions.forEach((action) => dock.appendChild(action));
+  return dock;
 }
 
 function handResult(g: LocalGame): HTMLElement | null {
@@ -1418,12 +1438,19 @@ function tableView(g: LocalGame): DocumentFragment {
 
   const room = el('div', 'practice-room');
   const felt = el('div', 'table-felt live-felt');
+  // A real player's hand belongs at their edge of the table. Across is the
+  // intentional exception: one person controls two hands there, and forcing
+  // both into the felt would steal the very board space that mode depends on.
+  const handOnFelt = !!g.hand && g.options.mode !== 'across';
+  const boardStage = handOnFelt ? el('div', 'board-stage') : felt;
+  if (handOnFelt) felt.classList.add('hand-on-felt');
   const line = el('div', 'line');
   const displayBoard = g.hand?.board ?? null;
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
   // measured.
-  renderBoard(line, displayBoard, lastFeltBox ? { box: lastFeltBox } : {});
+  const cachedBox = lastFeltHasHandRail === handOnFelt ? lastFeltBox : null;
+  renderBoard(line, displayBoard, cachedBox ? { box: cachedBox } : {});
   const animateTile = () => {
     const tile = winningTile ?? recentPlayedTile;
     if (!tile) return;
@@ -1434,14 +1461,23 @@ function tableView(g: LocalGame): DocumentFragment {
     }
   };
   animateTile();
-  felt.appendChild(line);
+  boardStage.appendChild(line);
+  if (handOnFelt) felt.appendChild(boardStage);
   for (let seat = 0; seat < g.options.seatCount; seat += 1) {
     const rack = practiceTableRack(g, seat);
     if (rack) felt.appendChild(rack);
   }
   const passCallout = practicePassCallout(g);
   if (passCallout) felt.appendChild(passCallout);
+  let handActions: HTMLElement | null = null;
+  if (handOnFelt) {
+    const hand = myHand(g);
+    hand.classList.add('in-felt-hand');
+    handActions = takeHandActions(hand);
+    felt.appendChild(hand);
+  }
   room.appendChild(felt);
+  if (handActions) room.appendChild(handActions);
   // The felt isn't attached to the document yet at this point in the build,
   // so clientWidth/clientHeight would read zero here — wait a frame for real
   // layout, then correct the cache and re-render ONLY if the real box has
@@ -1449,10 +1485,18 @@ function tableView(g: LocalGame): DocumentFragment {
   // turns (render() fires every ~420ms) tears down and rebuilds every tile
   // several times a second, which is the flash this guards against.
   requestAnimationFrame(() => {
-    const box = { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
+    // The stage is the true playable part of an in-felt table: the hand sits
+    // in its own protected lower rail, so the line must never fit into that
+    // rail and later overlap it. A normal table keeps the existing felt box.
+    const fitHost = handOnFelt ? boardStage : felt;
+    const box = handOnFelt
+      ? { width: fitHost.clientWidth - 20, height: fitHost.clientHeight - 20 }
+      : { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
     if (box.width <= 0 || box.height <= 0) return;
-    const changed = !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
+    const changed = lastFeltHasHandRail !== handOnFelt
+      || !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
     lastFeltBox = box;
+    lastFeltHasHandRail = handOnFelt;
     if (changed) {
       renderBoard(line, displayBoard, { box });
       animateTile();
@@ -1472,7 +1516,7 @@ function tableView(g: LocalGame): DocumentFragment {
     const partnerSeat = g.mySeat ^ 2;
     room.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
   }
-  room.appendChild(myHand(g));
+  if (!handOnFelt) room.appendChild(myHand(g));
 
   room.appendChild(seats(g));
   room.appendChild(soundToggle());
