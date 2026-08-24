@@ -898,8 +898,6 @@ function seats(g: LocalGame): HTMLElement {
     card.append(el('h3', undefined, g.seatLabel(seat)));
     const count = g.hand?.hands[seat].length ?? 0;
     card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
-    if (seat !== g.mySeat) card.append(backsEl(count));
-
     // Show what their passes gave away. This is Belt 4 Lesson 1, surfaced in
     // the table itself so the habit forms by seeing it, not by being told.
     const v = voids[seat];
@@ -915,6 +913,22 @@ function seats(g: LocalGame): HTMLElement {
     wrap.appendChild(card);
   }
   return wrap;
+}
+
+/**
+ * Practice follows the same physical-table contract as an online game:
+ * your hand is the playable rack below the felt; opponents' hands are only
+ * visible as public-count face-down racks at their actual seats.
+ */
+function practiceTableRack(g: LocalGame, seat: number): HTMLElement | null {
+  if (seat === g.mySeat) return null;
+  const count = g.hand?.hands[seat]?.length;
+  if (count === undefined) return null;
+  const slot = (['bottom', 'right', 'top', 'left'] as const)[seat];
+  const rack = el('div', `table-rack table-rack-${slot} practice-table-rack`);
+  rack.setAttribute('aria-label', `${g.seatLabel(seat)} has ${count} hidden tile${count === 1 ? '' : 's'}`);
+  rack.appendChild(backsEl(count));
+  return rack;
 }
 
 let pendingTile: string | null = null;
@@ -1400,6 +1414,10 @@ function tableView(g: LocalGame): DocumentFragment {
   };
   animateTile();
   felt.appendChild(line);
+  for (let seat = 0; seat < g.options.seatCount; seat += 1) {
+    const rack = practiceTableRack(g, seat);
+    if (rack) felt.appendChild(rack);
+  }
   room.appendChild(felt);
   // The felt isn't attached to the document yet at this point in the build,
   // so clientWidth/clientHeight would read zero here — wait a frame for real

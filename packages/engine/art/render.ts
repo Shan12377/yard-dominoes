@@ -4,10 +4,18 @@ export type DiagramTile = {
   id: string;
   x: number;
   y: number;
-  rotate?: 0 | 90;
+  rotate?: -90 | 0 | 90;
   /** Teaching overviews can fit a full set without inventing new tile art. */
   scale?: number;
   tone?: 'normal' | 'gold' | 'muted' | 'coral';
+};
+
+export type DiagramBacks = {
+  x: number;
+  y: number;
+  count: number;
+  rotate?: -90 | 0 | 90;
+  scale?: number;
 };
 
 export type DiagramLabel = {
@@ -24,11 +32,14 @@ export interface DiagramSpec {
   title: string;
   description: string;
   tiles: DiagramTile[];
+  backs?: DiagramBacks[];
   labels?: DiagramLabel[];
   lines?: Array<{ x1: number; y1: number; x2: number; y2: number; tone?: 'gold' | 'green' | 'coral' | 'muted'; dash?: boolean }>;
   badges?: Array<{ text: string; x: number; y: number; tone?: 'gold' | 'green' | 'coral' }>;
   width?: number;
   height?: number;
+  /** Validate a left-to-right domino line before generating teaching art. */
+  connectedLine?: boolean;
 }
 
 const PIPS: Record<number, [number, number][]> = {
@@ -45,6 +56,24 @@ const COLOR = {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!);
 
+export function visibleHorizontalHalves(tile: DiagramTile): [number, number] {
+  const [a, b] = tile.id.split('-').map(Number);
+  if (tile.rotate === -90) return [a, b];
+  if (tile.rotate === 90) return [b, a];
+  throw new Error(`Connected tile ${tile.id} must be horizontal`);
+}
+
+export function validateConnectedLine(tiles: DiagramTile[]): void {
+  const ordered = [...tiles].sort((left, right) => left.x - right.x);
+  for (let index = 0; index < ordered.length - 1; index += 1) {
+    const [, right] = visibleHorizontalHalves(ordered[index]);
+    const [nextLeft] = visibleHorizontalHalves(ordered[index + 1]);
+    if (right !== nextLeft) {
+      throw new Error(`Broken teaching line: ${ordered[index].id} does not join ${ordered[index + 1].id}`);
+    }
+  }
+}
+
 function tileSvg(tile: DiagramTile): string {
   const [a, b] = tile.id.split('-').map(Number);
   const outline = tile.tone === 'gold' ? COLOR.gold : tile.tone === 'coral' ? COLOR.coral : tile.tone === 'muted' ? COLOR.muted : COLOR.blue;
@@ -58,18 +87,29 @@ function tileSvg(tile: DiagramTile): string {
   </g></g>`;
 }
 
+function backsSvg(group: DiagramBacks): string {
+  const step = 13;
+  const width = 24;
+  const height = 48;
+  const cards = Array.from({ length: group.count }, (_, index) =>
+    `<g transform="translate(${index * step} 0)"><rect width="${width}" height="${height}" rx="5" fill="${COLOR.signal}" stroke="${COLOR.muted}" stroke-width="2"/><circle cx="12" cy="15" r="2" fill="${COLOR.blue}"/><circle cx="12" cy="33" r="2" fill="${COLOR.blue}"/></g>`).join('');
+  const totalWidth = width + Math.max(0, group.count - 1) * step;
+  return `<g data-back-count="${group.count}" transform="translate(${group.x} ${group.y}) rotate(${group.rotate ?? 0}) scale(${group.scale ?? 1}) translate(${-totalWidth / 2} ${-height / 2})">${cards}</g>`;
+}
+
 /** Render a lesson diagram with built-in accessible title and description. */
 export function renderDiagram(spec: DiagramSpec): string {
+  if (spec.connectedLine) validateConnectedLine(spec.tiles);
   const width = spec.width ?? 760;
   const height = spec.height ?? 380;
   const tone = (name?: string) => COLOR[(name ?? 'muted') as keyof typeof COLOR] ?? COLOR.muted;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title description">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title description"${spec.connectedLine ? ' data-connected-line="true"' : ''}${spec.backs ? ` data-face-count="${spec.tiles.length}"` : ''}>
   <title id="title">${esc(spec.title)}</title><desc id="description">${esc(spec.description)}</desc>
   <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
   <rect width="${width}" height="${height}" rx="18" fill="${COLOR.deep}"/>
   <rect x="12" y="12" width="${width - 24}" height="${height - 24}" rx="13" fill="url(#felt)" stroke="${COLOR.blue}" stroke-width="3"/>
   ${(spec.lines ?? []).map((line) => `<line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" stroke="${tone(line.tone)}" stroke-width="5" stroke-linecap="round" ${line.dash ? 'stroke-dasharray="10 10"' : ''}/>`).join('')}
-  ${spec.tiles.map(tileSvg).join('')}
+  ${spec.tiles.map(tileSvg).join('')}${(spec.backs ?? []).map(backsSvg).join('')}
 ${(spec.badges ?? []).map((badge) => {
     const width = Math.max(110, badge.text.length * 9 + 28);
     return `<g transform="translate(${badge.x} ${badge.y})"><rect x="${-width / 2}" y="-18" width="${width}" height="36" rx="18" fill="${tone(badge.tone)}"/><text text-anchor="middle" y="6" fill="${COLOR.pip}" font-family="system-ui,sans-serif" font-size="15" font-weight="800">${esc(badge.text)}</text></g>`;

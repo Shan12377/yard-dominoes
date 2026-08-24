@@ -4,11 +4,11 @@
   <rect width="760" height="380" rx="18" fill="#052B43"/>
   <rect x="12" y="12" width="736" height="356" rx="13" fill="url(#felt)" stroke="#10698F" stroke-width="3"/>
   <line x1="550" y1="88" x2="585" y2="250" stroke="#FF5A3C" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 10"/>
-  <g transform="translate(215 120) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+  <g transform="translate(215 120) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(420 120) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+  </g></g><g transform="translate(420 120) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
@@ -16,7 +16,7 @@
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(520 120) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+  </g></g><g transform="translate(520 120) scale(1)" opacity="0.42"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>

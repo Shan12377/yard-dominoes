@@ -34,8 +34,8 @@ const diagrams: Record<string, DiagramSpec> = {
     title: 'A pass is permanent',
     description: 'East passes when four and one are open. Permanent badges record that East has no fours and no ones while the board continues changing.',
     tiles: [
-      { id: '2-4', x: 215, y: 120, rotate: 90 }, { id: '1-3', x: 420, y: 120, rotate: 90 },
-      { id: '2-5', x: 115, y: 120, rotate: 90, tone: 'muted' }, { id: '3-6', x: 520, y: 120, rotate: 90, tone: 'muted' },
+      { id: '2-4', x: 215, y: 120, rotate: -90 }, { id: '1-3', x: 420, y: 120, rotate: -90 },
+      { id: '2-5', x: 115, y: 120, rotate: 90, tone: 'muted' }, { id: '3-6', x: 520, y: 120, rotate: -90, tone: 'muted' },
     ],
     badges: [
       { text: 'EAST PASSED', x: 625, y: 65, tone: 'coral' },
@@ -67,15 +67,23 @@ const fullSet = Array.from({ length: 7 }, (_, high) =>
 
 Object.assign(diagrams, {
   B1L1: simple('Two halves, one tile', 'A five-three tile has two separately counted halves.', [{ id: '3-5', x: 352, y: 92, scale: 1.65, tone: 'gold' }], 'Count each half', [
-    { text: '5 pips', x: 260, y: 145, tone: 'gold' }, { text: '3 pips', x: 500, y: 245, tone: 'green' },
+    { text: '3 pips', x: 260, y: 145, tone: 'gold' }, { text: '5 pips', x: 500, y: 245, tone: 'green' },
   ]),
-  B1L3: { ...simple('The line has two open ends', 'Five connected tiles form one line; only the outside ends accept a play.', row(['1-3', '3-3', '2-3', '2-5', '5-6']), 'Play here—or here', [
+  B1L3: { ...simple('The line has two open ends', 'Five legally connected tiles form one line; only the two outside ends accept a play.', row(['0-1', '1-3', '3-3', '3-5', '5-6']).map((tile) => ({ ...tile, rotate: -90 as const })), 'Play here or here', [
     { text: 'OPEN', x: 54, y: 202, tone: 'gold' }, { text: 'OPEN', x: 700, y: 202, tone: 'gold' },
-  ]), lines: [{ x1: 55, y1: 202, x2: 90, y2: 202, tone: 'gold' }, { x1: 665, y1: 202, x2: 700, y2: 202, tone: 'gold' }] },
-  B1L4: simple('Only your hand faces you', 'Your seven tile faces are visible at the bottom; the other seats expose only backs.', row(['0-2', '1-3', '2-4', '3-5', '4-6'], 230), 'Your tiles stay private', [
-    { text: 'YOU · FACE UP', x: 380, y: 300, tone: 'gold' }, { text: '7 BACKS', x: 380, y: 55, tone: 'green' },
-    { text: 'BACKS', x: 85, y: 135, tone: 'green' }, { text: 'BACKS', x: 675, y: 135, tone: 'green' },
-  ]),
+  ]), lines: [{ x1: 55, y1: 202, x2: 90, y2: 202, tone: 'gold' }, { x1: 565, y1: 202, x2: 700, y2: 202, tone: 'gold' }], connectedLine: true },
+  B1L4: {
+    title: 'Only your hand faces you',
+    description: 'Your seven tile faces are visible at the bottom. Each opponent has seven face-down tiles.',
+    tiles: row(['0-2', '1-3', '2-4', '3-5', '4-6', '1-6', '0-4'], 220).map((tile) => ({ ...tile, scale: .72 })),
+    backs: [
+      { x: 380, y: 65, count: 7, scale: .78 },
+      { x: 85, y: 140, count: 7, rotate: 90, scale: .78 },
+      { x: 675, y: 140, count: 7, rotate: 90, scale: .78 },
+    ],
+    badges: [{ text: 'YOU · FACE UP', x: 380, y: 200, tone: 'gold' }],
+    labels: [label('Your tiles stay private', 380, 355)],
+  },
   B1L5: simple('Three, two, one—domino', 'The hand shrinks until the final tile leaves and the player has none.', [
     ...row(['1-2', '2-4', '4-6'], 75), ...row(['2-4', '4-6'], 165), ...row(['4-6'], 255, 'gold'),
   ], 'Empty hand wins', [{ text: 'DOMINO!', x: 630, y: 285, tone: 'gold' }], [
@@ -95,9 +103,9 @@ Object.assign(diagrams, {
   B2L4: simple('No match means pass', 'The open ends are two and five; every tile in the hand lacks both.', row(['0-1', '1-3', '3-4', '4-6'], 205, 'muted'), 'No 2 and no 5 · PASS', [
     { text: '2 OPEN', x: 205, y: 92, tone: 'gold' }, { text: '5 OPEN', x: 555, y: 92, tone: 'gold' }, { text: 'PASS', x: 380, y: 160, tone: 'coral' },
   ]),
-  B2L5: simple('Four passes block the board', 'A jammed line sits between four face-up hands, each with an individual count.', row(['1-4', '4-4', '3-4', '3-6'], 135), 'Count each hand separately', [
+  B2L5: { ...simple('Four passes block the board', 'A jammed line sits between four face-up hands, each with an individual count.', row(['1-4', '4-4', '3-4', '3-6'], 135).map((tile, index) => ({ ...tile, rotate: (index === 2 ? 90 : -90) as -90 | 90 })), 'Count each hand separately', [
     { text: 'PASS × 4', x: 380, y: 70, tone: 'coral' }, { text: '3 pips', x: 120, y: 285, tone: 'gold' }, { text: '8 pips', x: 640, y: 285, tone: 'green' },
-  ]),
+  ]), connectedLine: true },
   B2L7: simple('Six-love and the bruk', 'One score track reaches six-nil; another five-nil run is cleared by one opponent win.', row(['0-6', '0-5'], 130), 'Their one win bruks your five to 0-0', [
     { text: '● ● ● ● ● ●', x: 250, y: 90, tone: 'gold' }, { text: '● ● ● ● ●', x: 510, y: 90, tone: 'green' }, { text: 'BRUK → 0-0', x: 510, y: 275, tone: 'coral' },
   ]),
@@ -108,7 +116,7 @@ Object.assign(diagrams, {
     { text: 'PARTNER · 2 SIDES', x: 230, y: 80, tone: 'green' }, { text: 'CUT THROAT · 4', x: 535, y: 80, tone: 'gold' },
   ]),
 
-  B3L1: simple('Read the hand before playing', 'Seven tiles reveal a long five suit and no blanks.', row(['1-5', '2-5', '3-5', '5-5', '2-4', '4-6'], 135), 'Long: 5 · Void: blank', [
+  B3L1: simple('Read the hand before playing', 'Seven tiles reveal a long five suit and no blanks.', row(['1-5', '2-5', '3-5', '5-5', '2-4', '4-6', '1-4'], 135).map((tile) => ({ ...tile, scale: .72 })), 'Long: 5 · Void: blank', [
     { text: '5s × 4', x: 260, y: 80, tone: 'gold' }, { text: '0s × 0', x: 500, y: 80, tone: 'coral' },
   ]),
   B3L2: simple('One pose, three jobs', 'Double-five opens a hand long in fives and creates three strategic benefits.', [{ id: '5-5', x: 352, y: 115, tone: 'gold', scale: 1.2 }], 'Way back · deny them · signal partner', [
@@ -136,25 +144,25 @@ Object.assign(diagrams, {
   B4L3: simple('The void map only grows', 'Three opponent seats carry permanent suit lists built from their passes.', [{ id: '2-6', x: 352, y: 130, tone: 'muted' }], 'Three short lists—not twenty-eight guesses', [
     { text: 'NORTH · no 1, 4', x: 380, y: 70, tone: 'gold' }, { text: 'EAST · no 2, 6', x: 660, y: 205, tone: 'green' }, { text: 'WEST · no 3', x: 100, y: 205, tone: 'coral' },
   ]),
-  B4L4: simple('Partner talk without words', 'A signal, a pass and repeated suit plays guide what the partner should open.', row(['2-5', '3-5', '4-6', '5-6'], 130), 'Name suit · heed pass · open partner · put partner out', [
+  B4L4: { ...simple('Partner talk without words', 'A signal, a pass and repeated suit plays guide what the partner should open.', row(['2-5', '3-5', '3-6', '5-6'], 130).map((tile, index) => ({ ...tile, rotate: (index % 2 === 0 ? -90 : 90) as -90 | 90 })), 'Name suit · heed pass · open partner · put partner out', [
     { text: 'SIGNAL 5', x: 140, y: 85, tone: 'gold' }, { text: 'PASS 2/4', x: 330, y: 85, tone: 'coral' }, { text: 'OPEN 6', x: 520, y: 85, tone: 'green' },
-  ]),
-  B4L5: simple('Jam the board on purpose', 'Plays target known voids until passes stack and the board closes.', row(['1-6', '3-6', '3-4', '2-4'], 130), 'Play their voids → force passes → win on count', [
+  ]), connectedLine: true },
+  B4L5: { ...simple('Jam the board on purpose', 'Plays target known voids until passes stack and the board closes.', row(['1-6', '3-6', '3-4', '2-4'], 130).map((tile, index) => ({ ...tile, rotate: (index % 2 === 0 ? -90 : 90) as -90 | 90 })), 'Play their voids → force passes → win on count', [
     { text: 'PASS', x: 175, y: 85, tone: 'coral' }, { text: 'PASS', x: 380, y: 85, tone: 'coral' }, { text: 'BLOCK', x: 585, y: 85, tone: 'gold' },
-  ]),
+  ]), connectedLine: true },
   B4L6: simple('The three-tile switch', 'Two branches compare racing out with protecting the lowest blocked count.', [{ id: '5-6', x: 215, y: 125, tone: 'coral' }, { id: '1-1', x: 500, y: 125, tone: 'gold' }], 'Late hand: compare exit speed with count', [
     { text: 'RACE · LOSE BLOCK', x: 240, y: 82, tone: 'coral' }, { text: 'SHED 11 · WIN', x: 530, y: 82, tone: 'gold' },
   ]),
-  B4L7: simple('Hard end, dead double, key', 'Scarce suits create three named reads on one board.', row(['1-6', '5-6', '4-5'], 130), 'Count the seven, then name the read', [
+  B4L7: { ...simple('Hard end, dead double, key', 'Scarce suits create three named reads on one board.', row(['1-6', '5-6', '4-5'], 130).map((tile, index) => ({ ...tile, rotate: (index === 0 ? -90 : 90) as -90 | 90 })), 'Count the seven, then name the read', [
     { text: 'HARD 6', x: 170, y: 82, tone: 'gold' }, { text: 'DEAD 5-5', x: 380, y: 82, tone: 'coral' }, { text: 'KEY: 4 & 6', x: 585, y: 82, tone: 'green' },
-  ]),
+  ]), connectedLine: true },
 
   B5L1: simple('Eliminate the impossible', 'The board, your hand and void badges cross impossible tiles from the unseen set.', row(['2-5', '3-5', '4-6', '2-6'], 130), 'Public facts narrow hidden hands', [
     { text: 'WEST: no 2, no 6', x: 380, y: 80, tone: 'coral' }, { text: '2-5 ✕', x: 240, y: 275, tone: 'coral' }, { text: '3-5 ✓', x: 380, y: 275, tone: 'green' }, { text: '4-6 ✕', x: 520, y: 275, tone: 'coral' },
   ]),
-  B5L2: simple('The score changes the play', 'One position has different priorities at five-nil, nil-five and one-all.', row(['1-4', '4-6', '2-6'], 130), '5-0 safe · 0-5 jam · 1-1 final', [
+  B5L2: { ...simple('The score changes the play', 'One position has different priorities at five-nil, nil-five and one-all.', row(['1-4', '4-6', '2-6'], 130).map((tile, index) => ({ ...tile, rotate: (index < 2 ? -90 : 90) as -90 | 90 })), '5-0 safe · 0-5 jam · 1-1 final', [
     { text: '5-0 · CLOSE', x: 180, y: 82, tone: 'gold' }, { text: '0-5 · BRUK', x: 380, y: 82, tone: 'coral' }, { text: '1-1 · PLAY TWO', x: 590, y: 82, tone: 'green' },
-  ]),
+  ]), connectedLine: true },
   B5L3: simple('A false signal', 'A believable conventional signal is deliberately reversed and the opponent follows it.', [{ id: '5-5', x: 215, y: 125, tone: 'muted' }, { id: '2-4', x: 500, y: 125, tone: 'gold' }], 'First speak the language—then choose when to lie', [
     { text: 'THEY EXPECT 5', x: 240, y: 82, tone: 'coral' }, { text: 'REAL HOME: 2/4', x: 530, y: 82, tone: 'gold' },
   ]),

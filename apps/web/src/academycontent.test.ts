@@ -60,3 +60,17 @@ test('the first pip-counting diagram labels the three and five halves correctly'
   assert.match(lowerCallout, />5 pips<\/text>/,
     'the callout beside the lower five must say 5 pips');
 });
+
+test('teaching lines are generated only after their domino joins are validated', async () => {
+  for (const lessonId of ['B1L3', 'B2L5', 'B4L4', 'B4L5', 'B4L7', 'B5L2']) {
+    const svg = await readFile(new URL(`../public/art/boards/${lessonId}.svg`, import.meta.url), 'utf8');
+    assert.match(svg, /data-connected-line="true"/, `${lessonId} must be a validated legal line`);
+  }
+});
+
+test('privacy diagram shows seven faces for you and seven backs for every opponent', async () => {
+  const svg = await readFile(new URL('../public/art/boards/B1L4.svg', import.meta.url), 'utf8');
+  assert.match(svg, /data-face-count="7"/);
+  assert.equal((svg.match(/data-back-count="7"/g) ?? []).length, 3);
+  assert.match(svg, /Your seven tile faces are visible/);
+});

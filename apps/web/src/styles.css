@@ -827,7 +827,8 @@ label.field > span {
 }
 .table-rack {
   position: absolute;
-  z-index: 3;
+  /* Played bones take visual priority; hand racks must never hide an open end. */
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
