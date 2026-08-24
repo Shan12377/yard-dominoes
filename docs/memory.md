@@ -670,6 +670,10 @@ Everything below is live and verified, not just written:
 - A pass is a visible table event: show a compact gold `PASS` callout at the
   passing player's physical felt edge in Practice and online play. It may
   never obscure the played line or become a substitute for the move log.
+- Watch Back is a reading view, not active play: measure its actual felt box
+  after it mounts and fit the full completed chain into a compact snake before
+  asking the viewer to pan. It may use smaller replay-only tiles; live-table
+  tap targets must remain large.
 - The homepage keeps the original completed domino-line WebP exactly as drawn.
   Its motion is a smooth highlight that travels from 2/4 through each connected
   bone to the last tile. Do not rearrange, replace, lift, drop or shake the

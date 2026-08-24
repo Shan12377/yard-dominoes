@@ -117,6 +117,12 @@ export interface BoardFit {
   maxUnits?: number;
   /** Pin the unit instead of fitting, for boards whose box is not the felt. */
   unit?: number;
+  /**
+   * The smallest readable unit this particular view may use. Live play keeps
+   * the default so tiles stay generous to tap; Watch Back may go smaller to
+   * show a completed line without making people pan across it.
+   */
+  minUnit?: number;
   /** The real box to lay the line out inside, measured by the caller from
    *  the actual attached DOM element. Falls back to feltBox()'s
    *  window-based guess when omitted (main.ts's local play, the hero demo,
@@ -158,6 +164,7 @@ export function chooseUnit(
   line: OrientedTile[], box: BoardBox, opts: BoardFit = {},
 ): { u: number; placements: TilePlacement[] } {
   const cap = opts.maxUnits ?? Infinity;
+  const minUnit = opts.minUnit ?? MIN_UNIT;
 
   const at = (u: number) => {
     const across = Math.min(Math.floor(box.width / u), cap);
@@ -171,7 +178,7 @@ export function chooseUnit(
   }
 
   let last: { u: number; placements: TilePlacement[] } | null = null;
-  for (let u = MAX_UNIT; u >= MIN_UNIT; u--) {
+  for (let u = MAX_UNIT; u >= minUnit; u--) {
     const placements = at(u);
     if (!placements) continue;
     last = { u, placements };
@@ -179,7 +186,7 @@ export function chooseUnit(
   }
   // Nothing fit the height budget — take the smallest and let the felt
   // scroll, which is what it did for every board before this.
-  return last ?? { u: MIN_UNIT, placements: layoutLine(line, MIN_WIDTH_UNITS) };
+  return last ?? { u: minUnit, placements: layoutLine(line, MIN_WIDTH_UNITS) };
 }
 
 /**
@@ -374,15 +381,20 @@ export function crossRejectReason(board: CrossBoard, tile: TileId): string | nul
   return "Doesn't match any open end on the board.";
 }
 
-function renderCross(host: HTMLElement, board: CrossBoard, _opts: BoardFit) {
-  const box = feltBox();
-  const { totalCols, totalRows, placements } = crossPlacements(board);
-
+/** The largest unit a four-way board can use inside a particular felt box. */
+export function chooseCrossUnit(board: CrossBoard, box: BoardBox, opts: BoardFit = {}): number {
+  const { totalCols, totalRows } = crossPlacements(board);
   const wantU = Math.min(
     Math.floor(box.width / totalCols),
     Math.floor(box.height / totalRows),
   );
-  const u = Math.max(MIN_UNIT, Math.min(MAX_UNIT, wantU || MIN_UNIT));
+  return Math.max(opts.minUnit ?? MIN_UNIT, Math.min(MAX_UNIT, wantU || (opts.minUnit ?? MIN_UNIT)));
+}
+
+function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
+  const box = opts.box ?? feltBox();
+  const { totalCols, totalRows, placements } = crossPlacements(board);
+  const u = chooseCrossUnit(board, box, opts);
   host.style.gridTemplateColumns = `repeat(${totalCols}, ${u}px)`;
   host.style.gridTemplateRows = `repeat(${totalRows}, ${u}px)`;
 

@@ -437,6 +437,15 @@ label.field > span {
 }
 .table-felt:not(.hero) > .line { position: relative; z-index: 2; }
 
+/* A replay is reading material, not a live hand: reserve a stable box so
+   the renderer can fit the entire completed chain rather than sizing itself
+   around an over-wide first draw and exposing a scrollbar. */
+.table-felt.replay-felt {
+  height: clamp(320px, 56svh, 560px);
+  min-height: 320px;
+  max-height: 560px;
+}
+
 /* ------------------------------------------------------------ table-cross
    Seats surround the felt instead of stacking below it — spec
    docs/superpowers/specs/2026-08-01-table-layout-design.md §2. Named grid

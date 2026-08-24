@@ -646,11 +646,27 @@ function replayView(): HTMLElement {
     'only what the table already saw.'));
   frag.appendChild(head);
 
-  const felt = el('div', 'table-felt');
+  const felt = el('div', 'table-felt replay-felt');
   const line = el('div', 'line');
-  renderBoard(line, boardAfter(r, replayStep));
+  const board = boardAfter(r, replayStep);
+  // This first draw prevents a blank board while the view attaches. Once it
+  // has a real box, Watch Back redraws against that exact space below.
+  renderBoard(line, board, { minUnit: 8 });
   felt.appendChild(line);
   frag.appendChild(felt);
+
+  requestAnimationFrame(() => {
+    if (!felt.isConnected) return;
+    // `feltBox()` is intentionally a safe window-based fallback for an
+    // unattached board. A replay is already on screen, though, so measuring
+    // its true inner space lets a long finished hand turn into a compact
+    // snake instead of needlessly demanding a horizontal scroll.
+    const box = {
+      width: Math.max(1, felt.clientWidth - 44),
+      height: Math.max(1, felt.clientHeight - 48),
+    };
+    renderBoard(line, board, { box, minUnit: 8 });
+  });
 
   const bar = el('div', 'panel');
   const caption = el('div', 'replay-caption');

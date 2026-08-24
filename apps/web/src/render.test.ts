@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
 import type { Board, CrossBoard, Pip, PlacedTile } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { chooseUnit, crossPlacements, crossRejectReason, rowsOf } from './render.ts';
+import { chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -121,6 +121,18 @@ test('the width cap is respected even when there is room to be bigger', () => {
   assert.ok(across <= 16, `capped at 16 units, laid out ${across}`);
 });
 
+test('Watch Back may use compact tiles to fit a completed hand without a horizontal pan', () => {
+  const line = orientLine(boardOf(28, mulberry32(23)));
+  const replayBox: BoardBox = { width: 300, height: 272 };
+  const { u, placements } = chooseUnit(line, replayBox, { minUnit: 8 });
+  const across = Math.max(...placements.map((p) => p.col + p.colSpan));
+  assert.ok(u >= 8 && u <= 28, `replay unit ${u} escaped its compact bounds`);
+  assert.ok(across * u <= replayBox.width,
+    `replay needed ${across * u}px of ${replayBox.width}px wide`);
+  assert.ok(rowsOf(placements) * u <= replayBox.height,
+    `replay needed ${rowsOf(placements) * u}px of ${replayBox.height}px high`);
+});
+
 // ------------------------------------------------------------ cross board --
 // A crosswise double used to get the same 2x2 footprint as an inline tile —
 // a 4x2 (or 2x4) domino squeezed into half its own width, which is exactly
@@ -225,6 +237,22 @@ test('a crosswise double never requests a column or row below the grid start, ev
       assert.ok(p.row >= 1, `arm ${armIndex}: row ${p.row} is off the explicit grid`);
     }
   }
+});
+
+test('Watch Back fits a dense French cross to its measured replay box', () => {
+  const arms: CrossBoard['arms'] = [
+    { direction: 'right', openEnd: 0, tiles: Array.from({ length: 5 }, () => ({ tile: '0-0', crosswise: true })) },
+    { direction: 'left', openEnd: 0, tiles: Array.from({ length: 5 }, () => ({ tile: '0-0', crosswise: true })) },
+    { direction: 'up', openEnd: 0, tiles: Array.from({ length: 5 }, () => ({ tile: '0-0', crosswise: true })) },
+    { direction: 'down', openEnd: 0, tiles: Array.from({ length: 5 }, () => ({ tile: '0-0', crosswise: true })) },
+  ];
+  const board: CrossBoard = { kind: 'cross', center: '0-0', arms, doublesPlayed: [0] };
+  const box: BoardBox = { width: 300, height: 272 };
+  const { totalCols, totalRows } = crossPlacements(board);
+  const u = chooseCrossUnit(board, box, { minUnit: 8 });
+  assert.ok(u >= 8 && u <= 28, `French replay unit ${u} escaped compact bounds`);
+  assert.ok(totalCols * u <= box.width, `French replay needed ${totalCols * u}px of ${box.width}px wide`);
+  assert.ok(totalRows * u <= box.height, `French replay needed ${totalRows * u}px of ${box.height}px high`);
 });
 
 // ------------------------------------------------------------ crossRejectReason --
