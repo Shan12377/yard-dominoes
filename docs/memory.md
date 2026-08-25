@@ -648,9 +648,12 @@ Everything below is live and verified, not just written:
   lines and the Academy tests protect these visual rules.
 - Duppies use a stable one-based seat label wherever a player follows the
   action, for example `Duppy 3 · pickney`. The Coach states a proven outcome
-  before its heuristic and names the end or French arm used, so two placements
-  of the same tile never look identical. French and Across now have visual
-  game guides above the five shared-skill belts.
+  before its heuristic and names the end or French arm used. A correct move
+  never gets duplicated as both “you played” and “best move”; a costly choice
+  must show the actual open ends and the player's retained bones for each
+  option, then distinguish that visible evidence from the completed-deal
+  solver's proof. French and Across now have visual game guides above the five
+  shared-skill belts.
 - Watching is live lounge presence, Standings is the current set score, and
   Log is the current hand's move history. Their panels explain those jobs.
   Watching has an explicit empty state instead of opening a blank mobile tab.

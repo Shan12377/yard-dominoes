@@ -59,6 +59,15 @@ export interface MoveReview {
     hand: TileId[];
     legal: Move[];
     ends: Pip[];
+    /**
+     * The two safe, player-facing consequences of the decision. These make a
+     * finished-hand verdict teachable without sending another seat's tiles:
+     * what each choice leaves open and which of this player's bones remain.
+     */
+    after?: {
+      actual: { ends: Pip[]; hand: TileId[] };
+      best: { ends: Pip[]; hand: TileId[] };
+    };
   };
 }
 
@@ -151,6 +160,14 @@ function gradeFor(loss: number): Grade {
 
 function endsOf(s: HandState): Pip[] | null {
   return s.board ? openEnds(s.board) : null;
+}
+
+function sameMove(a: Move, b: Move): boolean {
+  return a.kind === b.kind
+    && a.seat === b.seat
+    && (a as { tile?: TileId }).tile === (b as { tile?: TileId }).tile
+    && (a as { end?: string }).end === (b as { end?: string }).end
+    && (a as { arm?: number }).arm === (b as { arm?: number }).arm;
 }
 
 function voidsAt(s: HandState, seatCount: number): Set<Pip>[] {
@@ -338,11 +355,7 @@ export function reviewHand(
         for (const candidate of options_) {
           const v = solve(applyMove(s, candidate), side, memo, budget);
           if (v > bestValue) { bestValue = v; bestMove = candidate; }
-          const same =
-            candidate.kind === move.kind &&
-            (candidate as any).tile === (move as any).tile &&
-            (candidate as any).end === (move as any).end;
-          if (same) actualValue = v;
+          if (sameMove(candidate, move)) actualValue = v;
         }
 
         const loss = Math.max(0, bestValue - actualValue);
@@ -354,6 +367,9 @@ export function reviewHand(
 
         if (budget.exhausted) exactOverall = false;
 
+        const afterActual = applyMove(s, move);
+        const afterBest = applyMove(s, bestMove);
+
         reviews.push({
           ply, seat, move, best: bestMove,
           valueActual: actualValue, valueBest: bestValue,
@@ -363,6 +379,16 @@ export function reviewHand(
             hand: [...s.hands[seat]],
             legal: options_.map((candidate) => ({ ...candidate })),
             ends: s.board ? openEnds(s.board) : [],
+            after: {
+              actual: {
+                ends: endsOf(afterActual) ?? [],
+                hand: [...afterActual.hands[seat]],
+              },
+              best: {
+                ends: endsOf(afterBest) ?? [],
+                hand: [...afterBest.hands[seat]],
+              },
+            },
           },
         });
       }

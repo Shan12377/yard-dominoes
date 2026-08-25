@@ -83,5 +83,10 @@ test('visual Coach positions retain only the reviewed seat hand', async () => {
     assert.equal('boneyard' in decision.position, false,
       'a Coach snapshot must not smuggle hidden tiles through the boneyard');
     assert.ok(Array.isArray(decision.position.legal));
+    assert.ok(decision.position.after, 'a new Coach review should show both safe after-move reads');
+    assert.ok(Array.isArray(decision.position.after!.actual.ends));
+    assert.ok(Array.isArray(decision.position.after!.actual.hand));
+    assert.equal('hands' in decision.position.after!.actual, false,
+      'the after-move snapshot must never contain every seat hand');
   }
 });

@@ -41,6 +41,24 @@ function moveDetail(move: Move): string | null {
   return null;
 }
 
+function sameMove(a: Move, b: Move): boolean {
+  return a.kind === b.kind
+    && a.seat === b.seat
+    && (a as { tile?: TileId }).tile === (b as { tile?: TileId }).tile
+    && (a as { end?: string }).end === (b as { end?: string }).end
+    && (a as { arm?: number }).arm === (b as { arm?: number }).arm;
+}
+
+function readableEnds(ends: number[]): string | null {
+  if (ends.length === 0) return null;
+  const names = ['blank', 'one', 'two', 'three', 'four', 'five', 'six'];
+  return ends.map((pip) => names[pip] ?? String(pip)).join(' and ');
+}
+
+function tileName(tile: TileId | null): string | null {
+  return tile?.replace('-', '–') ?? null;
+}
+
 function choice(label: string, move: Move, className: string): HTMLElement {
   const card = node('div', `coach-choice ${className}`);
   card.append(node('span', 'coach-choice-label', label));
@@ -55,15 +73,40 @@ function choice(label: string, move: Move, className: string): HTMLElement {
 export function outcomeReason(review: MoveReview): string | null {
   if (!review.exact || review.grade === 'best') return null;
   if (review.valueActual === -1 && review.valueBest === 1) {
-    return 'Your choice leaves a forced loss against best play. The stronger choice keeps a winning route.';
+    return 'On this completed deal, your choice leaves a forced loss against best play. The stronger choice keeps a winning route.';
   }
   if (review.valueActual === -1 && review.valueBest === 0) {
-    return 'Your choice leaves a forced loss. The stronger choice can still save a tied block.';
+    return 'On this completed deal, your choice leaves a forced loss. The stronger choice can still save a tied block.';
   }
   if (review.valueActual === 0 && review.valueBest === 1) {
-    return 'Your choice settles for a tied block. The stronger choice keeps a winning route.';
+    return 'On this completed deal, your choice settles for a tied block. The stronger choice keeps a winning route.';
   }
   return null;
+}
+
+/**
+ * Turn the exact solver's verdict into a board read a person can verify.
+ * It intentionally uses only this seat's before/after hand and public ends.
+ */
+export function practicalReason(review: MoveReview): string | null {
+  const after = review.position?.after;
+  const actualTile = moveTile(review.move);
+  const bestTile = moveTile(review.best);
+  if (!after || !actualTile || !bestTile || sameMove(review.move, review.best)) return null;
+
+  const actualEnds = readableEnds(after.actual.ends);
+  const bestEnds = readableEnds(after.best.ends);
+  if (!actualEnds || !bestEnds) return null;
+
+  const actualKeepsBest = after.actual.hand.includes(bestTile);
+  const bestKeepsActual = after.best.hand.includes(actualTile);
+  const retained = actualKeepsBest && bestKeepsActual
+    ? ` It keeps ${tileName(bestTile)} in your hand instead of ${tileName(actualTile)}.`
+    : '';
+
+  return `${tileName(actualTile)} leaves ${actualEnds} open. ` +
+    `${tileName(bestTile)} leaves ${bestEnds} open.${retained} ` +
+    'The visible pip count alone does not prove the result; the completed-deal review checks the replies that follow.';
 }
 
 function decisionReason(review: MoveReview): string {
@@ -71,7 +114,7 @@ function decisionReason(review: MoveReview): string {
   const ends = review.position?.ends ?? [];
   if (review.move.kind === 'pass') return 'Neither open end matched a tile in your hand.';
   if (ends.length === 0) return 'This was your strongest opening from the choices available.';
-  return 'This was the strongest way to handle this position. Compare the open ends and the tiles you kept.';
+  return 'That was one of the strongest moves available. There is no separate “better” tile to copy here.';
 }
 
 function positionView(review: MoveReview): HTMLElement {
@@ -99,7 +142,9 @@ function positionView(review: MoveReview): HTMLElement {
   const hand = node('div', 'hand coach-hand');
   for (const id of review.position.hand) {
     const tile = tileEl(id);
-    if (id === moveTile(review.move)) tile.classList.add('coach-played-tile');
+    if (id === moveTile(review.move)) {
+      tile.classList.add(review.grade === 'best' ? 'coach-best-tile' : 'coach-played-tile');
+    }
     if (id === moveTile(review.best) && id !== moveTile(review.move)) tile.classList.add('coach-best-tile');
     hand.append(tile);
   }
@@ -155,17 +200,22 @@ export function coachReviewView(options: CoachViewOptions): HTMLElement {
     heading.append(title, grade);
     root.append(heading, positionView(current));
 
-    const compare = node('div', 'coach-compare');
-    compare.append(choice('You played', current.move, 'actual'));
-    compare.append(choice(
-      current.grade === 'best' ? 'Best move' : 'Stronger play', current.best, 'best'));
-    root.append(compare);
+    if (current.grade !== 'best') {
+      const compare = node('div', 'coach-compare');
+      compare.append(choice('You played', current.move, 'actual'));
+      compare.append(choice('Stronger play', current.best, 'best'));
+      root.append(compare);
+    } else {
+      root.append(node('div', 'coach-confirmed', 'One of the best moves.'));
+    }
 
     const why = node('div', 'coach-why');
     why.append(node('div', 'coach-kicker', 'Why it matters'));
     const outcome = outcomeReason(current);
     if (outcome) why.append(node('strong', 'coach-outcome', outcome));
     why.append(node('p', undefined, decisionReason(current)));
+    const practical = practicalReason(current);
+    if (practical) why.append(node('p', 'coach-practical', practical));
     root.append(why);
 
     const actions = node('div', 'coach-actions');

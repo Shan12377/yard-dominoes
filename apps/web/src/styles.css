@@ -1196,11 +1196,17 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 .coach-choice.actual { border-left: 4px solid var(--coral); }
 .coach-choice.best { border-left: 4px solid var(--gold); }
+.coach-confirmed {
+  margin: 14px 22px 0; padding: 12px 16px; border-radius: 10px;
+  color: var(--forest-hi); background: var(--signal); border: 1px solid var(--forest-hi);
+  font-weight: 800;
+}
 .coach-pass { font-family: var(--display); font-size: 25px; color: var(--bone); }
 .coach-move-detail { color: var(--muted); font-size: 13px; text-align: center; }
 .coach-why { margin: 14px 22px 0; padding: 15px 16px; border-left: 4px solid var(--sky); background: var(--signal); }
 .coach-outcome { display: block; max-width: 74ch; color: var(--bone); line-height: 1.45; }
 .coach-why p { margin: 5px 0 0; max-width: 74ch; line-height: 1.55; }
+.coach-practical { color: var(--bone); }
 .rail-help { margin: 5px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.35; }
 .table-talk-jump { display: none; }
 .social-connecting { flex: 1 0 100%; margin: 0 0 4px; color: var(--muted); font-size: 12px; }
@@ -1242,6 +1248,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .coach-choice { min-height: 100px; padding: 9px; }
   .coach-hand .tile, .coach-choice .tile { --w: 36px; --h: 72px; }
   .coach-why { margin: 12px 12px 0; }
+  .coach-confirmed { margin: 12px 12px 0; }
   .coach-actions { padding: 14px 12px 18px; flex-wrap: wrap; }
   .coach-actions .act { flex: 1 1 42%; }
 }
