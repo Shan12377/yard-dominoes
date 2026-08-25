@@ -15,6 +15,10 @@ re-deriving it from chat history.
   place the only action needed to begin below or above a full-sized board.
 - This is a presentation rule only. Do not alter dealing, tile visibility,
   turn order, scoring, or any engine/server authority to achieve the layout.
+- The in-felt player rail must show a complete standard seven-bone hand at
+  once on a portrait phone. It is a fixed, thumb-reachable reference while
+  deciding, not a horizontally clipped scroller. Fit the seven bones to the
+  rail while preserving their 1:2 domino proportion.
 
 ## Fast game and account entry (2026-08-22)
 

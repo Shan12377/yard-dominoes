@@ -442,8 +442,9 @@ label.field > span {
    fitted there and can never land underneath a playable bone. */
 .table-felt.hand-on-felt {
   display: grid;
-  /* A fixed rail keeps a two-end decision from stealing board height. */
-  grid-template-rows: minmax(0, 1fr) 118px;
+  /* A fixed rail keeps a two-end decision from stealing board height. Its
+     128px allowance includes a complete, full-height seven-bone hand. */
+  grid-template-rows: minmax(0, 1fr) 128px;
   align-items: stretch;
   gap: 7px;
   overflow: hidden;
@@ -472,8 +473,24 @@ label.field > span {
 }
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .eyebrow { margin-bottom: 2px; }
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand {
+  /* A standard four-player deal is seven bones. This rail is deliberately a
+     complete at-a-glance hand, not a horizontal scroller that hides the last
+     playable tile off the edge on a narrow phone. The bones retain their
+     1:2 material proportion while sharing the available rail width. */
+  display: grid;
+  /* Never let a wide desktop/tablet felt turn this into giant bones, but on
+     a narrow phone share the exact available width across all seven. */
+  grid-template-columns: repeat(7, minmax(0, min(40px, calc((100% - 24px) / 7))));
+  gap: 4px;
   justify-content: center;
-  padding: 5px 3px 7px;
+  overflow: visible;
+  padding: 5px 2px 7px;
+}
+.table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand .tile {
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  aspect-ratio: 1 / 2;
 }
 .hand-actions-dock {
   display: flex;
@@ -1740,7 +1757,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .table-room .live-felt,
   .practice-room .live-felt { height: 350px; min-height: 350px; max-height: 350px; }
   .my-hand-panel .hand .tile { --w: 40px; --h: 80px; }
-  .table-felt.hand-on-felt { grid-template-rows: minmax(0, 1fr) 108px; }
+  .table-felt.hand-on-felt { grid-template-rows: minmax(0, 1fr) 116px; }
 }
 
 @media (max-height: 620px) and (max-width: 900px) {
