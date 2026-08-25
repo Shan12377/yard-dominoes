@@ -25,10 +25,16 @@ Deno.serve(handled(async (req) => {
 
   const cached = await db.from('hand_reviews').select('*')
     .eq('hand_id', handId).eq('user_id', user.id).maybeSingle();
-  if (cached.data) return json({
+  // Reviews saved before the practical Coach shipped lack its safe
+  // before/after snapshots. Rebuild those existing reviews at no charge so a
+  // player does not get stuck with the old, unexplained verdict forever.
+  const cachedHasPracticalRead = cached.data
+    && Array.isArray((cached.data.review as any)?.reviews)
+    && (cached.data.review as any).reviews.every((entry: any) => entry.position?.after);
+  if (cachedHasPracticalRead) return json({
     ok: true,
-    review: cached.data.review,
-    accuracy: cached.data.accuracy,
+    review: cached.data!.review,
+    accuracy: cached.data!.accuracy,
     cached: true,
   });
 
@@ -89,10 +95,10 @@ Deno.serve(handled(async (req) => {
   // false` on the odd position that still needs more already has a UI
   // message ("too big to solve exactly") rather than a hard failure.
   const review = reviewHand(initial, hand.move_log, seat, { nodeLimit: 20_000 });
-  await db.from('hand_reviews').insert({
+  await db.from('hand_reviews').upsert({
     hand_id: handId, user_id: user.id, seat_index: seat,
     review, accuracy: accuracy(review),
-  });
+  }, { onConflict: 'hand_id,user_id' });
 
   return json({ ok: true, review, accuracy: accuracy(review) });
 }));
