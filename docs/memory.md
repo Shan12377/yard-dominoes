@@ -49,6 +49,11 @@ re-deriving it from chat history.
   particular, shades cover the portrait's eye line; crown, flower and
   headphones each use their own face-relative placement. Keep this behavior
   identical in the profile preview and live seat cards.
+- Avatar accessories are public cosmetics, like avatars and seat backdrops.
+  They are stored on the profile and shown in lounge/table seats; do not gate
+  this behind a deployment-only feature flag or a different device/preview
+  will lose the selected look. Existing local-only selections must be saved
+  once through **Save my look** to become portable.
 
 ## Fair-deal copy rule (2026-08-25)
 

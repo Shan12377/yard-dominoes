@@ -196,8 +196,10 @@ export function avatarAccessoryUrl(accessory: AvatarAccessory): string {
 }
 
 const LOCAL_ACCESSORY_PREFIX = 'yard:avatar-accessory:';
-/** Set only after migration 0043 is applied to the connected Supabase project. */
-const SHARE_AVATAR_ACCESSORIES = import.meta.env.VITE_AVATAR_ACCESSORIES_DB === 'true';
+// Accessories are public cosmetics, just like the selected avatar and seat
+// backdrop. Keeping them only in a browser meant a player could save shades
+// then lose them on a preview, another device, or at a live table.
+const SHARE_AVATAR_ACCESSORIES = true;
 
 function localAccessory(userId: string): AvatarAccessory | null {
   const value = localStorage.getItem(`${LOCAL_ACCESSORY_PREFIX}${userId}`);

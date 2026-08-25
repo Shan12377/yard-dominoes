@@ -77,8 +77,9 @@ function db() {
   return supabase;
 }
 
-/** Enabled only after migration 0043 reaches the connected project. */
-const SHARE_AVATAR_ACCESSORIES = import.meta.env.VITE_AVATAR_ACCESSORIES_DB === 'true';
+// Match the lounge profile contract: accessories are public cosmetics that
+// travel with a player's chosen avatar to every table and device.
+const SHARE_AVATAR_ACCESSORIES = true;
 
 export class OnlineGame {
   table: TableInfo;
