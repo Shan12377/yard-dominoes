@@ -706,6 +706,9 @@ export function liveTableView(
   const handOnFelt = !game.isSpectator && !!game.hand && game.table.mode !== 'across';
   const boardStage = handOnFelt ? el('div', 'board-stage') : felt;
   if (handOnFelt) felt.classList.add('hand-on-felt');
+  // A French cross grows in four directions. Its mobile felt gets a little
+  // more vertical room so late arms remain above—not underneath—the hand.
+  if (handOnFelt && displayBoard?.kind === 'cross') felt.classList.add('french-cross-live');
   const line = el('div', 'line');
   if (!game.hand) line.classList.add('awaiting-deal');
   // First pass: the cached real box once we have one (near-instant, no

@@ -255,10 +255,11 @@ test('Watch Back fits a dense French cross to its measured replay box', () => {
   assert.ok(totalRows * u <= box.height, `French replay needed ${totalRows * u}px of ${box.height}px high`);
 });
 
-test('an active French cross keeps readable bones before its board stage scrolls', () => {
-  // A realistic early spread can already have four normal bones on both
-  // horizontal arms. At the end of a hand, a French board is allowed to pan
-  // inside its own stage rather than shrinking its tiles below 10px.
+test('an active French cross fits a dense ordinary hand above its protected rail', () => {
+  // A realistic early spread can already have four normal bones on every
+  // arm. This is the constrained area left above a docked mobile hand: it
+  // must show the whole cross before asking the player to pan, while keeping
+  // the bones larger than the old six-pixel fallback.
   const arm = (direction: CrossBoard['arms'][number]['direction']) => ({
     direction,
     openEnd: 0 as Pip,
@@ -269,12 +270,15 @@ test('an active French cross keeps readable bones before its board stage scrolls
     arms: [arm('right'), arm('left'), arm('up'), arm('down')],
     doublesPlayed: [0],
   };
-  const box: BoardBox = { width: 240, height: 280 };
+  // A French-specific 520px felt leaves roughly this real stage after its
+  // hand rail, felt chrome and line padding are reserved. The French-only
+  // phone gutter borrows enough width for the complete four-arm overview.
+  const box: BoardBox = { width: 302, height: 331 };
   const { totalCols, totalRows } = crossPlacements(board);
   const u = chooseCrossUnit(board, box);
-  assert.equal(u, 10, `expected the readable French floor, got ${u}`);
-  assert.ok(totalCols * u > box.width || totalRows * u > box.height,
-    'a dense French board should use its dedicated scroll stage instead of shrinking below its readable floor');
+  assert.equal(u, 8, `expected the compact readable French floor, got ${u}`);
+  assert.ok(totalCols * u <= box.width && totalRows * u <= box.height,
+    'a dense ordinary French board must fit in the visible mobile stage');
 });
 
 // ------------------------------------------------------------ crossRejectReason --

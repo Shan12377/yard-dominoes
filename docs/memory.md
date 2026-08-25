@@ -42,9 +42,17 @@ re-deriving it from chat history.
 - The lounge starts with **Start a table**. Open tables belong immediately
   beneath it as an optional faster way to join a game already running; never
   make a first-time player scroll through a table list to begin playing.
-- A dense live French cross may pan inside its own board stage, but never
-  shrink below the readable 10px layout unit. The local hand rail must remain
-  visible while the board stage scrolls.
+- A dense live French cross first fits itself as one complete overview above
+  the protected hand rail, using an 8px minimum layout unit. This is larger
+  than the abandoned 6px fallback, while avoiding the old 10px floor that
+  pushed ordinary late-game arms underneath the hand. Only an unusually wide
+  or tall cross may pan inside its own board stage; the local hand rail must
+  remain visible throughout. On portrait phones an active French cross uses
+  its own 520–680px board-first felt so the rail does not steal the vertical
+  space the four arms need, and borrows the otherwise unused 12px side gutter
+  on each side to keep the 8px overview intact at 360px wide. The Practice
+  width guard must explicitly exempt this felt too. The page, not the cross,
+  may scroll on a short screen.
 
 ## Fast game and account entry (2026-08-22)
 

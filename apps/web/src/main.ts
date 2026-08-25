@@ -1446,6 +1446,9 @@ function tableView(g: LocalGame): DocumentFragment {
   if (handOnFelt) felt.classList.add('hand-on-felt');
   const line = el('div', 'line');
   const displayBoard = g.hand?.board ?? null;
+  // French needs room in both axes. Give the active cross a taller felt on
+  // phones rather than squeezing its final arms behind the protected hand.
+  if (handOnFelt && displayBoard?.kind === 'cross') felt.classList.add('french-cross-live');
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
   // measured.

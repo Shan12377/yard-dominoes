@@ -1691,6 +1691,24 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
     border-width: 7px;
     padding: 10px 8px;
   }
+  /* A French cross spends space above, below, left and right of the chucha.
+     Its own taller board-first surface lets the renderer show a crowded
+     cross in full above the docked hand instead of clipping its final arm. */
+  .table-room .live-felt.french-cross-live,
+  .practice-room .live-felt.french-cross-live {
+    height: clamp(520px, 78svh, 680px);
+    min-height: clamp(520px, 78svh, 680px);
+    max-height: 680px;
+    /* A four-arm board uses every horizontal pixel. Borrow the otherwise
+       decorative phone gutter for French only; equal negative margins keep
+       the document width unchanged, so this does not create page-side scroll. */
+    width: calc(100% + 24px);
+    margin-inline: -12px;
+  }
+  /* Practice's normal direct-child guard caps every panel at 100%. French is
+     the intentional exception above, otherwise Practice loses the very
+     phone-width gain that keeps its complete cross in view. */
+  .practice-room > .live-felt.french-cross-live { max-width: none; }
   .live-table-head { padding: 8px 10px; }
   .live-table-head h2 { font-size: 17px; }
   .live-table-head .act { min-height: 44px; padding: 7px 10px; }
@@ -1776,11 +1794,17 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .practice-room .live-felt { height: 350px; min-height: 350px; max-height: 350px; }
   .my-hand-panel .hand .tile { --w: 40px; --h: 80px; }
   .table-felt.hand-on-felt { grid-template-rows: minmax(0, 1fr) 116px; }
+  .table-room .live-felt.french-cross-live,
+  .practice-room .live-felt.french-cross-live { height: 520px; min-height: 520px; max-height: 520px; }
 }
 
 @media (max-height: 620px) and (max-width: 900px) {
   .table-room .live-felt,
   .practice-room .live-felt { height: 310px; min-height: 310px; max-height: 310px; }
+  /* Board legibility wins for French: the surrounding page can scroll, but
+     the cross itself must not be cut off behind the live hand. */
+  .table-room .live-felt.french-cross-live,
+  .practice-room .live-felt.french-cross-live { height: 520px; min-height: 520px; max-height: 520px; }
 }
 
 .chat-log {

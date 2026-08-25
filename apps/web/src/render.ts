@@ -106,11 +106,12 @@ function boardTile(p: TilePlacement): HTMLElement {
  * phone and a 27-inch monitor alike.
  */
 const MIN_UNIT = 11;
-/* A four-way French board spends units in every direction. It may pan at the
-   very end of a hand, but its bones must never collapse into unreadable dots.
-   The board stage is deliberately its own scroll container in that case, so
-   the player's protected hand rail remains visible. */
-const CROSS_MIN_UNIT = 10;
+/* A four-way French board spends units in every direction. Eight is the
+   smallest useful unit: it keeps the halves and pips legible, but—unlike the
+   old ten-pixel floor—still lets a dense, ordinary phone-sized cross stay
+   entirely above the player's protected hand rail. We only reach this floor
+   at the end of a crowded hand; roomier boards continue to use larger bones. */
+const CROSS_MIN_UNIT = 8;
 const MAX_UNIT = 28;
 
 /** Felt border + felt padding + the line's own padding, both sides. */
