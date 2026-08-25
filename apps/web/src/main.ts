@@ -1870,7 +1870,17 @@ function pending(message: string): HTMLElement {
 }
 
 // ---------------------------------------------------------------- render --
+function authInputIsActive(): boolean {
+  return view === 'membership' && loungeModule?.authInputIsActive() === true;
+}
+
 function render() {
+  // Android can emit resize events as its virtual keyboard opens, while the
+  // tournament clock and Realtime can independently request a redraw. This
+  // app normally replaces the entire DOM on each render; doing that to an
+  // active password field makes the keyboard jump and loses its composition
+  // state. Defer non-essential redraws until the field blurs instead.
+  if (authInputIsActive()) return;
   app.innerHTML = '';
   app.appendChild(chrome());
   const update = updateBar();
@@ -1942,6 +1952,9 @@ function render() {
  */
 let renderScheduled = false;
 function scheduleRender() {
+  if (authInputIsActive()) {
+    return;
+  }
   if (renderScheduled) return;
   renderScheduled = true;
   queueMicrotask(() => {

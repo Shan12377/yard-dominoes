@@ -94,6 +94,13 @@ re-deriving it from chat history.
   and password form immediately below the membership heading and focuses the
   email field. Never make a returning member scroll through pricing, profile,
   and account controls to discover whether the sign-in action worked.
+- **Android auth stability (2026-08-25):** do not replace a focused email or
+  password input because of a countdown, Realtime update, or virtual-keyboard
+  resize. The app shell defers membership redraws while an authentication input
+  is active, then resumes naturally after focus leaves. Inputs explicitly
+  disable autocapitalize, autocorrect, and spellcheck. Never redraw directly
+  from the input's blur event: mobile browsers fire blur before the tapped
+  submit button's click, and replacing the DOM there can swallow the action.
 
 ## Current product identity and connected systems (2026-08-22)
 

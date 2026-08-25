@@ -886,14 +886,15 @@ let accountMode: 'secure' | 'signin' = 'secure';
 let accountBusy = false;
 let accountError: string | null = null;
 let accountMessage: string | null = null;
-// render() rebuilds this panel's DOM on every keystroke elsewhere on the
-// lounge screen (the tournament countdown reruns rerender() on its own
-// timer — see tournamentview.ts's scheduleTick). Same fix as the chat
-// draft above: hold the values and caret outside the DOM and restore them.
+// A membership-page redraw replaces the native inputs. Android treats that
+// as a fresh field and can reset the keyboard state midway through a
+// password. main.ts therefore defers background redraws while either auth
+// field is active; these drafts remain outside the DOM for intentional
+// redraws such as validation feedback.
 let accountEmailDraft = '';
 let accountPasswordDraft = '';
-let accountPasswordCaret = 0;
 let accountFocusedField: 'email' | 'password' | null = null;
+let accountFocusRequest: 'email' | 'password' | null = null;
 
 // Forgot password — sign-in mode only, since "secure" is for someone who
 // doesn't have a password yet at all.
@@ -913,6 +914,18 @@ let newPasswordDraft = '';
 let recoveryBusy = false;
 let recoveryError: string | null = null;
 let recoveryDone = false;
+let recoveryPasswordFocused = false;
+
+/**
+ * Used by the app shell to protect the browser's native authentication
+ * fields from timer, resize, and realtime redraws while someone is typing.
+ * Submission deliberately clears focus first, so validation and progress
+ * states still render immediately.
+ */
+export function authInputIsActive(): boolean {
+  return (!accountBusy && accountOpen && accountFocusedField !== null)
+    || (!recoveryBusy && recoveryMode && recoveryPasswordFocused);
+}
 
 function passwordRecoveryPanel(rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
@@ -935,10 +948,17 @@ function passwordRecoveryPanel(rerender: () => void): HTMLElement {
   password.type = 'password';
   password.className = 'field';
   password.autocomplete = 'new-password';
+  password.setAttribute('autocapitalize', 'none');
+  password.setAttribute('autocorrect', 'off');
+  password.spellcheck = false;
   password.setAttribute('aria-label', 'New password');
   password.placeholder = 'At least 8 characters';
   password.value = newPasswordDraft;
   password.oninput = () => { newPasswordDraft = password.value; };
+  password.onfocus = () => { recoveryPasswordFocused = true; };
+  // Do not redraw from blur: mobile browsers dispatch blur before the tap's
+  // click, and replacing the DOM here can swallow "Save password".
+  password.onblur = () => { recoveryPasswordFocused = false; };
   panel.append(el('label', 'field-label', 'New password'), password);
 
   if (recoveryError) panel.append(el('div', 'banner small', recoveryError));
@@ -948,6 +968,7 @@ function passwordRecoveryPanel(rerender: () => void): HTMLElement {
   submit.textContent = recoveryBusy ? 'Saving…' : 'Save password';
   submit.disabled = recoveryBusy;
   submit.onclick = () => void (async () => {
+    recoveryPasswordFocused = false;
     if (newPasswordDraft.length < 8) { recoveryError = 'password needs at least 8 characters'; rerender(); return; }
     recoveryBusy = true; recoveryError = null; rerender();
     try {
@@ -1063,6 +1084,9 @@ function accountPanel(rerender: () => void): HTMLElement {
   email.type = 'email';
   email.className = 'field';
   email.autocomplete = 'email';
+  email.setAttribute('autocapitalize', 'none');
+  email.setAttribute('autocorrect', 'off');
+  email.spellcheck = false;
   email.setAttribute('aria-label', 'Email');
   email.placeholder = 'you@example.com';
   email.value = accountEmailDraft;
@@ -1070,35 +1094,36 @@ function accountPanel(rerender: () => void): HTMLElement {
     accountEmailDraft = email.value;
   };
   email.onfocus = () => { accountFocusedField = 'email'; };
+  email.onblur = () => {
+    if (accountFocusedField === 'email') accountFocusedField = null;
+  };
   panel.append(el('label', 'field-label', 'Email'), email);
 
   const password = document.createElement('input');
   password.type = 'password';
   password.className = 'field';
   password.autocomplete = secure ? 'new-password' : 'current-password';
+  password.setAttribute('autocapitalize', 'none');
+  password.setAttribute('autocorrect', 'off');
+  password.spellcheck = false;
   password.setAttribute('aria-label', 'Password');
   password.placeholder = secure ? 'At least 8 characters' : 'Your password';
   password.value = accountPasswordDraft;
   password.oninput = () => {
     accountPasswordDraft = password.value;
-    accountPasswordCaret = password.selectionStart ?? accountPasswordDraft.length;
   };
   password.onfocus = () => { accountFocusedField = 'password'; };
+  password.onblur = () => {
+    if (accountFocusedField === 'password') accountFocusedField = null;
+  };
   panel.append(el('label', 'field-label', 'Password'), password);
 
-  // Restore focus and caret only to whichever field was actually being typed
-  // in — otherwise both fields' focus() calls fight and the wrong one wins.
-  if (accountFocusedField === 'email') {
-    // type="email" does not support setSelectionRange in every browser. A
-    // direct focus still places the insertion point at the restored value's
-    // end and avoids throwing as soon as the inline sign-in form opens.
-    requestAnimationFrame(() => { email.focus(); });
-  } else if (accountFocusedField === 'password') {
-    requestAnimationFrame(() => {
-      password.focus();
-      password.setSelectionRange(accountPasswordCaret, accountPasswordCaret);
-    });
-  }
+  // A deliberate first focus is fine. What Android cannot tolerate is a
+  // later background redraw repeatedly replacing and re-focusing this field.
+  const requestedFocus = accountFocusRequest;
+  accountFocusRequest = null;
+  if (requestedFocus === 'email') requestAnimationFrame(() => email.focus());
+  if (requestedFocus === 'password') requestAnimationFrame(() => password.focus());
 
   if (accountError) panel.append(el('div', 'banner small', accountError));
   if (accountMessage) panel.append(el('div', 'muted small', accountMessage));
@@ -1110,6 +1135,7 @@ function accountPanel(rerender: () => void): HTMLElement {
     : (secure ? 'Secure account' : 'Sign in');
   submit.disabled = accountBusy;
   submit.onclick = () => void (async () => {
+    accountFocusedField = null;
     const addr = email.value.trim();
     const pass = password.value;
     if (!addr || !pass) { accountError = 'email and password are both needed'; rerender(); return; }
@@ -1160,6 +1186,7 @@ function accountPanel(rerender: () => void): HTMLElement {
       forgot.textContent = resetBusy ? 'Sending…' : 'Forgot password?';
       forgot.disabled = resetBusy;
       forgot.onclick = () => void (async () => {
+        accountFocusedField = null;
         const addr = email.value.trim();
         if (!addr) { resetError = 'enter your email first'; rerender(); return; }
         resetBusy = true; resetError = null; rerender();
@@ -1183,6 +1210,7 @@ function accountPanel(rerender: () => void): HTMLElement {
     ? 'Already secured an account? Sign in instead.'
     : 'New here? Secure this account instead.';
   switchMode.onclick = () => {
+    accountFocusedField = null;
     accountMode = secure ? 'signin' : 'secure';
     accountError = null;
     accountMessage = null;
@@ -1557,7 +1585,8 @@ export function membershipView(rerender: () => void): DocumentFragment {
       accountMode = 'signin';
       accountError = null;
       accountMessage = null;
-      accountFocusedField = 'email';
+      accountFocusedField = null;
+      accountFocusRequest = 'email';
       rerender();
     };
     head.appendChild(signIn);
