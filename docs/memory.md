@@ -37,6 +37,15 @@ re-deriving it from chat history.
   duppies/spectators receive public board information only; Open Hand visibly
   shares a partner's tiles with their partner by design.
 
+## Lounge and French mobile priority (2026-08-25)
+
+- The lounge starts with **Start a table**. Open tables belong immediately
+  beneath it as an optional faster way to join a game already running; never
+  make a first-time player scroll through a table list to begin playing.
+- A dense live French cross may pan inside its own board stage, but never
+  shrink below the readable 10px layout unit. The local hand rail must remain
+  visible while the board stage scrolls.
+
 ## Fast game and account entry (2026-08-22)
 
 - Open lounge tables render as a responsive compact card grid, not a tall

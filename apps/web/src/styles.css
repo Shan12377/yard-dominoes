@@ -677,6 +677,12 @@ label.field > span {
 /* Open tables are choices, not a feed. A compact card grid lets players scan
    mode, format and occupancy without spending a full row on each table. */
 .open-tables-panel { container-type: inline-size; }
+.open-tables-list {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(67,199,244,.22);
+}
+.open-tables-list > h3 { margin-top: 2px; }
 .open-table-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));

@@ -255,10 +255,10 @@ test('Watch Back fits a dense French cross to its measured replay box', () => {
   assert.ok(totalRows * u <= box.height, `French replay needed ${totalRows * u}px of ${box.height}px high`);
 });
 
-test('an active French cross stays whole on a narrow phone before it scrolls', () => {
+test('an active French cross keeps readable bones before its board stage scrolls', () => {
   // A realistic early spread can already have four normal bones on both
-  // horizontal arms. A linear-board minimum (11px) needs 396px here and
-  // hides an arm on a phone; the French overview floor is deliberately 6px.
+  // horizontal arms. At the end of a hand, a French board is allowed to pan
+  // inside its own stage rather than shrinking its tiles below 10px.
   const arm = (direction: CrossBoard['arms'][number]['direction']) => ({
     direction,
     openEnd: 0 as Pip,
@@ -272,9 +272,9 @@ test('an active French cross stays whole on a narrow phone before it scrolls', (
   const box: BoardBox = { width: 240, height: 280 };
   const { totalCols, totalRows } = crossPlacements(board);
   const u = chooseCrossUnit(board, box);
-  assert.equal(u, 6, `expected the mobile French overview floor, got ${u}`);
-  assert.ok(totalCols * u <= box.width, 'French cross must not hide a horizontal arm');
-  assert.ok(totalRows * u <= box.height, 'French cross must not hide a vertical arm');
+  assert.equal(u, 10, `expected the readable French floor, got ${u}`);
+  assert.ok(totalCols * u > box.width || totalRows * u > box.height,
+    'a dense French board should use its dedicated scroll stage instead of shrinking below its readable floor');
 });
 
 // ------------------------------------------------------------ crossRejectReason --

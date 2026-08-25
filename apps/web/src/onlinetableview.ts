@@ -40,7 +40,14 @@ export async function openTablesPanel(
   rerender: () => void,
 ): Promise<HTMLElement> {
   const wrap = el('div', 'panel open-tables-panel');
-  wrap.append(el('div', 'eyebrow', 'Open tables'), el('h2', undefined, 'Sit down'));
+  // Start with the thing almost every visitor came to do: make a table and
+  // play. On a phone, putting this after a long list of waiting tables turns
+  // a simple first action into a scroll hunt.
+  wrap.append(el('div', 'eyebrow', 'Play now'), el('h2', undefined, 'Start a table'));
+  wrap.appendChild(startTableForm(loungeId, onJoin));
+
+  const open = el('section', 'open-tables-list');
+  open.append(el('div', 'eyebrow', 'Open tables'), el('h3', undefined, 'Join a game already going'));
 
   let tables: OpenTable[] = [];
   try { tables = await listLoungeTables(loungeId); } catch { /* shown as empty below */ }
@@ -53,7 +60,7 @@ export async function openTablesPanel(
   });
 
   if (tables.length === 0) {
-    wrap.append(el('p', 'muted', 'No tables running here yet. Start one.'));
+    open.append(el('p', 'muted', 'No tables running here yet. Your table can be the first.'));
   } else {
     const list = el('div', 'open-table-grid');
     for (const t of tables) {
@@ -86,10 +93,9 @@ export async function openTablesPanel(
       row.appendChild(join);
       list.appendChild(row);
     }
-    wrap.appendChild(list);
+    open.appendChild(list);
   }
-
-  wrap.appendChild(startTableForm(loungeId, onJoin));
+  wrap.appendChild(open);
   return wrap;
 }
 
