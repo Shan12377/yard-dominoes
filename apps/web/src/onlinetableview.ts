@@ -498,7 +498,7 @@ function seatCard(
     avatarShell.appendChild(img);
     if (s.avatarAccessory) {
       const accessory = document.createElement('img');
-      accessory.className = 'avatar-accessory';
+      accessory.className = `avatar-accessory avatar-accessory-${s.avatarAccessory}`;
       accessory.src = avatarAccessoryUrl(s.avatarAccessory as AvatarAccessory);
       accessory.alt = '';
       accessory.width = 22;

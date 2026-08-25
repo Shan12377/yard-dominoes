@@ -56,7 +56,7 @@ export function avatarImg(
   shell.appendChild(img);
   if (accessory) {
     const flair = document.createElement('img');
-    flair.className = 'avatar-accessory';
+    flair.className = `avatar-accessory avatar-accessory-${accessory}`;
     flair.src = avatarAccessoryUrl(accessory);
     flair.alt = '';
     flair.width = 22;

@@ -1881,6 +1881,24 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   object-fit: contain; filter: drop-shadow(0 2px 1px rgba(5, 20, 30, .4));
   pointer-events: none;
 }
+/* Accessories are full illustrations, not interchangeable corner badges.
+   Their placement is part of making a picked look feel like it belongs to
+   the character: shades must meet the eyes, a crown the hairline, etc. */
+.avatar-accessory-shades {
+  width: 100%; height: 100%; inset: 0;
+}
+.avatar-accessory-crown {
+  width: 96%; height: 96%; left: 2%; top: -16%; right: auto; bottom: auto;
+}
+.avatar-accessory-flower {
+  width: 52%; height: 52%; right: -5%; top: 4%; bottom: auto;
+}
+.avatar-accessory-headphones {
+  width: 108%; height: 108%; left: -4%; top: -4%; right: auto; bottom: auto;
+}
+.avatar-accessory-flagpin {
+  width: 46%; height: 46%; right: -12%; bottom: -10%; left: auto; top: auto;
+}
 .avatar-look-preview {
   min-height: 86px; display: flex; align-items: center; justify-content: center;
   margin: 4px 0 12px; padding: 10px;

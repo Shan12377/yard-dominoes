@@ -45,6 +45,10 @@ re-deriving it from chat history.
 - The photo picker accepts `image/*`, but Android providers may supply an
   empty MIME type for a valid image. Accept only recognised image filenames in
   that empty-MIME case, and always decode and re-encode before upload.
+- Accessories are positioned illustrations, not generic corner badges. In
+  particular, shades cover the portrait's eye line; crown, flower and
+  headphones each use their own face-relative placement. Keep this behavior
+  identical in the profile preview and live seat cards.
 
 ## Fair-deal copy rule (2026-08-25)
 
