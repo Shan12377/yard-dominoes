@@ -106,6 +106,10 @@ function boardTile(p: TilePlacement): HTMLElement {
  * phone and a 27-inch monitor alike.
  */
 const MIN_UNIT = 11;
+/* A four-way French board spends units in every direction. On a phone it
+   needs a smaller overview floor than a linear line; otherwise a perfectly
+   ordinary spread is forced behind a horizontal scrollbar. */
+const CROSS_MIN_UNIT = 6;
 const MAX_UNIT = 28;
 
 /** Felt border + felt padding + the line's own padding, both sides. */
@@ -384,11 +388,12 @@ export function crossRejectReason(board: CrossBoard, tile: TileId): string | nul
 /** The largest unit a four-way board can use inside a particular felt box. */
 export function chooseCrossUnit(board: CrossBoard, box: BoardBox, opts: BoardFit = {}): number {
   const { totalCols, totalRows } = crossPlacements(board);
+  const minUnit = opts.minUnit ?? CROSS_MIN_UNIT;
   const wantU = Math.min(
     Math.floor(box.width / totalCols),
     Math.floor(box.height / totalRows),
   );
-  return Math.max(opts.minUnit ?? MIN_UNIT, Math.min(MAX_UNIT, wantU || (opts.minUnit ?? MIN_UNIT)));
+  return Math.max(minUnit, Math.min(MAX_UNIT, wantU || minUnit));
 }
 
 function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {

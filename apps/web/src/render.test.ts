@@ -255,6 +255,28 @@ test('Watch Back fits a dense French cross to its measured replay box', () => {
   assert.ok(totalRows * u <= box.height, `French replay needed ${totalRows * u}px of ${box.height}px high`);
 });
 
+test('an active French cross stays whole on a narrow phone before it scrolls', () => {
+  // A realistic early spread can already have four normal bones on both
+  // horizontal arms. A linear-board minimum (11px) needs 396px here and
+  // hides an arm on a phone; the French overview floor is deliberately 6px.
+  const arm = (direction: CrossBoard['arms'][number]['direction']) => ({
+    direction,
+    openEnd: 0 as Pip,
+    tiles: Array.from({ length: 4 }, () => ({ tile: '0-1' as const, crosswise: false })),
+  });
+  const board: CrossBoard = {
+    kind: 'cross', center: '0-0',
+    arms: [arm('right'), arm('left'), arm('up'), arm('down')],
+    doublesPlayed: [0],
+  };
+  const box: BoardBox = { width: 240, height: 280 };
+  const { totalCols, totalRows } = crossPlacements(board);
+  const u = chooseCrossUnit(board, box);
+  assert.equal(u, 6, `expected the mobile French overview floor, got ${u}`);
+  assert.ok(totalCols * u <= box.width, 'French cross must not hide a horizontal arm');
+  assert.ok(totalRows * u <= box.height, 'French cross must not hide a vertical arm');
+});
+
 // ------------------------------------------------------------ crossRejectReason --
 // Doubles-must-lead is board-wide: once a suit's double has been played
 // ANYWHERE on the board (CrossBoard.doublesPlayed), every arm showing that

@@ -19,6 +19,10 @@ re-deriving it from chat history.
   once on a portrait phone. It is a fixed, thumb-reachable reference while
   deciding, not a horizontally clipped scroller. Fit the seven bones to the
   rail while preserving their 1:2 domino proportion.
+- French uses a four-way board and needs its own compact mobile overview
+  floor. A normal active French spread must shrink as one complete cross
+  before the board stage is allowed to scroll; do not reuse the linear
+  board's larger minimum unit and hide an arm off-screen.
 
 ## Fast game and account entry (2026-08-22)
 
