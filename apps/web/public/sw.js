@@ -20,8 +20,6 @@ const PRECACHE = [
   '/',
   '/manifest.webmanifest',
   '/art/yaaddominoes-mark.svg',
-  '/art/hero-domino-line-360.webp',
-  '/art/hero-domino-line.webp',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',

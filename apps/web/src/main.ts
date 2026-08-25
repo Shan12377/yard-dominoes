@@ -505,28 +505,33 @@ function hero(): HTMLElement {
   const line = el('div', `hero-domino-cascade${heroHasEntered ? '' : ' entering'}`);
   heroHasEntered = true;
   line.setAttribute('role', 'img');
-  line.setAttribute('aria-label', 'A connected line of dominoes with doubles laid crosswise');
+  line.setAttribute('aria-label', 'A connected line of dominoes cascading around a bend');
 
-  const dominoImage = (className: string) => {
-    const image = document.createElement('img');
-    image.className = className;
-    image.src = '/art/hero-domino-line-360.webp';
-    image.srcset = '/art/hero-domino-line-360.webp 360w, /art/hero-domino-line.webp 720w';
-    image.sizes = '(max-width: 807px) calc(100vw - 66px), 720px';
-    image.alt = '';
-    image.width = 720;
-    image.height = 230;
-    image.decoding = 'async';
-    return image;
-  };
-  const base = dominoImage('hero-domino-line');
-  base.fetchPriority = 'high';
-  line.append(base);
-  for (let step = 1; step <= 7; step++) {
-    const pulse = dominoImage(`hero-domino-pulse hero-domino-pulse-${step}`);
-    pulse.setAttribute('aria-hidden', 'true');
-    line.append(pulse);
-  }
+  // These coordinates deliberately mirror the finished hero line: every
+  // adjacent face matches (2–4, 4–5, 5–5, 5–6, 6–6, 6–3, 3–3), doubles
+  // lie crosswise, and the last bone turns downward. Earlier versions used
+  // one static image with a travelling glow, which could not read as a real
+  // domino cascade. Individual canonical bones let the eye follow each land.
+  const bones: { id: TileId; x: number; y: number; horizontal?: boolean; reverse?: boolean }[] = [
+    { id: '2-4', x: 60, y: 115, horizontal: true },
+    { id: '4-5', x: 180, y: 115, horizontal: true },
+    { id: '5-5', x: 270, y: 115 },
+    { id: '5-6', x: 360, y: 115, horizontal: true },
+    { id: '6-6', x: 450, y: 115 },
+    { id: '3-6', x: 540, y: 115, horizontal: true, reverse: true },
+    { id: '3-3', x: 630, y: 145 },
+  ];
+  bones.forEach((bone, index) => {
+    const tile = tileEl(bone.id);
+    tile.classList.add('hero-bone', bone.horizontal ? 'hero-bone-horizontal' : 'hero-bone-vertical');
+    if (bone.reverse) tile.classList.add('hero-bone-reverse');
+    tile.style.setProperty('--hero-x', `${bone.x}`);
+    tile.style.setProperty('--hero-y', `${bone.y}`);
+    tile.style.setProperty('--hero-delay', `${index * 150}ms`);
+    tile.setAttribute('aria-hidden', 'true');
+    tile.removeAttribute('role');
+    line.append(tile);
+  });
 
   felt.append(copy, line);
   return felt;

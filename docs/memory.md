@@ -28,6 +28,15 @@ re-deriving it from chat history.
   circle. Never add a second floating video tile over the board; speaking is
   communicated by the existing seat glow.
 
+## Homepage domino motion rule (2026-08-25)
+
+- The hero is a real, connected seven-bone cascade, not a static image with a
+  glow effect. Its visible route is `2-4 → 4-5 → 5-5 → 5-6 → 6-6 → 6-3 →
+  3-3`; each tile settles before handing the motion to the next one, and the
+  final double turns downward. Keep the exact route and responsive geometry
+  together if the animation changes. Respect `prefers-reduced-motion` with a
+  complete, still chain.
+
 ## Fair-deal copy rule (2026-08-25)
 
 - Lead with the player-visible truth: after a hand, they can verify the deal
