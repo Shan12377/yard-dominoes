@@ -502,7 +502,8 @@ function hero(): HTMLElement {
   row.append(deal, fair);
   copy.appendChild(row);
 
-  const line = el('div', `hero-domino-cascade${heroHasEntered ? '' : ' entering'}`);
+  const heroIsEntering = !heroHasEntered;
+  const line = el('div', `hero-domino-cascade${heroIsEntering ? ' entering' : ''}`);
   heroHasEntered = true;
   line.setAttribute('role', 'img');
   line.setAttribute('aria-label', 'A connected line of dominoes cascading around a bend');
@@ -527,11 +528,21 @@ function hero(): HTMLElement {
     if (bone.reverse) tile.classList.add('hero-bone-reverse');
     tile.style.setProperty('--hero-x', `${bone.x}`);
     tile.style.setProperty('--hero-y', `${bone.y}`);
-    tile.style.setProperty('--hero-delay', `${index * 150}ms`);
+    tile.style.setProperty('--hero-delay', `${index * 310}ms`);
     tile.setAttribute('aria-hidden', 'true');
     tile.removeAttribute('role');
     line.append(tile);
   });
+
+  // Once the last bone has landed, release the temporary compositor hint.
+  // The class is only an entrance state: the completed line stays still.
+  if (heroIsEntering) {
+    const finishEntrance = () => line.classList.remove('entering');
+    line.addEventListener('animationend', (event) => {
+      if (event.target === line.lastElementChild) finishEntrance();
+    });
+    window.setTimeout(finishEntrance, 2500);
+  }
 
   felt.append(copy, line);
   return felt;

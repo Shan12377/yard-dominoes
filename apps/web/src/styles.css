@@ -1461,14 +1461,13 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   margin: auto;
   overflow: visible;
   pointer-events: none;
+  perspective: 900px;
 }
 .hero-domino-cascade.entering {
-  animation: hero-line-arrive 920ms cubic-bezier(.18,.78,.2,1.08) 90ms backwards;
+  animation: none;
 }
 .hero-bone {
   --rest-rotate: 0deg;
-  --lift-rotate: -7deg;
-  --land-rotate: 3deg;
   position: absolute;
   left: calc(var(--hero-x) / 720 * 100%);
   top: calc(var(--hero-y) / 230 * 100%);
@@ -1477,42 +1476,46 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   aspect-ratio: 1 / 2;
   padding: clamp(1px, .42vw, 3px);
   transform-origin: center;
-  will-change: transform, filter;
-  /* Seven 150ms offsets take the wave through the bend in 900ms. A 1.4s
-     cycle makes bone 1 rise again just before bone 7 finishes settling, so
-     there is never a visual dead stop at the end of the snake. */
-  animation: hero-bone-cascade 1.4s cubic-bezier(.22,.8,.28,1) var(--hero-delay) infinite both;
+  transform: translate(-50%, -50%) rotate(var(--rest-rotate));
+  backface-visibility: hidden;
 }
 .hero-bone-horizontal {
   --rest-rotate: -90deg;
-  --lift-rotate: -98deg;
-  --land-rotate: -86deg;
 }
 .hero-bone-reverse {
   --rest-rotate: 90deg;
-  --lift-rotate: 98deg;
-  --land-rotate: 86deg;
 }
-/* The wave never removes a placed bone. The moving one rises, settles, then
-   hands the motion to its matching neighbour, so the chain reads as a
-   continuous 2–4 → … → 3–3 cascade rather than a flicker. */
-@keyframes hero-bone-cascade {
-  0%, 100% {
-    transform: translate(-50%, -50%) rotate(var(--rest-rotate));
-    filter: none;
-  }
-  7% {
-    transform: translate(-50%, calc(-50% - 12px)) rotate(var(--lift-rotate)) scale(1.035);
-    filter: brightness(1.1) drop-shadow(0 8px 7px rgba(5, 43, 67, .42));
-  }
-  16% {
-    transform: translate(-50%, calc(-50% + 3px)) rotate(var(--land-rotate)) scale(.985);
-    filter: brightness(1.05) drop-shadow(0 3px 3px rgba(5, 43, 67, .38));
-  }
-  45% {
-    transform: translate(-50%, -50%) rotate(var(--rest-rotate));
-    filter: none;
-  }
+/* A real domino effect: a tile appears edge-on, tips flat, then leaves the
+   next bone to land. It runs once on arrival and keeps the complete chain on
+   screen afterwards; looping back to the first tile would make a natural
+   cascade look like a glitch. */
+.hero-domino-cascade.entering .hero-bone {
+  will-change: transform, opacity, filter;
+  animation: hero-bone-topple 440ms cubic-bezier(.2,.78,.24,1.06) var(--hero-delay) both;
+}
+.hero-domino-cascade.entering .hero-bone-horizontal {
+  animation-name: hero-bone-topple-horizontal;
+}
+.hero-domino-cascade.entering .hero-bone-reverse {
+  animation-name: hero-bone-topple-horizontal-reverse;
+}
+@keyframes hero-bone-topple {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--rest-rotate)) rotateX(78deg) translateY(-12px); filter: brightness(1.12); }
+  24% { opacity: 1; }
+  68% { transform: translate(-50%, -50%) rotate(var(--rest-rotate)) rotateX(-5deg) translateY(2px); }
+  100% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--rest-rotate)); filter: none; }
+}
+@keyframes hero-bone-topple-horizontal {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--rest-rotate)) rotateY(-78deg) translateX(-12px); filter: brightness(1.12); }
+  24% { opacity: 1; }
+  68% { transform: translate(-50%, -50%) rotate(var(--rest-rotate)) rotateY(5deg) translateX(2px); }
+  100% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--rest-rotate)); filter: none; }
+}
+@keyframes hero-bone-topple-horizontal-reverse {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--rest-rotate)) rotateY(78deg) translateX(12px); filter: brightness(1.12); }
+  24% { opacity: 1; }
+  68% { transform: translate(-50%, -50%) rotate(var(--rest-rotate)) rotateY(-5deg) translateX(-2px); }
+  100% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--rest-rotate)); filter: none; }
 }
 @keyframes hero-line-arrive {
   0% { transform: translateY(-34px) rotate(-2.5deg) scale(.94); opacity: 0; }

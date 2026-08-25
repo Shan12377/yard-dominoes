@@ -30,12 +30,12 @@ re-deriving it from chat history.
 
 ## Homepage domino motion rule (2026-08-25)
 
-- The hero is a real, connected seven-bone cascade, not a static image with a
-  glow effect. Its visible route is `2-4 → 4-5 → 5-5 → 5-6 → 6-6 → 6-3 →
-  3-3`; each tile settles before handing the motion to the next one, and the
-  final double turns downward. Keep the exact route and responsive geometry
-  together if the animation changes. Respect `prefers-reduced-motion` with a
-  complete, still chain.
+- The hero is a real, connected seven-bone domino effect, not a static image
+  with a glow effect. Its visible route is `2-4 → 4-5 → 5-5 → 5-6 → 6-6 →
+  6-3 → 3-3`; each tile visibly tips and lands before handing the movement to
+  the next one, then the finished line remains on screen. Keep the exact route
+  and responsive geometry together if the animation changes. Respect
+  `prefers-reduced-motion` with a complete, still chain.
 
 ## Fair-deal copy rule (2026-08-25)
 
@@ -739,19 +739,10 @@ Everything below is live and verified, not just written:
   after it mounts and fit the full completed chain into a compact snake before
   asking the viewer to pan. It may use smaller replay-only tiles; live-table
   tap targets must remain large.
-- The homepage keeps the original completed domino-line WebP exactly as drawn.
-  Its motion is a smooth highlight that travels from 2/4 through each connected
-  bone to the last tile. Do not rearrange, replace, lift, drop or shake the
-  bones; motion belongs in clipped overlays above the original artwork.
-- **Production correction recorded 2026-08-23:** `www.yaaddominoes.com` was
-  manually promoted from `design/yaaddominoes-foundation`, not deployed by a
-  push or merge to `main`. Vercel confirms production is READY at commit
-  `dc2742c` (`fix: close the dead gap in the homepage domino cascade loop`).
-  This release includes the mobile table-talk work from `a2492f7`, every later
-  committed change on the branch through `dc2742c`, and the full Kingston
-  Signal/YaadDominoes brand foundation. The cascade was measured again on the
-  real production URL and retained the verified 0.03 opacity trough with no
-  dead pause.
+- **Historical note, superseded 2026-08-25:** the original homepage used a
+  static WebP and travelling highlight. It was intentionally replaced by the
+  real connected-bone domino effect documented above; do not restore the
+  former image or looping glow animation.
 - `origin/main` remains a stale, disconnected baseline and is not evidence of
   what is live. Future agents must inspect the Vercel project's current
   production target and its commit SHA before reporting deployment status.
