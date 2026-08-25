@@ -304,7 +304,7 @@ export interface TableSocial {
 
 /** Speaking ring and thrown reaction on a seat, keyed by the player's user id.
  * Duppy seats have no user id and are skipped — a bot never talks. */
-function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSocial): void {
+function decorateSeat(card: HTMLElement, userId: string | null, name: string, social?: TableSocial): void {
   if (!userId || !social) return;
 
   if (social.speaking.has(userId)) {
@@ -322,8 +322,18 @@ function decorateSeat(card: HTMLElement, userId: string | null, social?: TableSo
     video.autoplay = true;
     video.playsInline = true;
     video.muted = true; // this is a picture, not a second audio path — voice already carries sound
+    video.setAttribute('aria-label', `${name}'s live camera`);
     video.srcObject = stream;
-    card.appendChild(video);
+    // Every person gets one identity spot at the table. A live camera takes
+    // over their photo/avatar there instead of adding a second floating tile
+    // that would compete with their name or, worse, the domino board.
+    const identity = card.querySelector<HTMLElement>('.avatar-shell');
+    if (identity) {
+      identity.classList.add('live-video');
+      identity.replaceChildren(video);
+    } else {
+      card.prepend(video);
+    }
   }
 
   // Reactions and quick chat share this one slot, so a person is only ever
@@ -529,7 +539,7 @@ function seatCard(
   const scoreIndex = isPartnered(game.table.mode) ? sideOf(s.seatIndex, game.table.mode) : s.seatIndex;
   const score = game.scores[scoreIndex] ?? 0;
   card.append(el('div', 'seat-score', String(score)));
-  decorateSeat(card, s.userId, social);
+  decorateSeat(card, s.userId, seatName(s), social);
   if (s.userId && s.seatIndex !== game.mySeat) {
     card.appendChild(reportButton(s.userId, game.table.id, rerender));
   }

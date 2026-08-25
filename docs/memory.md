@@ -23,6 +23,10 @@ re-deriving it from chat history.
   floor. A normal active French spread must shrink as one complete cross
   before the board stage is allowed to scroll; do not reuse the linear
   board's larger minimum unit and hide an arm off-screen.
+- A player has one seat identity slot: their uploaded profile photo falls
+  back to their illustrated avatar, and a live camera replaces that same
+  circle. Never add a second floating video tile over the board; speaking is
+  communicated by the existing seat glow.
 
 ## Fair-deal copy rule (2026-08-25)
 

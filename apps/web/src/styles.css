@@ -2009,12 +2009,30 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   font-size: 13px;
 }
 .video-bar .muted { font-size: 12.5px; }
-.seat-video {
-  position: absolute; top: 6px; right: 6px;
-  width: 56px; height: 56px; border-radius: 50%;
-  object-fit: cover; border: 2px solid var(--bone-shade);
-  box-shadow: 0 1px 4px rgba(36, 22, 8, 0.4);
+/* One identity slot per seat: a live camera replaces the profile photo or
+   illustrated avatar instead of becoming a second floating element. Four
+   people can therefore show video without ever taking a pixel from the felt. */
+.avatar-shell.live-video {
+  width: var(--seat-identity-size, 32px);
+  height: var(--seat-identity-size, 32px);
+  overflow: hidden;
+  border-radius: 50%;
   background: var(--forest-lo);
+  border: 2px solid var(--bone-shade);
+  box-shadow: 0 1px 4px rgba(36, 22, 8, 0.4);
+}
+.seat-video {
+  position: static;
+  display: block;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  background: var(--forest-lo);
+}
+.table-cross .seat .avatar-shell.live-video { --seat-identity-size: 44px; }
+.table-room .seat-slot-left .seat .avatar-shell.live-video,
+.table-room .seat-slot-right .seat .avatar-shell.live-video { --seat-identity-size: 30px; }
+@media (max-width: 700px) {
+  .table-cross .seat .avatar-shell.live-video { --seat-identity-size: 24px; }
 }
 
 /* ------------------------------------------------------------------ tiers */
