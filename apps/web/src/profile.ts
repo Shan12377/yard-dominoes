@@ -505,10 +505,12 @@ function adminSection(rerender: () => void): HTMLElement {
 // --------------------------------------------------------------- profile --
 let profileError: string | null = null;
 let profileSaving = false;
+let lookSaveError: string | null = null;
+let pendingLook: { userId: string; avatar: Avatar | null; accessory: AvatarAccessory | null } | null = null;
 
 /** The caller owns whether the panel is open at all (each has its own
  *  "Edit profile" toggle); this only clears a stale error when it reopens. */
-export function clearProfileError() { profileError = null; }
+export function clearProfileError() { profileError = null; lookSaveError = null; }
 
 /**
  * `onSaved` hands the refreshed profile back to the caller rather than this
@@ -571,8 +573,12 @@ export function profilePanel(
   panel.append(el('label', 'field-label', 'Presence (optional)'));
   panel.append(el('p', 'muted small',
     'Pick a face, then make it yours with one accessory. Change either anytime.'));
-  let avatar: Avatar | null = me.avatar;
-  let avatarAccessory: AvatarAccessory | null = me.avatarAccessory;
+  // Keep a freshly selected look if a phone loses connection during save.
+  // The profile re-renders to show the error, but making somebody choose all
+  // over again would be the opposite of a reassuring mobile flow.
+  const savedLook = pendingLook?.userId === me.id ? pendingLook : null;
+  let avatar: Avatar | null = savedLook ? savedLook.avatar : me.avatar;
+  let avatarAccessory: AvatarAccessory | null = savedLook ? savedLook.accessory : me.avatarAccessory;
   const lookPreview = el('div', 'avatar-look-preview');
   const paintLook = () => {
     lookPreview.replaceChildren();
@@ -640,6 +646,39 @@ export function profilePanel(
   paintAccessories();
   panel.append(accessoryGrid, accessoryCaption);
 
+  // A phone user should not have to hunt below every remaining profile field
+  // to keep the character they just made. This only saves the look; the full
+  // Save button below still commits name, location and seat backdrop together.
+  const saveLook = document.createElement('button');
+  saveLook.type = 'button';
+  saveLook.className = 'act small';
+  saveLook.textContent = profileSaving ? 'Saving…' : 'Save my look';
+  saveLook.disabled = profileSaving;
+  saveLook.onclick = () => void (async () => {
+    if (profileSaving) return;
+    pendingLook = { userId: me.id, avatar, accessory: avatarAccessory };
+    profileSaving = true;
+    lookSaveError = null;
+    saveLook.disabled = true;
+    saveLook.textContent = 'Saving…';
+    try {
+      await saveProfile({ avatar, avatar_accessory: avatarAccessory });
+      pendingLook = null;
+      const fresh = await myProfile();
+      if (fresh) onSaved(fresh);
+      else lookSaveError = 'saved, but your session dropped — reload to see it';
+    } catch (err) {
+      lookSaveError = err instanceof Error ? err.message : 'could not save';
+    } finally {
+      profileSaving = false;
+      rerender();
+    }
+  })();
+  const lookSaveRow = el('div', 'row');
+  lookSaveRow.append(el('p', 'muted small', 'Happy with your look? Save it now.'), saveLook);
+  panel.appendChild(lookSaveRow);
+  if (lookSaveError) panel.append(el('div', 'banner small', lookSaveError));
+
   panel.append(el('label', 'field-label', 'Seat backdrop (optional)'));
   panel.append(el('p', 'muted small',
     'A cosmetic scene worn behind your seat card. Nobody else\'s tiles or '
@@ -678,6 +717,7 @@ export function profilePanel(
   save.textContent = profileSaving ? 'Saving…' : 'Save';
   save.disabled = profileSaving;
   save.onclick = () => void (async () => {
+    if (profileSaving) return;
     profileSaving = true;
     profileError = null;
     rerender();

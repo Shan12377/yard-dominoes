@@ -37,6 +37,15 @@ re-deriving it from chat history.
   and responsive geometry together if the animation changes. Respect
   `prefers-reduced-motion` with a complete, still chain.
 
+## Android profile rule (2026-08-25)
+
+- Avatar selection must have a nearby `Save my look` action. Do not make a
+  phone user scroll past unrelated profile settings to preserve a character
+  they just chose.
+- The photo picker accepts `image/*`, but Android providers may supply an
+  empty MIME type for a valid image. Accept only recognised image filenames in
+  that empty-MIME case, and always decode and re-encode before upload.
+
 ## Fair-deal copy rule (2026-08-25)
 
 - Lead with the player-visible truth: after a hand, they can verify the deal

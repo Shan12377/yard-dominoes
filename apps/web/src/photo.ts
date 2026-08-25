@@ -25,6 +25,7 @@ function db() {
 
 const BUCKET = 'profile-photos';
 const SIZE = 512; // matches the preset avatar art's own square size, design.md
+const IMAGE_FILE_NAME = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)$/i;
 
 function pathFor(userId: string): string {
   return `${userId}/photo.webp`;
@@ -90,7 +91,13 @@ function friendlyError(err: unknown): Error {
 }
 
 export async function uploadMyPhoto(file: File): Promise<void> {
-  if (!file.type.startsWith('image/')) throw new Error('That is not an image file');
+  // Android document providers occasionally omit File.type even for a real
+  // photo. The chooser is already constrained to images; accept a recognised
+  // image filename in that narrow empty-MIME case, then still decode it before
+  // anything can reach Storage.
+  if (!file.type.startsWith('image/') && !(file.type === '' && IMAGE_FILE_NAME.test(file.name))) {
+    throw new Error('That is not an image file');
+  }
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) throw new Error('sign in first');
 
