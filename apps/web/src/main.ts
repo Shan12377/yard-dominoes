@@ -1753,30 +1753,41 @@ function academyView(): DocumentFragment {
 function fairView(): HTMLElement {
   const panel = el('div', 'panel');
   panel.append(el('div', 'eyebrow', 'Fair deal'));
-  panel.append(el('h2', undefined, 'The tiles are not against you'));
-  panel.append(el('p', undefined,
-    'Every domino app gets the same accusation, and most of them deserve it. ' +
-    'Here is how you can check ours instead of taking our word.'));
+  panel.append(el('h2', undefined, 'Fair deal. Check it yourself.'));
+  panel.append(el('p', undefined, 'No funny business with the bones.'));
 
+  const promise = el('div', 'lesson fair-promise');
+  promise.append(
+    el('p', undefined,
+      'Before every hand, we publish a lock on the shuffle. After the hand ends, tap Verify this deal ' +
+      'to see the starting hands and check that the locked shuffle produced them.'),
+    el('p', undefined,
+      'In standard private-hand games, your tiles stay private during play. Other players, spectators ' +
+      'and duppies receive only the board, tile counts and moves already made. Open Hand visibly shares ' +
+      'a partner\'s tiles with their partner.'),
+    el('strong', undefined, 'A deal you can verify. Free.'),
+  );
+  panel.appendChild(promise);
+
+  // The check must be easy to understand before a player sees the underlying
+  // cryptography. Keep the precise mechanism available for anyone who wants
+  // to inspect it, without making "seed" and "fingerprint" the first lesson.
+  const technical = document.createElement('details');
+  technical.className = 'fair-technical';
+  const summary = document.createElement('summary');
+  summary.textContent = 'How the check works';
+  technical.appendChild(summary);
   const steps: [string, string][] = [
-    ['Before the deal', 'We generate a secret seed and publish its fingerprint. The seed is now locked — we cannot change it without the fingerprint changing.'],
-    ['Your seed', 'Your device adds a seed of its own. We cannot know it in advance, so we cannot hunt for a shuffle that suits us.'],
-    ['The shuffle', 'Both seeds together decide the order, by a fixed calculation with no room for a thumb on the scale.'],
-    ['After the hand', 'We reveal the seed. Tap Verify this deal and your device redoes the whole shuffle and checks it matches what you were dealt.'],
+    ['Before the deal', 'We create a secret server key and publish its fingerprint. That locks the key for this hand: changing it would change the fingerprint.'],
+    ['The shuffle', 'The locked key, together with this hand\'s fixed inputs, decides the tile order through one fixed calculation.'],
+    ['After the hand', 'We reveal the server key. Your device repeats the shuffle and checks it against the deal you received.'],
   ];
   for (const [title, body] of steps) {
     const item = el('div', 'lesson');
     item.append(el('h3', undefined, title), el('p', undefined, body));
-    panel.appendChild(item);
+    technical.appendChild(item);
   }
-
-  const note = el('div', 'lesson');
-  note.append(el('h3', undefined, 'And the duppies'));
-  note.append(el('p', undefined,
-    'They are handed the board, the tile counts and the record of who passed on ' +
-    'what. They are never handed your tiles. The harder ones are harder because ' +
-    'they think further, not because they see more.'));
-  panel.appendChild(note);
+  panel.appendChild(technical);
   return panel;
 }
 

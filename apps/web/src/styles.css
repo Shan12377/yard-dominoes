@@ -1138,6 +1138,18 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 .deal-technical summary { cursor: pointer; color: var(--muted); font-weight: 800; }
 .deal-technical code { display: block; margin: 3px 0 10px; }
+.fair-promise { display: grid; gap: 8px; }
+.fair-promise p { margin: 0; }
+.fair-promise strong { color: var(--gold); }
+.fair-technical {
+  margin-top: 12px; padding: 12px; border: 1px solid var(--wood-hi); border-radius: 8px;
+  background: var(--signal-lo);
+}
+.fair-technical summary { cursor: pointer; color: var(--muted); font-weight: 800; }
+.fair-technical[open] { display: grid; gap: 8px; }
+.fair-technical .lesson { margin: 0; }
+.fair-technical .lesson h3 { margin: 0 0 3px; }
+.fair-technical .lesson p { margin: 0; }
 
 @media (max-width: 620px) {
   .deal-checks { grid-template-columns: 1fr; }

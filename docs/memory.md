@@ -24,6 +24,19 @@ re-deriving it from chat history.
   before the board stage is allowed to scroll; do not reuse the linear
   board's larger minimum unit and hide an arm off-screen.
 
+## Fair-deal copy rule (2026-08-25)
+
+- Lead with the player-visible truth: after a hand, they can verify the deal
+  themselves. Do not lead with seeds, hashes or fingerprints.
+- The exact cryptographic mechanism remains available under “How the check
+  works” for people who want it. The current online deal uses a server
+  commitment, not player-provided entropy: never state that a player device
+  contributes a secret shuffle value until the protocol truly does.
+- Never claim that hidden tiles are exposed while a hand is active; participants
+  can inspect starting hands only after it ends. In standard private-hand games
+  duppies/spectators receive public board information only; Open Hand visibly
+  shares a partner's tiles with their partner by design.
+
 ## Fast game and account entry (2026-08-22)
 
 - Open lounge tables render as a responsive compact card grid, not a tall
