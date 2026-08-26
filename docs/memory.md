@@ -39,6 +39,12 @@ re-deriving it from chat history.
 - Human table identities are 32px on desktop and 30px on phones: large enough
   to feel like people, but wholly in the protected outer felt rail so they can
   never cover a playable domino.
+- The selectable portrait collection is twenty-four Jamaican people, including
+  older Yardies and late teens across Jamaica's varied backgrounds. Duppy
+  portraits remain a separate local 3D set; no Duppy asset may become a player
+  picker choice. Wearables include Jamaica, Canada and UK pins plus bandana,
+  beanie and necklace. At table size every wearable must remain inside its
+  portrait circle, never on the felt.
 
 ## Homepage domino motion rule (2026-08-25)
 

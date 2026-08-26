@@ -1014,6 +1014,19 @@ label.field > span {
 .table-seat-identity .avatar-accessory-flagpin {
   width: 28%; height: 28%; right: 3%; top: 6%; left: auto; bottom: auto;
 }
+.table-seat-identity .avatar-accessory-canadapin,
+.table-seat-identity .avatar-accessory-ukpin {
+  width: 28%; height: 28%; right: 3%; top: 6%; left: auto; bottom: auto;
+}
+.table-seat-identity .avatar-accessory-bandana {
+  width: 96%; height: 54%; left: 2%; top: 0; right: auto; bottom: auto;
+}
+.table-seat-identity .avatar-accessory-beanie {
+  width: 90%; height: 62%; left: 5%; top: 0; right: auto; bottom: auto;
+}
+.table-seat-identity .avatar-accessory-necklace {
+  width: 76%; height: 38%; left: 12%; top: 57%; right: auto; bottom: auto;
+}
 .table-seat-duppy {
   position: relative;
   display: grid;
@@ -2074,6 +2087,22 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   /* The portrait crop has no lapel, so this is worn as a small flag pin at
      the temple instead of a large floating bottom-corner badge. */
   width: 31%; height: 31%; right: 0; top: 5%; left: auto; bottom: auto;
+}
+.avatar-accessory-canadapin,
+.avatar-accessory-ukpin {
+  /* Diaspora flags follow the same temple-pin treatment as the Jamaica pin. */
+  width: 31%; height: 31%; right: 0; top: 5%; left: auto; bottom: auto;
+}
+.avatar-accessory-bandana {
+  /* A bandana belongs across the hairline, with the knot implied by the art. */
+  width: 108%; height: 62%; left: -4%; top: -4%; right: auto; bottom: auto;
+}
+.avatar-accessory-beanie {
+  width: 94%; height: 70%; left: 3%; top: -9%; right: auto; bottom: auto;
+}
+.avatar-accessory-necklace {
+  /* Keep the pendant inside the portrait crop so it scales safely everywhere. */
+  width: 82%; height: 42%; left: 9%; top: 57%; right: auto; bottom: auto;
 }
 .avatar-look-preview {
   min-height: 86px; display: flex; align-items: center; justify-content: center;

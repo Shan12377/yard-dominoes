@@ -148,7 +148,8 @@ export const ORIGIN_LABEL: Record<Origin, string> = {
  */
 export type Avatar = 'tam' | 'wrap' | 'granny' | 'straw' | 'hoops' | 'cap'
   | 'phones' | 'plain' | 'afro' | 'braids' | 'twists' | 'goldtooth'
-  | 'marigold' | 'cedar' | 'sonia' | 'devon' | 'otis' | 'nadia' | 'kyro' | 'levi';
+  | 'marigold' | 'cedar' | 'sonia' | 'devon' | 'otis' | 'nadia' | 'kyro' | 'levi'
+  | 'harold' | 'mei' | 'imani' | 'tariq';
 
 export const AVATARS: Avatar[] = [
   'hoops', 'plain', 'granny', 'tam',
@@ -156,6 +157,7 @@ export const AVATARS: Avatar[] = [
   'braids', 'cap', 'twists', 'goldtooth',
   'marigold', 'cedar', 'sonia', 'devon',
   'otis', 'nadia', 'kyro', 'levi',
+  'harold', 'mei', 'imani', 'tariq',
 ];
 
 /** What each character is wearing — read aloud by a screen reader in place
@@ -181,6 +183,10 @@ export const AVATAR_LABEL: Record<Avatar, string> = {
   nadia: 'Natural curls and bright smile',
   kyro: 'Short curls and stud earring',
   levi: 'Loose locs and kind eyes',
+  harold: 'Silver hair and kind eyes',
+  mei: 'Silver bob and round glasses',
+  imani: 'Curly puff and bright yellow top',
+  tariq: 'Curly fade and green hoodie',
 };
 
 /** `apps/web/public/avatars/<id>.webp` is the only thing that ever renders one. */
@@ -188,10 +194,12 @@ export function avatarUrl(avatar: Avatar): string {
   return `/avatars/${avatar}.webp`;
 }
 
-export type AvatarAccessory = 'shades' | 'crown' | 'flower' | 'headphones' | 'flagpin';
+export type AvatarAccessory = 'shades' | 'crown' | 'flower' | 'headphones' | 'flagpin'
+  | 'canadapin' | 'ukpin' | 'bandana' | 'beanie' | 'necklace';
 
 export const AVATAR_ACCESSORIES: AvatarAccessory[] = [
   'shades', 'crown', 'flower', 'headphones', 'flagpin',
+  'canadapin', 'ukpin', 'bandana', 'beanie', 'necklace',
 ];
 
 export const AVATAR_ACCESSORY_LABEL: Record<AvatarAccessory, string> = {
@@ -200,6 +208,11 @@ export const AVATAR_ACCESSORY_LABEL: Record<AvatarAccessory, string> = {
   flower: 'Pink flower',
   headphones: 'Teal headphones',
   flagpin: 'Jamaica flag pin',
+  canadapin: 'Canada flag pin',
+  ukpin: 'United Kingdom flag pin',
+  bandana: 'Red, gold and green bandana',
+  beanie: 'Knitted beanie',
+  necklace: 'Gold necklace',
 };
 
 export function avatarAccessoryUrl(accessory: AvatarAccessory): string {
