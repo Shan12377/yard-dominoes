@@ -9,8 +9,8 @@
 // without needing to see anyone else's tiles.
 
 import {
-  supabase, startHand as apiStartHand, playMove as apiPlayMove, passPose as apiPassPose,
-  leaveSeat as apiLeaveSeat, watchTable, ConflictError, revealHand as apiRevealHand,
+  supabase, startHand as apiStartHand, playMove as apiPlayMove, advanceDuppy as apiAdvanceDuppy, passPose as apiPassPose,
+  leaveSeat as apiLeaveSeat, watchTable, ConflictError, DuppyTurnConflictError, revealHand as apiRevealHand,
   requestReview as apiRequestReview, frenchReshuffle as apiFrenchReshuffle,
   type PublicHand, type TableSubscription,
 } from './online.ts';
@@ -223,6 +223,8 @@ export class OnlineGame {
 
   private myUserId: string | null = null;
   private sub: TableSubscription | null = null;
+  /** The current Duppy's visible server-authoritative thinking beat. */
+  private duppyTimer: number | null = null;
   private listeners: ((e: OnlineEvent) => void)[] = [];
   private visListener = () => {
     if (document.visibilityState === 'visible') this.resubscribe();
@@ -352,6 +354,7 @@ export class OnlineGame {
     if (ratingRes.data) game.ratingBefore = (ratingRes.data as any)[ratingColumn] ?? null;
 
     game.subscribe();
+    game.scheduleDuppyTurn();
     document.addEventListener('visibilitychange', game.visListener);
     return game;
   }
@@ -499,6 +502,7 @@ export class OnlineGame {
           this.emit({ type: 'penalty', events: hand.last_penalties });
         }
         this.hand = hand;
+        this.scheduleDuppyTurn();
         // Real data has arrived — whatever was predicted in play() is either
         // already confirmed by this or superseded by it, either way this is
         // the truth now.
@@ -589,6 +593,7 @@ export class OnlineGame {
     if (!this.isSpectator && this.hand) {
       await this.loadPrivateTiles(this.hand.hand_id);
     }
+    this.scheduleDuppyTurn();
     this.emit({ type: 'state' });
   }
 
@@ -618,6 +623,49 @@ export class OnlineGame {
     this.sub?.stop();
     this.subscribe();
     void this.refetchHand();
+  }
+
+  private clearDuppyTimer() {
+    if (this.duppyTimer !== null) {
+      window.clearTimeout(this.duppyTimer);
+      this.duppyTimer = null;
+    }
+  }
+
+  /**
+   * Duppy moves are requested only after their public deadline. Every seated
+   * browser may request the same move; the function's version check means one
+   * wins and all others harmlessly reload through Realtime.
+   */
+  private scheduleDuppyTurn() {
+    this.clearDuppyTimer();
+    const hand = this.hand;
+    if (this.isSpectator || !hand || hand.status !== 'active') return;
+    if (!this.seats[hand.turn]?.duppyLevel || !hand.turn_expires_at) return;
+    const delay = Math.max(0, Date.parse(hand.turn_expires_at) - Date.now()) + 120;
+    const handId = hand.hand_id;
+    this.duppyTimer = window.setTimeout(() => {
+      this.duppyTimer = null;
+      void this.advanceDuppyTurn(handId);
+    }, delay);
+  }
+
+  private async advanceDuppyTurn(handId: string) {
+    const hand = this.hand;
+    if (!hand || hand.hand_id !== handId || hand.status !== 'active'
+      || !this.seats[hand.turn]?.duppyLevel) return;
+    try {
+      await apiAdvanceDuppy(handId);
+    } catch (err) {
+      if (err instanceof DuppyTurnConflictError) {
+        // Another seated browser may have won, or this browser reached the
+        // edge of the server clock first. The fresh public state decides if a
+        // timer remains necessary; do not spin on a permanent failure.
+        await this.refetchHand();
+        return;
+      }
+      this.emit({ type: 'error', message: 'could not advance the duppy turn' });
+    }
   }
 
   /** Legal moves for MY turn only — a stub state with my real tiles and
@@ -780,6 +828,7 @@ export class OnlineGame {
   }
 
   leave() {
+    this.clearDuppyTimer();
     this.sub?.stop();
     document.removeEventListener('visibilitychange', this.visListener);
   }

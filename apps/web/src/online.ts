@@ -133,11 +133,19 @@ export class ConflictError extends Error {
   constructor() { super('someone else moved first'); }
 }
 
+/** A harmless race while a visible Duppy turn is being resolved. */
+export class DuppyTurnConflictError extends Error {
+  constructor() { super('duppy turn changed'); }
+}
+
 async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await client().functions.invoke(fn, { body });
   if (error) {
     if (fn === 'play-move' && error instanceof FunctionsHttpError && error.context?.status === 409) {
       throw new ConflictError();
+    }
+    if (fn === 'advance-duppy' && error instanceof FunctionsHttpError && error.context?.status === 409) {
+      throw new DuppyTurnConflictError();
     }
     // HttpError's message (lib.ts's `handled()`) lands in the response body,
     // not on `error.message` — the SDK only ever sets that to a generic
@@ -189,6 +197,10 @@ export const startHand = (tableId: string, clientSeed?: string) =>
 
 export const playMove = (handId: string, move: Move) =>
   call<{ handOver: boolean; turn?: number }>('play-move', { handId, move });
+
+/** Resolve one already-due AI turn. The server selects and validates the move. */
+export const advanceDuppy = (handId: string) =>
+  call<{ handOver: boolean; turn?: number }>('advance-duppy', { handId });
 
 export const requestReview = (handId: string) =>
   call<{ review: HandReview; accuracy: number }>('review-hand', { handId });

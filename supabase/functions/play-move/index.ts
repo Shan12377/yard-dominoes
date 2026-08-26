@@ -7,9 +7,8 @@
 import { handled, json, requireUser, serviceClient, toState, persist, HttpError, Conflict, type HandRow } from '../_shared/lib.ts';
 import { isLegal, applyMove } from '../_shared/engine/hand.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
-import { duppyMove } from '../_shared/engine/bots.ts';
 import type { Move } from '../_shared/engine/types.ts';
-import { afterTurn, allowance, usedBy } from '../_shared/engine/clock.ts';
+import { afterTurn, allowance, usedBy, DUPPY_THINK_SECONDS } from '../_shared/engine/clock.ts';
 import type { Clock } from '../_shared/engine/clock.ts';
 import { applyRatingUpdates } from '../_shared/apply-rating.ts';
 
@@ -57,19 +56,15 @@ Deno.serve(handled(async (req) => {
 
   state = applyMove(state, move);
 
-  // Play out any duppies that now hold the turn.
-  let guard = 0;
-  while (state.status === 'active' && seats![state.turn].duppy_level && guard++ < 40) {
-    state = applyMove(state, duppyMove(state, seats![state.turn].duppy_level));
-  }
-
   // Whatever this seat did not spend is kept for a hand that needs reading.
   if (spent !== null) banks[mySeat] = afterTurn(clock, banks[mySeat], spent);
 
   try {
     // The deadline belongs to whoever holds the turn now, on their own budget.
     await persist(db, row.id, table!.id, row.set_id, state, seatUsers,
-      allowance(clock, banks[state.turn] ?? 0), row.version);
+      seats![state.turn].duppy_level
+        ? DUPPY_THINK_SECONDS
+        : allowance(clock, banks[state.turn] ?? 0), row.version);
   } catch (err) {
     if (err instanceof Conflict) throw new HttpError(409, 'someone else moved first — reloading');
     throw err;

@@ -5,11 +5,11 @@
 // games to a frozen client is one of the loudest complaints against every rival
 // app; the fix is to keep the game moving, not to punish the player.
 
-import { handled, json, serviceClient, toState, persist } from '../_shared/lib.ts';
+import { handled, json, serviceClient, toState, persist, Conflict } from '../_shared/lib.ts';
 import { legalMoves, applyMove } from '../_shared/engine/hand.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
-import { allowance } from '../_shared/engine/clock.ts';
+import { allowance, DUPPY_THINK_SECONDS } from '../_shared/engine/clock.ts';
 import { applyRatingUpdates } from '../_shared/apply-rating.ts';
 
 Deno.serve(handled(async () => {
@@ -34,15 +34,23 @@ Deno.serve(handled(async () => {
     const timedOut = state.turn;
     banks[timedOut] = 0;
 
-    state = applyMove(state, duppyMove(state, 'yard'));
+    // A true Duppy keeps its configured strength even if every browser is
+    // asleep. 'yard' remains only the fair fallback for a real player who
+    // ran their own clock out.
+    state = applyMove(state, duppyMove(state, seats![timedOut].duppy_level ?? 'yard'));
 
-    let guard = 0;
-    while (state.status === 'active' && seats![state.turn].duppy_level && guard++ < 40) {
-      state = applyMove(state, duppyMove(state, seats![state.turn].duppy_level));
+    try {
+      await persist(db, row.id, table!.id, row.set_id, state,
+        seats!.map((s: any) => s.user_id),
+        seats![state.turn].duppy_level
+          ? DUPPY_THINK_SECONDS
+          : allowance(clock, banks[state.turn] ?? 0), (row as any).version);
+    } catch (err) {
+      // A visible client may have resolved this exact Duppy turn between the
+      // stale-row read and this write. Skip that row, not the whole batch.
+      if (err instanceof Conflict) continue;
+      throw err;
     }
-    await persist(db, row.id, table!.id, row.set_id, state,
-      seats!.map((s: any) => s.user_id),
-      allowance(clock, banks[state.turn] ?? 0), (row as any).version);
     await db.from('seats').update({ time_bank: 0 })
       .eq('table_id', table!.id).eq('seat_index', timedOut);
     moved++;

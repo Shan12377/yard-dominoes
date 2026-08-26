@@ -21,8 +21,10 @@ import { seatPosition, type SeatSlot } from './seatlayout.ts';
 import { describeMoveLine, describeSeat, seatName } from './movelog.ts';
 import { tableRackPresentation } from './table-rack.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
-import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
-import type { ClockName, DuppyLevel, GameMode } from '@yard/engine';
+import {
+  CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, DUPPY_THINK_SECONDS,
+  isPartnered, sideOf, type ClockName, type DuppyLevel, type GameMode,
+} from '@yard/engine';
 import * as sfx from './sfx.ts';
 
 /** Surface a failed request inline, next to whatever control triggered it —
@@ -179,9 +181,15 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   mode.onchange = () => { syncFormat(); syncSeatCount(); syncFormatHint(); };
   format.onchange = () => { syncSeatCount(); syncFormatHint(); };
 
-  for (const [label, control] of [['Game', mode], ['Seats', seatCount], ['Clock', clock], ['Fill empty seats with', duppy]] as const) {
+  for (const [label, control] of [['Game', mode], ['Seats', seatCount], ['Live-player clock', clock], ['Fill empty seats with', duppy]] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
+    if (label === 'Live-player clock') {
+      field.append(el('small', 'muted', 'This is the time a real player gets for each turn.'));
+    }
+    if (label === 'Fill empty seats with') {
+      field.append(el('small', 'muted', 'Duppies let the table start now and take a visible four-second thinking beat. A real player can still take an empty seat before the hand begins.'));
+    }
     form.appendChild(field);
   }
   formatField.append(el('span', undefined, 'Set'), format, formatHint);
@@ -806,9 +814,6 @@ export function liveTableView(
       tagWinningTile(line, felt, game);
     }
   });
-  if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
-    feltSlot.appendChild(countdown(game, game.hand.turn_expires_at));
-  }
   // Docked directly under the felt so the board and the player's own hand
   // are always visible together — this used to be a separate panel
   // appended after .table-room closed, which pushed it below the fold.
@@ -846,6 +851,12 @@ export function liveTableView(
     }
   }
   if (handActions) feltSlot.appendChild(handActions);
+  // The two-end choice belongs immediately under the felt. Putting the
+  // countdown before it made the arrows look disconnected from the tile a
+  // player had just selected, especially on a phone.
+  if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
+    feltSlot.appendChild(countdown(game, game.hand.turn_expires_at));
+  }
   cross.appendChild(feltSlot);
 
   game.seats.forEach((s) => {
@@ -1072,9 +1083,10 @@ function startHandPanel(game: OnlineGame): HTMLElement {
  */
 function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
   const turn = game.hand?.turn ?? null;
+  const isDuppyTurn = turn !== null && Boolean(game.seats[turn]?.duppyLevel);
   const bank = turn === null ? 0 : Math.round(game.seats[turn]?.timeBank ?? 0);
   const base = game.table?.turnSeconds ?? 0;
-  const allowed = Math.max(base + bank, 1);
+  const allowed = isDuppyTurn ? DUPPY_THINK_SECONDS : Math.max(base + bank, 1);
 
   const wrap = el('div', 'panel clock');
   const head = el('div', 'clock-head');
@@ -1082,7 +1094,7 @@ function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
   const status = el('span', 'muted');
   head.append(left, status);
   // Only worth explaining when the bank is actually doing something.
-  const bankLabel = bank > 0 ? el('span', 'clock-bank', `${base}s + ${bank}s banked`) : null;
+  const bankLabel = !isDuppyTurn && bank > 0 ? el('span', 'clock-bank', `${base}s + ${bank}s banked`) : null;
   if (bankLabel) head.append(bankLabel);
   wrap.appendChild(head);
 
@@ -1095,8 +1107,8 @@ function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
     const remaining = Math.max(0, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000));
     left.textContent = remaining > 0 ? `${remaining}s` : 'Time';
     status.textContent = remaining > 0
-      ? (game.isMyTurn() ? 'to play' : 'for this seat')
-      : 'up — a duppy plays this seat';
+      ? (isDuppyTurn ? `Duppy ${(turn ?? 0) + 1} thinking` : game.isMyTurn() ? 'to play' : 'for this seat')
+      : (isDuppyTurn ? `Duppy ${(turn ?? 0) + 1} moving` : 'time up — a legal move is made');
     if (bankLabel) bankLabel.style.display = remaining > 0 ? '' : 'none';
     fill.style.width = `${Math.min(100, (remaining / allowed) * 100)}%`;
     // Urgency is earned by the last few seconds, not by a colour that

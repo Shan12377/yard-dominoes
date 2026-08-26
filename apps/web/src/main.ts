@@ -1,5 +1,5 @@
 import {
-  BELTS, lessonByRef, knownVoids, duppyLine, halves, TALK_CHANCE,
+  BELTS, lessonByRef, knownVoids, duppyLine, halves, TALK_CHANCE, DUPPY_LABELS,
   EMPTY_LEAKS, recordHand, standoutLeak, describeLeak, isPartnered, sideOf,
 } from '@yard/engine';
 
@@ -14,6 +14,8 @@ function formatLabel(format: SetFormat): string {
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { LocalGame } from './local.ts';
+import type { DuppyPace } from './local.ts';
+import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import { captureReferralCode } from './referral.ts';
 
 // Stash a ?ref=CODE the instant the app loads, before online.ts (and the
@@ -356,13 +358,16 @@ function nagLater(g: LocalGame, level: DuppyLevel, sent = 0) {
 }
 
 let recentPlayedTile: string | null = null;
+let recentPlaySeat: number | null = null;
 let recentPassSeat: number | null = null;
 let winningTile: string | null = null;
+let winningSeat: number | null = null;
 /** The hero line makes its entrance once per page load, not on every render. */
 let heroHasEntered = false;
 
 async function startGame(opts: {
   mode: GameMode; format: SetFormat; duppy: DuppyLevel; tournament: boolean;
+  duppyPace: DuppyPace;
 }) {
   const g = new LocalGame({ ...opts, seatCount: 4, oneAllPlayTwo: true });
   game = g;
@@ -378,9 +383,21 @@ async function startGame(opts: {
       // PASS is a board fact, not a blink. The next real move replaces it.
       recentPassSeat = null;
       recentPlayedTile = e.tile;
+      recentPlaySeat = e.seat;
+      // A Duppy's final bone deserves its own readable beat on the felt.
+      // `runDuppies()` deliberately waits before it replaces this scene with
+      // the result, so the player can see both who won and what went down.
+      if (g.hand?.status === 'domino') {
+        winningTile = e.tile;
+        winningSeat = e.seat;
+      }
       window.setTimeout(() => {
-        if (recentPlayedTile === e.tile) { recentPlayedTile = null; scheduleRender(); }
-      }, 420);
+        if (recentPlayedTile === e.tile) {
+          recentPlayedTile = null;
+          recentPlaySeat = null;
+          scheduleRender();
+        }
+      }, 2_500);
     }
     // Six love is the loudest thing that happens in this game and it ends the
     // set, so it gets its own sound rather than sharing the win line's.
@@ -419,6 +436,9 @@ async function startGame(opts: {
       const lastMove = g.hand?.moveLog[g.hand.moveLog.length - 1];
       winningTile = g.hand?.status === 'domino' && lastMove && 'tile' in lastMove
         ? lastMove.tile
+        : null;
+      winningSeat = g.hand?.status === 'domino' && lastMove && 'seat' in lastMove
+        ? lastMove.seat
         : null;
       // The coach is the reason to play here rather than anywhere else, so it
       // runs on every hand instead of waiting to be asked. It solves
@@ -461,8 +481,10 @@ async function startGame(opts: {
   verifyState = null;
   shareLink = null;
   recentPlayedTile = null;
+  recentPlaySeat = null;
   recentPassSeat = null;
   winningTile = null;
+  winningSeat = null;
   sfx.play('shuffle');
   await g.startHand();
   render();
@@ -494,7 +516,7 @@ function hero(): HTMLElement {
   deal.className = 'act';
   deal.textContent = 'Deal me in';
   deal.onclick = () => void startGame({
-    mode: 'partner', format: 'sixlove', duppy: 'ranker', tournament: false,
+    mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'relaxed', tournament: false,
   });
   const fair = document.createElement('button');
   fair.className = 'act ghost';
@@ -740,7 +762,7 @@ function replayView(): HTMLElement {
     replayHand = null;
     history.replaceState(null, '', location.pathname);
     view = 'play';
-    void startGame({ mode: 'partner', format: 'sixlove', duppy: 'ranker', tournament: false });
+    void startGame({ mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'relaxed', tournament: false });
   };
   cta.appendChild(deal);
   frag.appendChild(cta);
@@ -818,12 +840,19 @@ function lobby(): HTMLElement {
     <option value="don">Don — counts suits out and blocks</option>
     <option value="general">General — reads the whole table</option>`;
 
+  const duppyPace = document.createElement('select');
+  duppyPace.innerHTML = `
+    <option value="relaxed">Relaxed — 3.5 seconds to read each move</option>
+    <option value="yard">Yard — 2.5 seconds between moves</option>
+    <option value="quick">Quick — 1 second between moves</option>`;
+  duppyPace.value = 'relaxed';
+
   const tournament = document.createElement('select');
   tournament.innerHTML = `<option value="0">Casual — sporting allowed</option>
                           <option value="1">Tournament — must lead the six</option>`;
 
   for (const [label, control] of [
-    ['Game', mode], ['Duppies', duppy], ['Rules', tournament],
+    ['Game', mode], ['Duppies', duppy], ['Duppy pace', duppyPace], ['Rules', tournament],
   ] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
@@ -839,6 +868,7 @@ function lobby(): HTMLElement {
     mode: resolvedMode(),
     format: resolvedFormat(),
     duppy: duppy.value as DuppyLevel,
+    duppyPace: duppyPace.value as DuppyPace,
     tournament: tournament.value === '1',
   });
 
@@ -960,12 +990,54 @@ function practiceTableRack(g: LocalGame, seat: number): HTMLElement | null {
   return rack;
 }
 
+/**
+ * Practice Duppies use the same dedicated faces as online Duppies. They are
+ * opponents at the physical table, not anonymous text in the score strip.
+ */
+function practiceDuppyIdentity(g: LocalGame, seat: number): HTMLElement | null {
+  if (seat === g.mySeat) return null;
+  const slot = (['bottom', 'right', 'top', 'left'] as const)[seat];
+  const identity = el('div', `table-seat-identity table-seat-identity-${slot}`);
+  const level = g.options.duppy;
+  identity.setAttribute('aria-label', `Duppy ${seat + 1}: ${DUPPY_LABELS[level]} AI opponent`);
+  const duppy = el('span', 'table-seat-duppy');
+  const portrait = document.createElement('img');
+  portrait.className = 'avatar';
+  portrait.src = duppyPersonaUrl(duppyPersona(level, seat));
+  portrait.alt = '';
+  portrait.width = 32;
+  portrait.height = 32;
+  duppy.append(portrait, el('span', 'table-seat-duppy-cue', 'AI'));
+  identity.appendChild(duppy);
+  return identity;
+}
+
 function practicePassCallout(g: LocalGame): HTMLElement | null {
   if (recentPassSeat === null) return null;
   const slot = (['bottom', 'right', 'top', 'left'] as const)[recentPassSeat];
   const callout = el('div', `table-pass-callout table-pass-${slot}`, 'PASS');
   callout.setAttribute('role', 'status');
   callout.setAttribute('aria-label', `${g.seatLabel(recentPassSeat)} passed`);
+  return callout;
+}
+
+/** Keep a named, readable record of the last live move during the Duppy beat. */
+function practicePlayCallout(g: LocalGame): HTMLElement | null {
+  if (recentPlaySeat === null || !recentPlayedTile || winningTile) return null;
+  const slot = (['bottom', 'right', 'top', 'left'] as const)[recentPlaySeat];
+  const callout = el('div', `table-play-callout table-play-${slot}`,
+    `${g.seatLabel(recentPlaySeat)} · ${recentPlayedTile}`);
+  callout.setAttribute('role', 'status');
+  callout.setAttribute('aria-label', `${g.seatLabel(recentPlaySeat)} played ${recentPlayedTile}`);
+  return callout;
+}
+
+function practiceWinCallout(g: LocalGame): HTMLElement | null {
+  if (winningSeat === null || !winningTile) return null;
+  const slot = (['bottom', 'right', 'top', 'left'] as const)[winningSeat];
+  const callout = el('div', `table-win-callout table-win-${slot}`, `${g.seatLabel(winningSeat)} · LAST BONE`);
+  callout.setAttribute('role', 'status');
+  callout.setAttribute('aria-label', `${g.seatLabel(winningSeat)} played the last domino`);
   return callout;
 }
 
@@ -1486,9 +1558,15 @@ function tableView(g: LocalGame): DocumentFragment {
   for (let seat = 0; seat < g.options.seatCount; seat += 1) {
     const rack = practiceTableRack(g, seat);
     if (rack) felt.appendChild(rack);
+    const identity = practiceDuppyIdentity(g, seat);
+    if (identity) felt.appendChild(identity);
   }
   const passCallout = practicePassCallout(g);
   if (passCallout) felt.appendChild(passCallout);
+  const playCallout = practicePlayCallout(g);
+  if (playCallout) felt.appendChild(playCallout);
+  const winCallout = practiceWinCallout(g);
+  if (winCallout) felt.appendChild(winCallout);
   let handActions: HTMLElement | null = null;
   if (handOnFelt) {
     const hand = myHand(g);

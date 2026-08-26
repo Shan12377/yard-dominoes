@@ -25,9 +25,12 @@ export interface LocalOptions {
   format: SetFormat;
   seatCount: 2 | 3 | 4;
   duppy: DuppyLevel;
+  duppyPace: DuppyPace;
   tournament: boolean;
   oneAllPlayTwo: boolean;
 }
+
+export type DuppyPace = 'relaxed' | 'yard' | 'quick';
 
 export interface HandFairness {
   commitment: string;
@@ -37,6 +40,19 @@ export interface HandFairness {
   dealt: TileId[][];
   removeDoubleBlank: boolean;
 }
+
+/**
+ * A practice table has to be readable, not merely legal. These pauses leave
+ * enough time to see which Duppy just played or passed before the next seat
+ * acts. The separate finishing beat lets the last bone land on screen before
+ * the result replaces the live hand.
+ */
+export const DUPPY_PACE_MS: Record<DuppyPace, number> = {
+  relaxed: 3_500,
+  yard: 2_500,
+  quick: 1_000,
+};
+export const DUPPY_LAST_BONE_PAUSE_MS = 2_200;
 
 export type LocalEvent =
   | { type: 'state' }
@@ -149,14 +165,21 @@ export class LocalGame {
   private async runDuppies() {
     if (!this.hand) return;
     while (this.hand.status === 'active' && this.hand.turn !== this.mySeat) {
-      // A beat of delay so the table reads like people playing, not a solver.
-      await new Promise((r) => setTimeout(r, 420));
+      // One clear, human-sized beat between Duppy actions. At the old 420ms
+      // pace a pass and the answering tile could happen before a newcomer
+      // knew whose turn it was.
+      await new Promise((r) => setTimeout(r, DUPPY_PACE_MS[this.options.duppyPace]));
       const move = duppyMove(this.hand, this.options.duppy);
       this.hand = applyMove(this.hand, move);
       if (move.kind === 'pass') this.emit({ type: 'passed', seat: move.seat });
       else if ('tile' in move) this.emit({ type: 'played', seat: move.seat, tile: move.tile });
       if (this.hand.lastPenalties?.length) this.emit({ type: 'penalty', events: this.hand.lastPenalties });
       this.emit({ type: 'state' });
+      if (this.hand.status !== 'active') {
+        await new Promise((r) => setTimeout(r, DUPPY_LAST_BONE_PAUSE_MS));
+        this.finishHand();
+        return;
+      }
     }
     if (this.hand.status !== 'active') this.finishHand();
   }

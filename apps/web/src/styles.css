@@ -509,7 +509,9 @@ label.field > span {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  /* Live decisions stay visually attached to the felt; the timer follows
+     them, instead of pushing the left/right arrows down the page. */
+  margin-top: 2px;
   padding: 8px 10px;
   border: 1px solid rgba(67, 199, 244, .28);
   border-radius: 12px;
@@ -1091,6 +1093,44 @@ label.field > span {
   pointer-events: none;
   animation: table-pass-callout 300ms cubic-bezier(.2,.9,.2,1.15) both;
 }
+.table-win-callout {
+  position: absolute;
+  /* Keep the board bones above this status cue. */
+  z-index: 1;
+  max-width: min(70%, 210px);
+  padding: 8px 12px;
+  border: 2px solid var(--gold);
+  border-radius: 999px;
+  background: var(--signal-lo);
+  color: var(--bone);
+  box-shadow: 0 5px 16px rgba(5, 24, 50, .42);
+  font: 900 11px/1.1 var(--body);
+  letter-spacing: .04em;
+  text-align: center;
+  pointer-events: none;
+  animation: table-pass-callout 300ms cubic-bezier(.2,.9,.2,1.15) both;
+}
+.table-play-callout {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  border: 1px solid rgba(67, 199, 244, .85);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(4, 35, 52, .94);
+  color: #eaf9ff;
+  font: 700 11px/1 var(--mono);
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.table-play-top { top: 8px; left: 50%; transform: translateX(-50%); }
+.table-play-bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.table-play-left { left: 8px; top: 50%; transform: translateY(-50%); }
+.table-play-right { right: 8px; top: 50%; transform: translateY(-50%); }
+.table-win-top { top: 24px; left: 50%; transform: translate(-50%, -50%); }
+.table-win-bottom { bottom: 24px; left: 50%; transform: translate(-50%, 50%); }
+.table-win-left { left: 24px; top: 50%; transform: translate(-50%, -50%); }
+.table-win-right { right: 24px; top: 50%; transform: translate(50%, -50%); }
 .table-pass-top { top: 20px; left: calc(50% + 46px); transform: translateY(-50%); }
 .table-pass-bottom { bottom: 20px; left: calc(50% + 46px); transform: translateY(50%); }
 .table-pass-left { left: 20px; top: calc(50% + 46px); transform: translate(-50%, -50%); }

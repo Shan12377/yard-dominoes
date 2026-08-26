@@ -39,6 +39,8 @@ enabled = false
 
 [functions.play-move]
 verify_jwt = true
+[functions.advance-duppy]
+verify_jwt = true
 [functions.start-hand]
 verify_jwt = true
 [functions.create-table]

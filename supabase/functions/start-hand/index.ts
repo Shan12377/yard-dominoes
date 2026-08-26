@@ -6,9 +6,9 @@
 
 import { handled, json, requireUser, serviceClient, persist, HttpError } from '../_shared/lib.ts';
 import { provablyFairShuffle, commit, randomSeed } from '../_shared/engine/shuffle.ts';
-import { deal, applyMove } from '../_shared/engine/hand.ts';
+import { deal } from '../_shared/engine/hand.ts';
 import { dealPlan } from '../_shared/engine/tiles.ts';
-import { duppyMove } from '../_shared/engine/bots.ts';
+import { DUPPY_THINK_SECONDS } from '../_shared/engine/clock.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -104,17 +104,12 @@ Deno.serve(handled(async (req) => {
   // but can't fully close (TOCTOU between that select and this insert).
   if (handError) throw new HttpError(500, handError.message);
 
-  let guard = 0;
-  while (state.status === 'active' && seats![state.turn].duppy_level && guard++ < 40) {
-    state = applyMove(state, duppyMove(state, seats![state.turn].duppy_level));
-  }
-
   // Everyone starts a hand level. Banking time across hands would let one
   // early rout buy an unanswerable advantage in the hand that decides the set.
   await db.from('seats').update({ time_bank: 0 }).eq('table_id', tableId);
 
   await persist(db, handRow!.id, tableId, set!.id, state, seatUsers,
-    table.turn_seconds, 0);
+    seats![state.turn].duppy_level ? DUPPY_THINK_SECONDS : table.turn_seconds, 0);
   await db.from('tables').update({ status: 'playing' }).eq('id', tableId);
 
   return json({ ok: true, handId: handRow!.id, commitment, turn: state.turn });

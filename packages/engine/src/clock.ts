@@ -43,6 +43,13 @@ export const CLOCK_LABELS: Record<ClockName, string> = {
 
 export const CLOCK_NAMES = Object.keys(CLOCKS) as ClockName[];
 
+/**
+ * A Duppy gets a short, visible beat between moves in a live table. This is
+ * deliberately separate from the human clock: it gives people time to read
+ * the board without letting an AI hold a table hostage.
+ */
+export const DUPPY_THINK_SECONDS = 4;
+
 /** Fast rooms: think ahead or lose the tempo. */
 export const SPEED_CLOCK: Clock = CLOCKS.speed;
 
