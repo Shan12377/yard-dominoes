@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { access, readFile } from 'node:fs/promises';
-import { BELTS } from '@yard/engine';
+import { BELTS, halves } from '@yard/engine';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
 
 test('every Academy lesson has teaching copy and a generated diagram', async () => {
@@ -13,10 +13,25 @@ test('every Academy lesson has teaching copy and a generated diagram', async () 
   }
 });
 
-test('every declared drill is answerable and has exactly one correct choice', () => {
+test('every declared drill is visible, answerable and has exactly one correct choice', () => {
   for (const drill of BELTS.flatMap((belt) => belt.drills)) {
     const scenario = scenarioFor(drill);
     assert.ok(scenario.setup.length > 0, `${drill.id} needs a table position`);
+    assert.ok(scenario.visual.label.length > 0, `${drill.id} needs a visual situation label`);
+    assert.ok(scenario.visual.facts.length > 0, `${drill.id} needs visible public facts`);
+    assert.ok(scenario.visual.line?.length || scenario.visual.hand?.length,
+      `${drill.id} needs visible dominoes, not a text-only drill`);
+    for (const tile of [...(scenario.visual.line ?? []), ...(scenario.visual.hand ?? [])]) {
+      const [low, high] = halves(tile);
+      assert.ok(low <= high, `${drill.id} must use canonical low-high tile ids: ${tile}`);
+    }
+    const line = scenario.visual.line ?? [];
+    for (let index = 1; index < line.length; index++) {
+      const previous = halves(line[index - 1]);
+      const next = halves(line[index]);
+      assert.ok(previous.some((pip) => next.includes(pip)),
+        `${drill.id} visual line has a disconnected join at ${line[index - 1]} → ${line[index]}`);
+    }
     assert.ok(scenario.choices.length >= 2, `${drill.id} needs a real decision`);
     assert.equal(
       scenario.choices.filter((choice) => choice.correct).length,

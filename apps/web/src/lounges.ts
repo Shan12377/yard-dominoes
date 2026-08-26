@@ -147,12 +147,15 @@ export const ORIGIN_LABEL: Record<Origin, string> = {
  * stable so an existing profile never breaks when the art direction evolves.
  */
 export type Avatar = 'tam' | 'wrap' | 'granny' | 'straw' | 'hoops' | 'cap'
-  | 'phones' | 'plain' | 'afro' | 'braids' | 'twists' | 'goldtooth';
+  | 'phones' | 'plain' | 'afro' | 'braids' | 'twists' | 'goldtooth'
+  | 'marigold' | 'cedar' | 'sonia' | 'devon' | 'otis' | 'nadia' | 'kyro' | 'levi';
 
 export const AVATARS: Avatar[] = [
   'hoops', 'plain', 'granny', 'tam',
   'wrap', 'straw', 'phones', 'afro',
   'braids', 'cap', 'twists', 'goldtooth',
+  'marigold', 'cedar', 'sonia', 'devon',
+  'otis', 'nadia', 'kyro', 'levi',
 ];
 
 /** What each character is wearing — read aloud by a screen reader in place
@@ -170,6 +173,14 @@ export const AVATAR_LABEL: Record<Avatar, string> = {
   braids: 'Long braids and coral bandana',
   twists: 'Short twists and clear glasses',
   goldtooth: 'Big laugh and gold tooth',
+  marigold: 'Braided updo and gold hoops',
+  cedar: 'Curly fade and full beard',
+  sonia: 'Sleek hair and gold earrings',
+  devon: 'Close-cropped hair and round glasses',
+  otis: 'Silver beard and warm smile',
+  nadia: 'Natural curls and bright smile',
+  kyro: 'Short curls and stud earring',
+  levi: 'Loose locs and kind eyes',
 };
 
 /** `apps/web/public/avatars/<id>.webp` is the only thing that ever renders one. */

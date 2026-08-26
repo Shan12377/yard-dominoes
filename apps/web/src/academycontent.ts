@@ -1,4 +1,4 @@
-import type { Drill } from '@yard/engine';
+import type { Drill, TileId } from '@yard/engine';
 
 export interface AcademyVisual {
   alt: string;
@@ -62,6 +62,13 @@ export interface DrillChoice {
 export interface DrillScenario {
   setup: string;
   choices: DrillChoice[];
+  /** Every drill opens on a visible situation, never a text-only riddle. */
+  visual: {
+    label: string;
+    line?: TileId[];
+    hand?: TileId[];
+    facts: readonly string[];
+  };
 }
 
 export const GAME_GUIDES = [
@@ -97,54 +104,76 @@ export const FRENCH_GUIDE_CROSS = {
 } as const;
 
 const SCENARIOS: Record<string, DrillScenario> = {
-  B1D1: { setup: 'The open ends are 3 and 5.', choices: [
+  B1D1: { setup: 'The open ends are 3 and 5.', visual: {
+    label: 'Open ends', line: ['3-3', '3-5'], facts: ['3 is open', '5 is open'],
+  }, choices: [
     { label: '2-5', correct: true, explanation: 'The five matches the open five.' },
     { label: '1-4', explanation: 'Neither half matches 3 or 5.' },
     { label: '2-6', explanation: 'Neither half matches 3 or 5.' },
   ] },
-  B1D2: { setup: 'The open ends are 2 and 6. Pick a legal tile.', choices: [
+  B1D2: { setup: 'The open ends are 2 and 6. Pick a legal tile.', visual: {
+    label: 'Open ends', line: ['2-2', '2-6'], facts: ['2 is open', '6 is open'],
+  }, choices: [
     { label: '1-4', explanation: 'It matches neither end.' },
     { label: '2-3', correct: true, explanation: 'The two matches the open two.' },
     { label: '4-5', explanation: 'It matches neither end.' },
   ] },
-  B2D1: { setup: 'The board is blocked. Counts are You 3, Partner 11, East 4, West 4.', choices: [
+  B2D1: { setup: 'The board is blocked. Counts are You 3, Partner 11, East 4, West 4.', visual: {
+    label: 'Blocked hand', line: ['4-4', '1-4', '1-1'], facts: ['Four passes · board blocked', 'You · 3 pips', 'Partner · 11 pips', 'East · 4 pips', 'West · 4 pips'],
+  }, choices: [
     { label: 'Your side wins', correct: true, explanation: 'Your individual 3 is the lowest count.' },
     { label: 'Their side wins', explanation: 'Team totals do not decide a Jamaican blocked hand.' },
     { label: 'It is tied', explanation: 'Only the lowest individual count matters first.' },
   ] },
-  B2D2: { setup: 'You lead 5-0 in six-love. The other side wins one hand.', choices: [
+  B2D2: { setup: 'You lead 5-0 in six-love. The other side wins one hand.', visual: {
+    label: 'Six-love score', line: ['5-5', '0-5'], facts: ['Before · you lead 5–0', 'Next hand · they win'],
+  }, choices: [
     { label: '5-1', explanation: 'Six-love does not keep two live scores.' },
     { label: '0-0', correct: true, explanation: 'Their win bruks your run back to nothing.' },
     { label: '5-0', explanation: 'The losing side’s win must change the score.' },
   ] },
-  B3D1: { setup: 'Casual pose. Your hand includes 5-5, 5-4, 5-2, 5-1, 6-3, 4-2, 1-0.', choices: [
+  B3D1: { setup: 'Casual pose. Your hand includes 5-5, 4-5, 2-5, 1-5, 3-6, 2-4, 0-1.', visual: {
+    label: 'Your hand', hand: ['5-5', '4-5', '2-5', '1-5', '3-6', '2-4', '0-1'], facts: ['Four fives · your long suit'],
+  }, choices: [
     { label: '5-5', correct: true, explanation: 'Pose the double of the suit where you are longest.' },
     { label: '3-6', explanation: 'Six is not your strongest suit here.' },
     { label: '0-1', explanation: 'Blank and one give you little control.' },
   ] },
-  B3D2: { setup: 'The player on your right has played fives twice. You can leave five or two open.', choices: [
+  B3D2: { setup: 'The player on your right has played fives twice. You can leave five or two open.', visual: {
+    label: 'Read the next seat', line: ['5-5', '2-5'], facts: ['Player on your right · showed five twice', 'Choose the new open end'],
+  }, choices: [
     { label: 'Leave five open', explanation: 'That feeds the next player’s shown suit.' },
     { label: 'Leave two open', correct: true, explanation: 'It avoids feeding the player on your right.' },
   ] },
-  B4D1: { setup: 'East passes while the ends are 4 and 1.', choices: [
+  B4D1: { setup: 'East passes while the ends are 4 and 1.', visual: {
+    label: 'Pass read', line: ['4-4', '1-4'], facts: ['East passed', 'No 4', 'No 1'],
+  }, choices: [
     { label: 'East has no 4 and no 1', correct: true, explanation: 'A pass proves the player cannot match either open suit.' },
     { label: 'East has no doubles', explanation: 'The pass says nothing about unrelated doubles.' },
     { label: 'East has only 4s', explanation: 'A four would have been a legal play.' },
   ] },
-  B4D2: { setup: 'Partner passes on five, then later plays six twice.', choices: [
+  B4D2: { setup: 'Partner passes on five, then later plays six twice.', visual: {
+    label: 'Partner’s public story', line: ['5-5', '2-5', '2-6', '6-6'], facts: ['Partner passed on 5', 'Partner played 6 twice'],
+  }, choices: [
     { label: 'Open five for partner', explanation: 'Partner already proved they are void in five.' },
     { label: 'Open six for partner', correct: true, explanation: 'Repeated sixes suggest partner is long there.' },
     { label: 'Ignore both reads', explanation: 'Partner play is public information you should use.' },
   ] },
-  B4D3: { setup: 'A jam is likely. You hold 1-1 and 1-2; your opponent’s lightest possible hand is 4 pips.', choices: [
+  B4D3: { setup: 'A jam is likely. An open two lets you play 1-2, leaving 1-1 in your hand. Your opponent’s lightest possible hand is 4 pips.', visual: {
+    label: 'Protect the count', line: ['2-2', '1-2'], hand: ['1-1'], facts: ['Play 1-2 on the open 2', 'Then you hold 1-1 · 2 pips', 'Opponent’s lightest possible hand · 4 pips'],
+  }, choices: [
     { label: 'Yes. Protect the 1-1 count', correct: true, explanation: 'Two pips can win the block if it remains your lowest hand.' },
     { label: 'No. Partner’s total decides', explanation: 'The partner’s pips do not decide the lowest individual.' },
   ] },
-  B5D1: { setup: 'You lead 5-0. One play keeps control; another chases a flashy domino but opens their long suit.', choices: [
+  B5D1: { setup: 'You lead 5-0. One play keeps control; another chases a flashy domino but opens their long suit.', visual: {
+    label: 'Set score changes the plan', line: ['5-5', '0-5'], facts: ['Score · 5–0', 'Keep control to close six-love'],
+  }, choices: [
     { label: 'Keep control', correct: true, explanation: 'At 5-0, the safe hand closes six-love.' },
     { label: 'Chase the flashy line', explanation: 'Style is not worth giving away the set-closing hand.' },
   ] },
-  B5D2: { setup: 'West passed on 2 and 6. Unseen candidates are 2-5, 3-5 and 4-6.', choices: [
+  B5D2: { setup: 'West passed on 2 and 6. Unseen candidates are 2-5, 3-5 and 4-6.', visual: {
+    label: 'Eliminate the impossible', line: ['2-2', '2-6'], facts: ['West passed', 'No 2', 'No 6', 'Candidates · 2-5, 3-5, 4-6'],
+  }, choices: [
     { label: 'Only 3-5 remains possible', correct: true, explanation: 'The pass eliminates every tile carrying 2 or 6.' },
     { label: '2-5 and 3-5', explanation: 'West cannot hold a two after that pass.' },
     { label: 'All three remain possible', explanation: 'A pass permanently rules out both open suits.' },

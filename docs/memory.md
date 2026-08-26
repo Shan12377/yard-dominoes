@@ -25,8 +25,20 @@ re-deriving it from chat history.
   board's larger minimum unit and hide an arm off-screen.
 - A player has one seat identity slot: their uploaded profile photo falls
   back to their illustrated avatar, and a live camera replaces that same
-  circle. Never add a second floating video tile over the board; speaking is
-  communicated by the existing seat glow.
+  circle. That identity belongs at their physical table edge beside their
+  rack or playable hand, so all four seats read as opposite people around the
+  board. Status cards may carry concise scores and tile counts, but must not
+  be the only place a player can find the face. Never add a second floating
+  video tile over the board; speaking is communicated by the existing seat
+  glow.
+- Duppies use dedicated 3D animated human opponent portraits from `/duppies`,
+  never the selectable `/avatars` collection. Their visible difficulty and
+  seat choose a stable face through a hand, replay, and coach review, and
+  they always carry a visible AI cue. They never inherit a real profile photo,
+  accessory, camera, online status, reaction, or any private player data.
+- Human table identities are 32px on desktop and 30px on phones: large enough
+  to feel like people, but wholly in the protected outer felt rail so they can
+  never cover a playable domino.
 
 ## Homepage domino motion rule (2026-08-25)
 
@@ -37,6 +49,14 @@ re-deriving it from chat history.
   and responsive geometry together if the animation changes. Respect
   `prefers-reduced-motion` with a complete, still chain.
 
+## Academy drill visual rule (2026-08-26)
+
+- A drill is never a text-only riddle. Before its choices, it must show the
+  learner the compact board, hand, score, or public facts being read. Every
+  declared drill carries that visual situation in `academycontent.ts`; the
+  Academy tests enforce a non-empty visual and validate every displayed tile
+  and connected board line.
+
 ## Android profile rule (2026-08-25)
 
 - Avatar selection must have a nearby `Save my look` action. Do not make a
@@ -45,10 +65,10 @@ re-deriving it from chat history.
 - The photo picker accepts `image/*`, but Android providers may supply an
   empty MIME type for a valid image. Accept only recognised image filenames in
   that empty-MIME case, and always decode and re-encode before upload.
-- Accessories are positioned illustrations, not generic corner badges. In
-  particular, shades cover the portrait's eye line; crown, flower and
-  headphones each use their own face-relative placement. Keep this behavior
-  identical in the profile preview and live seat cards.
+- Accessories are wearable illustrations, not generic corner badges: shades
+  sit at the eye line; the crown sits above the hairline; the flower and flag
+  pin sit at the temple; headphones frame the head. Keep these placements
+  identical in the profile preview and every live seat identity.
 - Avatar accessories are public cosmetics, like avatars and seat backdrops.
   They are stored on the profile and shown in lounge/table seats; do not gate
   this behind a deployment-only feature flag or a different device/preview

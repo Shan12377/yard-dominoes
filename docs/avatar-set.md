@@ -1,10 +1,11 @@
 # YaadDominoes avatar collection
 
-The first collection is twelve Jamaican human portraits plus one optional
-accessory layer, chosen quickly from the profile editor. This creates 72 clear
-looks (12 faces × six accessory states, including none) without turning setup
-into a complicated face builder. The set varies age, gender presentation, skin
-tone, hair, and expression without turning Jamaican identity into costume.
+The collection is twenty Jamaican human portraits plus one optional accessory
+layer, chosen quickly from the profile editor. This creates 120 clear looks
+(20 faces × six accessory states, including none) without turning setup into a
+complicated face builder. The set reflects Jamaica's Out of Many, One People
+identity through varied age, gender presentation, skin tone, hair, and
+background without turning anyone into a costume.
 
 ## Art direction
 
@@ -35,11 +36,19 @@ whole sheet rather than adding one mismatched portrait.
 | `cap` | Grey beard and flat cap |
 | `twists` | Short twists and clear glasses |
 | `goldtooth` | Big laugh and gold tooth |
+| `marigold` | Braided updo and gold hoops |
+| `cedar` | Curly fade and full beard |
+| `sonia` | Sleek hair and gold earrings |
+| `devon` | Close-cropped hair and round glasses |
+| `otis` | Silver beard and warm smile |
+| `nadia` | Natural curls and bright smile |
+| `kyro` | Short curls and stud earring |
+| `levi` | Loose locs and kind eyes |
 
-The original eight ids remain stable so existing profile rows keep working.
-Migration `0042_avatar_collection.sql` extends the database constraint for the
-four new ids. Apply that migration before deploying a client that lets players
-save those four choices.
+The original ids remain stable so existing profile rows keep working. Migration
+`0044_avatar_collection_expansion.sql` extends the database constraint for the
+eight additional ids. Apply it before deploying a client that lets players save
+those choices.
 
 Store an id, never a URL. `apps/web/public/avatars/<id>.webp` is the only
 rendering path; the database check prevents arbitrary remote-image tracking.
@@ -55,3 +64,13 @@ before setting `VITE_AVATAR_ACCESSORIES_DB=true`. With the flag off, flair is
 stored as a local preference so the editor remains usable against the current
 schema without breaking profiles or lounges; the shared seat-card layer turns
 on only after the migration lands.
+
+## Duppy opponents
+
+Duppies use five fixed, local 3D animated human portraits: `breeze`, `rally`,
+`miss_mavis`, `tyrone`, and `auntie_vee`. They live only in
+`apps/web/public/duppies/` and are never part of `Avatar`, the player picker,
+or the database avatar constraint. A Duppy's visible level and seat select the
+same portrait throughout a hand, replay, and coaching context. Duppies retain
+their visible AI cue and never receive a person’s photo, accessories, camera,
+online presence, or reactions.

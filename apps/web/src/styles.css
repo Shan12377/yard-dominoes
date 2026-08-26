@@ -443,8 +443,9 @@ label.field > span {
 .table-felt.hand-on-felt {
   display: grid;
   /* A fixed rail keeps a two-end decision from stealing board height. Its
-     128px allowance includes a complete, full-height seven-bone hand. */
-  grid-template-rows: minmax(0, 1fr) 128px;
+     header reserves a clear home for the local identity, then keeps a
+     complete, full-height seven-bone hand beneath it. */
+  grid-template-rows: minmax(0, 1fr) 144px;
   align-items: stretch;
   gap: 7px;
   overflow: hidden;
@@ -472,6 +473,14 @@ label.field > span {
   box-shadow: 0 -8px 22px rgba(0, 0, 0, .22);
 }
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .eyebrow { margin-bottom: 2px; }
+.table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .table-seat-identity-bottom {
+  top: 7px;
+  right: 9px;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  z-index: 5;
+}
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand {
   /* A standard four-player deal is seven bones. This rail is deliberately a
      complete at-a-glance hand, not a horizontal scroller that hides the last
@@ -484,6 +493,9 @@ label.field > span {
   gap: 4px;
   justify-content: center;
   overflow: visible;
+  /* Its own clear header row is safer than taking horizontal space from a
+     seven-tile hand on a narrow phone. */
+  margin-top: 17px;
   padding: 5px 2px 7px;
 }
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand .tile {
@@ -949,6 +961,106 @@ label.field > span {
 .table-rack-right.table-rack-open { gap: 1px; }
 .table-rack-left.table-rack-open .tile,
 .table-rack-right.table-rack-open .tile { transform: rotate(90deg); }
+/* A face belongs to a physical side of the table, not to a detached status
+   card. Markers sit in the same protected outer rail as the racks, leaving
+   the played-board layer unobscured. */
+.table-seat-identity {
+  --seat-identity-size: 32px;
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--seat-identity-size);
+  height: var(--seat-identity-size);
+  border-radius: 50%;
+  pointer-events: none;
+  /* A small, deliberate table medallion — never a portrait accidentally
+     caught between two layout panels. */
+  background: rgba(5, 43, 67, .92);
+  box-shadow: 0 0 0 2px rgba(67, 199, 244, .55), 0 3px 7px rgba(5, 24, 50, .48);
+}
+.table-seat-identity .avatar-shell,
+.table-seat-identity .avatar {
+  width: var(--seat-identity-size);
+  height: var(--seat-identity-size);
+}
+.table-seat-identity .avatar { object-fit: cover; }
+.table-seat-identity-top { top: -12px; left: calc(50% - 66px); transform: translateX(-50%); }
+.table-seat-identity-bottom { bottom: -12px; left: calc(50% - 66px); transform: translateX(-50%); }
+.table-seat-identity-left { left: -12px; top: calc(50% - 66px); transform: translateY(-50%); }
+.table-seat-identity-right { right: -12px; top: calc(50% - 66px); transform: translateY(-50%); }
+/* Full-size shades work in the 68px profile editor, but bury the face in a
+   28–32px table medallion. Scale them to the eye line only at table scale. */
+.table-seat-identity .avatar-accessory-shades {
+  width: 84%;
+  height: 62%;
+  left: 8%;
+  top: 19%;
+  right: auto;
+  bottom: auto;
+}
+/* The table medallion is deliberately tiny and sits beside a playable felt.
+   Keep every wearable inside its own circle here; the larger profile preview
+   remains the place where the full crown/headphones silhouette can breathe. */
+.table-seat-identity .avatar-accessory-crown {
+  width: 64%; height: 64%; left: 18%; top: 0; right: auto; bottom: auto;
+}
+.table-seat-identity .avatar-accessory-flower {
+  width: 38%; height: 38%; right: 3%; top: 5%; left: auto; bottom: auto;
+}
+.table-seat-identity .avatar-accessory-headphones {
+  width: 94%; height: 94%; left: 3%; top: 0; right: auto; bottom: auto;
+}
+.table-seat-identity .avatar-accessory-flagpin {
+  width: 28%; height: 28%; right: 3%; top: 6%; left: auto; bottom: auto;
+}
+.table-seat-duppy {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--seat-identity-size);
+  height: var(--seat-identity-size);
+  overflow: hidden;
+  border: 2px solid rgba(255, 201, 40, .75);
+  border-radius: 50%;
+  background: var(--signal-lo);
+}
+.table-seat-duppy .avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.table-seat-duppy-cue {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  min-width: 11px;
+  padding: 1px 2px;
+  border-radius: 5px 0 0 0;
+  background: var(--signal-lo);
+  color: var(--gold);
+  font: 800 6px/1 var(--mono);
+  letter-spacing: .02em;
+}
+.table-seat-identity.speaking { box-shadow: 0 0 16px -3px var(--forest-hi); }
+.table-seat-identity .wave { position: absolute; right: -8px; bottom: 0; }
+.table-seat-identity .thrown,
+.table-seat-identity .said {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  border-radius: 5px;
+  box-shadow: 0 2px 6px rgba(5, 24, 50, .35);
+}
+.table-seat-identity .said {
+  max-width: 104px;
+  padding: 3px 5px;
+  background: var(--signal-lo);
+  color: var(--bone);
+  font: 700 9px/1.2 var(--body);
+  text-align: center;
+}
 .table-pass-callout {
   position: absolute;
   z-index: 1;
@@ -1359,6 +1471,48 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .academy-drill-choice:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
 .lesson .academy-drill-setup { margin: 4px 0 12px; color: var(--ink); font-weight: 700; }
 .academy-drill.open .academy-drill-setup { color: var(--bone); }
+.academy-drill-visual {
+  display: grid;
+  gap: 9px;
+  margin: 6px 0 12px;
+  padding: 11px 12px;
+  border: 2px solid rgba(67, 199, 244, .52);
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(120deg, rgba(255,255,255,.045) 0 2px, transparent 2px 10px),
+    var(--forest);
+}
+.academy-drill-visual .eyebrow { color: var(--gold); }
+.academy-drill-bones {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 4px 0;
+}
+.academy-drill-bones.hand { gap: 3px; }
+.academy-drill-bones .tile { --w: 32px; --h: 64px; flex: none; }
+.academy-drill-hand-label {
+  color: var(--bone);
+  font: 800 11px/1.2 var(--mono);
+  letter-spacing: .08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.academy-drill-facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.academy-drill-facts span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(5, 43, 67, .82);
+  color: var(--bone);
+  font: 800 11px/1.2 var(--body);
+  text-align: center;
+}
 .academy-drill-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .academy-drill-choice {
   min-height: 48px; padding: 9px 10px; border: 2px solid var(--sky); border-radius: 8px;
@@ -1380,6 +1534,8 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .academy-drill-result p { margin: 4px 0 0; color: var(--bone); }
 .academy-drill-result .act { margin-top: 10px; }
 @media (max-width: 620px) {
+  .academy-drill-bones .tile { --w: 28px; --h: 56px; }
+  .academy-drill-bones.hand { gap: 2px; }
   .academy-drill-choices { grid-template-columns: 1fr; }
 }
 
@@ -1777,7 +1933,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .table-room .live-felt,
   .practice-room .live-felt { height: 350px; min-height: 350px; max-height: 350px; }
   .my-hand-panel .hand .tile { --w: 40px; --h: 80px; }
-  .table-felt.hand-on-felt { grid-template-rows: minmax(0, 1fr) 116px; }
+  .table-felt.hand-on-felt { grid-template-rows: minmax(0, 1fr) 132px; }
   .table-room .live-felt.french-cross-live,
   .practice-room .live-felt.french-cross-live { height: 520px; min-height: 520px; max-height: 520px; }
 }
@@ -1785,6 +1941,16 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 @media (max-height: 620px) and (max-width: 900px) {
   .table-room .live-felt,
   .practice-room .live-felt { height: 310px; min-height: 310px; max-height: 310px; }
+  /* Landscape phones have precious board height. Keep the identity personal,
+     but compact its header before taking another row from the felt. */
+  .table-felt.hand-on-felt { grid-template-rows: minmax(0, 1fr) 130px; }
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .table-seat-identity-bottom {
+    --seat-identity-size: 24px;
+    width: 24px;
+    height: 24px;
+    top: 6px;
+  }
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand { margin-top: 4px; }
   /* Board legibility wins for French: the surrounding page can scroll, but
      the cross itself must not be cut off behind the live hand. */
   .table-room .live-felt.french-cross-live,
@@ -1885,19 +2051,29 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
    Their placement is part of making a picked look feel like it belongs to
    the character: shades must meet the eyes, a crown the hairline, etc. */
 .avatar-accessory-shades {
-  width: 100%; height: 100%; inset: 0;
+  /* The artwork includes broad arms. Keeping it to the eye line makes it
+     read as wearable shades rather than a mask, in both the profile editor
+     and the live table identity. */
+  width: 88%; height: 64%; left: 6%; top: 18%; right: auto; bottom: auto;
 }
 .avatar-accessory-crown {
-  width: 96%; height: 96%; left: 2%; top: -16%; right: auto; bottom: auto;
+  /* Crown the hair, never the face. The SVG has tall points, so its box sits
+     above the portrait and only its lower band meets the hairline. */
+  width: 72%; height: 72%; left: 14%; top: -24%; right: auto; bottom: auto;
 }
 .avatar-accessory-flower {
-  width: 52%; height: 52%; right: -5%; top: 4%; bottom: auto;
+  /* A flower belongs at the temple, tucked into the hair rather than floating
+     in the corner like a notification badge. */
+  width: 42%; height: 42%; right: -1%; top: 3%; left: auto; bottom: auto;
 }
 .avatar-accessory-headphones {
-  width: 108%; height: 108%; left: -4%; top: -4%; right: auto; bottom: auto;
+  /* Keep the band on the crown and the cups beside the ears. */
+  width: 98%; height: 98%; left: 1%; top: -2%; right: auto; bottom: auto;
 }
 .avatar-accessory-flagpin {
-  width: 46%; height: 46%; right: -12%; bottom: -10%; left: auto; top: auto;
+  /* The portrait crop has no lapel, so this is worn as a small flag pin at
+     the temple instead of a large floating bottom-corner badge. */
+  width: 31%; height: 31%; right: 0; top: 5%; left: auto; bottom: auto;
 }
 .avatar-look-preview {
   min-height: 86px; display: flex; align-items: center; justify-content: center;
@@ -2030,11 +2206,17 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   object-fit: cover;
   background: var(--forest-lo);
 }
-.table-cross .seat .avatar-shell.live-video { --seat-identity-size: 44px; }
-.table-room .seat-slot-left .seat .avatar-shell.live-video,
-.table-room .seat-slot-right .seat .avatar-shell.live-video { --seat-identity-size: 30px; }
+.table-seat-identity .avatar-shell.live-video { --seat-identity-size: 32px; }
 @media (max-width: 700px) {
-  .table-cross .seat .avatar-shell.live-video { --seat-identity-size: 24px; }
+  .table-seat-identity { --seat-identity-size: 30px; width: 30px; height: 30px; }
+  .table-seat-identity .avatar-shell,
+  .table-seat-identity .avatar,
+  .table-seat-identity .avatar-shell.live-video { width: 30px; height: 30px; --seat-identity-size: 30px; }
+  .table-seat-identity-top { top: -10px; left: calc(50% - 60px); }
+  .table-seat-identity-bottom { bottom: -10px; left: calc(50% - 60px); }
+  .table-seat-identity-left { left: -10px; top: calc(50% - 60px); }
+  .table-seat-identity-right { right: -10px; top: calc(50% - 60px); }
+  .table-seat-duppy-cue { min-width: 12px; font-size: 7px; }
 }
 
 /* ------------------------------------------------------------------ tiers */

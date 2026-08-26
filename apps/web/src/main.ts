@@ -20,7 +20,7 @@ import { captureReferralCode } from './referral.ts';
 // Supabase client it drags in) is ever touched. See referral.ts.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
-import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
+import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, scenarioFor, type DrillScenario } from './academycontent.ts';
 import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -1550,6 +1550,39 @@ function tableView(g: LocalGame): DocumentFragment {
 }
 
 // --------------------------------------------------------------- academy --
+/**
+ * A drill starts with a compact, visible table situation. The answer choices
+ * ask the question; this scene makes sure a learner can see what they are
+ * being asked to read instead of decoding a paragraph first.
+ */
+function academyDrillSituation(scenario: DrillScenario): HTMLElement {
+  const scene = el('div', 'academy-drill-visual');
+  scene.setAttribute('role', 'img');
+  scene.setAttribute('aria-label', `${scenario.visual.label}. ${scenario.visual.facts.join('. ')}.`);
+  scene.appendChild(el('div', 'eyebrow', scenario.visual.label));
+
+  const addBones = (bones: TileId[], kind: 'line' | 'hand') => {
+    const row = el('div', `academy-drill-bones${kind === 'hand' ? ' hand' : ''}`);
+    for (const id of bones) {
+      const bone = tileEl(id);
+      bone.setAttribute('aria-hidden', 'true');
+      bone.removeAttribute('role');
+      row.appendChild(bone);
+    }
+    scene.appendChild(row);
+  };
+  if (scenario.visual.line?.length) addBones(scenario.visual.line, 'line');
+  if (scenario.visual.hand?.length) {
+    scene.appendChild(el('div', 'academy-drill-hand-label', 'Your hand after this play'));
+    addBones(scenario.visual.hand, 'hand');
+  }
+
+  const facts = el('div', 'academy-drill-facts');
+  for (const fact of scenario.visual.facts) facts.appendChild(el('span', undefined, fact));
+  scene.appendChild(facts);
+  return scene;
+}
+
 function academyView(): DocumentFragment {
   const frag = document.createDocumentFragment();
   const intro = el('div', 'panel');
@@ -1721,7 +1754,7 @@ function academyView(): DocumentFragment {
         card.appendChild(trigger);
         if (active) {
           const scenario = scenarioFor(d);
-          card.append(el('p', 'academy-drill-setup', scenario.setup));
+          card.append(academyDrillSituation(scenario), el('p', 'academy-drill-setup', scenario.setup));
           const choices = el('div', 'academy-drill-choices');
           const selected = drillAnswers.get(d.id);
           scenario.choices.forEach((choice, index) => {

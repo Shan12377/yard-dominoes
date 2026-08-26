@@ -17,11 +17,12 @@ import { profilePanel } from './profile.ts';
 import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
-import { seatPosition } from './seatlayout.ts';
+import { seatPosition, type SeatSlot } from './seatlayout.ts';
 import { describeMoveLine, describeSeat, seatName } from './movelog.ts';
 import { tableRackPresentation } from './table-rack.ts';
+import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import { CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, isPartnered, sideOf } from '@yard/engine';
-import type { ClockName, GameMode } from '@yard/engine';
+import type { ClockName, DuppyLevel, GameMode } from '@yard/engine';
 import * as sfx from './sfx.ts';
 
 /** Surface a failed request inline, next to whatever control triggered it —
@@ -451,34 +452,19 @@ function reportButton(userId: string, tableId: string, rerender: () => void): HT
   return wrap;
 }
 
-function seatCard(
-  s: SeatInfo, game: OnlineGame, rerender: () => void, social?: TableSocial,
-): HTMLElement {
-  const card = el('div', 'seat');
-  if (s.seatIndex === game.mySeat) card.classList.add('mine');
-  if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
-  // Partner mode had no online cue at all for which seat is your partner —
-  // the border existed only in offline play (main.ts's seats()). Seats are
-  // numbered in play order (client.md's own convention), so partners are
-  // always the two same-parity seats.
-  const isMyPartner = isPartnered(game.table.mode) && game.mySeat !== null
-    && s.seatIndex !== game.mySeat && s.seatIndex % 2 === game.mySeat % 2;
-  if (isMyPartner) card.classList.add('partner');
-  // The art keeps a deliberately quiet left-side text zone. This asymmetric
-  // veil preserves that color at the outer edge while guaranteeing names and
-  // scores remain readable over every scene.
-  if (s.userId && s.background) {
-    card.style.backgroundImage = `linear-gradient(90deg, rgba(5,24,50,.92) 0%, rgba(5,43,67,.72) 62%, rgba(5,43,67,.42) 100%), url(${backgroundUrl(s.background as Background)})`;
-    card.style.backgroundSize = 'cover';
-    card.style.backgroundPosition = 'center';
-  }
-  const who = el('div', 'who');
-  // A real uploaded photo first, falling back to the preset character —
-  // photo.ts has no has_photo flag to check, so this is genuinely a try:
-  // the browser's own onerror is what "no photo" looks like. A duppy has
-  // its own art elsewhere (design.md's five tiers) and never picks from
-  // either set.
+/**
+ * The portrait belongs at the player's physical edge of the felt, alongside
+ * their rack, rather than being repeated in the informational seat card.
+ * That makes the four sides read as four people without giving up the compact
+ * status summaries below and around the table.
+ */
+function tableSeatIdentity(s: SeatInfo, slot: SeatSlot, social?: TableSocial): HTMLElement {
+  const identity = el('div', `table-seat-identity table-seat-identity-${slot}`);
+
   if (s.userId) {
+    identity.setAttribute('aria-label', `Player ${s.seatIndex + 1}: ${seatName(s)}`);
+    // A real uploaded photo first, then the chosen illustrated character. The
+    // same fallback is used in the lounge and profile preview.
     const avatarShell = document.createElement('span');
     avatarShell.className = 'avatar-shell';
     const img = document.createElement('img');
@@ -505,8 +491,50 @@ function seatCard(
       accessory.height = 22;
       avatarShell.appendChild(accessory);
     }
-    who.appendChild(avatarShell);
+    identity.appendChild(avatarShell);
+    decorateSeat(identity, s.userId, seatName(s), social);
+  } else {
+    // Duppies are fixed illustrated opponents, never a real profile. The
+    // level and seat choose a stable face so a replay or coach view keeps the
+    // same four-side table feeling without exposing a human-style presence.
+    const level = (DUPPY_LEVELS.includes(s.duppyLevel as DuppyLevel)
+      ? s.duppyLevel : 'pickney') as DuppyLevel;
+    identity.setAttribute('aria-label', `Duppy ${s.seatIndex + 1}: ${DUPPY_LABELS[level]} AI opponent`);
+    const duppy = el('span', 'table-seat-duppy');
+    const portrait = document.createElement('img');
+    portrait.className = 'avatar';
+    portrait.src = duppyPersonaUrl(duppyPersona(level, s.seatIndex));
+    portrait.alt = '';
+    portrait.width = 32;
+    portrait.height = 32;
+    duppy.append(portrait, el('span', 'table-seat-duppy-cue', 'AI'));
+    identity.appendChild(duppy);
   }
+  return identity;
+}
+
+function seatCard(
+  s: SeatInfo, game: OnlineGame, rerender: () => void,
+): HTMLElement {
+  const card = el('div', 'seat');
+  if (s.seatIndex === game.mySeat) card.classList.add('mine');
+  if (game.hand?.turn === s.seatIndex && game.hand.status === 'active') card.classList.add('turn');
+  // Partner mode had no online cue at all for which seat is your partner —
+  // the border existed only in offline play (main.ts's seats()). Seats are
+  // numbered in play order (client.md's own convention), so partners are
+  // always the two same-parity seats.
+  const isMyPartner = isPartnered(game.table.mode) && game.mySeat !== null
+    && s.seatIndex !== game.mySeat && s.seatIndex % 2 === game.mySeat % 2;
+  if (isMyPartner) card.classList.add('partner');
+  // The art keeps a deliberately quiet left-side text zone. This asymmetric
+  // veil preserves that color at the outer edge while guaranteeing names and
+  // scores remain readable over every scene.
+  if (s.userId && s.background) {
+    card.style.backgroundImage = `linear-gradient(90deg, rgba(5,24,50,.92) 0%, rgba(5,43,67,.72) 62%, rgba(5,43,67,.42) 100%), url(${backgroundUrl(s.background as Background)})`;
+    card.style.backgroundSize = 'cover';
+    card.style.backgroundPosition = 'center';
+  }
+  const who = el('div', 'who');
   // A stable ordinal, same idea as the roster label a real table already
   // has — "Player 2" is sayable over voice chat, a username or "Duppy ·
   // pickney" alone is not, and it's the one identifier every seat has
@@ -539,7 +567,6 @@ function seatCard(
   const scoreIndex = isPartnered(game.table.mode) ? sideOf(s.seatIndex, game.table.mode) : s.seatIndex;
   const score = game.scores[scoreIndex] ?? 0;
   card.append(el('div', 'seat-score', String(score)));
-  decorateSeat(card, s.userId, seatName(s), social);
   if (s.userId && s.seatIndex !== game.mySeat) {
     card.appendChild(reportButton(s.userId, game.table.id, rerender));
   }
@@ -734,11 +761,20 @@ export function liveTableView(
   // visual counters straddle the outer rim rather than consuming playable
   // felt. They are siblings of the scrolling felt so they cannot be clipped
   // or crossed by a long line of played bones.
+  const tableIdentities = new Map<SeatSlot, HTMLElement>();
   for (const s of game.seats) {
     const slot = seatPosition(s.seatIndex, game.mySeat, game.table.seatCount);
     if (!slot) continue;
     const rack = tableRack(s, game, slot);
     if (rack) feltShell.appendChild(rack);
+    // Identity stays at the physical table edge even for the local player,
+    // whose playable hand deliberately has no duplicate rack.
+    const identity = tableSeatIdentity(s, slot, social);
+    // The local player's hand occupies the lower felt rail. Put that one
+    // portrait in the rail header once it exists, never on top of a playable
+    // bone. The other three remain beside their physical racks.
+    if (handOnFelt && slot === 'bottom') tableIdentities.set(slot, identity);
+    else feltShell.appendChild(identity);
   }
   const lastPass = passCallout(game);
   if (lastPass) feltShell.appendChild(lastPass);
@@ -801,6 +837,8 @@ export function liveTableView(
       if (handOnFelt) {
         hand.classList.add('in-felt-hand');
         handActions = takeHandActions(hand);
+        const bottomIdentity = tableIdentities.get('bottom');
+        if (bottomIdentity) hand.appendChild(bottomIdentity);
         felt.appendChild(hand);
       } else {
         feltSlot.appendChild(hand);
@@ -814,7 +852,7 @@ export function liveTableView(
     const slot = seatPosition(s.seatIndex, game.mySeat, game.table.seatCount);
     if (!slot) return;
     const wrap = el('div', `seat-slot seat-slot-${slot}`);
-    wrap.appendChild(seatCard(s, game, rerender, social));
+    wrap.appendChild(seatCard(s, game, rerender));
     cross.appendChild(wrap);
   });
 
