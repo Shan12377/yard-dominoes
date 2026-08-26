@@ -101,6 +101,12 @@ re-deriving it from chat history.
   disable autocapitalize, autocorrect, and spellcheck. Never redraw directly
   from the input's blur event: mobile browsers fire blur before the tapped
   submit button's click, and replacing the DOM there can swallow the action.
+- **Scroll stability (2026-08-26):** never clear `#app` before rebuilding it.
+  Assemble the next view in a fragment and replace it atomically so slower
+  phones never paint a collapsed, empty lounge between frames. On mobile,
+  address-bar movement while scrolling is a height-only viewport change, not a
+  layout resize; it must never trigger a full app redraw. Refit the board only
+  when viewport width materially changes (rotation or real resizing).
 
 ## Current product identity and connected systems (2026-08-22)
 

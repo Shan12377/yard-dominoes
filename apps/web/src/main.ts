@@ -27,6 +27,7 @@ import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
 import * as sfx from './sfx.ts';
 import { applyFelt, FELTS, felt, setFelt } from './felt.ts';
+import { needsLayoutRenderForResize } from './viewport.ts';
 import {
   platform, promptInstall, watchInstallability, registerServiceWorker,
   applyUpdate, updatePending, checkForUpdate, IOS_STEPS,
@@ -1881,26 +1882,30 @@ function render() {
   // active password field makes the keyboard jump and loses its composition
   // state. Defer non-essential redraws until the field blurs instead.
   if (authInputIsActive()) return;
-  app.innerHTML = '';
-  app.appendChild(chrome());
+  // Assemble off-screen, then swap the finished page in one operation. The
+  // former clear-then-append sequence briefly collapsed a long lounge while
+  // someone was scrolling it; slower Android browsers painted that empty
+  // intermediary state as a visible flash.
+  const next = document.createDocumentFragment();
+  next.appendChild(chrome());
   const update = updateBar();
-  if (update) app.appendChild(update);
+  if (update) next.appendChild(update);
 
   if (view === 'replay' && replayHand) {
-    app.appendChild(replayView());
+    next.appendChild(replayView());
   } else if (view === 'play') {
     if (game) {
-      app.appendChild(tableView(game));
+      next.appendChild(tableView(game));
     } else {
       // The table sells the game; the install card waits its turn below it.
-      app.appendChild(hero());
+      next.appendChild(hero());
       // Carries the green of the felt into the signal-blue room so the half
       // below the fold still reads as the same table rather than another site.
-      app.appendChild(el('div', 'yard-band'));
+      next.appendChild(el('div', 'yard-band'));
       const card = installCard();
-      if (card) app.appendChild(card);
-      app.appendChild(lobby());
-      app.appendChild(brandStories());
+      if (card) next.appendChild(card);
+      next.appendChild(lobby());
+      next.appendChild(brandStories());
     }
   } else if (view === 'lounges') {
     // The lounges are the only place strangers can talk to you, so the age
@@ -1909,35 +1914,36 @@ function render() {
     // else and stays open to everyone.
     const allowed = socialAllowed();
     if (allowed === null) {
-      app.appendChild(ageGate(() => render()));
+      next.appendChild(ageGate(() => render()));
     } else if (!allowed) {
-      app.appendChild(tooYoungView(() => { view = 'play'; render(); }));
+      next.appendChild(tooYoungView(() => { view = 'play'; render(); }));
     } else {
-      app.appendChild(loungeModule
+      next.appendChild(loungeModule
         ? loungeModule.loungesView(scheduleRender, () => { view = 'membership'; scheduleRender(); })
         : pending('Opening the lounges'));
     }
   } else if (view === 'terms') {
-    app.appendChild(termsView());
+    next.appendChild(termsView());
   } else if (view === 'privacy') {
-    app.appendChild(privacyView());
+    next.appendChild(privacyView());
   } else if (view === 'academy') {
-    app.appendChild(academyView());
+    next.appendChild(academyView());
   } else if (view === 'membership') {
-    app.appendChild(loungeModule ? loungeModule.membershipView(scheduleRender) : pending('Loading membership'));
+    next.appendChild(loungeModule ? loungeModule.membershipView(scheduleRender) : pending('Loading membership'));
   } else {
-    app.appendChild(fairView());
+    next.appendChild(fairView());
   }
 
   // Not during a live hand — the table is full-bleed and a footer under it
   // reads as the game having ended.
-  if (!(view === 'play' && game)) app.appendChild(legalFooter());
+  if (!(view === 'play' && game)) next.appendChild(legalFooter());
+  app.replaceChildren(next);
 }
 
 /**
- * render() does `app.innerHTML = ''` then rebuilds the entire page from
- * scratch — necessarily, given this app's whole rendering model (see
- * client.md). That is fine for ONE render, but several event sources fire
+ * render() replaces the entire page — necessarily, given this app's whole
+ * rendering model (see client.md). It now assembles the replacement before
+ * swapping it in, so no empty intermediary page is painted. Several event sources fire
  * more than one event per real thing that happened: a single duppy move
  * emits both 'played'/'passed' AND 'state' (local.ts), a single online move
  * can emit 'penalty' AND 'state' back to back (onlinetable.ts) — and each
@@ -1964,12 +1970,17 @@ function scheduleRender() {
 }
 
 // --- bootstrap --------------------------------------------------------------
-// The board line snakes to fit the felt, so a rotate or window resize needs a
-// re-render to pick the new width.
+// The board line snakes to fit the felt, so a real width change needs a
+// re-render. Mobile address-bar movement during a scroll changes height, not
+// width; treating it as a resize would rebuild the page under the finger.
 let resizeTimer = 0;
+let lastLayoutWidth = window.innerWidth;
 window.addEventListener('resize', () => {
+  const nextWidth = window.innerWidth;
+  if (!needsLayoutRenderForResize(lastLayoutWidth, nextWidth)) return;
+  lastLayoutWidth = nextWidth;
   clearTimeout(resizeTimer);
-  resizeTimer = window.setTimeout(render, 150);
+  resizeTimer = window.setTimeout(scheduleRender, 150);
 });
 
 watchInstallability(render);
