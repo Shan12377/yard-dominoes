@@ -12,7 +12,7 @@
  *     network.
  */
 
-const VERSION = 'yaaddominoes-v73';
+const VERSION = 'yaaddominoes-v74';
 const SHELL = `${VERSION}-shell`;
 
 // Bumping VERSION invalidates everything below.

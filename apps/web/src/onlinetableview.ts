@@ -110,6 +110,8 @@ const FORMAT_HINTS: Record<string, string> = {
   french: 'Race to 100 — lowest score wins. Doubles cost you double.',
 };
 
+let startTableAdvancedOpen = false;
+
 function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HTMLElement {
   const form = el('div', 'row');
   // French used to live only as a third option inside Cut throat's "Set"
@@ -185,8 +187,29 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   mode.onchange = () => { syncFormat(); syncSeatCount(); syncFormatHint(); };
   format.onchange = () => { syncSeatCount(); syncFormatHint(); };
 
+  const gameField = el('label', 'field');
+  gameField.append(el('span', undefined, 'Game'), mode);
+  form.appendChild(gameField);
+  formatField.append(el('span', undefined, 'Set'), format, formatHint);
+  form.appendChild(formatField);
+
+  // Seats/clock/pace/fill only matter once Game and Set are decided, and
+  // most players never touch the defaults — folded under one disclosure so
+  // "start a table" isn't six dropdowns deep before the button even shows.
+  const advanced = document.createElement('details');
+  advanced.className = 'collapsible';
+  // room() (loungeview.ts) rebuilds this whole form fresh on every rerender —
+  // a plain `open` attribute would silently re-collapse this the instant
+  // anything else (a chat message, a table filling a seat) ticks the room.
+  // Same module-scope-state fix as profile.ts's collapsibleSection.
+  advanced.open = startTableAdvancedOpen;
+  advanced.addEventListener('toggle', () => { startTableAdvancedOpen = advanced.open; });
+  const advancedSummary = document.createElement('summary');
+  advancedSummary.textContent = 'Seats, clock & duppies';
+  advanced.appendChild(advancedSummary);
+  const advancedRow = el('div', 'row');
   for (const [label, control] of [
-    ['Game', mode], ['Seats', seatCount], ['Live-player clock', clock],
+    ['Seats', seatCount], ['Live-player clock', clock],
     ['Duppy pace', duppyPace], ['Fill empty seats with', duppy],
   ] as const) {
     const field = el('label', 'field');
@@ -200,10 +223,10 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
     if (label === 'Fill empty seats with') {
       field.append(el('small', 'muted', 'Duppies let the table start now. A real player can still take an empty seat before the hand begins.'));
     }
-    form.appendChild(field);
+    advancedRow.appendChild(field);
   }
-  formatField.append(el('span', undefined, 'Set'), format, formatHint);
-  form.insertBefore(formatField, form.children[1] ?? null);
+  advanced.appendChild(advancedRow);
+  form.appendChild(advanced);
 
   const go = document.createElement('button');
   go.className = 'act';

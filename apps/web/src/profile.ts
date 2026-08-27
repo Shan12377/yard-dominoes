@@ -650,6 +650,32 @@ export function clearProfileError() { profileError = null; lookSaveError = null;
  * loungeview.ts keeps it on `loungeState.me`, the live table's account tab
  * keeps its own local copy. Also where the caller decides to close the panel.
  */
+/**
+ * A `<details>` group with a clickable summary, styled to match the rest of
+ * the panel. `render()` rebuilds the whole page on every call (see
+ * client.md's "Rendering model") — a `<details>`'s own `open` attribute
+ * does NOT survive that, it would silently re-collapse the moment anything
+ * else on the page (a coin purchase finishing, a realtime tick) triggers a
+ * rerender mid-browse. `open`/`onToggle` push that state out to a
+ * module-scope variable the caller owns, the same pattern `accountOpen` and
+ * `bredrinsOpen` already use, so a section the player opened stays open
+ * across renders it didn't ask for.
+ */
+function collapsibleSection(label: string, open: boolean, onToggle: (open: boolean) => void): HTMLDetailsElement {
+  const details = document.createElement('details');
+  details.className = 'collapsible';
+  details.open = open;
+  details.addEventListener('toggle', () => onToggle(details.open));
+  const summary = document.createElement('summary');
+  summary.textContent = label;
+  details.appendChild(summary);
+  return details;
+}
+
+let basicsOpen = true;
+let presenceOpen = false;
+let backdropOpen = false;
+
 export function profilePanel(
   me: MyProfile,
   rerender: () => void,
@@ -661,17 +687,22 @@ export function profilePanel(
 
   panel.appendChild(feedbackSection(rerender));
   panel.appendChild(coinSection(rerender));
-  panel.appendChild(photoSection(me, rerender));
+
+  // The two things almost everyone actually came here to check or change —
+  // open by default. Everything more cosmetic (look, backdrop) collapses so
+  // the panel doesn't read as one long wall of pickers on first open.
+  const basics = collapsibleSection('Basics', basicsOpen, (v) => { basicsOpen = v; });
+  basics.appendChild(photoSection(me, rerender));
 
   const name = document.createElement('input');
   name.className = 'field';
   name.value = me.username;
   name.maxLength = 24;
   name.setAttribute('aria-label', 'Your name');
-  panel.append(el('label', 'field-label', 'Name'), name);
+  basics.append(el('label', 'field-label', 'Name'), name);
 
-  panel.append(el('label', 'field-label', 'Where you play from'));
-  panel.append(el('p', 'muted small',
+  basics.append(el('label', 'field-label', 'Where you play from'));
+  basics.append(el('p', 'muted small',
     'Yard or foreign — both are Jamaican. Somebody in Brooklyn flying the '
     + 'flag is still foreign, and that is the point of asking.'));
   let origin: Origin | null = me.origin;
@@ -680,10 +711,10 @@ export function profilePanel(
     () => origin,
     (v) => { origin = v as Origin | null; },
   );
-  panel.appendChild(originRow);
+  basics.appendChild(originRow);
 
-  panel.append(el('label', 'field-label', 'Location (optional)'));
-  panel.append(el('p', 'muted small',
+  basics.append(el('label', 'field-label', 'Location (optional)'));
+  basics.append(el('p', 'muted small',
     'So a bredrin nearby can spot you and link up. Entirely your call — '
     + 'leave it blank and nobody sees a location on your card.'));
   const location = document.createElement('input');
@@ -692,19 +723,20 @@ export function profilePanel(
   location.maxLength = 60;
   location.placeholder = 'e.g. Kingston, JA or Brooklyn, NY';
   location.setAttribute('aria-label', 'Location');
-  panel.append(location);
+  basics.append(location);
 
-  panel.append(el('label', 'field-label', 'Call me (optional)'));
+  basics.append(el('label', 'field-label', 'Call me (optional)'));
   let gender: Gender | null = me.gender;
   const genderRow = choiceRow(
     [['f', 'She'], ['m', 'He']],
     () => gender,
     (v) => { gender = v as Gender | null; },
   );
-  panel.appendChild(genderRow);
+  basics.appendChild(genderRow);
+  panel.appendChild(basics);
 
-  panel.append(el('label', 'field-label', 'Presence (optional)'));
-  panel.append(el('p', 'muted small',
+  const presence = collapsibleSection('Presence & accessory (optional)', presenceOpen, (v) => { presenceOpen = v; });
+  presence.append(el('p', 'muted small',
     'Pick a face, then make it yours with one accessory. Change either anytime.'));
   // Keep a freshly selected look if a phone loses connection during save.
   // The profile re-renders to show the error, but making somebody choose all
@@ -719,7 +751,7 @@ export function profilePanel(
     else lookPreview.append(el('span', 'muted small', 'Choose a face'));
   };
   paintLook();
-  panel.appendChild(lookPreview);
+  presence.appendChild(lookPreview);
   const avatarCaption = el('p', 'muted small', avatar ? AVATAR_LABEL[avatar] : 'None chosen');
   const avatarGrid = el('div', 'avatar-grid');
   const paintAvatars = () => {
@@ -743,9 +775,9 @@ export function profilePanel(
     avatarGrid.appendChild(btn);
   }
   paintAvatars();
-  panel.append(avatarGrid, avatarCaption);
+  presence.append(avatarGrid, avatarCaption);
 
-  panel.append(el('label', 'field-label', 'Accessory (optional)'));
+  presence.append(el('label', 'field-label', 'Accessory (optional)'));
   const accessoryCaption = el('p', 'muted small',
     avatarAccessory ? AVATAR_ACCESSORY_LABEL[avatarAccessory] : 'No accessory');
   const accessoryGrid = el('div', 'accessory-grid');
@@ -777,7 +809,7 @@ export function profilePanel(
     accessoryGrid.appendChild(btn);
   }
   paintAccessories();
-  panel.append(accessoryGrid, accessoryCaption);
+  presence.append(accessoryGrid, accessoryCaption);
 
   // A phone user should not have to hunt below every remaining profile field
   // to keep the character they just made. This only saves the look; the full
@@ -809,11 +841,12 @@ export function profilePanel(
   })();
   const lookSaveRow = el('div', 'row');
   lookSaveRow.append(el('p', 'muted small', 'Happy with your look? Save it now.'), saveLook);
-  panel.appendChild(lookSaveRow);
-  if (lookSaveError) panel.append(el('div', 'banner small', lookSaveError));
+  presence.appendChild(lookSaveRow);
+  if (lookSaveError) presence.append(el('div', 'banner small', lookSaveError));
+  panel.appendChild(presence);
 
-  panel.append(el('label', 'field-label', 'Seat backdrop (optional)'));
-  panel.append(el('p', 'muted small',
+  const backdrop = collapsibleSection('Seat backdrop (optional)', backdropOpen, (v) => { backdropOpen = v; });
+  backdrop.append(el('p', 'muted small',
     'A cosmetic scene worn behind your seat card. Nobody else\'s tiles or '
     + 'turn get any harder to read — it just sits at the back.'));
   let background: Background | null = me.background;
@@ -841,7 +874,8 @@ export function profilePanel(
     backgroundGrid.appendChild(btn);
   }
   paintBackgrounds();
-  panel.append(backgroundGrid, backgroundCaption);
+  backdrop.append(backgroundGrid, backgroundCaption);
+  panel.appendChild(backdrop);
 
   if (profileError) panel.append(el('div', 'banner', profileError));
 
