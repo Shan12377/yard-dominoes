@@ -21,7 +21,7 @@ Deno.serve(handled(async (req) => {
     // Sender's username and tier, not just an id — an admin triaging
     // feedback needs to know who without a second round trip.
     const { data, error } = await db.from('feedback')
-      .select('id, message, created_at, status, sender:user_id(id, username, tier)')
+      .select('id, message, rating, created_at, status, sender:user_id(id, username, tier)')
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) throw new HttpError(500, error.message);

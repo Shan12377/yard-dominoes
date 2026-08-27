@@ -2083,6 +2083,11 @@ p.small { font-size: 13px; margin: 2px 0 8px; }
   background: var(--forest); color: #EAF7EF; border-color: var(--forest);
 }
 .choices .choice:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+.choices .choice.star {
+  padding: 6px 10px; font-size: 20px; line-height: 1; color: var(--gold);
+  background: transparent; border-color: transparent;
+}
+.choices .choice.star[aria-pressed='true'] { background: transparent; border-color: transparent; }
 button.act.small { font-size: 12px; padding: 7px 12px; }
 
 /* The circular portrait worn on a seat — docs/avatar-set.md. */

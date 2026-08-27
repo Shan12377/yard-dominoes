@@ -25,6 +25,8 @@ import {
 import type { Report, Admin } from './reports.ts';
 import { sendFeedback, listFeedback, markFeedbackReviewed } from './feedback.ts';
 import type { FeedbackItem } from './feedback.ts';
+import { listReferralStats } from './referraladmin.ts';
+import type { ReferralCodeStats } from './referraladmin.ts';
 
 /** Roughly how long ago, for a last-seen or filed-at line — a coarse grain
  *  is the useful one here, not a live-ticking clock. Exported: loungeview.ts
@@ -210,21 +212,47 @@ function coinSection(rerender: () => void): HTMLElement {
 // Send side, open to anyone signed in. Review side lives in adminSection
 // below, gated the same way reports are.
 let feedbackDraft = '';
+let feedbackRating: number | null = null;
 let feedbackSending = false;
 let feedbackSent = false;
 let feedbackError: string | null = null;
 
+function starRow(get: () => number | null, set: (v: number | null) => void): HTMLElement {
+  const row = el('div', 'choices');
+  const paint = () => {
+    for (const b of Array.from(row.children) as HTMLButtonElement[]) {
+      const value = Number(b.dataset.value);
+      const chosen = get();
+      b.textContent = chosen !== null && value <= chosen ? '★' : '☆';
+      b.setAttribute('aria-pressed', String(value === chosen));
+    }
+  };
+  for (let value = 1; value <= 5; value++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'choice star';
+    b.dataset.value = String(value);
+    b.setAttribute('aria-label', `${value} star${value === 1 ? '' : 's'}`);
+    b.onclick = () => { set(get() === value ? null : value); paint(); };
+    row.appendChild(b);
+  }
+  paint();
+  return row;
+}
+
 function feedbackSection(rerender: () => void): HTMLElement {
   const section = el('div', 'stack');
-  section.append(el('label', 'field-label', 'Feedback'));
+  section.append(el('label', 'field-label', 'Help mek the app better'));
   section.append(el('p', 'muted small',
-    'Something confusing, broken, or missing? This goes straight to the ' +
+    'How yuh rate it so far, and why? This goes straight to the ' +
     'people building the app, not into a queue nobody reads.'));
 
   if (feedbackSent) {
     section.append(el('p', 'muted small', 'Sent — thank you.'));
     return section;
   }
+
+  section.appendChild(starRow(() => feedbackRating, (v) => { feedbackRating = v; }));
 
   const textarea = document.createElement('textarea');
   textarea.rows = 3;
@@ -245,8 +273,9 @@ function feedbackSection(rerender: () => void): HTMLElement {
     feedbackError = null;
     rerender();
     try {
-      await sendFeedback(feedbackDraft);
+      await sendFeedback(feedbackDraft, feedbackRating);
       feedbackDraft = '';
+      feedbackRating = null;
       feedbackSent = true;
     } catch (err) {
       feedbackError = err instanceof Error ? err.message : 'could not send';
@@ -338,6 +367,52 @@ function liveCountSection(rerender: () => void): HTMLElement {
   refresh.textContent = liveCountLoading ? 'Refreshing…' : 'Refresh';
   refresh.disabled = liveCountLoading;
   refresh.onclick = () => loadLiveCount(rerender);
+  section.appendChild(refresh);
+  return section;
+}
+
+let referralStats: ReferralCodeStats[] | null = null;
+let referralStatsLoading = false;
+let referralStatsError: string | null = null;
+
+function loadReferralStats(rerender: () => void) {
+  referralStatsLoading = true;
+  referralStatsError = null;
+  rerender();
+  void listReferralStats()
+    .then((codes) => { referralStats = codes; })
+    .catch((err) => { referralStatsError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { referralStatsLoading = false; rerender(); });
+}
+
+function referralStatsSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('h3', undefined, 'Referrals'));
+  if (referralStatsError) section.append(el('div', 'banner small', referralStatsError));
+  if (referralStatsLoading && referralStats === null) {
+    section.append(el('p', 'muted small', 'Loading…'));
+  } else {
+    const codes = referralStats ?? [];
+    if (codes.length === 0) {
+      section.append(el('p', 'muted small', 'No referral codes yet.'));
+    } else {
+      const list = el('div', 'roster');
+      for (const c of codes) {
+        const line = el('div', 'person');
+        line.append(el('span', undefined, `${c.ownerUsername} — ${c.code}${c.active ? '' : ' (inactive)'}`));
+        line.append(el('span', 'muted small', `${c.commissionPct}% · ${c.referredCount} referred`));
+        line.append(el('span', 'muted small', `owed $${(c.totalOwedCents / 100).toFixed(2)}`));
+        list.appendChild(line);
+      }
+      section.appendChild(list);
+    }
+  }
+  const refresh = document.createElement('button');
+  refresh.type = 'button';
+  refresh.className = 'act small ghost';
+  refresh.textContent = referralStatsLoading ? 'Refreshing…' : 'Refresh';
+  refresh.disabled = referralStatsLoading;
+  refresh.onclick = () => loadReferralStats(rerender);
   section.appendChild(refresh);
   return section;
 }
@@ -506,7 +581,9 @@ function feedbackReviewSection(rerender: () => void): HTMLElement {
   const list = el('div', 'roster');
   for (const f of open) {
     const line = el('div', 'person');
-    line.append(el('span', undefined, f.sender?.username ?? 'someone'));
+    const who = f.rating ? `${f.sender?.username ?? 'someone'} — ${'★'.repeat(f.rating)}${'☆'.repeat(5 - f.rating)}`
+      : (f.sender?.username ?? 'someone');
+    line.append(el('span', undefined, who));
     line.append(el('p', 'muted small', f.message));
     line.append(el('span', 'muted small', timeAgo(f.created_at)));
     const mark = document.createElement('button');
@@ -542,12 +619,14 @@ function adminSection(rerender: () => void): HTMLElement {
     loadReports(rerender);
     loadFeedbackList(rerender);
     loadAdmins(rerender);
+    loadReferralStats(rerender);
   }
   const wrap = el('div', 'stack');
   wrap.append(el('h3', undefined, 'Admin'));
   wrap.appendChild(liveCountSection(rerender));
   wrap.appendChild(reportsSection(rerender));
   wrap.appendChild(feedbackReviewSection(rerender));
+  wrap.appendChild(referralStatsSection(rerender));
   wrap.appendChild(adminsManageSection(rerender));
   return wrap;
 }
@@ -577,6 +656,7 @@ export function profilePanel(
   panel.append(el('div', 'eyebrow', 'Your profile'));
   panel.append(el('h2', undefined, 'Who yuh be'));
 
+  panel.appendChild(feedbackSection(rerender));
   panel.appendChild(coinSection(rerender));
   panel.appendChild(photoSection(me, rerender));
 
@@ -792,7 +872,6 @@ export function profilePanel(
   })();
   panel.appendChild(save);
 
-  panel.appendChild(feedbackSection(rerender));
   if (me.isAdmin) panel.appendChild(adminSection(rerender));
 
   return panel;

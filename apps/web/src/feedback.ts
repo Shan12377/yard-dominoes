@@ -19,18 +19,20 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 
-export async function sendFeedback(message: string): Promise<void> {
+export async function sendFeedback(message: string, rating: number | null): Promise<void> {
   const { data: auth } = await db().auth.getUser();
   if (!auth.user) throw new Error('sign in to send feedback');
   const trimmed = message.trim();
   if (trimmed.length < 3) throw new Error('Say a little more');
-  const { error } = await db().from('feedback').insert({ user_id: auth.user.id, message: trimmed });
+  const { error } = await db().from('feedback')
+    .insert({ user_id: auth.user.id, message: trimmed, rating });
   if (error) throw new Error(error.message);
 }
 
 export interface FeedbackItem {
   id: string;
   message: string;
+  rating: number | null;
   created_at: string;
   status: 'open' | 'reviewed';
   sender: { id: string; username: string; tier: string } | null;
