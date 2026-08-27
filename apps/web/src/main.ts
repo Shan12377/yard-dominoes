@@ -516,7 +516,7 @@ function hero(): HTMLElement {
   deal.className = 'act';
   deal.textContent = 'Deal me in';
   deal.onclick = () => void startGame({
-    mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'relaxed', tournament: false,
+    mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'yard', tournament: false,
   });
   const fair = document.createElement('button');
   fair.className = 'act ghost';
@@ -762,7 +762,7 @@ function replayView(): HTMLElement {
     replayHand = null;
     history.replaceState(null, '', location.pathname);
     view = 'play';
-    void startGame({ mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'relaxed', tournament: false });
+    void startGame({ mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'yard', tournament: false });
   };
   cta.appendChild(deal);
   frag.appendChild(cta);
@@ -842,10 +842,10 @@ function lobby(): HTMLElement {
 
   const duppyPace = document.createElement('select');
   duppyPace.innerHTML = `
-    <option value="relaxed">Relaxed — 3.5 seconds to read each move</option>
-    <option value="yard">Yard — 2.5 seconds between moves</option>
-    <option value="quick">Quick — 1 second between moves</option>`;
-  duppyPace.value = 'relaxed';
+    <option value="quick">Quick — 3.5 seconds per move</option>
+    <option value="yard">Yard — 10 seconds per move</option>
+    <option value="relaxed">Relaxed — 20 seconds per move</option>`;
+  duppyPace.value = 'yard';
 
   const tournament = document.createElement('select');
   tournament.innerHTML = `<option value="0">Casual — sporting allowed</option>

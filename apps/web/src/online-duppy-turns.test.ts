@@ -8,11 +8,19 @@ const start = read('supabase/functions/start-hand/index.ts');
 const play = read('supabase/functions/play-move/index.ts');
 const expire = read('supabase/functions/expire-turns/index.ts');
 const advance = read('supabase/functions/advance-duppy/index.ts');
+const create = read('supabase/functions/create-table/index.ts');
 const client = read('apps/web/src/onlinetable.ts');
+const view = read('apps/web/src/onlinetableview.ts');
+const clock = read('packages/engine/src/clock.ts');
 
 test('online Duppies take one visible, server-authoritative turn at a time', () => {
-  assert.match(start, /DUPPY_THINK_SECONDS/);
-  assert.match(play, /DUPPY_THINK_SECONDS/);
+  assert.match(clock, /quick: 3\.5/);
+  assert.match(clock, /yard: 10/);
+  assert.match(clock, /relaxed: 20/);
+  assert.match(create, /duppy_pace: duppyPaceByName\(body\.duppyPace\)/);
+  assert.match(start, /duppyThinkSeconds\(table\.duppy_pace\)/);
+  assert.match(play, /duppyThinkSeconds\(table!\.duppy_pace\)/);
+  assert.match(advance, /duppyThinkSeconds\(table!\.duppy_pace\)/);
   assert.doesNotMatch(start, /while \(state\.status === 'active' && seats!\[state\.turn\]\.duppy_level/);
   assert.doesNotMatch(play, /while \(state\.status === 'active' && seats!\[state\.turn\]\.duppy_level/);
   assert.match(advance, /requireUser\(req\)/);
@@ -21,6 +29,10 @@ test('online Duppies take one visible, server-authoritative turn at a time', () 
   assert.doesNotMatch(advance, /const\s*\{[^}]*\b(tile|end|move)\b[^}]*\}\s*=\s*await req\.json/i);
   assert.match(client, /apiAdvanceDuppy\(handId\)/);
   assert.match(client, /DuppyTurnConflictError/);
+  assert.match(client, /duppyPace: duppyPaceByName\(t\.duppy_pace\)/);
+  assert.match(view, /DUPPY_PACE_NAMES/);
+  assert.match(view, /duppyPace: duppyPace\.value as DuppyPace/);
+  assert.match(view, /duppyThinkSeconds\(game\.table\.duppyPace\)/);
 });
 
 test('cron preserves Duppy difficulty and skips normal client races', () => {

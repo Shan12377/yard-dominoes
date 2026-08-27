@@ -8,7 +8,7 @@ import { handled, json, requireUser, serviceClient, persist, HttpError } from '.
 import { provablyFairShuffle, commit, randomSeed } from '../_shared/engine/shuffle.ts';
 import { deal } from '../_shared/engine/hand.ts';
 import { dealPlan } from '../_shared/engine/tiles.ts';
-import { DUPPY_THINK_SECONDS } from '../_shared/engine/clock.ts';
+import { duppyThinkSeconds } from '../_shared/engine/clock.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -109,7 +109,7 @@ Deno.serve(handled(async (req) => {
   await db.from('seats').update({ time_bank: 0 }).eq('table_id', tableId);
 
   await persist(db, handRow!.id, tableId, set!.id, state, seatUsers,
-    seats![state.turn].duppy_level ? DUPPY_THINK_SECONDS : table.turn_seconds, 0);
+    seats![state.turn].duppy_level ? duppyThinkSeconds(table.duppy_pace) : table.turn_seconds, 0);
   await db.from('tables').update({ status: 'playing' }).eq('id', tableId);
 
   return json({ ok: true, handId: handRow!.id, commitment, turn: state.turn });

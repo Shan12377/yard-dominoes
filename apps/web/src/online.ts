@@ -9,7 +9,7 @@
 
 /// <reference types="vite/client" />
 import { createClient, type SupabaseClient, type RealtimeChannel, FunctionsHttpError } from '@supabase/supabase-js';
-import type { AnyBoard, ClockName, GameMode, HandReceipt, HandReview, Move, PenaltyEvent, TileId } from '@yard/engine';
+import type { AnyBoard, ClockName, DuppyPace, GameMode, HandReceipt, HandReview, Move, PenaltyEvent, TileId } from '@yard/engine';
 import { takeReferralCode } from './referral.ts';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -173,6 +173,8 @@ export interface CreateTableInput {
   loungeId?: string;
   /** Named, not numeric — the server owns the seconds. */
   clock?: ClockName;
+  /** Named, not numeric — the server owns the Duppy delay too. */
+  duppyPace?: DuppyPace;
 }
 
 export const createTable = (input: CreateTableInput) =>

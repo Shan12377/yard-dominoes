@@ -1,6 +1,6 @@
 // POST /create-table
 import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
-import { clockByName } from '../_shared/engine/clock.ts';
+import { clockByName, duppyPaceByName } from '../_shared/engine/clock.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -53,6 +53,9 @@ Deno.serve(handled(async (req) => {
     // could start a table with a turn long enough to hold the room hostage.
     turn_seconds: clockByName(body.clock).base,
     turn_cap_seconds: clockByName(body.clock).cap,
+    // Named like the human clock. The server stores the allowed choice rather
+    // than trusting a browser-supplied number of seconds.
+    duppy_pace: duppyPaceByName(body.duppyPace),
     tournament: !!body.tournament,
     one_all_play_two: body.oneAllPlayTwo ?? true,
     use_boneyard: !!body.useBoneyard,

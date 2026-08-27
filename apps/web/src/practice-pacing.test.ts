@@ -5,21 +5,21 @@ const localSource = readFileSync(new URL('./local.ts', import.meta.url), 'utf8')
 const practiceSource = readFileSync(new URL('./main.ts', import.meta.url), 'utf8');
 const onlineTableSource = readFileSync(new URL('./onlinetableview.ts', import.meta.url), 'utf8');
 
-test('practice Duppies leave enough time to read each action and the final bone', () => {
-  assert.match(localSource, /relaxed: 3_500/);
-  assert.match(localSource, /yard: 2_500/);
-  assert.match(localSource, /quick: 1_000/);
+test('practice Duppies never move faster than 3.5 seconds and pause for the final bone', () => {
+  assert.match(localSource, /quick: DUPPY_PACE_SECONDS\.quick \* 1_000/);
+  assert.match(localSource, /yard: DUPPY_PACE_SECONDS\.yard \* 1_000/);
+  assert.match(localSource, /relaxed: DUPPY_PACE_SECONDS\.relaxed \* 1_000/);
   assert.match(localSource, /DUPPY_PACE_MS\[this\.options\.duppyPace\]/);
-  assert.match(localSource, /DUPPY_LAST_BONE_PAUSE_MS = 2_200/);
+  assert.match(localSource, /DUPPY_LAST_BONE_PAUSE_MS = DUPPY_PACE_SECONDS\.quick \* 1_000/);
   assert.match(localSource,
     /setTimeout\(r, DUPPY_LAST_BONE_PAUSE_MS\)[\s\S]*?this\.finishHand\(\);/);
 });
 
-test('practice starts in Relaxed Duppy pace and exposes faster options', () => {
-  assert.match(practiceSource, /Relaxed — 3\.5 seconds to read each move/);
-  assert.match(practiceSource, /Yard — 2\.5 seconds between moves/);
-  assert.match(practiceSource, /Quick — 1 second between moves/);
-  assert.match(practiceSource, /duppyPace\.value = 'relaxed'/);
+test('practice exposes the same three Duppy paces as a live table', () => {
+  assert.match(practiceSource, /Quick — 3\.5 seconds per move/);
+  assert.match(practiceSource, /Yard — 10 seconds per move/);
+  assert.match(practiceSource, /Relaxed — 20 seconds per move/);
+  assert.match(practiceSource, /duppyPace\.value = 'yard'/);
 });
 
 test('practice Duppies sit visibly at their physical table edges', () => {
@@ -36,6 +36,13 @@ test('practice leaves a named record of the last non-winning play during the rea
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));
+});
+
+test('online keeps the last played tile beside its player until the next move', () => {
+  assert.match(onlineTableSource, /function playCallout\(game: OnlineGame\)/);
+  assert.match(onlineTableSource, /lastMove\.seat === game\.mySeat\) return null/);
+  assert.ok(onlineTableSource.includes('`${name} · ${lastMove.tile}`'));
+  assert.match(onlineTableSource, /const lastPlay = playCallout\(game\);[\s\S]*?feltShell\.appendChild\(lastPlay\)/);
 });
 
 test('the two-end choice stays above the turn clock in an online hand', () => {

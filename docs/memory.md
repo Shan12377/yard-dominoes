@@ -23,20 +23,21 @@ re-deriving it from chat history.
   floor. A normal active French spread must shrink as one complete cross
   before the board stage is allowed to scroll; do not reuse the linear
   board's larger minimum unit and hide an arm off-screen.
-- Practice Duppy pace is a player choice: Relaxed is the default at 3.5 seconds
-  between actions, Yard is 2.5 seconds, and Quick is 1 second. During that
-  reading beat, the felt names the person and domino of the last non-winning
-  play; a pass remains visibly attributed until the next play. A Duppy's final
-  bone stays on the felt for 2.2 seconds with the seat name before the hand
-  result replaces it. This pacing is part of game comprehension, not cosmetic
-  motion.
+- Practice and Lounge Duppy pace use the same bounded choices: Quick is 3.5
+  seconds per move, Yard is 10 seconds (the default), and Relaxed is 20
+  seconds. During that readable beat, the felt names the person and domino of
+  the last non-winning play; a pass remains visibly attributed until the next
+  play. A Duppy's final bone stays on the felt for 3.5 seconds with the seat
+  name before the hand result replaces it. This pacing is part of game
+  comprehension, not cosmetic motion.
 - Practice is the offline training table: Duppy pace applies there, and every
   Duppy has a dedicated portrait at its physical felt edge. Lounges are
   live-first tables: the selected clock governs real-player turns, while the
   Duppy choice fills vacant seats so a game can begin before a full table
-  arrives. Every online Duppy turn is a server-authoritative four-second
-  thinking beat that persists exactly one public move; never batch a chain of
-  Duppy moves in one request. Do not describe a Lounge as live-player-only.
+  arrives. Every online Duppy turn uses the table's server-authoritative
+  3.5-second, 10-second, or 20-second reading beat and persists exactly one
+  public move; never batch a chain of Duppy moves in one request. Do not
+  describe a Lounge as live-player-only.
 - When a tile fits both ends, the end-choice arrows/actions sit immediately
   below the felt and before the turn clock. Never bury that required decision
   beneath a countdown or secondary table panel.

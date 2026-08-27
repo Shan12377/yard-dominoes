@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  afterTurn, allowance, deadline, FRESH_BANK, maxBank, SPEED_CLOCK, usedBy, YARD_CLOCK,
+  afterTurn, allowance, deadline, duppyThinkSeconds, FRESH_BANK, maxBank, SPEED_CLOCK, usedBy, YARD_CLOCK,
 } from '../src/index.ts';
 import type { Clock } from '../src/index.ts';
 
@@ -90,4 +90,12 @@ test('a nonsense clock from a bad table row still plays', () => {
   // A cap below the base cannot hand out less than one base turn.
   assert.equal(allowance({ base: 20, cap: 5 }, 0), 20);
   assert.equal(maxBank({ base: 20, cap: 5 }), 0);
+});
+
+test('Duppy reading paces are bounded choices, never an arbitrary client delay', () => {
+  assert.equal(duppyThinkSeconds('quick'), 3.5);
+  assert.equal(duppyThinkSeconds('yard'), 10);
+  assert.equal(duppyThinkSeconds('relaxed'), 20);
+  assert.equal(duppyThinkSeconds('tampered'), 10);
+  assert.equal(duppyThinkSeconds(undefined), 10);
 });

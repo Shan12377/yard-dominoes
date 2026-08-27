@@ -14,11 +14,13 @@
 import {
   createSet, applyHandResult, deal, legalMoves, applyMove, dealPlan,
   provablyFairShuffle, commit, randomSeed, verifyHand,
-  duppyMove, reviewHand, accuracy, isPartnered, sideOf,
+  duppyMove, reviewHand, accuracy, isPartnered, sideOf, DUPPY_PACE_SECONDS,
 } from '@yard/engine';
 import type {
-  DuppyLevel, GameMode, HandReview, HandState, Move, PenaltyEvent, SetFormat, SetState, TileId,
+  DuppyLevel, DuppyPace, GameMode, HandReview, HandState, Move, PenaltyEvent, SetFormat, SetState, TileId,
 } from '@yard/engine';
+
+export type { DuppyPace } from '@yard/engine';
 
 export interface LocalOptions {
   mode: GameMode;
@@ -29,8 +31,6 @@ export interface LocalOptions {
   tournament: boolean;
   oneAllPlayTwo: boolean;
 }
-
-export type DuppyPace = 'relaxed' | 'yard' | 'quick';
 
 export interface HandFairness {
   commitment: string;
@@ -48,11 +48,11 @@ export interface HandFairness {
  * the result replaces the live hand.
  */
 export const DUPPY_PACE_MS: Record<DuppyPace, number> = {
-  relaxed: 3_500,
-  yard: 2_500,
-  quick: 1_000,
+  quick: DUPPY_PACE_SECONDS.quick * 1_000,
+  yard: DUPPY_PACE_SECONDS.yard * 1_000,
+  relaxed: DUPPY_PACE_SECONDS.relaxed * 1_000,
 };
-export const DUPPY_LAST_BONE_PAUSE_MS = 2_200;
+export const DUPPY_LAST_BONE_PAUSE_MS = DUPPY_PACE_SECONDS.quick * 1_000;
 
 export type LocalEvent =
   | { type: 'state' }

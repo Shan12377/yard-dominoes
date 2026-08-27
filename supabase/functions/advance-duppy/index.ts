@@ -9,7 +9,7 @@ import { handled, json, requireUser, serviceClient, toState, persist, HttpError,
 import { applyMove } from '../_shared/engine/hand.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
-import { allowance, DUPPY_THINK_SECONDS, type Clock } from '../_shared/engine/clock.ts';
+import { allowance, duppyThinkSeconds, type Clock } from '../_shared/engine/clock.ts';
 import { applyRatingUpdates } from '../_shared/apply-rating.ts';
 
 Deno.serve(handled(async (req) => {
@@ -41,7 +41,7 @@ Deno.serve(handled(async (req) => {
   const clock: Clock = { base: table!.turn_seconds, cap: table!.turn_cap_seconds };
   const banks: number[] = seats!.map((seat: any) => seat.time_bank ?? 0);
   const nextSeconds = state.status === 'active' && seats![state.turn].duppy_level
-    ? DUPPY_THINK_SECONDS
+    ? duppyThinkSeconds(table!.duppy_pace)
     : allowance(clock, banks[state.turn] ?? 0);
 
   try {

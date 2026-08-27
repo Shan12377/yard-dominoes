@@ -16,8 +16,8 @@ import {
 } from './online.ts';
 import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
-import { isPartnered, legalMoves, provablyFairShuffle, sideOf, verifyHand as verifyReceipt } from '@yard/engine';
-import type { AnyBoard, GameMode, HandReceipt, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
+import { duppyPaceByName, isPartnered, legalMoves, provablyFairShuffle, sideOf, verifyHand as verifyReceipt } from '@yard/engine';
+import type { AnyBoard, DuppyPace, GameMode, HandReceipt, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { predictMyMove } from './predict.ts';
 
 export interface TableInfo {
@@ -42,6 +42,8 @@ export interface TableInfo {
   turnSeconds: number;
   /** Ceiling on a single turn, bank included. */
   turnCapSeconds: number;
+  /** Server-authoritative reading beat for each Duppy turn. */
+  duppyPace: DuppyPace;
   joinCode: string;
 }
 
@@ -310,7 +312,8 @@ export class OnlineGame {
     const game = new OnlineGame({
       id: t.id, loungeId: t.lounge_id, mode: t.mode, format: t.format, seatCount: t.seat_count,
       tournament: t.tournament, status: t.status, turnSeconds: t.turn_seconds,
-      turnCapSeconds: t.turn_cap_seconds ?? t.turn_seconds, joinCode: t.join_code,
+      turnCapSeconds: t.turn_cap_seconds ?? t.turn_seconds,
+      duppyPace: duppyPaceByName(t.duppy_pace), joinCode: t.join_code,
       tournamentId: t.tournament_id ?? null, roundNo: t.round_no ?? null,
       tournamentName: null,
     });

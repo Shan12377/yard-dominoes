@@ -8,7 +8,7 @@ import { handled, json, requireUser, serviceClient, toState, persist, HttpError,
 import { isLegal, applyMove } from '../_shared/engine/hand.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
 import type { Move } from '../_shared/engine/types.ts';
-import { afterTurn, allowance, usedBy, DUPPY_THINK_SECONDS } from '../_shared/engine/clock.ts';
+import { afterTurn, allowance, usedBy, duppyThinkSeconds } from '../_shared/engine/clock.ts';
 import type { Clock } from '../_shared/engine/clock.ts';
 import { applyRatingUpdates } from '../_shared/apply-rating.ts';
 
@@ -63,7 +63,7 @@ Deno.serve(handled(async (req) => {
     // The deadline belongs to whoever holds the turn now, on their own budget.
     await persist(db, row.id, table!.id, row.set_id, state, seatUsers,
       seats![state.turn].duppy_level
-        ? DUPPY_THINK_SECONDS
+        ? duppyThinkSeconds(table!.duppy_pace)
         : allowance(clock, banks[state.turn] ?? 0), row.version);
   } catch (err) {
     if (err instanceof Conflict) throw new HttpError(409, 'someone else moved first — reloading');

@@ -22,8 +22,8 @@ import { describeMoveLine, describeSeat, seatName } from './movelog.ts';
 import { tableRackPresentation } from './table-rack.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import {
-  CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, DUPPY_THINK_SECONDS,
-  isPartnered, sideOf, type ClockName, type DuppyLevel, type GameMode,
+  CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, DUPPY_PACE_LABELS, DUPPY_PACE_NAMES, duppyThinkSeconds,
+  isPartnered, sideOf, type ClockName, type DuppyLevel, type DuppyPace, type GameMode,
 } from '@yard/engine';
 import * as sfx from './sfx.ts';
 
@@ -140,6 +140,10 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   const clock = document.createElement('select');
   clock.innerHTML = CLOCK_NAMES.map((c) => `<option value="${c}">${CLOCK_LABELS[c]}</option>`).join('');
   clock.value = 'yard';
+  const duppyPace = document.createElement('select');
+  duppyPace.innerHTML = DUPPY_PACE_NAMES.map((pace) =>
+    `<option value="${pace}">${DUPPY_PACE_LABELS[pace]}</option>`).join('');
+  duppyPace.value = 'yard';
 
   // Partner AND openhand are both inherently 4-seat, 2-vs-2 formats — lock the
   // seat count when either is selected so the form can never submit an invalid
@@ -181,14 +185,20 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   mode.onchange = () => { syncFormat(); syncSeatCount(); syncFormatHint(); };
   format.onchange = () => { syncSeatCount(); syncFormatHint(); };
 
-  for (const [label, control] of [['Game', mode], ['Seats', seatCount], ['Live-player clock', clock], ['Fill empty seats with', duppy]] as const) {
+  for (const [label, control] of [
+    ['Game', mode], ['Seats', seatCount], ['Live-player clock', clock],
+    ['Duppy pace', duppyPace], ['Fill empty seats with', duppy],
+  ] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
     if (label === 'Live-player clock') {
       field.append(el('small', 'muted', 'This is the time a real player gets for each turn.'));
     }
+    if (label === 'Duppy pace') {
+      field.append(el('small', 'muted', 'How long the whole table can read each Duppy move.'));
+    }
     if (label === 'Fill empty seats with') {
-      field.append(el('small', 'muted', 'Duppies let the table start now and take a visible four-second thinking beat. A real player can still take an empty seat before the hand begins.'));
+      field.append(el('small', 'muted', 'Duppies let the table start now. A real player can still take an empty seat before the hand begins.'));
     }
     form.appendChild(field);
   }
@@ -213,6 +223,7 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
         seatCount: seats as 2 | 3 | 4,
         duppies: fill,
         clock: clock.value as ClockName,
+        duppyPace: duppyPace.value as DuppyPace,
         loungeId,
       });
       onJoin(tableId);
@@ -631,6 +642,26 @@ function passCallout(game: OnlineGame): HTMLElement | null {
   return callout;
 }
 
+/** Keep the latest public tile beside the player who laid it until the next
+ * move arrives. This lets someone follow the hand from the board itself,
+ * without having to hunt through the activity log. */
+function playCallout(game: OnlineGame): HTMLElement | null {
+  const lastMove = game.hand?.move_log.at(-1);
+  if (!lastMove || !('tile' in lastMove) || game.hand?.status !== 'active') return null;
+  // Your own hand occupies the lower felt rail; you already know the tile
+  // you chose, so reserve this in-board cue for the other seats rather than
+  // covering a tile you may need to play next.
+  if (game.mySeat !== null && lastMove.seat === game.mySeat) return null;
+  const slot = seatPosition(lastMove.seat, game.mySeat, game.table.seatCount);
+  if (!slot) return null;
+  const player = game.seats.find((seat) => seat.seatIndex === lastMove.seat);
+  const name = player ? seatName(player) : `Player ${lastMove.seat + 1}`;
+  const callout = el('div', `table-play-callout table-play-${slot}`, `${name} · ${lastMove.tile}`);
+  callout.setAttribute('role', 'status');
+  callout.setAttribute('aria-label', `${name} played ${lastMove.tile}`);
+  return callout;
+}
+
 /**
  * "The slam" — the winning tile drops in and lands hard, the felt shakes.
  * design.md calls this the emotional peak of the game; it existed only as
@@ -786,6 +817,8 @@ export function liveTableView(
   }
   const lastPass = passCallout(game);
   if (lastPass) feltShell.appendChild(lastPass);
+  const lastPlay = playCallout(game);
+  if (lastPlay) feltShell.appendChild(lastPlay);
   // An undealt table is still a game surface, not a form page. Keep the
   // only action needed to begin the game directly on the felt so nobody has
   // to scroll away from the board to find it.
@@ -1086,7 +1119,7 @@ function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
   const isDuppyTurn = turn !== null && Boolean(game.seats[turn]?.duppyLevel);
   const bank = turn === null ? 0 : Math.round(game.seats[turn]?.timeBank ?? 0);
   const base = game.table?.turnSeconds ?? 0;
-  const allowed = isDuppyTurn ? DUPPY_THINK_SECONDS : Math.max(base + bank, 1);
+  const allowed = isDuppyTurn ? duppyThinkSeconds(game.table.duppyPace) : Math.max(base + bank, 1);
 
   const wrap = el('div', 'panel clock');
   const head = el('div', 'clock-head');

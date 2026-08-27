@@ -9,7 +9,7 @@ import { handled, json, serviceClient, toState, persist, Conflict } from '../_sh
 import { legalMoves, applyMove } from '../_shared/engine/hand.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
-import { allowance, DUPPY_THINK_SECONDS } from '../_shared/engine/clock.ts';
+import { allowance, duppyThinkSeconds } from '../_shared/engine/clock.ts';
 import { applyRatingUpdates } from '../_shared/apply-rating.ts';
 
 Deno.serve(handled(async () => {
@@ -43,7 +43,7 @@ Deno.serve(handled(async () => {
       await persist(db, row.id, table!.id, row.set_id, state,
         seats!.map((s: any) => s.user_id),
         seats![state.turn].duppy_level
-          ? DUPPY_THINK_SECONDS
+          ? duppyThinkSeconds(table!.duppy_pace)
           : allowance(clock, banks[state.turn] ?? 0), (row as any).version);
     } catch (err) {
       // A visible client may have resolved this exact Duppy turn between the

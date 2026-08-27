@@ -44,11 +44,39 @@ export const CLOCK_LABELS: Record<ClockName, string> = {
 export const CLOCK_NAMES = Object.keys(CLOCKS) as ClockName[];
 
 /**
- * A Duppy gets a short, visible beat between moves in a live table. This is
+ * A Duppy gets a clear, visible beat between moves in a live table. This is
  * deliberately separate from the human clock: it gives people time to read
- * the board without letting an AI hold a table hostage.
+ * the board, the pass markers, and who laid each tile before the next seat
+ * moves. The pace belongs to the table, not to the browser running it.
  */
-export const DUPPY_THINK_SECONDS = 4;
+export type DuppyPace = 'quick' | 'yard' | 'relaxed';
+
+/** Named, accessible Duppy reading beats. Clients choose a name; servers
+ * resolve the duration, so no one can quietly speed an AI up. */
+export const DUPPY_PACE_SECONDS: Record<DuppyPace, number> = {
+  quick: 3.5,
+  yard: 10,
+  relaxed: 20,
+};
+
+export const DUPPY_PACE_LABELS: Record<DuppyPace, string> = {
+  quick: 'Quick — 3.5 seconds per move',
+  yard: 'Yard — 10 seconds per move',
+  relaxed: 'Relaxed — 20 seconds per move',
+};
+
+export const DUPPY_PACE_NAMES = Object.keys(DUPPY_PACE_SECONDS) as DuppyPace[];
+export const DEFAULT_DUPPY_PACE: DuppyPace = 'yard';
+
+export function duppyPaceByName(name: unknown): DuppyPace {
+  return typeof name === 'string' && DUPPY_PACE_NAMES.includes(name as DuppyPace)
+    ? name as DuppyPace
+    : DEFAULT_DUPPY_PACE;
+}
+
+export function duppyThinkSeconds(pace: unknown): number {
+  return DUPPY_PACE_SECONDS[duppyPaceByName(pace)];
+}
 
 /** Fast rooms: think ahead or lose the tempo. */
 export const SPEED_CLOCK: Clock = CLOCKS.speed;
