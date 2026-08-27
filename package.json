@@ -9,6 +9,7 @@
     "dev": "npm run dev --workspace @yard/web",
     "build": "npm run build --workspace @yard/web",
     "typecheck": "npm run typecheck --workspace @yard/web",
+    "test:e2e": "npx playwright test --config apps/web/playwright.config.ts",
     "sync:engine": "rm -rf supabase/functions/_shared/engine && mkdir -p supabase/functions/_shared/engine && cp packages/engine/src/*.ts supabase/functions/_shared/engine/",
     "db:reset": "npx supabase db reset",
     "fn:serve": "npm run sync:engine && npx supabase functions serve",
