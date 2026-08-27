@@ -27,6 +27,8 @@ import { sendFeedback, listFeedback, markFeedbackReviewed } from './feedback.ts'
 import type { FeedbackItem } from './feedback.ts';
 import { listReferralStats } from './referraladmin.ts';
 import type { ReferralCodeStats } from './referraladmin.ts';
+import { myReferralCode, becomeReferrer } from './myreferral.ts';
+import type { MyReferralCode } from './myreferral.ts';
 
 /** Roughly how long ago, for a last-seen or filed-at line — a coarse grain
  *  is the useful one here, not a live-ticking clock. Exported: loungeview.ts
@@ -205,6 +207,82 @@ function coinSection(rerender: () => void): HTMLElement {
     }
   })();
   section.appendChild(buy);
+  return section;
+}
+
+// -------------------------------------------------------------- referral --
+// A player's OWN code, self-serve. The admin-granted 20% founder codes never
+// come from here — this path always writes the public rate server-side (see
+// referrals/index.ts), so self-serve can never reach the founders' number.
+let myCode: MyReferralCode | null | undefined; // undefined = not fetched yet
+let myCodeLoading = false;
+let myCodeBusy = false;
+let myCodeError: string | null = null;
+let myCodeCopied = false;
+let myCodeReferralOpen = false;
+
+function referralSection(rerender: () => void): HTMLElement {
+  if (myCode === undefined && !myCodeLoading) {
+    myCodeLoading = true;
+    void myReferralCode()
+      .then((c) => { myCode = c; })
+      .catch((err) => { myCodeError = err instanceof Error ? err.message : 'could not load'; })
+      .finally(() => { myCodeLoading = false; rerender(); });
+  }
+
+  const section = collapsibleSection('Referrals', myCodeReferralOpen, (v) => { myCodeReferralOpen = v; });
+  section.append(el('p', 'muted small',
+    'Send people your link. When someone you sent signs up and pays, you earn a cut — '
+    + 'every renewal, not just the first payment.'));
+
+  if (myCodeError) section.append(el('div', 'banner small', myCodeError));
+
+  if (myCodeLoading && myCode === undefined) {
+    section.append(el('p', 'muted small', 'Loading…'));
+    return section;
+  }
+
+  if (!myCode) {
+    const become = document.createElement('button');
+    become.type = 'button';
+    become.className = 'act ghost small';
+    become.textContent = myCodeBusy ? 'Setting you up…' : 'Become a referrer';
+    become.disabled = myCodeBusy;
+    become.onclick = () => void (async () => {
+      myCodeBusy = true; myCodeError = null; rerender();
+      try {
+        const result = await becomeReferrer();
+        myCode = { ...result, referredCount: 0, totalOwedCents: 0 };
+      } catch (err) {
+        myCodeError = err instanceof Error ? err.message : 'could not set that up';
+      } finally {
+        myCodeBusy = false;
+        rerender();
+      }
+    })();
+    section.appendChild(become);
+    return section;
+  }
+
+  const link = `${window.location.origin}/?ref=${myCode.code}`;
+  section.append(el('p', undefined, link));
+  section.append(el('p', 'muted small',
+    `${myCode.commissionPct}% commission · ${myCode.referredCount} referred · `
+    + `$${(myCode.totalOwedCents / 100).toFixed(2)} earned so far`));
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'act ghost small';
+  copy.textContent = myCodeCopied ? 'Copied!' : 'Copy my link';
+  copy.onclick = () => void (async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      myCodeCopied = true;
+    } catch {
+      myCodeError = 'could not copy — select and copy the link above';
+    }
+    rerender();
+  })();
+  section.appendChild(copy);
   return section;
 }
 
@@ -687,6 +765,7 @@ export function profilePanel(
 
   panel.appendChild(feedbackSection(rerender));
   panel.appendChild(coinSection(rerender));
+  panel.appendChild(referralSection(rerender));
 
   // The two things almost everyone actually came here to check or change —
   // open by default. Everything more cosmetic (look, backdrop) collapses so

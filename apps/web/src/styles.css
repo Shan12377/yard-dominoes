@@ -1114,11 +1114,14 @@ label.field > span {
   position: absolute;
   z-index: 1;
   pointer-events: none;
-  border: 1px solid rgba(67, 199, 244, .85);
+  border: none;
   border-radius: 999px;
   padding: 4px 8px;
-  background: rgba(4, 35, 52, .94);
+  background: transparent;
   color: #eaf9ff;
+  /* No backing fill to sit on now, so the text carries its own contrast
+     against whatever board/tiles are underneath it. */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .9), 0 0 6px rgba(0, 0, 0, .7);
   font: 700 11px/1 var(--mono);
   letter-spacing: .04em;
   white-space: nowrap;

@@ -22,7 +22,7 @@ export interface Clock {
   cap: number;
 }
 
-export type ClockName = 'speed' | 'yard' | 'relaxed';
+export type ClockName = 'blitz' | 'speed' | 'yard' | 'relaxed';
 
 /**
  * The clocks a table may be started on. Named rather than numeric on purpose:
@@ -30,12 +30,14 @@ export type ClockName = 'speed' | 'yard' | 'relaxed';
  * post themselves a table with a ten-minute turn.
  */
 export const CLOCKS: Record<ClockName, Clock> = {
+  blitz: { base: 5, cap: 20 },
   speed: { base: 10, cap: 40 },
   yard: { base: 20, cap: 40 },
   relaxed: { base: 30, cap: 60 },
 };
 
 export const CLOCK_LABELS: Record<ClockName, string> = {
+  blitz: 'Blitz — 5s, bank up to 20s',
   speed: 'Speed — 10s, bank up to 40s',
   yard: 'Yard — 20s, bank up to 40s',
   relaxed: 'Relaxed — 30s, bank up to 60s',
