@@ -642,6 +642,27 @@ export async function startCheckout(tier: 'yardie' | 'vip'): Promise<string> {
   return (data as { url: string }).url;
 }
 
+/**
+ * Distinct players active anywhere in the last 15 minutes — the honest
+ * answer to "how many people are live right now" without new
+ * infrastructure. `lounge_visits.last_seen` is stamped once per successful
+ * realtime (re)subscribe, not a continuous heartbeat, so a stable desktop
+ * session sitting in one lounge the whole window still counts even though
+ * its own timestamp is stale from whenever it first joined — the 15-minute
+ * window exists specifically to not undercount those sessions. The cost is
+ * the mirror case: someone who left a few minutes ago still counts too.
+ * Directional, not exact — there is no true live presence aggregated
+ * anywhere server-side (see voice.md's per-lounge Realtime presence, which
+ * is real-time but client-side and never summed across lounges).
+ */
+export async function liveNowCount(): Promise<number> {
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { data, error } = await db().from('lounge_visits')
+    .select('user_id').gte('last_seen', cutoff);
+  if (error || !data) return 0;
+  return new Set((data as { user_id: string }[]).map((r) => r.user_id)).size;
+}
+
 // --------------------------------------------------------------- bredrins --
 // VIP only — see 0020_bredrins_vip.sql. A Guest or Yardie calling any of
 // these gets an RLS-empty read or a rejected write; the UI is expected to

@@ -15,6 +15,7 @@ import {
   saveProfile, myProfile, TIER_PITCH, AVATARS, AVATAR_LABEL, avatarUrl,
   AVATAR_ACCESSORIES, AVATAR_ACCESSORY_LABEL, avatarAccessoryUrl,
   BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl, myCoinBalance, buyCoins, COIN_PACK_LABEL,
+  liveNowCount,
 } from './lounges.ts';
 import type { Avatar, AvatarAccessory, Background, Gender, MyProfile, Origin } from './lounges.ts';
 import {
@@ -294,6 +295,41 @@ function loadFeedbackList(rerender: () => void) {
     .finally(() => { feedbackLoading = false; rerender(); });
 }
 
+let liveCount: number | null = null;
+let liveCountLoading = false;
+let liveCountError: string | null = null;
+
+function loadLiveCount(rerender: () => void) {
+  liveCountLoading = true;
+  liveCountError = null;
+  rerender();
+  void liveNowCount()
+    .then((count) => { liveCount = count; })
+    .catch((err) => { liveCountError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { liveCountLoading = false; rerender(); });
+}
+
+function liveCountSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('h3', undefined, 'Live now'));
+  section.append(el('p', 'muted small',
+    'Distinct players active in a lounge in the last 15 minutes. Directional, not exact.'));
+  if (liveCountError) section.append(el('div', 'banner small', liveCountError));
+  if (liveCountLoading && liveCount === null) {
+    section.append(el('p', 'muted small', 'Loading…'));
+  } else {
+    section.append(el('p', undefined, String(liveCount ?? 0)));
+  }
+  const refresh = document.createElement('button');
+  refresh.type = 'button';
+  refresh.className = 'act small ghost';
+  refresh.textContent = liveCountLoading ? 'Refreshing…' : 'Refresh';
+  refresh.disabled = liveCountLoading;
+  refresh.onclick = () => loadLiveCount(rerender);
+  section.appendChild(refresh);
+  return section;
+}
+
 let adminsList: Admin[] | null = null;
 let adminsLoading = false;
 let adminsError: string | null = null;
@@ -490,12 +526,14 @@ let adminDataLoaded = false;
 function adminSection(rerender: () => void): HTMLElement {
   if (!adminDataLoaded) {
     adminDataLoaded = true;
+    loadLiveCount(rerender);
     loadReports(rerender);
     loadFeedbackList(rerender);
     loadAdmins(rerender);
   }
   const wrap = el('div', 'stack');
   wrap.append(el('h3', undefined, 'Admin'));
+  wrap.appendChild(liveCountSection(rerender));
   wrap.appendChild(reportsSection(rerender));
   wrap.appendChild(feedbackReviewSection(rerender));
   wrap.appendChild(adminsManageSection(rerender));
