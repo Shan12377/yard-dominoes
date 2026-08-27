@@ -120,11 +120,17 @@ found in this session's audit.
    fix landed. **Fix (2026-07-31):** ticked in the **test-mode** endpoint via
    the API, then verified live — `stripe trigger` fired real signed test
    events at the deployed function for all five handled types, all returned
-   200, and a bad-signature probe still correctly got 400. The **live-mode**
-   endpoint has not been created yet (no live key exists in this project) —
-   see the cutover checklist below; do not assume ticking test mode also
-   ticks live mode, they are entirely separate endpoint objects even on the
-   same Stripe account.
+   200, and a bad-signature probe still correctly got 400. **Update
+   (2026-08-25): a live-mode endpoint now exists**, created via the API in
+   the "Vibe Code Ja" Stripe account (not Hunters Holistic Health, kept
+   deliberately separate so its name never shows at checkout) with all five
+   handled event types enabled from creation. Verified by reading the
+   created products, prices, and webhook status back from Stripe's API
+   directly rather than trusting the creation response. Do not assume
+   ticking test mode also ticks live mode — they are entirely separate
+   endpoint objects even on the same Stripe account, and the two accounts
+   involved here are separate Stripe accounts entirely, not just separate
+   modes of one.
 7. **A security-definer function missing its `service_role` grant, and an
    RPC error nobody was checking — together, a completely invisible
    failure.** Found building the coin economy (0021/0022), same file
