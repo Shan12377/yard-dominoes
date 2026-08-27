@@ -518,6 +518,7 @@ export class OnlineGame {
           this.emit({ type: 'penalty', events: hand.last_penalties });
         }
         this.hand = hand;
+        this.reconcileMyTilesIfMissing();
         this.scheduleDuppyTurn();
         // Real data has arrived — whatever was predicted in play() is either
         // already confirmed by this or superseded by it, either way this is
@@ -639,6 +640,32 @@ export class OnlineGame {
     this.sub?.stop();
     this.subscribe();
     void this.refetchHand();
+  }
+
+  private reconcilingTiles = false;
+
+  /**
+   * Defense in depth, not a duplicate of the fresh-deal fix above — that
+   * fix closes the one specific race that produced this exact symptom
+   * live; this catches the whole CLASS, on every broadcast, regardless of
+   * which path let it happen. `hand_sizes` is the public, always-broadcast
+   * pip count every seat can see, so it's an independent signal that
+   * doesn't depend on the same private-tiles path that might have failed —
+   * if it says my seat holds tiles but `myTiles` is empty, something went
+   * wrong somewhere, and nothing else was going to notice on its own.
+   * `reconcilingTiles` caps it at one in-flight retry so a genuinely empty
+   * hand (about to domino out — see the `expected === 0` guard, which
+   * should already prevent this, kept as a second guard in case the two
+   * ever briefly disagree) can't loop requests forever.
+   */
+  private reconcileMyTilesIfMissing() {
+    if (this.isSpectator || this.reconcilingTiles || !this.hand || this.hand.status !== 'active') return;
+    const expected = this.hand.hand_sizes[this.mySeat!] ?? 0;
+    if (expected === 0 || this.myTiles.length > 0) return;
+    this.reconcilingTiles = true;
+    void this.loadPrivateTiles(this.hand.hand_id)
+      .then(() => this.emit({ type: 'state' }))
+      .finally(() => { this.reconcilingTiles = false; });
   }
 
   private clearDuppyTimer() {
