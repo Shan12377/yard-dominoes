@@ -58,19 +58,24 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-08-27, `www.yaaddominoes.com` serves commit `4693044`
-  (`feat: separate Profile and Admin from Membership pricing`, service
-  worker v73). Vercel records it as a READY production deployment from
+- As of 2026-08-27, `www.yaaddominoes.com` serves commit `c548d08`
+  (`feat: collapsible sections on Profile and Start a table`, service
+  worker v74). Vercel records it as a READY production deployment from
   `design/yaaddominoes-foundation`. This deploy also carries the referral
   commission system, the SITE_URL fix, the fresh-deal tile race fix, the
-  first Playwright E2E smoke tests, the admin referral-stats view, and star
-  ratings on feedback. Nav is now Play / Lounges / Academy / Membership /
-  Profile / Fair deal, plus an Admin tab shown only once the lounge module
-  confirms `is_admin` — Membership is pricing only, Profile owns every
-  account tool (including the live-now-names panel, now under Admin, not
-  Profile), and `profile.ts`'s `adminSection()` is exported and rendered by
-  `loungeview.ts`'s `adminDashboardView()` rather than nested in the profile
-  panel.
+  first Playwright E2E smoke tests, the admin referral-stats view, star
+  ratings on feedback, and the Profile/Admin split from Membership pricing
+  (nav is Play / Lounges / Academy / Membership / Profile / Fair deal, plus
+  an Admin tab shown only once the lounge module confirms `is_admin`).
+  Profile's Presence/accessory and Seat backdrop sections, and the lounge
+  "Start a table" form's Seats/clock/duppy-pace fields, are now `<details>`
+  disclosures collapsed by default — their open state lives in a
+  module-scope variable (`profile.ts`'s `basicsOpen`/`presenceOpen`/
+  `backdropOpen`, `onlinetableview.ts`'s `startTableAdvancedOpen`), not the
+  DOM's own `open` attribute, because `render()` rebuilds the whole page on
+  every call and a bare `open` attribute does not survive that — confirmed
+  live, a section re-collapsed itself seconds after being opened before
+  this fix.
 - Before claiming that a project rule or brand document is stale, read the
   real repository file. Conversation attachments and compacted context may
   contain older versions. The current `.claude/rules/design.md` specifies the

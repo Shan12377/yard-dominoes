@@ -21,6 +21,20 @@ position, a partly-filled form, an open dropdown.
 If you add a text input, ask what happens when a render fires while it is
 focused. The answer must not be "the player loses their typing."
 
+**Confirmed live, 2026-08-27: a `<details>`'s own `open` attribute does not
+survive this either.** `profile.ts`'s collapsible Presence/Seat-backdrop
+sections and `onlinetableview.ts`'s collapsible "Seats, clock & duppies"
+re-collapsed themselves seconds after being opened, with no click involved —
+some unrelated background rerender (a fetch resolving, a realtime tick)
+rebuilt the panel and recreated the `<details>` element from scratch, which
+resets `open` to whatever the code passes in, not what the player last
+toggled. Fixed the same way as everything else in this section: the open/
+closed state moved to a module-scope variable the element's `toggle` event
+writes to (`basicsOpen`/`presenceOpen`/`backdropOpen`,
+`startTableAdvancedOpen`), and every render reads that variable instead of
+hardcoding `open`. Any future collapsible needs the same treatment — a bare
+`details.open = someConstant` is exactly this bug waiting to happen again.
+
 **The reverse also bites: module-scoped selection state must be invalidated
 when the state it depends on stops being true, not just preserved across a
 render.** `pendingTile` (`main.ts`, `onlinetableview.ts`) holds a tile the
