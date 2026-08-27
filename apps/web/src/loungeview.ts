@@ -20,7 +20,7 @@ import type {
   Bredrin, Invite, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
   PublicProfile,
 } from './lounges.ts';
-import { profilePanel, avatarImg, timeAgo } from './profile.ts';
+import { profilePanel, adminSection, avatarImg, timeAgo } from './profile.ts';
 import {
   ensureSignedIn, findActiveSeat, videoSessionCall, turnCredentialsCall,
   secureAccount, signInWithPassword, isAnonymousUser,
@@ -1554,14 +1554,9 @@ export function loungesView(rerender: () => void, goToMembership: () => void): D
 }
 
 // --------------------------------------------------------- membership ----
-export function membershipView(rerender: () => void): DocumentFragment {
+export function membershipView(rerender: () => void, goToProfile: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
   const myTier: Tier = loungeState.me?.tier ?? 'guest';
-
-  // Ahead of everything else — someone who just clicked an emailed reset
-  // link expects to land directly on setting a new password, not have to
-  // find it under the usual tier pitch.
-  if (recoveryMode) frag.appendChild(passwordRecoveryPanel(rerender));
 
   const head = el('div', 'panel');
   head.append(el('div', 'eyebrow', 'Membership'));
@@ -1571,39 +1566,19 @@ export function membershipView(rerender: () => void): DocumentFragment {
     'Membership buys the room, not the rules.'));
   // Quiet, not a button — this headline's whole job is "free, no login wall,"
   // so a returning player switching devices needs a fast way back to an
-  // account they already secured without that competing with the pitch a
-  // brand-new guest sees first. Opens the same account flow that already
-  // lives further down the page (profilePanel/accountPanel below), it just
-  // jumps there instead of asking a new player to scroll past pricing to
+  // account they already secured, without that competing with the pitch a
+  // brand-new guest sees first. Sign-in itself lives on the Profile tab now
+  // (previously buried at the bottom of this pricing page) — this just
+  // points there instead of asking a new player to scroll past pricing to
   // find it.
   if (loungeState.me && loungeState.isAnonymous) {
     const signIn = document.createElement('button');
     signIn.className = 'linky';
-    signIn.textContent = 'Already have an account? Sign in';
-    signIn.onclick = () => {
-      accountOpen = true;
-      accountMode = 'signin';
-      accountError = null;
-      accountMessage = null;
-      accountFocusedField = null;
-      accountFocusRequest = 'email';
-      rerender();
-    };
+    signIn.textContent = 'Already have an account? Sign in under Profile';
+    signIn.onclick = () => goToProfile();
     head.appendChild(signIn);
   }
   frag.appendChild(head);
-
-  // Returning members asked to sign in here, so the actual fields belong
-  // here too. Previously this link opened a form after pricing, profile and
-  // account controls at the bottom of the page; on a phone that looked as if
-  // the link had done nothing. Keep this before the tier cards and focus the
-  // email field so the result is immediate and unambiguous.
-  const signInAtTop = accountOpen && accountMode === 'signin';
-  if (signInAtTop) {
-    const inlineAccount = accountPanel(rerender);
-    inlineAccount.classList.add('inline-account-panel');
-    frag.appendChild(inlineAccount);
-  }
 
   const grid = el('div', 'tiers');
   for (const tier of ['guest', 'yardie', 'vip'] as Tier[]) {
@@ -1646,71 +1621,136 @@ export function membershipView(rerender: () => void): DocumentFragment {
     'the year you paid for.'));
   frag.appendChild(note);
 
-  const me = loungeState.me;
+  return frag;
+}
 
-  // Right after a Stripe redirect — checkout itself starts from the tier
-  // cards above, so this is where the nudge to secure it belongs, not a
-  // screen the player has to happen to revisit.
-  if (me && justUpgradedTier && loungeState.isAnonymous && !accountOpen) {
+/**
+ * Everything about the account lives here: editing who you are, coins,
+ * feedback, security (secure/sign in), and your bredrins list — one screen
+ * for a returning player to land on directly, reachable from Lounges'
+ * "Manage account" button, the live table's You tab, and its own top-level
+ * nav tab. Split out of membershipView (which used to bundle all of this
+ * below the pricing cards) so an existing member doesn't have to scroll
+ * past the guest/Yardie/VIP pitch every time they just want their profile.
+ * Admin tools live on their own separate `adminDashboardView` now, not here.
+ */
+export function profileView(rerender: () => void): DocumentFragment {
+  const frag = document.createDocumentFragment();
+
+  // Ahead of everything else — someone who just clicked an emailed reset
+  // link expects to land directly on setting a new password, not have to
+  // find it under the rest of the account tools.
+  if (recoveryMode) frag.appendChild(passwordRecoveryPanel(rerender));
+
+  const me = loungeState.me;
+  if (!me) {
+    const head = el('div', 'panel');
+    head.append(el('div', 'eyebrow', 'Profile'));
+    head.append(el('p', 'muted', 'Loading…'));
+    frag.appendChild(head);
+    return frag;
+  }
+
+  // Returning members sign in here. Focus the email field so landing on
+  // this tab via the Membership pointer link is immediate and unambiguous.
+  const signInAtTop = accountOpen && accountMode === 'signin';
+  if (signInAtTop) {
+    const inlineAccount = accountPanel(rerender);
+    inlineAccount.classList.add('inline-account-panel');
+    frag.appendChild(inlineAccount);
+  }
+
+  // Right after a Stripe redirect — checkout itself starts from the
+  // Membership tier cards, so this is where the nudge to secure it belongs,
+  // not a screen the player has to happen to revisit.
+  if (justUpgradedTier && loungeState.isAnonymous && !accountOpen) {
     frag.appendChild(upgradePrompt(justUpgradedTier, rerender));
   }
 
-  // Everything about the account lives here now: editing who you are,
-  // coins, feedback, and (for admins) reports — one screen, reachable from
-  // Lounges' "Manage account" button and from the live table's You tab.
-  if (me) {
-    frag.appendChild(profilePanel(me, rerender, (fresh) => { loungeState.me = fresh; }));
+  // A paying member asked to see everything they get in one place, rather
+  // than piece it together from the pricing cards on Membership they saw
+  // once at signup. Same copy TIER_PITCH already shows there, just surfaced
+  // where a Yardie/VIP actually lives day to day.
+  if (me.tier !== 'guest') {
+    const perks = el('div', 'panel');
+    perks.append(el('div', 'eyebrow', TIER_LABEL[me.tier]));
+    perks.append(el('h3', undefined, 'Your perks'));
+    const list = document.createElement('ul');
+    for (const point of TIER_PITCH[me.tier].points) list.append(el('li', undefined, point));
+    perks.appendChild(list);
+    frag.appendChild(perks);
   }
 
-  if (me) {
-    const accountHead = el('div', 'row');
-    const openAccount = (mode: 'secure' | 'signin') => {
-      const alreadyActive = accountOpen && accountMode === mode;
-      accountOpen = !alreadyActive;
-      accountMode = mode;
-      accountError = null;
-      accountMessage = null;
-      rerender();
-    };
-    const defaultMode = loungeState.isAnonymous ? 'secure' : 'signin';
-    const accountBtn = document.createElement('button');
-    accountBtn.className = 'act ghost small';
-    accountBtn.textContent = (accountOpen && accountMode === defaultMode)
-      ? 'Done'
-      : (loungeState.isAnonymous ? 'Secure account' : 'Account');
-    accountBtn.onclick = () => openAccount(defaultMode);
-    accountHead.append(accountBtn);
-    // A fresh browser always lands on a brand-new guest session — "Sign in"
-    // to an account secured elsewhere was previously reachable only by
-    // opening "Secure account" first and finding a toggle link buried
-    // inside it. A player who already knows they have an account and just
-    // wants back in should see that option up front, not one layer deep.
-    if (loungeState.isAnonymous) {
-      const signInBtn = document.createElement('button');
-      signInBtn.className = 'act ghost small';
-      signInBtn.textContent = (accountOpen && accountMode === 'signin') ? 'Done' : 'Sign in';
-      signInBtn.onclick = () => openAccount('signin');
-      accountHead.append(signInBtn);
-    }
-    frag.appendChild(accountHead);
-    if (loungeState.isAnonymous && !accountOpen) {
-      frag.appendChild(el('p', 'muted small',
-        'This is a guest session tied to this browser. Secure account keeps it from being '
-        + 'lost, or Sign in if you already secured one elsewhere.'));
-    }
-    if (accountOpen && !signInAtTop) frag.appendChild(accountPanel(rerender));
+  frag.appendChild(profilePanel(me, rerender, (fresh) => { loungeState.me = fresh; }));
 
-    const bredrinsBtn = document.createElement('button');
-    bredrinsBtn.className = 'act ghost small';
-    bredrinsBtn.textContent = bredrinsOpen ? 'Done' : 'Bredrins';
-    bredrinsBtn.onclick = () => {
-      bredrinsOpen = !bredrinsOpen;
-      if (bredrinsOpen && me.tier === 'vip' && !bredrinsList) loadBredrins(rerender);
-      rerender();
-    };
-    frag.appendChild(bredrinsBtn);
-    if (bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
+  const accountHead = el('div', 'row');
+  const openAccount = (mode: 'secure' | 'signin') => {
+    const alreadyActive = accountOpen && accountMode === mode;
+    accountOpen = !alreadyActive;
+    accountMode = mode;
+    accountError = null;
+    accountMessage = null;
+    rerender();
+  };
+  const defaultMode = loungeState.isAnonymous ? 'secure' : 'signin';
+  const accountBtn = document.createElement('button');
+  accountBtn.className = 'act ghost small';
+  accountBtn.textContent = (accountOpen && accountMode === defaultMode)
+    ? 'Done'
+    : (loungeState.isAnonymous ? 'Secure account' : 'Account');
+  accountBtn.onclick = () => openAccount(defaultMode);
+  accountHead.append(accountBtn);
+  // A fresh browser always lands on a brand-new guest session — "Sign in"
+  // to an account secured elsewhere was previously reachable only by
+  // opening "Secure account" first and finding a toggle link buried
+  // inside it. A player who already knows they have an account and just
+  // wants back in should see that option up front, not one layer deep.
+  if (loungeState.isAnonymous) {
+    const signInBtn = document.createElement('button');
+    signInBtn.className = 'act ghost small';
+    signInBtn.textContent = (accountOpen && accountMode === 'signin') ? 'Done' : 'Sign in';
+    signInBtn.onclick = () => openAccount('signin');
+    accountHead.append(signInBtn);
   }
+  frag.appendChild(accountHead);
+  if (loungeState.isAnonymous && !accountOpen) {
+    frag.appendChild(el('p', 'muted small',
+      'This is a guest session tied to this browser. Secure account keeps it from being '
+      + 'lost, or Sign in if you already secured one elsewhere.'));
+  }
+  if (accountOpen && !signInAtTop) frag.appendChild(accountPanel(rerender));
 
+  const bredrinsBtn = document.createElement('button');
+  bredrinsBtn.className = 'act ghost small';
+  bredrinsBtn.textContent = bredrinsOpen ? 'Done' : 'Bredrins';
+  bredrinsBtn.onclick = () => {
+    bredrinsOpen = !bredrinsOpen;
+    if (bredrinsOpen && me.tier === 'vip' && !bredrinsList) loadBredrins(rerender);
+    rerender();
+  };
+  frag.appendChild(bredrinsBtn);
+  if (bredrinsOpen) frag.appendChild(bredrinsPanel(me, rerender));
+
+  return frag;
+}
+
+/**
+ * Standalone admin dashboard — everything adminSection() (profile.ts) used
+ * to render nested at the bottom of a player's own profile panel, now its
+ * own top-level view reachable only via the nav tab main.ts shows exclusively
+ * to a confirmed admin. Not gated again here: main.ts's dispatch already
+ * refuses to reach this function at all unless loungeState.me.isAdmin, and
+ * every action it triggers (reports, feedback, referral stats, grant/revoke
+ * admin) re-checks is_admin server-side regardless.
+ */
+export function adminDashboardView(rerender: () => void): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  const head = el('div', 'panel');
+  head.append(el('div', 'eyebrow', 'Admin'));
+  head.append(el('h2', undefined, 'Run the yard'));
+  frag.appendChild(head);
+  const wrap = el('div', 'panel');
+  wrap.appendChild(adminSection(rerender));
+  frag.appendChild(wrap);
   return frag;
 }

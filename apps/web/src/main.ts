@@ -39,8 +39,8 @@ import {
   ageGate, privacyView, socialAllowed, termsView, tooYoungView,
 } from './legal.ts';
 
-type View = 'play' | 'lounges' | 'academy' | 'membership' | 'fair' | 'replay'
-  | 'terms' | 'privacy';
+type View = 'play' | 'lounges' | 'academy' | 'membership' | 'profile' | 'fair'
+  | 'replay' | 'terms' | 'privacy' | 'admin';
 
 const app = document.getElementById('app')!;
 
@@ -258,10 +258,14 @@ function chrome(): HTMLElement {
   brand.append(mark, brandCopy);
 
   const nav = el('div', 'nav');
-  const tabs = [
+  const tabs: [View, string][] = [
     ['play', 'Play'], ['lounges', 'Lounges'], ['academy', 'Academy'],
-    ['membership', 'Membership'], ['fair', 'Fair deal'],
-  ] as const;
+    ['membership', 'Membership'], ['profile', 'Profile'], ['fair', 'Fair deal'],
+  ];
+  // Only rendered once the lounge module has loaded and confirmed admin —
+  // never shown to anyone else, and the server-side is_admin gate on every
+  // admin Edge Function is the real wall regardless of what this tab shows.
+  if (loungeModule?.loungeState.me?.isAdmin) tabs.push(['admin', 'Admin']);
   for (const [id, label] of tabs) {
     const b = document.createElement('button');
     b.textContent = label;
@@ -273,7 +277,7 @@ function chrome(): HTMLElement {
       // atmosphere. The timer restarts from the next event when you come back.
       if (id !== 'play') stopNagging();
       view = id as View;
-      if (id === 'lounges' || id === 'membership') void ensureLoungeModule();
+      if (id === 'lounges' || id === 'membership' || id === 'profile') void ensureLoungeModule();
       render();
     };
     nav.appendChild(b);
@@ -1983,7 +1987,7 @@ function pending(message: string): HTMLElement {
 
 // ---------------------------------------------------------------- render --
 function authInputIsActive(): boolean {
-  return view === 'membership' && loungeModule?.authInputIsActive() === true;
+  return (view === 'membership' || view === 'profile') && loungeModule?.authInputIsActive() === true;
 }
 
 function render() {
@@ -2030,7 +2034,7 @@ function render() {
       next.appendChild(tooYoungView(() => { view = 'play'; render(); }));
     } else {
       next.appendChild(loungeModule
-        ? loungeModule.loungesView(scheduleRender, () => { view = 'membership'; scheduleRender(); })
+        ? loungeModule.loungesView(scheduleRender, () => { view = 'profile'; scheduleRender(); })
         : pending('Opening the lounges'));
     }
   } else if (view === 'terms') {
@@ -2040,7 +2044,22 @@ function render() {
   } else if (view === 'academy') {
     next.appendChild(academyView());
   } else if (view === 'membership') {
-    next.appendChild(loungeModule ? loungeModule.membershipView(scheduleRender) : pending('Loading membership'));
+    next.appendChild(loungeModule
+      ? loungeModule.membershipView(scheduleRender, () => { view = 'profile'; scheduleRender(); })
+      : pending('Loading membership'));
+  } else if (view === 'profile') {
+    next.appendChild(loungeModule ? loungeModule.profileView(scheduleRender) : pending('Loading profile'));
+  } else if (view === 'admin') {
+    // Reachable only via the nav tab chrome() only shows to a confirmed
+    // admin — but a direct view switch with no admin session lands here too
+    // (a stale tab, a non-admin poking at state), so fall back rather than
+    // rendering a panel that will just 403 on every load.
+    if (loungeModule?.loungeState.me?.isAdmin) {
+      next.appendChild(loungeModule.adminDashboardView(scheduleRender));
+    } else {
+      view = 'play';
+      next.appendChild(hero());
+    }
   } else {
     next.appendChild(fairView());
   }
@@ -2139,6 +2158,6 @@ if (localStorage.getItem(LOUNGES_VISITED_KEY)) {
   // lounge module owns the Supabase client that actually parses the
   // recovery tokens out of this URL, so it has to load regardless of
   // whether this visitor would otherwise have triggered it.
-  view = 'membership';
+  view = 'profile';
   void ensureLoungeModule();
 }

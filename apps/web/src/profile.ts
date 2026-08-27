@@ -612,7 +612,10 @@ function feedbackReviewSection(rerender: () => void): HTMLElement {
 
 let adminDataLoaded = false;
 
-function adminSection(rerender: () => void): HTMLElement {
+/** Rendered on its own top-level admin view now (loungeview.ts's
+ *  adminDashboardView) rather than nested inside profilePanel — exported
+ *  for that. */
+export function adminSection(rerender: () => void): HTMLElement {
   if (!adminDataLoaded) {
     adminDataLoaded = true;
     loadLiveCount(rerender);
@@ -871,8 +874,6 @@ export function profilePanel(
     }
   })();
   panel.appendChild(save);
-
-  if (me.isAdmin) panel.appendChild(adminSection(rerender));
 
   return panel;
 }
