@@ -58,11 +58,11 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-08-26, `www.yaaddominoes.com` serves commit `8a9e650`
-  (`docs: record the live Stripe cutover to the Vibe Code Ja account`).
-  Vercel records it as a READY production deployment from
-  `design/yaaddominoes-foundation`. This deploy also carries the referral
-  commission system, the SITE_URL fix, and the admin live-now count.
+- As of 2026-08-26, `www.yaaddominoes.com` serves commit `9a19f02`
+  (`chore: bump service worker to v71`). Vercel records it as a READY
+  production deployment from `design/yaaddominoes-foundation`. This deploy
+  also carries the referral commission system, the SITE_URL fix, the admin
+  live-now count, and the fresh-deal tile race fix below.
 - Before claiming that a project rule or brand document is stale, read the
   real repository file. Conversation attachments and compacted context may
   contain older versions. The current `.claude/rules/design.md` specifies the

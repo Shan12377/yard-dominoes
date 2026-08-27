@@ -82,6 +82,20 @@ Never ship a tappable hand with no prediction path behind it.
   channel keeps pushing into a dead render closure.
 - RLS filters the `seat_hands` stream, so a subscription can only ever deliver
   the player's own row. Do not rely on a client-side filter for that.
+- **A fresh deal must fetch this seat's tiles directly — never trust the
+  `seat_hands` realtime push alone to deliver them.** `onSeatTiles`
+  (`onlinetable.ts`) drops any event whose `handId` doesn't already match
+  `this.hand.hand_id`, so if that push arrives (or gets processed) before
+  the `hand_public` update sets it a few lines later — or never arrives at
+  all, which the iOS-backgrounding failure mode above makes a real way to
+  land here, not a theoretical one — nothing was left to retry it. Found
+  live 2026-08-26: a player's hand rendered fully empty right after a deal
+  on an installed PWA, with no way to pose. `onPublic`'s hand-transition
+  branch now calls `loadPrivateTiles(hand.hand_id)` directly the moment a
+  new `hand_id` is detected, the same fetch `open()` and `refetchHand()`
+  already used. Any future path that detects "this is a new hand" needs
+  the same direct fetch — do not go back to trusting realtime delivery
+  order for a player's own tiles.
 
 ## Bundle discipline
 
