@@ -97,6 +97,20 @@ Never ship a tappable hand with no prediction path behind it.
   the same direct fetch — do not go back to trusting realtime delivery
   order for a player's own tiles.
 
+## Duppy turn scheduling (`advance-duppy`)
+
+Stress-tested live 2026-08-27, not just read: 8 parallel requests for the
+same duppy turn on the same hand — exactly one succeeded (200, turn
+advanced), the other seven correctly rejected (six on `commit_move`'s
+version race, one on the `turn_expires_at` staleness check) — no
+double-move, no corruption. Separately, an idle browser tab left running
+this whole session chained an entire hand to completion through many
+consecutive duppy turns plus its own timed-out turns (`expire-turns`
+picking those up), zero console errors, zero manual clicks. Both angles
+hold up: the per-browser `scheduleDuppyTurn`/`advanceDuppyTurn` timer in
+`onlinetable.ts` and the server's version-checked `commit_move` are doing
+what their comments claim.
+
 ## Bundle discipline
 
 The Supabase client is larger than the rest of the app combined. It loads
