@@ -15,8 +15,9 @@ import {
   saveProfile, myProfile, TIER_PITCH, AVATARS, AVATAR_LABEL, avatarUrl,
   AVATAR_ACCESSORIES, AVATAR_ACCESSORY_LABEL, avatarAccessoryUrl,
   BACKGROUNDS, BACKGROUND_LABEL, backgroundUrl, myCoinBalance, buyCoins, COIN_PACK_LABEL,
-  liveNowCount,
+  liveNowPlayers,
 } from './lounges.ts';
+import type { LivePlayer } from './lounges.ts';
 import type { Avatar, AvatarAccessory, Background, Gender, MyProfile, Origin } from './lounges.ts';
 import {
   listReports, resolveReport, dismissReport, listAdmins, grantAdmin, revokeAdmin,
@@ -295,7 +296,7 @@ function loadFeedbackList(rerender: () => void) {
     .finally(() => { feedbackLoading = false; rerender(); });
 }
 
-let liveCount: number | null = null;
+let livePlayers: LivePlayer[] | null = null;
 let liveCountLoading = false;
 let liveCountError: string | null = null;
 
@@ -303,8 +304,8 @@ function loadLiveCount(rerender: () => void) {
   liveCountLoading = true;
   liveCountError = null;
   rerender();
-  void liveNowCount()
-    .then((count) => { liveCount = count; })
+  void liveNowPlayers()
+    .then((players) => { livePlayers = players; })
     .catch((err) => { liveCountError = err instanceof Error ? err.message : 'could not load'; })
     .finally(() => { liveCountLoading = false; rerender(); });
 }
@@ -313,12 +314,23 @@ function liveCountSection(rerender: () => void): HTMLElement {
   const section = el('div', 'stack');
   section.append(el('h3', undefined, 'Live now'));
   section.append(el('p', 'muted small',
-    'Distinct players active in a lounge in the last 15 minutes. Directional, not exact.'));
+    'Players active in a lounge in the last 15 minutes. Directional, not exact.'));
   if (liveCountError) section.append(el('div', 'banner small', liveCountError));
-  if (liveCountLoading && liveCount === null) {
+  if (liveCountLoading && livePlayers === null) {
     section.append(el('p', 'muted small', 'Loading…'));
   } else {
-    section.append(el('p', undefined, String(liveCount ?? 0)));
+    const players = livePlayers ?? [];
+    section.append(el('p', undefined, String(players.length)));
+    if (players.length > 0) {
+      const list = el('div', 'roster');
+      for (const p of players) {
+        const line = el('div', 'person');
+        line.append(el('span', undefined, p.username));
+        line.append(el('span', 'muted small', p.lounge));
+        list.appendChild(line);
+      }
+      section.appendChild(list);
+    }
   }
   const refresh = document.createElement('button');
   refresh.type = 'button';

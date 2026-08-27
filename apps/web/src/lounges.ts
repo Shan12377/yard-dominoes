@@ -663,6 +663,43 @@ export async function liveNowCount(): Promise<number> {
   return new Set((data as { user_id: string }[]).map((r) => r.user_id)).size;
 }
 
+export interface LivePlayer {
+  userId: string;
+  username: string;
+  lounge: string;
+  lastSeen: string;
+}
+
+/**
+ * Named counterpart to liveNowCount() — same 15-minute window, same
+ * directional-not-exact caveat, but who, not just how many. `profiles` and
+ * `lounge_visits` are both world-readable (0001/0002), so this needs no new
+ * grant. One row per player: their most recent lounge sighting, deduped the
+ * same way whereAreMyBredrins() already does (visits ordered by last_seen,
+ * first hit per user_id wins).
+ */
+export async function liveNowPlayers(): Promise<LivePlayer[]> {
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { data, error } = await db().from('lounge_visits')
+    .select('user_id, last_seen, profiles(username), lounges(name)')
+    .gte('last_seen', cutoff)
+    .order('last_seen', { ascending: false });
+  if (error || !data) return [];
+  const seen = new Set<string>();
+  const out: LivePlayer[] = [];
+  for (const row of data as any[]) {
+    if (seen.has(row.user_id)) continue;
+    seen.add(row.user_id);
+    out.push({
+      userId: row.user_id,
+      username: row.profiles?.username ?? 'player',
+      lounge: row.lounges?.name ?? 'a lounge',
+      lastSeen: row.last_seen,
+    });
+  }
+  return out.sort((a, b) => a.username.localeCompare(b.username));
+}
+
 // --------------------------------------------------------------- bredrins --
 // VIP only — see 0020_bredrins_vip.sql. A Guest or Yardie calling any of
 // these gets an RLS-empty read or a rejected write; the UI is expected to
