@@ -492,6 +492,19 @@ export class OnlineGame {
           this.dealVerification = null;
           this.review = null;
           this.reviewAccuracy = null;
+          // A fresh deal. Don't trust the separate seat_hands realtime push
+          // alone to deliver my tiles for it — onSeatTiles below drops any
+          // event whose handId doesn't already match this.hand.hand_id, so
+          // if that event arrives (or gets processed) before this handler
+          // sets it a few lines down, or never arrives at all — exactly the
+          // shape of iOS backgrounding a page through a deal, see client.md's
+          // "Realtime" section — the hand panel stays empty with nothing
+          // left to retry it. Fetch directly instead of hoping the race
+          // resolves in our favor. Found live 2026-08-26: a player's hand
+          // rendered fully empty right after a deal, on an installed PWA.
+          if (!this.isSpectator) {
+            void this.loadPrivateTiles(hand.hand_id).then(() => this.emit({ type: 'state' }));
+          }
         }
         if (prev?.status === 'active' && hand.status === 'domino') this.justWonByDominoHandId = hand.hand_id;
         // `prev` must already exist — a client's very first broadcast for a
