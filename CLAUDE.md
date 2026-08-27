@@ -58,8 +58,18 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-08-27, `www.yaaddominoes.com` serves commit `4d492f4`
-  (`fix: open-tables list never expired dead tables`, service worker v75).
+- As of 2026-08-27, `www.yaaddominoes.com` serves commit `639c276`
+  (`feat: Blitz 5s clock, self-serve referrals, transparent play callout`,
+  service worker v76). A fourth live-player clock (`blitz`, 5s/bank 20s)
+  sits below `speed`; regular tables needed no schema change, but
+  `tournaments.clock_is_known`'s hardcoded allow-list did (migration
+  `0048_blitz_clock.sql`) — `tournament-host`'s own `CLOCKS` mirror was
+  updated in source but **not yet redeployed** (low priority: rejects
+  `blitz` with a 422, same as before this change, no regression). Players
+  can now self-serve a referral code via Profile → Referrals → "Become a
+  referrer" (`referrals` Edge Function, fixed 10% public rate, generated
+  server-side) — the two founders' 20% codes stay admin-only and
+  hand-granted so that rate stays deliberately out of self-serve's reach.
   Vercel records it as a READY production deployment from
   `design/yaaddominoes-foundation`. This deploy also carries the referral
   commission system, the SITE_URL fix, the fresh-deal tile race fix, the
