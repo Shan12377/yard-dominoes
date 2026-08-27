@@ -443,11 +443,16 @@ export interface OpenTable {
 
 /** Tables currently running or waiting for players inside one lounge. */
 export async function listLoungeTables(loungeId: string): Promise<OpenTable[]> {
+  // A table only leaves 'waiting'/'playing' when its full SET finishes
+  // (tournaments.ts) or the hourly sweep (0047_stale_table_sweep.sql)
+  // catches it — this cap is a second line of defense against the list
+  // growing unbounded between sweeps, not the actual fix for staleness.
   const { data, error } = await db().from('tables')
     .select('id, join_code, mode, format, seat_count, status, seats(user_id)')
     .eq('lounge_id', loungeId)
     .in('status', ['waiting', 'playing'])
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(30);
   if (error) throw new Error(error.message);
   return (data as any[]).map((t) => ({
     id: t.id,

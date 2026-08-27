@@ -65,8 +65,11 @@ export async function openTablesPanel(
   if (tables.length === 0) {
     open.append(el('p', 'muted', 'No tables running here yet. Your table can be the first.'));
   } else {
-    const list = el('div', 'open-table-grid');
-    for (const t of tables) {
+    // A lounge that's genuinely busy can have dozens of tables — show the
+    // first handful and fold the rest behind a disclosure rather than
+    // dumping every row on the page at once.
+    const VISIBLE_CAP = 6;
+    const buildRow = (t: OpenTable): HTMLElement => {
       const row = el('div', `open-table-card ${t.status === 'waiting' ? 'joinable' : 'watchable'}`);
       const modeLabel = t.mode === 'partner' ? 'Partner'
         : t.mode === 'openhand' ? 'Open hand'
@@ -94,9 +97,27 @@ export async function openTablesPanel(
         }
       })();
       row.appendChild(join);
-      list.appendChild(row);
-    }
+      return row;
+    };
+
+    const list = el('div', 'open-table-grid');
+    for (const t of tables.slice(0, VISIBLE_CAP)) list.appendChild(buildRow(t));
     open.appendChild(list);
+
+    const rest = tables.slice(VISIBLE_CAP);
+    if (rest.length > 0) {
+      const more = document.createElement('details');
+      more.className = 'collapsible';
+      more.open = openTablesMoreOpen;
+      more.addEventListener('toggle', () => { openTablesMoreOpen = more.open; });
+      const moreSummary = document.createElement('summary');
+      moreSummary.textContent = `${rest.length} more table${rest.length === 1 ? '' : 's'}`;
+      more.appendChild(moreSummary);
+      const moreList = el('div', 'open-table-grid');
+      for (const t of rest) moreList.appendChild(buildRow(t));
+      more.appendChild(moreList);
+      open.appendChild(more);
+    }
   }
   wrap.appendChild(open);
   return wrap;
@@ -111,6 +132,7 @@ const FORMAT_HINTS: Record<string, string> = {
 };
 
 let startTableAdvancedOpen = false;
+let openTablesMoreOpen = false;
 
 function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HTMLElement {
   const form = el('div', 'row');
