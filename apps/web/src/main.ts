@@ -39,7 +39,7 @@ import {
   ageGate, privacyView, socialAllowed, termsView, tooYoungView,
 } from './legal.ts';
 
-type View = 'play' | 'lounges' | 'academy' | 'membership' | 'profile' | 'fair'
+type View = 'play' | 'lounges' | 'rankings' | 'academy' | 'membership' | 'profile' | 'fair'
   | 'replay' | 'terms' | 'privacy' | 'admin';
 
 const app = document.getElementById('app')!;
@@ -259,7 +259,7 @@ function chrome(): HTMLElement {
 
   const nav = el('div', 'nav');
   const tabs: [View, string][] = [
-    ['play', 'Play'], ['lounges', 'Lounges'], ['academy', 'Academy'],
+    ['play', 'Play'], ['lounges', 'Lounges'], ['rankings', 'Rankings'], ['academy', 'Academy'],
     ['membership', 'Membership'], ['profile', 'Profile'], ['fair', 'Fair deal'],
   ];
   // Only rendered once the lounge module has loaded and confirmed admin —
@@ -277,7 +277,7 @@ function chrome(): HTMLElement {
       // atmosphere. The timer restarts from the next event when you come back.
       if (id !== 'play') stopNagging();
       view = id as View;
-      if (id === 'lounges' || id === 'membership' || id === 'profile') void ensureLoungeModule();
+      if (id === 'lounges' || id === 'membership' || id === 'profile' || id === 'rankings') void ensureLoungeModule();
       render();
     };
     nav.appendChild(b);
@@ -2041,6 +2041,8 @@ function render() {
     next.appendChild(termsView());
   } else if (view === 'privacy') {
     next.appendChild(privacyView());
+  } else if (view === 'rankings') {
+    next.appendChild(loungeModule ? loungeModule.rankingsView(scheduleRender) : pending('Loading rankings'));
   } else if (view === 'academy') {
     next.appendChild(academyView());
   } else if (view === 'membership') {

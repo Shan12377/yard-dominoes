@@ -207,8 +207,9 @@ export const advanceDuppy = (handId: string) =>
 export const requestReview = (handId: string) =>
   call<{ review: HandReview; accuracy: number }>('review-hand', { handId });
 
-/** 2 coins for every seat's starting tiles on a finished hand — see
- *  reveal-hand's own header for what this adds beyond the free replay. */
+/** Free — every seat's starting tiles on a finished hand, plus the
+ *  commit-reveal receipt so the browser can verify the shuffle itself.
+ *  Never coin-gated: see CLAUDE.md's "Never charge coins for trust". */
 export const revealHand = (handId: string) =>
   call<{ ok: true; deal: TileId[][]; receipt: HandReceipt }>('reveal-hand', { handId });
 

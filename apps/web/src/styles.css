@@ -2028,6 +2028,22 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   text-transform: uppercase; color: var(--muted); }
 .roster .person { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .roster .person .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+
+.ranking-board { margin-top: 12px; }
+.ranking-list { display: grid; gap: 4px; }
+.ranking-row {
+  display: grid; grid-template-columns: 28px 40px 1fr auto;
+  align-items: center; gap: 12px; padding: 8px 10px;
+  border-radius: var(--r); background: var(--sand-hi);
+}
+.ranking-row:nth-child(-n+3) { background: var(--wood-hi); }
+.ranking-place {
+  font-family: var(--mono); font-weight: 900; font-size: 15px;
+  color: var(--muted); text-align: center;
+}
+.ranking-row:nth-child(-n+3) .ranking-place { color: var(--gold); }
+.ranking-name { font-family: var(--body); font-weight: 700; font-size: 15px; }
+.ranking-rating { font-family: var(--mono); font-size: 14px; color: var(--gold); font-weight: 700; }
 .badge {
   font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em;
   text-transform: uppercase; padding: 1px 6px; border-radius: 99px;

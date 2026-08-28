@@ -15,10 +15,11 @@ import {
   sendInvite, pendingInvites, dismissInvite, watchInvites,
   MIN_GIFT_COINS, giftCoins,
   fetchPublicProfile,
+  topRanked, avatarUrl, avatarAccessoryUrl, AVATAR_LABEL,
 } from './lounges.ts';
 import type {
   Bredrin, Invite, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
-  PublicProfile,
+  PublicProfile, RankedPlayer, RatingCategory,
 } from './lounges.ts';
 import { profilePanel, adminSection, avatarImg, timeAgo } from './profile.ts';
 import {
@@ -1752,5 +1753,110 @@ export function adminDashboardView(rerender: () => void): DocumentFragment {
   const wrap = el('div', 'panel');
   wrap.appendChild(adminSection(rerender));
   frag.appendChild(wrap);
+  return frag;
+}
+
+// -------------------------------------------------------------- rankings --
+// Two real categories, matching exactly what apply-rating.ts writes to —
+// Partner also covers openhand and across (one shared column), and French
+// shares Cut Throat's column since a French table is mode: 'cutthroat'
+// under the hood. Not four tabs; the data can only actually back two.
+let rankingCategory: RatingCategory = 'partner';
+const rankingCache = new Map<RatingCategory, RankedPlayer[]>();
+let rankingLoading = false;
+let rankingError: string | null = null;
+
+function loadRanking(rerender: () => void) {
+  rankingLoading = true;
+  rankingError = null;
+  rerender();
+  void topRanked(rankingCategory)
+    .then((players) => { rankingCache.set(rankingCategory, players); })
+    .catch((err) => { rankingError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { rankingLoading = false; rerender(); });
+}
+
+/** Real photo first, then the chosen illustrated character, same fallback
+ *  chain as a live table's seat identity (onlinetableview.ts). */
+function rankedAvatar(p: RankedPlayer): HTMLElement {
+  const shell = document.createElement('span');
+  shell.className = 'avatar-shell';
+  const img = document.createElement('img');
+  img.className = 'avatar';
+  img.width = 40;
+  img.height = 40;
+  img.alt = p.avatar ? (AVATAR_LABEL[p.avatar] ?? '') : '';
+  img.src = photoUrl(p.userId);
+  img.onerror = () => {
+    if (p.avatar) {
+      img.onerror = null;
+      img.src = avatarUrl(p.avatar);
+    } else {
+      img.remove();
+    }
+  };
+  shell.appendChild(img);
+  if (p.avatarAccessory) {
+    const flair = document.createElement('img');
+    flair.className = `avatar-accessory avatar-accessory-${p.avatarAccessory}`;
+    flair.src = avatarAccessoryUrl(p.avatarAccessory);
+    flair.alt = '';
+    flair.width = 22;
+    flair.height = 22;
+    shell.appendChild(flair);
+  }
+  return shell;
+}
+
+export function rankingsView(rerender: () => void): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  const head = el('div', 'panel');
+  head.append(el('div', 'eyebrow', 'Rankings'));
+  head.append(el('h2', undefined, 'Who runs the yard'));
+  head.append(el('p', 'muted',
+    'Every rated set moves this. Duppy-filled tables never count — only real games.'));
+
+  const tabs = el('div', 'choices');
+  for (const [value, label] of [['partner', 'Partner'], ['cutthroat', 'Cut Throat']] as const) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'choice';
+    b.setAttribute('aria-pressed', String(rankingCategory === value));
+    b.textContent = label;
+    b.onclick = () => {
+      if (rankingCategory === value) return;
+      rankingCategory = value;
+      if (!rankingCache.has(value)) loadRanking(rerender);
+      else rerender();
+    };
+    tabs.appendChild(b);
+  }
+  head.appendChild(tabs);
+  frag.appendChild(head);
+
+  if (!rankingCache.has(rankingCategory) && !rankingLoading) loadRanking(rerender);
+
+  const board = el('div', 'panel ranking-board');
+  if (rankingError) board.append(el('div', 'banner small', rankingError));
+  if (rankingLoading && !rankingCache.has(rankingCategory)) {
+    board.append(el('p', 'muted small', 'Loading…'));
+  } else {
+    const players = rankingCache.get(rankingCategory) ?? [];
+    if (players.length === 0) {
+      board.append(el('p', 'muted small', 'Nobody has a real rating here yet — play a full rated set to be the first.'));
+    } else {
+      const list = el('div', 'ranking-list');
+      players.forEach((p, i) => {
+        const row = el('div', 'ranking-row');
+        row.append(el('span', 'ranking-place', String(i + 1)));
+        row.appendChild(rankedAvatar(p));
+        row.append(el('span', 'ranking-name', p.username));
+        row.append(el('span', 'ranking-rating', String(p.rating)));
+        list.appendChild(row);
+      });
+      board.appendChild(list);
+    }
+  }
+  frag.appendChild(board);
   return frag;
 }

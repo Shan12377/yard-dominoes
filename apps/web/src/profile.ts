@@ -188,7 +188,7 @@ function coinSection(rerender: () => void): HTMLElement {
   const section = el('div', 'stack');
   section.append(el('label', 'field-label', 'Coins'));
   section.append(el('p', 'muted small',
-    'Never cash out — money in, utility only. Reveal a finished hand, or buy a bredrin a drink.'));
+    'Never cash out — money in, utility only. Buy a bredrin a drink, or reshuffle a rough French hand.'));
   section.append(el('div', 'coin-balance', coinBalance === null ? '…' : `${coinBalance} coins`));
   if (coinError) section.append(el('div', 'banner small', coinError));
   const buy = document.createElement('button');

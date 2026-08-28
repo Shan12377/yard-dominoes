@@ -705,6 +705,50 @@ export async function liveNowPlayers(): Promise<LivePlayer[]> {
   return out.sort((a, b) => a.username.localeCompare(b.username));
 }
 
+// --------------------------------------------------------------- ranking --
+// The two categories a set actually gets rated into — see
+// _shared/apply-rating.ts's own column choice, which this mirrors exactly.
+// 'partner' also covers openhand and across (they share one rating column);
+// French shares 'cutthroat's column too, since French tables carry
+// mode: 'cutthroat' under the hood (set.ts's createSet). There is no way to
+// split French out for display without a schema change — don't invent a
+// third category the data can't actually back.
+export type RatingCategory = 'cutthroat' | 'partner';
+
+export interface RankedPlayer {
+  userId: string;
+  username: string;
+  rating: number;
+  avatar: Avatar | null;
+  avatarAccessory: AvatarAccessory | null;
+}
+
+/**
+ * Top N by rating in one category. Excludes anyone still sitting on the
+ * untouched default (1200 rating, RD 350 — Glicko's "never actually rated
+ * here" state, see rating.ts's UNRATED) so a fresh account with zero games
+ * doesn't crowd out real ranked play. `profiles` is world-readable
+ * (0001/0002) — same plain-query shape as liveNowPlayers, no Edge Function
+ * needed for a read this un-sensitive.
+ */
+export async function topRanked(category: RatingCategory, limit = 20): Promise<RankedPlayer[]> {
+  const ratingCol = category === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
+  const rdCol = category === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
+  const { data, error } = await db().from('profiles')
+    .select(`id, username, avatar, avatar_accessory, ${ratingCol}, ${rdCol}`)
+    .lt(rdCol, 350)
+    .order(ratingCol, { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return (data as any[]).map((row) => ({
+    userId: row.id,
+    username: row.username,
+    rating: row[ratingCol],
+    avatar: row.avatar,
+    avatarAccessory: row.avatar_accessory,
+  }));
+}
+
 // --------------------------------------------------------------- bredrins --
 // VIP only — see 0020_bredrins_vip.sql. A Guest or Yardie calling any of
 // these gets an RLS-empty read or a rejected write; the UI is expected to
