@@ -58,45 +58,29 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-08-27, `www.yaaddominoes.com` serves commit `639c276`
-  (`feat: Blitz 5s clock, self-serve referrals, transparent play callout`,
-  service worker v76). A fourth live-player clock (`blitz`, 5s/bank 20s)
-  sits below `speed`; regular tables needed no schema change, but
-  `tournaments.clock_is_known`'s hardcoded allow-list did (migration
-  `0048_blitz_clock.sql`) — `tournament-host`'s own `CLOCKS` mirror was
-  updated in source but **not yet redeployed** (low priority: rejects
-  `blitz` with a 422, same as before this change, no regression). Players
-  can now self-serve a referral code via Profile → Referrals → "Become a
-  referrer" (`referrals` Edge Function, fixed 10% public rate, generated
-  server-side) — the two founders' 20% codes stay admin-only and
-  hand-granted so that rate stays deliberately out of self-serve's reach.
-  Vercel records it as a READY production deployment from
-  `design/yaaddominoes-foundation`. This deploy also carries the referral
-  commission system, the SITE_URL fix, the fresh-deal tile race fix, the
-  first Playwright E2E smoke tests, the admin referral-stats view, star
-  ratings on feedback, the Profile/Admin split from Membership pricing (nav
-  is Play / Lounges / Academy / Membership / Profile / Fair deal, plus an
-  Admin tab shown only once the lounge module confirms `is_admin`), and
-  collapsible `<details>` sections on Profile and Start a table (open state
-  lives in module-scope variables — `render()` rebuilds the whole page on
-  every call, so a bare `open` attribute does not survive an unrelated
-  rerender; confirmed live before this fix).
+- As of 2026-08-28, `www.yaaddominoes.com` serves commit `e090334`
+  (`feat: rebalance public referral rate to 5% + 100 coins + 5% welcome`,
+  service worker v77), a READY production deployment from
+  `design/yaaddominoes-foundation`. For what any specific past deploy
+  contained, read `git log` rather than trusting an accumulated list here —
+  this line is a pointer to current truth, not a changelog.
+- **Edge Functions deploy via the Supabase CLI** (`npx supabase functions
+  deploy <name(s)> --project-ref iqixdijhckgilvyhduxb`), not by hand-assembling
+  shared files through an MCP tool — the CLI resolves each function's real
+  dependency tree automatically (including transitive `_shared/` and
+  `_shared/engine/` files) and correctly preserves per-function
+  `verify_jwt` settings from `supabase/config.toml` (confirmed:
+  `stripe-webhook` stayed `verify_jwt: false` across a redeploy). Run
+  `npm run sync:engine` first if `packages/engine/src` changed.
 - **`tables.status` only reaches `'finished'` when a full SET completes**
-  (see `tournaments.ts`), so any table abandoned mid-set, or one whose
-  creator never seated anyone, sat forever in every lounge's "Open tables"
-  list. Found live 2026-08-27: Cut Throat Yard had ~50 rows, most weeks
-  old, several from this project's own Playwright/curl testing (which hits
-  this same production Supabase project — `iqixdijhckgilvyhduxb` — not a
-  separate staging environment). Fixed with an hourly pg_cron job
-  (`sweep-stale-tables`, migration `0047_stale_table_sweep.sql`) that
+  (`tournaments.ts`), so an abandoned table used to sit in every lounge's
+  "Open tables" list forever — including rows created by this project's own
+  Playwright/curl testing, which hits this same production Supabase project
+  (`iqixdijhckgilvyhduxb`), not a separate staging environment. An hourly
+  pg_cron job (`sweep-stale-tables`, `0047_stale_table_sweep.sql`) now
   finishes any `waiting`/`playing` table with no `hand_public` activity in
-  3+ hours; `listLoungeTables()` also caps at 30 rows and the client shows
-  the first 6 with the rest behind a "N more tables" disclosure. The ~50
-  pre-existing stale rows were cleaned directly via SQL before this
-  deployed. Any future Playwright/curl test run against this project will
-  keep creating real rows the same way — the sweep now ages them out
-  automatically within a few hours, so no separate test-cleanup step is
-  needed.
+  3+ hours, so this self-heals — no manual cleanup or special test-teardown
+  needed going forward.
 - Before claiming that a project rule or brand document is stale, read the
   real repository file. Conversation attachments and compacted context may
   contain older versions. The current `.claude/rules/design.md` specifies the
