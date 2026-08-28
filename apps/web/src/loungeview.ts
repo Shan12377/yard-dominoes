@@ -1751,7 +1751,7 @@ export function adminDashboardView(rerender: () => void): DocumentFragment {
   head.append(el('h2', undefined, 'Run the yard'));
   frag.appendChild(head);
   const wrap = el('div', 'panel');
-  wrap.appendChild(adminSection(rerender));
+  wrap.appendChild(adminSection(rerender, loungeState.me?.isOwner === true));
   frag.appendChild(wrap);
   return frag;
 }

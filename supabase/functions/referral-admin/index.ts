@@ -1,11 +1,16 @@
 // POST /referral-admin  { action: 'list' | 'listPayouts' | 'markPaid' }
 //
-// Same shape as report-admin/feedback-admin: one gate at the top, nothing
-// below it runs until it passes. referral_codes and referral_commissions
-// are RLS-restricted to their own owner (0045_referrals.sql) — an admin
-// isn't the owner, so this reads under service_role rather than widening
-// that RLS policy to "or is_admin", which would be a second, easier-to-miss
-// path into the same data.
+// Same shape as report-admin/feedback-admin, but gated on is_owner, not
+// is_admin (0052) — this is real money (who's owed what, cash-out
+// requests, marking them paid), and a future admin granted for ordinary
+// report/feedback moderation must not automatically also see it. Narrower
+// than every other admin function in this codebase on purpose.
+//
+// referral_codes and referral_commissions are RLS-restricted to their own
+// owner (0045_referrals.sql) — an owner-tier admin still isn't THAT owner,
+// so this reads under service_role rather than widening those RLS policies
+// to "or is_owner", which would be a second, easier-to-miss path into the
+// same data.
 
 import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
 
@@ -15,8 +20,8 @@ Deno.serve(handled(async (req) => {
   const action = String(body.action ?? '');
   const db = serviceClient();
 
-  const { data: me } = await db.from('profiles').select('is_admin').eq('id', user.id).single();
-  if (!me?.is_admin) throw new HttpError(403, 'admin only');
+  const { data: me } = await db.from('profiles').select('is_owner').eq('id', user.id).single();
+  if (!me?.is_owner) throw new HttpError(403, 'owner only');
 
   if (action === 'list') {
     const { data: codes, error: codesError } = await db.from('referral_codes')

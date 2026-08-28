@@ -284,6 +284,14 @@ export interface MyProfile {
    * reading conduct reports are different trust levels.
    */
   isAdmin: boolean;
+  /**
+   * Narrower than isAdmin, on purpose (0052): sees referral financials —
+   * who's owed what, cash-out requests, marking them paid. An admin
+   * granted for ordinary report/feedback moderation does not automatically
+   * get this too. Same non-privilege as isAdmin/isHost: referral-admin
+   * re-checks it server-side on every call.
+   */
+  isOwner: boolean;
   /** Optional, player-typed — never inferred from IP/GPS. Null if unset. */
   location: string | null;
 }
@@ -293,12 +301,12 @@ export async function myProfile(): Promise<MyProfile | null> {
   if (!auth.user) return null;
   let { data, error } = await (db().from('profiles') as any)
     .select(SHARE_AVATAR_ACCESSORIES
-      ? 'id, username, tier, tier_expires_at, origin, gender, avatar, avatar_accessory, background, is_host, is_admin, location'
-      : 'id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin, location')
+      ? 'id, username, tier, tier_expires_at, origin, gender, avatar, avatar_accessory, background, is_host, is_admin, is_owner, location'
+      : 'id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin, is_owner, location')
     .eq('id', auth.user.id).single();
   if (missingAccessoryColumn(error)) {
     ({ data, error } = await (db().from('profiles') as any)
-      .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin, location')
+      .select('id, username, tier, tier_expires_at, origin, gender, avatar, background, is_host, is_admin, is_owner, location')
       .eq('id', auth.user.id).single());
   }
   if (!data) return null;
@@ -314,6 +322,7 @@ export async function myProfile(): Promise<MyProfile | null> {
     background: (data.background ?? null) as Background | null,
     isHost: Boolean(data.is_host),
     isAdmin: Boolean(data.is_admin),
+    isOwner: Boolean(data.is_owner),
     location: (data.location ?? null) as string | null,
   };
 }

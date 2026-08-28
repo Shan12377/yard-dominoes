@@ -828,24 +828,30 @@ let adminDataLoaded = false;
 
 /** Rendered on its own top-level admin view now (loungeview.ts's
  *  adminDashboardView) rather than nested inside profilePanel — exported
- *  for that. */
-export function adminSection(rerender: () => void): HTMLElement {
+ *  for that. `isOwner` gates referral financials specifically (0052) —
+ *  narrower than plain admin, so a future admin granted for ordinary
+ *  report/feedback moderation doesn't automatically see money data too. */
+export function adminSection(rerender: () => void, isOwner: boolean): HTMLElement {
   if (!adminDataLoaded) {
     adminDataLoaded = true;
     loadLiveCount(rerender);
     loadReports(rerender);
     loadFeedbackList(rerender);
     loadAdmins(rerender);
-    loadReferralStats(rerender);
-    loadPayoutRequests(rerender);
+    if (isOwner) {
+      loadReferralStats(rerender);
+      loadPayoutRequests(rerender);
+    }
   }
   const wrap = el('div', 'stack');
   wrap.append(el('h3', undefined, 'Admin'));
   wrap.appendChild(liveCountSection(rerender));
   wrap.appendChild(reportsSection(rerender));
   wrap.appendChild(feedbackReviewSection(rerender));
-  wrap.appendChild(referralStatsSection(rerender));
-  wrap.appendChild(payoutRequestsSection(rerender));
+  if (isOwner) {
+    wrap.appendChild(referralStatsSection(rerender));
+    wrap.appendChild(payoutRequestsSection(rerender));
+  }
   wrap.appendChild(adminsManageSection(rerender));
   return wrap;
 }
