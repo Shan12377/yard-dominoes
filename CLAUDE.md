@@ -58,12 +58,12 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-08-28, `www.yaaddominoes.com` serves commit `e090334`
-  (`feat: rebalance public referral rate to 5% + 100 coins + 5% welcome`,
-  service worker v77), a READY production deployment from
-  `design/yaaddominoes-foundation`. For what any specific past deploy
-  contained, read `git log` rather than trusting an accumulated list here —
-  this line is a pointer to current truth, not a changelog.
+- As of 2026-08-28, `www.yaaddominoes.com` serves commit `81465c8`
+  (`feat: referral cash-out requests`, service worker v80), a READY
+  production deployment from `design/yaaddominoes-foundation`. For what any
+  specific past deploy contained, read `git log` rather than trusting an
+  accumulated list here — this line is a pointer to current truth, not a
+  changelog. Update this line, don't append another one, next time.
 - **Edge Functions deploy via the Supabase CLI** (`npx supabase functions
   deploy <name(s)> --project-ref iqixdijhckgilvyhduxb`), not by hand-assembling
   shared files through an MCP tool — the CLI resolves each function's real
