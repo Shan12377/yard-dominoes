@@ -479,6 +479,7 @@ function referralStatsSection(rerender: () => void): HTMLElement {
       for (const c of codes) {
         const line = el('div', 'person');
         line.append(el('span', undefined, `${c.ownerUsername} — ${c.code}${c.active ? '' : ' (inactive)'}`));
+        line.append(el('span', 'muted small', c.ownerEmail ?? 'no email on file — anonymous guest account'));
         line.append(el('span', 'muted small', `${c.commissionPct}% · ${c.referredCount} referred`));
         line.append(el('span', 'muted small', `owed $${(c.totalOwedCents / 100).toFixed(2)}`));
         list.appendChild(line);

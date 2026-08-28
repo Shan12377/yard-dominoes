@@ -23,6 +23,9 @@ export interface ReferralCodeStats {
   id: string;
   code: string;
   ownerUsername: string;
+  /** null for an anonymous guest referrer — most players, by design. Only
+   *  set once they've secureAccount()'d with an email. */
+  ownerEmail: string | null;
   commissionPct: number;
   active: boolean;
   createdAt: string;

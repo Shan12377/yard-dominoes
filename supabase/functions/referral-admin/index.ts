@@ -36,12 +36,27 @@ Deno.serve(handled(async (req) => {
       stats.set(c.referral_code_id, s);
     }
 
+    // Email lives in auth.users, not public.profiles — most players are
+    // anonymous by design (CLAUDE.md's "no login wall") and have none at
+    // all. Only a referrer who secureAccount()'d (email/password) has one
+    // to show; the Admin API is the supported way to read it, not reaching
+    // into auth.users directly. One lookup per DISTINCT owner, not per
+    // code — a referrer only ever has one code (0049's unique constraint),
+    // but this stays correct even if that ever changes.
+    const ownerIds = [...new Set((codes ?? []).map((row: any) => row.owner_user_id))];
+    const emailByOwner = new Map<string, string | null>();
+    for (const ownerId of ownerIds) {
+      const { data } = await db.auth.admin.getUserById(ownerId);
+      emailByOwner.set(ownerId, data.user?.email ?? null);
+    }
+
     const result = (codes ?? []).map((row: any) => {
       const s = stats.get(row.id);
       return {
         id: row.id,
         code: row.code,
         ownerUsername: row.owner?.username ?? 'unknown',
+        ownerEmail: emailByOwner.get(row.owner_user_id) ?? null,
         commissionPct: row.commission_pct,
         active: row.active,
         createdAt: row.created_at,
