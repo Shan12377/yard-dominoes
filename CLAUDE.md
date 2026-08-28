@@ -58,9 +58,9 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-08-28, `www.yaaddominoes.com` serves commit `c03f872`
-  (`feat: referral financials restricted to owner, not every admin`,
-  service worker v82), a READY production deployment from
+- As of 2026-08-28, `www.yaaddominoes.com` serves commit `e99adb7`
+  (`feat: 2-coin top-up for a guest's used-up daily Coach review`,
+  service worker v83), a READY production deployment from
   `design/yaaddominoes-foundation`. For what any specific past deploy
   contained, read `git log` rather than trusting an accumulated list here —
   this line is a pointer to current truth, not a changelog. Update this
