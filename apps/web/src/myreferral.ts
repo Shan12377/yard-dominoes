@@ -23,7 +23,10 @@ export interface MyReferralCode {
   commissionPct: number;
   active: boolean;
   referredCount: number;
-  totalOwedCents: number;
+  totalEarnedCents: number;
+  paidCents: number;
+  pendingPayoutCents: number;
+  availableToCashOutCents: number;
 }
 
 /** null if this player has never become a referrer. */
@@ -33,3 +36,8 @@ export const myReferralCode = () =>
 /** Idempotent — returns the existing code if already a referrer. */
 export const becomeReferrer = () =>
   call<{ code: string; commissionPct: number; active: boolean }>({ action: 'become' });
+
+/** Requests everything currently available be paid out. One open request
+ *  at a time — the server rejects a second while one is still pending. */
+export const requestCashout = (email: string) =>
+  call<{ requestedCents: number }>({ action: 'cashout', email });

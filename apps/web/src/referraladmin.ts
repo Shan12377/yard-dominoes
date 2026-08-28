@@ -30,8 +30,28 @@ export interface ReferralCodeStats {
   active: boolean;
   createdAt: string;
   referredCount: number;
+  totalEarnedCents: number;
+  /** Lifetime earned minus whatever's already been paid out. */
   totalOwedCents: number;
+  hasOpenPayoutRequest: boolean;
 }
 
 export const listReferralStats = () =>
   call<{ codes: ReferralCodeStats[] }>('referral-admin', { action: 'list' }).then((r) => r.codes);
+
+export interface PayoutRequest {
+  id: string;
+  ownerUsername: string;
+  code: string;
+  contactEmail: string;
+  amountCents: number;
+  status: 'requested' | 'paid';
+  requestedAt: string;
+  paidAt: string | null;
+}
+
+export const listPayoutRequests = () =>
+  call<{ payouts: PayoutRequest[] }>('referral-admin', { action: 'listPayouts' }).then((r) => r.payouts);
+
+export const markPayoutPaid = (payoutId: string) =>
+  call<{ ok: true }>('referral-admin', { action: 'markPaid', payoutId });

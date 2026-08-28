@@ -25,9 +25,9 @@ import {
 import type { Report, Admin } from './reports.ts';
 import { sendFeedback, listFeedback, markFeedbackReviewed } from './feedback.ts';
 import type { FeedbackItem } from './feedback.ts';
-import { listReferralStats } from './referraladmin.ts';
-import type { ReferralCodeStats } from './referraladmin.ts';
-import { myReferralCode, becomeReferrer } from './myreferral.ts';
+import { listReferralStats, listPayoutRequests, markPayoutPaid } from './referraladmin.ts';
+import type { ReferralCodeStats, PayoutRequest } from './referraladmin.ts';
+import { myReferralCode, becomeReferrer, requestCashout } from './myreferral.ts';
 import type { MyReferralCode } from './myreferral.ts';
 
 /** Roughly how long ago, for a last-seen or filed-at line — a coarse grain
@@ -220,6 +220,11 @@ let myCodeBusy = false;
 let myCodeError: string | null = null;
 let myCodeCopied = false;
 let myCodeReferralOpen = false;
+let cashoutOpen = false;
+let cashoutEmail = '';
+let cashoutBusy = false;
+let cashoutError: string | null = null;
+let cashoutJustRequestedCents: number | null = null;
 
 function referralSection(rerender: () => void): HTMLElement {
   if (myCode === undefined && !myCodeLoading) {
@@ -253,7 +258,10 @@ function referralSection(rerender: () => void): HTMLElement {
       myCodeBusy = true; myCodeError = null; rerender();
       try {
         const result = await becomeReferrer();
-        myCode = { ...result, referredCount: 0, totalOwedCents: 0 };
+        myCode = {
+          ...result, referredCount: 0,
+          totalEarnedCents: 0, paidCents: 0, pendingPayoutCents: 0, availableToCashOutCents: 0,
+        };
       } catch (err) {
         myCodeError = err instanceof Error ? err.message : 'could not set that up';
       } finally {
@@ -269,7 +277,7 @@ function referralSection(rerender: () => void): HTMLElement {
   section.append(el('p', undefined, link));
   section.append(el('p', 'muted small',
     `${myCode.commissionPct}% commission · ${myCode.referredCount} referred · `
-    + `$${(myCode.totalOwedCents / 100).toFixed(2)} earned so far`));
+    + `$${(myCode.totalEarnedCents / 100).toFixed(2)} earned so far`));
   const copy = document.createElement('button');
   copy.type = 'button';
   copy.className = 'act ghost small';
@@ -284,7 +292,72 @@ function referralSection(rerender: () => void): HTMLElement {
     rerender();
   })();
   section.appendChild(copy);
+
+  section.appendChild(cashoutBlock(myCode, rerender));
   return section;
+}
+
+function cashoutBlock(code: MyReferralCode, rerender: () => void): HTMLElement {
+  const wrap = el('div', 'stack');
+
+  if (code.paidCents > 0) {
+    wrap.append(el('p', 'muted small', `$${(code.paidCents / 100).toFixed(2)} already paid out to you.`));
+  }
+
+  if (cashoutJustRequestedCents !== null) {
+    wrap.append(el('p', 'muted small',
+      `Cash-out requested for $${(cashoutJustRequestedCents / 100).toFixed(2)} — you'll hear back once it's sent.`));
+    return wrap;
+  }
+
+  if (code.pendingPayoutCents > 0) {
+    wrap.append(el('p', 'muted small',
+      `$${(code.pendingPayoutCents / 100).toFixed(2)} cash-out already requested — you'll hear back once it's sent.`));
+    return wrap;
+  }
+
+  if (code.availableToCashOutCents <= 0) return wrap;
+
+  if (!cashoutOpen) {
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'act small';
+    open.textContent = `Cash out $${(code.availableToCashOutCents / 100).toFixed(2)}`;
+    open.onclick = () => { cashoutOpen = true; rerender(); };
+    wrap.appendChild(open);
+    return wrap;
+  }
+
+  wrap.append(el('p', 'muted small', 'Where should this get sent? We\'ll reach out with the timing.'));
+  const email = document.createElement('input');
+  email.className = 'field';
+  email.type = 'email';
+  email.placeholder = 'you@example.com';
+  email.value = cashoutEmail;
+  email.oninput = () => { cashoutEmail = email.value; };
+  wrap.appendChild(email);
+  if (cashoutError) wrap.append(el('div', 'banner small', cashoutError));
+  const confirm = document.createElement('button');
+  confirm.type = 'button';
+  confirm.className = 'act small';
+  confirm.textContent = cashoutBusy ? 'Requesting…' : `Request $${(code.availableToCashOutCents / 100).toFixed(2)}`;
+  confirm.disabled = cashoutBusy;
+  confirm.onclick = () => void (async () => {
+    cashoutBusy = true; cashoutError = null; rerender();
+    try {
+      const { requestedCents } = await requestCashout(cashoutEmail);
+      cashoutJustRequestedCents = requestedCents;
+      cashoutOpen = false;
+      cashoutEmail = '';
+    } catch (err) {
+      cashoutError = err instanceof Error ? err.message : 'could not request that';
+    } finally {
+      cashoutBusy = false;
+      rerender();
+    }
+  })();
+  wrap.appendChild(confirm);
+  return wrap;
 }
 
 // -------------------------------------------------------------- feedback --
@@ -481,7 +554,8 @@ function referralStatsSection(rerender: () => void): HTMLElement {
         line.append(el('span', undefined, `${c.ownerUsername} — ${c.code}${c.active ? '' : ' (inactive)'}`));
         line.append(el('span', 'muted small', c.ownerEmail ?? 'no email on file — anonymous guest account'));
         line.append(el('span', 'muted small', `${c.commissionPct}% · ${c.referredCount} referred`));
-        line.append(el('span', 'muted small', `owed $${(c.totalOwedCents / 100).toFixed(2)}`));
+        line.append(el('span', 'muted small',
+          `owed $${(c.totalOwedCents / 100).toFixed(2)}${c.hasOpenPayoutRequest ? ' — cash-out requested' : ''}`));
         list.appendChild(line);
       }
       section.appendChild(list);
@@ -494,6 +568,65 @@ function referralStatsSection(rerender: () => void): HTMLElement {
   refresh.disabled = referralStatsLoading;
   refresh.onclick = () => loadReferralStats(rerender);
   section.appendChild(refresh);
+  return section;
+}
+
+let payoutRequests: PayoutRequest[] | null = null;
+let payoutRequestsLoading = false;
+let payoutRequestsError: string | null = null;
+let payoutMarkingBusy: string | null = null; // the payout id currently being marked paid
+
+function loadPayoutRequests(rerender: () => void) {
+  payoutRequestsLoading = true;
+  payoutRequestsError = null;
+  rerender();
+  void listPayoutRequests()
+    .then((rows) => { payoutRequests = rows; })
+    .catch((err) => { payoutRequestsError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { payoutRequestsLoading = false; rerender(); });
+}
+
+function payoutRequestsSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('h3', undefined, 'Cash-out requests'));
+  if (payoutRequestsError) section.append(el('div', 'banner small', payoutRequestsError));
+  if (payoutRequestsLoading && payoutRequests === null) {
+    section.append(el('p', 'muted small', 'Loading…'));
+  } else {
+    const open = (payoutRequests ?? []).filter((p) => p.status === 'requested');
+    if (open.length === 0) {
+      section.append(el('p', 'muted small', 'Nothing pending.'));
+    } else {
+      const list = el('div', 'roster');
+      for (const p of open) {
+        const line = el('div', 'person');
+        line.append(el('span', undefined, `${p.ownerUsername} — ${p.code}`));
+        line.append(el('span', 'muted small', p.contactEmail));
+        line.append(el('span', 'muted small', `$${(p.amountCents / 100).toFixed(2)} · requested ${timeAgo(p.requestedAt)}`));
+        const markPaid = document.createElement('button');
+        markPaid.className = 'dismiss';
+        markPaid.textContent = payoutMarkingBusy === p.id ? 'Marking…' : 'Mark paid';
+        markPaid.disabled = payoutMarkingBusy !== null;
+        markPaid.onclick = () => void (async () => {
+          payoutMarkingBusy = p.id;
+          rerender();
+          try {
+            await markPayoutPaid(p.id);
+            payoutRequests = (payoutRequests ?? []).map((x) =>
+              x.id === p.id ? { ...x, status: 'paid' as const, paidAt: new Date().toISOString() } : x);
+          } catch (err) {
+            payoutRequestsError = err instanceof Error ? err.message : 'could not update';
+          } finally {
+            payoutMarkingBusy = null;
+            rerender();
+          }
+        })();
+        line.appendChild(markPaid);
+        list.appendChild(line);
+      }
+      section.appendChild(list);
+    }
+  }
   return section;
 }
 
@@ -703,6 +836,7 @@ export function adminSection(rerender: () => void): HTMLElement {
     loadFeedbackList(rerender);
     loadAdmins(rerender);
     loadReferralStats(rerender);
+    loadPayoutRequests(rerender);
   }
   const wrap = el('div', 'stack');
   wrap.append(el('h3', undefined, 'Admin'));
@@ -710,6 +844,7 @@ export function adminSection(rerender: () => void): HTMLElement {
   wrap.appendChild(reportsSection(rerender));
   wrap.appendChild(feedbackReviewSection(rerender));
   wrap.appendChild(referralStatsSection(rerender));
+  wrap.appendChild(payoutRequestsSection(rerender));
   wrap.appendChild(adminsManageSection(rerender));
   return wrap;
 }

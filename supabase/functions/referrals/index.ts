@@ -1,4 +1,4 @@
-// POST /referrals  { action: 'become' | 'mine' }
+// POST /referrals  { action: 'become' | 'mine' | 'cashout' }
 //
 // Self-serve counterpart to referral-admin: any signed-in player managing
 // their OWN code, not an admin looking at everyone's. Code generation and
@@ -86,7 +86,15 @@ Deno.serve(handled(async (req) => {
     const { data: commissions } = await db.from('referral_commissions')
       .select('referred_user_id, amount_cents').eq('referral_code_id', code.id);
     const referredUserIds = new Set((commissions ?? []).map((c) => c.referred_user_id));
-    const totalOwedCents = (commissions ?? []).reduce((sum, c) => sum + c.amount_cents, 0);
+    const totalEarnedCents = (commissions ?? []).reduce((sum, c) => sum + c.amount_cents, 0);
+
+    const { data: payouts } = await db.from('referral_payouts')
+      .select('status, amount_cents').eq('referral_code_id', code.id);
+    const paidCents = (payouts ?? []).filter((p) => p.status === 'paid')
+      .reduce((sum, p) => sum + p.amount_cents, 0);
+    const pendingPayoutCents = (payouts ?? []).filter((p) => p.status === 'requested')
+      .reduce((sum, p) => sum + p.amount_cents, 0);
+    const availableToCashOutCents = totalEarnedCents - paidCents - pendingPayoutCents;
 
     return json({
       ok: true,
@@ -95,9 +103,48 @@ Deno.serve(handled(async (req) => {
         commissionPct: code.commission_pct,
         active: code.active,
         referredCount: referredUserIds.size,
-        totalOwedCents,
+        totalEarnedCents,
+        paidCents,
+        pendingPayoutCents,
+        availableToCashOutCents,
       },
     });
+  }
+
+  if (action === 'cashout') {
+    const email = String(body.email ?? '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(422, 'a real email is needed to be paid');
+
+    const { data: code } = await db.from('referral_codes')
+      .select('id, active').eq('owner_user_id', user.id).maybeSingle();
+    if (!code) throw new HttpError(404, 'you are not a referrer yet');
+
+    const { data: commissions } = await db.from('referral_commissions')
+      .select('amount_cents').eq('referral_code_id', code.id);
+    const totalEarnedCents = (commissions ?? []).reduce((sum, c) => sum + c.amount_cents, 0);
+
+    const { data: payouts } = await db.from('referral_payouts')
+      .select('status, amount_cents').eq('referral_code_id', code.id);
+    const alreadyClaimedCents = (payouts ?? []).reduce((sum, p) => sum + p.amount_cents, 0);
+    const availableCents = totalEarnedCents - alreadyClaimedCents;
+    if (availableCents <= 0) throw new HttpError(422, 'nothing available to cash out yet');
+
+    // Unique index (0051) enforces at most one open request per code — this
+    // check is just for a clean error message instead of a raw 23505.
+    const hasOpenRequest = (payouts ?? []).some((p) => p.status === 'requested');
+    if (hasOpenRequest) throw new HttpError(409, 'a cash-out request is already pending');
+
+    const { error } = await db.from('referral_payouts').insert({
+      referral_code_id: code.id,
+      owner_user_id: user.id,
+      contact_email: email,
+      amount_cents: availableCents,
+    });
+    if (error) {
+      if (error.code === '23505') throw new HttpError(409, 'a cash-out request is already pending');
+      throw new HttpError(500, error.message);
+    }
+    return json({ ok: true, requestedCents: availableCents });
   }
 
   throw new HttpError(400, `unknown action: ${action}`);
