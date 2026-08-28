@@ -72,7 +72,13 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   `_shared/engine/` files) and correctly preserves per-function
   `verify_jwt` settings from `supabase/config.toml` (confirmed:
   `stripe-webhook` stayed `verify_jwt: false` across a redeploy). Run
-  `npm run sync:engine` first if `packages/engine/src` changed.
+  `npm run sync:engine` first if `packages/engine/src` changed. The same
+  CLI also runs arbitrary SQL when the Supabase MCP plugin needs
+  re-authorization (its OAuth token expires independently of the CLI's own
+  auth — one being down says nothing about the other): `npx supabase link
+  --project-ref iqixdijhckgilvyhduxb` once, then `npx supabase db query
+  "..." --linked` (must be `--linked`, not `--project-ref`, on the query
+  itself).
 - **`tables.status` only reaches `'finished'` when a full SET completes**
   (`tournaments.ts`), so an abandoned table used to sit in every lounge's
   "Open tables" list forever — including rows created by this project's own
