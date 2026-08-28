@@ -218,6 +218,13 @@ export const revealHand = (handId: string) =>
 export const frenchReshuffle = (tableId: string) =>
   call<{ ok: true }>('french-reshuffle', { tableId });
 
+/** The dispute-settler — 2 coins, full move log plus every seat's starting
+ *  tiles for a finished hand. Paid once per hand; re-opening it after
+ *  paying is free (settle-hand's own idempotency). See settle-hand's own
+ *  header for why this is a different feature from the free revealHand. */
+export const settleHand = (handId: string) =>
+  call<{ ok: true; deal: TileId[][]; moveLog: Move[] }>('settle-hand', { handId });
+
 /** video.ts is injected this rather than importing online.ts directly, so
  *  it has no Supabase client dependency of its own. */
 export const videoSessionCall = (action: string, body: Record<string, unknown>) =>

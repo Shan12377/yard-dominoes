@@ -1459,6 +1459,56 @@ function revealSection(game: OnlineGame): HTMLElement {
   return wrap;
 }
 
+/** The paid dispute-settler — full move log plus every seat's starting
+ *  tiles, 2 coins. Separate from revealSection above on purpose: that one
+ *  proves the shuffle wasn't rigged, this one shows what everyone actually
+ *  chose to play or hold. See settle-hand's own header. */
+function settleSection(game: OnlineGame): HTMLElement {
+  const wrap = el('section', 'deal-check');
+  const partnered = isPartnered(game.table.mode);
+
+  if (game.settledDeal && game.settledMoveLog) {
+    wrap.append(
+      el('div', 'eyebrow', 'Settled'),
+      el('h2', undefined, 'Every hand, every move'),
+    );
+
+    const table = el('div', 'verified-table');
+    for (let seat = 0; seat < game.settledDeal.length; seat++) {
+      const row = el('div', `reveal-hand verified-seat seat-${seat}`);
+      row.append(el('strong', undefined, describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide)));
+      const tiles = el('div', 'hand');
+      for (const tile of game.settledDeal[seat]) {
+        const t = tileEl(tile);
+        t.classList.add('sm');
+        tiles.appendChild(t);
+      }
+      row.appendChild(tiles);
+      table.appendChild(row);
+    }
+    wrap.appendChild(table);
+
+    const list = el('div', 'move-log');
+    for (const move of game.settledMoveLog) {
+      const line = describeMoveLine(move, game.seats, game.mySeat, partnered, game.mySide);
+      list.append(el('div', 'move-log-line', line));
+    }
+    wrap.appendChild(list);
+    return wrap;
+  }
+
+  const button = document.createElement('button');
+  button.className = 'act ghost';
+  button.textContent = game.settlePending ? 'Settling…' : 'Settle it — every hand, every move (2 coins)';
+  button.disabled = game.settlePending;
+  button.onclick = () => void game.settle();
+  wrap.append(el('p', 'muted',
+    'Everyone\'s starting tiles and the full turn-by-turn log — for when you need to know '
+    + 'exactly what somebody held and chose not to play.'));
+  wrap.appendChild(button);
+  return wrap;
+}
+
 /**
  * The Coach, online. Grades every real decision on the just-finished hand —
  * same engine, same grades (Best/Fine/Loose/Blunder), as the offline replay
@@ -1575,6 +1625,7 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   }
 
   panel.appendChild(revealSection(game));
+  panel.appendChild(settleSection(game));
   if (!game.isSpectator) panel.appendChild(coachSection(game));
 
   if (game.canChoosePose()) {

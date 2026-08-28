@@ -11,7 +11,7 @@
 import {
   supabase, startHand as apiStartHand, playMove as apiPlayMove, advanceDuppy as apiAdvanceDuppy, passPose as apiPassPose,
   leaveSeat as apiLeaveSeat, watchTable, ConflictError, DuppyTurnConflictError, revealHand as apiRevealHand,
-  requestReview as apiRequestReview, frenchReshuffle as apiFrenchReshuffle,
+  requestReview as apiRequestReview, frenchReshuffle as apiFrenchReshuffle, settleHand as apiSettleHand,
   type PublicHand, type TableSubscription,
 } from './online.ts';
 import * as sfx from './sfx.ts';
@@ -146,6 +146,13 @@ export class OnlineGame {
 
   /** French's paid reshuffle — see requestReshuffle()'s own comment. */
   reshufflePending = false;
+
+  /** The paid dispute-settler — full move log plus every seat's starting
+   *  tiles, 2 coins. See settle()'s own comment for how this differs from
+   *  the free reveal above. Cleared on a new hand the same way. */
+  settledDeal: TileId[][] | null = null;
+  settledMoveLog: Move[] | null = null;
+  settlePending = false;
 
   scores: number[] = [];
   /**
@@ -492,6 +499,8 @@ export class OnlineGame {
           this.dealVerification = null;
           this.review = null;
           this.reviewAccuracy = null;
+          this.settledDeal = null;
+          this.settledMoveLog = null;
           // A fresh deal. Don't trust the separate seat_hands realtime push
           // alone to deliver my tiles for it — onSeatTiles below drops any
           // event whose handId doesn't already match this.hand.hand_id, so
@@ -814,6 +823,26 @@ export class OnlineGame {
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not reveal the hand' });
     } finally {
       this.revealPending = false;
+      this.emit({ type: 'state' });
+    }
+  }
+
+  /** 2 coins, once per hand — the full move log plus every seat's starting
+   *  tiles, for settling "did they really hold that and not play it". The
+   *  free reveal() above only proves the shuffle wasn't rigged; it never
+   *  returns move_log, so it can't answer this. */
+  async settle(): Promise<void> {
+    if (!this.hand || this.settlePending || this.settledDeal) return;
+    this.settlePending = true;
+    this.emit({ type: 'state' });
+    try {
+      const { deal, moveLog } = await apiSettleHand(this.hand.hand_id);
+      this.settledDeal = deal;
+      this.settledMoveLog = moveLog;
+    } catch (err) {
+      this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not settle the hand' });
+    } finally {
+      this.settlePending = false;
       this.emit({ type: 'state' });
     }
   }
