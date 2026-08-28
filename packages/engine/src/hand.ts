@@ -2,6 +2,7 @@ import {
   tileCount,
   DOUBLE_SIX,
   dealPlan,
+  fullSet,
   handCount,
   halves,
   isDouble,
@@ -329,6 +330,31 @@ function place(board: Board, tile: TileId, end: End): Board {
 }
 
 /**
+ * The KEY tile: `preBoard`'s two open ends need two DIFFERENT pip values,
+ * `tile` is exactly the one bone bearing both of them, and — checked against
+ * `postBoard` (this tile already placed) — no OTHER tile bearing either value
+ * remains anywhere off the board, meaning this was provably the last tile in
+ * the entire 28-bone set that could still have closed either end. A board
+ * whose two ends happen to share the SAME value is explicitly excluded even
+ * when only one tile (a double) could still be played there — pagat.com is
+ * explicit that case does not count as a key.
+ */
+function isKeyTile(postBoard: Board, preBoard: Board, tile: TileId): boolean {
+  const l = preBoard.leftEnd;
+  const r = preBoard.rightEnd;
+  if (l === r) return false;
+  const [a, b] = halves(tile);
+  if (!((a === l && b === r) || (a === r && b === l))) return false;
+  const onBoard = new Set(postBoard.line.map((pt) => pt.tile));
+  for (const t of fullSet()) {
+    if (onBoard.has(t)) continue;
+    const [x, y] = halves(t);
+    if (x === l || y === l || x === r || y === r) return false;
+  }
+  return true;
+}
+
+/**
  * Apply a French cross-board play. Filling phase (arm === arms.length)
  * creates a new arm. Post-fill extends an existing arm and, when the play IS
  * a double, adds its value to board.doublesPlayed — a board-wide unlock, not
@@ -360,7 +386,9 @@ function placeCross(board: CrossBoard, tile: TileId, armIdx: number): CrossBoard
   return { ...board, arms, doublesPlayed };
 }
 
-function resolve(s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble = false): HandResult {
+function resolve(
+  s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble = false, keyWin = false,
+): HandResult {
   const counts = s.hands.map(handCount);
   // Per-seat "did this seat end the hand still holding any double?" — used
   // by French scoring to double that seat's pips. Other formats ignore it.
@@ -380,6 +408,7 @@ function resolve(s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble 
       winnerPlayedDouble,
       penalties,
       penaltyLog,
+      keyWin,
     };
   }
 
@@ -431,6 +460,9 @@ export function applyMove(prev: HandState, move: Move): HandState {
   // array through every branch and both penalty sites end up in it.
   const penaltyEvents: PenaltyEvent[] = [];
   s.lastPenalties = penaltyEvents;
+  // Set only by the 'play' case below, only when that play empties the
+  // mover's hand — see isKeyTile.
+  let keyWinTile = false;
   // Stamp the evidence onto a pass at the moment it happens.
   const logged: Move =
     move.kind === 'pass' && s.board
@@ -473,9 +505,16 @@ export function applyMove(prev: HandState, move: Move): HandState {
       // exact-match guard would reject a legal 'play' move against every
       // pre-existing hand with "play requires linear board".
       if (!s.board || s.board.kind === 'cross') throw new Error('play requires linear board');
+      const preBoard = s.board;
       s.hands[move.seat] = s.hands[move.seat].filter((t) => t !== move.tile);
       s.board = place(s.board, move.tile, move.end);
       s.consecutivePasses = 0;
+      // Only matters if this play empties the hand — checked below once we
+      // know the hand actually ended, so a non-winning play never pays for
+      // the fullSet() scan.
+      if (s.hands[move.seat].length === 0) {
+        keyWinTile = isKeyTile(s.board, preBoard, move.tile);
+      }
       break;
     }
     case 'playcross': {
@@ -531,7 +570,7 @@ export function applyMove(prev: HandState, move: Move): HandState {
 
   if (s.hands[move.seat].length === 0) {
     s.status = 'domino';
-    s.result = resolve(s, 'domino', 'tile' in move && isDouble(move.tile));
+    s.result = resolve(s, 'domino', 'tile' in move && isDouble(move.tile), keyWinTile);
     return s;
   }
   if (s.consecutivePasses >= s.seatCount) {

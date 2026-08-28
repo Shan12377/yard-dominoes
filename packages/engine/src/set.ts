@@ -63,6 +63,11 @@ export function leadingSide(s: SetState): number | null {
  *     A tie on the replay itself just repeats: forced double-six again,
  *     still worth 2, however many times in a row it happens.
  *   - Winning means reaching the target with every opponent still on zero.
+ *   - A KEY win (hand.ts's isKeyTile — the board's two open ends needed
+ *     different values and the winner's last tile was provably the only
+ *     bone left in the whole set that could still close either one) scores
+ *     a flat 2, never handValue + 1 and never stacking with a replay's own
+ *     2. Confirmed directly: "key strictly means 2, full stop."
  */
 export function applyHandResult(prev: SetState, result: HandResult): SetState {
   if (prev.winnerSide !== null) throw new Error('set is already decided');
@@ -160,7 +165,7 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
 
   if (format === 'firstToSix') {
     // Best of six. No reset mechanic — a plain race.
-    s.scores[winnerSide] += s.handValue;
+    s.scores[winnerSide] += result.keyWin ? 2 : s.handValue;
     s.handValue = 1;
     s.poser = winnerSeat;
     s.poseMustBeDoubleSix = false;
@@ -176,7 +181,10 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
 
   if (lead === null || lead === winnerSide) {
     // Nobody was ahead, or the side that was ahead has won again. Add on.
-    s.scores[winnerSide] += s.handValue;
+    // A key win (see hand.ts's isKeyTile) always scores a flat 2, never
+    // stacking on top of handValue — confirmed directly: "key strictly
+    // means 2, full stop."
+    s.scores[winnerSide] += result.keyWin ? 2 : s.handValue;
     s.handValue = 1;
     s.playoff = false;
     s.poser = winnerSeat;

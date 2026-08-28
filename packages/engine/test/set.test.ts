@@ -338,3 +338,33 @@ describe('pass the pose', () => {
     assert.throws(() => passPoseToPartner(s), /partner/);
   });
 });
+
+describe('the key tile', () => {
+  test('a key win scores a flat 2 on an ordinary hand, not handValue (1)', () => {
+    let s = createSet({ mode: 'partner', format: 'sixlove' });
+    s = applyHandResult(s, { ...won(0), keyWin: true });
+    assert.deepEqual(s.scores, [2, 0]);
+  });
+
+  test('a key win during an already-elevated one-all-play-two decider (handValue 2) still lands on exactly 2, not 3', () => {
+    let s = createSet({ mode: 'partner', format: 'sixlove' });
+    s = applyHandResult(s, won(0));              // 1-0
+    s = applyHandResult(s, { ...won(1), winnerSide: 1 }); // 0 on zero beats the leader on 1 -> bruk, playoff worth 2
+    assert.equal(s.playoff, true);
+    assert.equal(s.handValue, 2);
+    s = applyHandResult(s, { ...won(1), winnerSide: 1, keyWin: true });
+    assert.deepEqual(s.scores, [0, 2]);
+  });
+
+  test('firstToSix also scores a key win as a flat 2', () => {
+    let s = createSet({ mode: 'cutthroat', format: 'firstToSix', seatCount: 4 });
+    s = applyHandResult(s, { ...won(2), winnerSide: 2, keyWin: true });
+    assert.equal(s.scores[2], 2);
+  });
+
+  test('a non-key win is unaffected — still just handValue', () => {
+    let s = createSet({ mode: 'partner', format: 'sixlove' });
+    s = applyHandResult(s, won(0));
+    assert.deepEqual(s.scores, [1, 0]);
+  });
+});

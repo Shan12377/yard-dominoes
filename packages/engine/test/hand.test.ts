@@ -322,3 +322,95 @@ describe('reading the table', () => {
     assert.equal(voids[2].size, 0);
   });
 });
+
+describe('the key tile', () => {
+  // The board's two ends are 5 and 1 — every OTHER tile bearing a 5 or a 1
+  // is already down (12 of them), which makes '1-5' provably the last tile
+  // in the whole 28-set that could still close either end.
+  const OTHER_5_AND_1_TILES = ['0-1', '1-1', '1-2', '1-3', '1-4', '1-6', '0-5', '2-5', '3-5', '4-5', '5-5', '5-6'];
+  // Everything NOT bearing a 5 or a 1 — accounted for across three other
+  // hands and the boneyard so the 28-tile set is fully spoken for.
+  const REST = ['0-0', '0-2', '0-3', '0-4', '0-6', '2-2', '2-3', '2-4', '2-6', '3-3', '3-4', '3-6', '4-4', '4-6', '6-6'];
+
+  function keyBoardHand(mode: HandState['mode'] = 'partner'): HandState {
+    const board: Board = {
+      kind: 'linear',
+      line: OTHER_5_AND_1_TILES.map((tile) => {
+        const [a, b] = tile.split('-');
+        return { tile, crosswise: a === b };
+      }),
+      leftEnd: 5,
+      rightEnd: 1,
+    };
+    return {
+      seatCount: 4,
+      mode,
+      hands: [['1-5'], [REST[0]], [REST[1]], [REST[2]]],
+      boneyard: REST.slice(3),
+      board,
+      turn: 0,
+      consecutivePasses: 0,
+      moveLog: [],
+      penalties: [0, 0, 0, 0],
+      status: 'active',
+      result: null,
+      poseMustBeDoubleSix: false,
+      openingTile: '6-6',
+      poser: 0,
+      format: 'sixlove',
+    };
+  }
+
+  test('the exact tile connecting two exhausted, different ends is a key win', () => {
+    const after = applyMove(keyBoardHand(), { kind: 'play', seat: 0, tile: '1-5', end: 'left' });
+    assert.equal(after.status, 'domino');
+    assert.equal(after.result?.keyWin, true);
+  });
+
+  test('not a key if a tile bearing one of the ends is still unaccounted for', () => {
+    const h = keyBoardHand();
+    // Swap one already-played 5-bearing tile for something that plays no
+    // part in either open suit — leaves a real 5 (2-5) unaccounted for,
+    // sitting where it was just removed from.
+    h.board = {
+      ...(h.board as Board),
+      line: (h.board as Board).line.filter((pt) => pt.tile !== '2-5'),
+    };
+    h.boneyard = [...h.boneyard, '2-5'];
+    const after = applyMove(h, { kind: 'play', seat: 0, tile: '1-5', end: 'left' });
+    assert.equal(after.status, 'domino');
+    assert.equal(after.result?.keyWin, false, 'a real 5 still exists off-board — this was never provably the last one');
+  });
+
+  test('both ends needing the SAME value is never a key, even as the sole playable tile', () => {
+    // Every 5 except 5-5 itself is already down; both ends are 5. The lone
+    // remaining double is the only legal play, but pagat.com is explicit:
+    // that case does not count as a key.
+    const board: Board = {
+      kind: 'linear',
+      line: ['0-5', '1-5', '2-5', '3-5', '4-5', '5-6'].map((tile) => ({ tile, crosswise: false })),
+      leftEnd: 5,
+      rightEnd: 5,
+    };
+    const h: HandState = {
+      seatCount: 4,
+      mode: 'partner',
+      hands: [['5-5'], ['0-0'], ['1-1'], ['2-2']],
+      boneyard: ['0-1', '0-2', '0-3', '0-4', '0-6', '1-2', '1-3', '1-4', '1-6', '2-3', '2-4', '2-6', '3-3', '3-4', '3-6', '4-4', '4-6', '6-6'],
+      board,
+      turn: 0,
+      consecutivePasses: 0,
+      moveLog: [],
+      penalties: [0, 0, 0, 0],
+      status: 'active',
+      result: null,
+      poseMustBeDoubleSix: false,
+      openingTile: '6-6',
+      poser: 0,
+      format: 'sixlove',
+    };
+    const after = applyMove(h, { kind: 'play', seat: 0, tile: '5-5', end: 'left' });
+    assert.equal(after.status, 'domino');
+    assert.equal(after.result?.keyWin, false);
+  });
+});

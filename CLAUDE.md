@@ -144,6 +144,17 @@ Jamaican players notice these immediately. All are covered by tests.
   but never when the double-six is forced. The engine rule is tested; the
   online build's server path (`pass-pose`) and client UI for it are in
   progress — see `docs/superpowers/plans/2026-07-27-online-play.md`.
+- **The key tile scores a flat 2, not 1 — and never stacks with handValue.**
+  When the board's two open ends need two DIFFERENT pip values and every
+  other tile bearing either one is already down, the single remaining tile
+  that closes the game (e.g. ends need a 5 and a 1 — the "5-1" bone) is the
+  key. Winning by playing it scores 2 points, full stop — not `handValue + 1`,
+  so it lands on exactly 2 even during an already-elevated one-all-play-two
+  decider. If the last playable tile happens to be a double (both ends
+  coincidentally need the SAME value), that does NOT count as a key even
+  though it's the sole legal play — normal 1 point only. Confirmed against
+  pagat.com's Caribbean Dominoes rules and gamerules.com's Jamaican Cut
+  Throat rules; `hand.ts`'s `isKeyTile` and `HandResult.keyWin`.
 
 ## Settled product decisions
 

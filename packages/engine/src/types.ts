@@ -162,6 +162,20 @@ export interface HandResult {
    * Mirrors HandState.penaltyLog at the moment the hand ended.
    */
   penaltyLog?: PenaltyEvent[];
+  /**
+   * True when the domino winner's final tile was the KEY bone: the board's
+   * two open ends needed two DIFFERENT pip values, the winning tile was the
+   * one bearing exactly those two values, and no other tile bearing either
+   * value remained anywhere unplayed — provably the only tile left in the
+   * whole 28-tile set that could still close either end. Per pagat.com's
+   * Caribbean Dominoes rules and gamerules.com's Jamaican Cut Throat rules,
+   * a key win scores a flat 2 points instead of the usual 1 — never set on
+   * a blocked hand, never on a linear board where both ends still share the
+   * same open value (that's explicitly NOT a key even if it's the only
+   * playable tile — see hand.ts's isKeyTile), and never on French's cross
+   * board, which has no two-end "key" concept.
+   */
+  keyWin?: boolean;
 }
 
 /**
