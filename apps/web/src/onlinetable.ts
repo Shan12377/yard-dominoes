@@ -12,6 +12,7 @@ import {
   supabase, startHand as apiStartHand, playMove as apiPlayMove, advanceDuppy as apiAdvanceDuppy, passPose as apiPassPose,
   leaveSeat as apiLeaveSeat, watchTable, ConflictError, DuppyTurnConflictError, revealHand as apiRevealHand,
   requestReview as apiRequestReview, frenchReshuffle as apiFrenchReshuffle, settleHand as apiSettleHand,
+  ReviewLimitError,
   type PublicHand, type TableSubscription,
 } from './online.ts';
 import * as sfx from './sfx.ts';
@@ -143,6 +144,10 @@ export class OnlineGame {
   review: HandReview | null = null;
   reviewAccuracy: number | null = null;
   reviewPending = false;
+  /** Set when a guest's daily free review is used and this specific hand
+   *  hasn't been paid for — the server's own wording, shown next to a
+   *  "pay 2 coins" button rather than a dead end. Cleared on a new deal. */
+  reviewLimitMessage: string | null = null;
 
   /** French's paid reshuffle — see requestReshuffle()'s own comment. */
   reshufflePending = false;
@@ -499,6 +504,7 @@ export class OnlineGame {
           this.dealVerification = null;
           this.review = null;
           this.reviewAccuracy = null;
+          this.reviewLimitMessage = null;
           this.settledDeal = null;
           this.settledMoveLog = null;
           // A fresh deal. Don't trust the separate seat_hands realtime push
@@ -847,18 +853,24 @@ export class OnlineGame {
     }
   }
 
-  /** Grades every decision on the just-finished hand. Free (rate-limited
-   *  server-side for guests). */
-  async requestCoachReview(): Promise<void> {
+  /** Grades every decision on the just-finished hand. Free once a day on
+   *  Guest; `payCoins: true` unlocks THIS specific hand for 2 coins once
+   *  that free slot is already used — see review-hand's own header. */
+  async requestCoachReview(payCoins = false): Promise<void> {
     if (!this.hand || this.reviewPending || this.review) return;
     this.reviewPending = true;
+    if (payCoins) this.reviewLimitMessage = null;
     this.emit({ type: 'state' });
     try {
-      const { review, accuracy } = await apiRequestReview(this.hand.hand_id);
+      const { review, accuracy } = await apiRequestReview(this.hand.hand_id, payCoins);
       this.review = review;
       this.reviewAccuracy = accuracy;
     } catch (err) {
-      this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not review the hand' });
+      if (err instanceof ReviewLimitError) {
+        this.reviewLimitMessage = err.message;
+      } else {
+        this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not review the hand' });
+      }
     } finally {
       this.reviewPending = false;
       this.emit({ type: 'state' });

@@ -1,15 +1,25 @@
-// POST /review-hand  { handId }
+// POST /review-hand  { handId, payCoins? }
 //
 // The Coach. Runs only on a finished hand, because it needs the full deal —
 // which is exactly why it can be exact where a live hint never could be.
+//
+// Guest's daily free review can be topped up with coins — 2 per extra
+// review, same price as the other coin utilities (french-reshuffle,
+// settle-hand). Never a tier substitute: this buys one more REVIEW, not
+// membership, and Yardie/VIP are already uncapped so they never see this
+// path at all. See the guest-cap block below for the two-step flow: a
+// plain request 429s with a distinct, client-detectable message; a
+// request with payCoins: true spends and proceeds.
 
 import { handled, json, requireUser, serviceClient, HttpError, openingTileForFormat, effectiveTier } from '../_shared/lib.ts';
 import { reviewHand, accuracy } from '../_shared/engine/coach.ts';
 import type { HandState } from '../_shared/engine/types.ts';
 
+const EXTRA_REVIEW_PRICE_COINS = 2;
+
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
-  const { handId } = await req.json();
+  const { handId, payCoins } = await req.json();
   const db = serviceClient();
 
   const { data: hand } = await db.from('hands').select('*').eq('id', handId).single();
@@ -54,7 +64,21 @@ Deno.serve(handled(async (req) => {
       .eq('user_id', user.id)
       .gte('created_at', startOfDay.toISOString());
     if ((count ?? 0) >= 1) {
-      throw new HttpError(429, 'One free Coach review a day on Guest — become a Yardie or VIP for more.');
+      if (payCoins !== true) {
+        // Distinct message from the plain cap message on purpose — the
+        // client matches on this exact text to offer the coin top-up
+        // rather than just showing a dead end.
+        throw new HttpError(429, `Today's free Coach review is used — ${EXTRA_REVIEW_PRICE_COINS} coins unlocks this one.`);
+      }
+      // reviewHand:${handId}:${userId} would double-charge nothing anyway
+      // (the cache check above already makes a second request for the
+      // SAME hand free), but a reference still traces what each spend was
+      // for in the ledger, same as every other coin spend this session.
+      const { error: spendError } = await db.rpc('spend_coins', {
+        p_user_id: user.id, p_amount: EXTRA_REVIEW_PRICE_COINS, p_kind: 'spend',
+        p_reference: `review-hand:${handId}:${user.id}`,
+      });
+      if (spendError) throw new HttpError(402, 'not enough coins');
     }
   }
 

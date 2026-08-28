@@ -1512,10 +1512,11 @@ function settleSection(game: OnlineGame): HTMLElement {
 /**
  * The Coach, online. Grades every real decision on the just-finished hand —
  * same engine, same grades (Best/Fine/Loose/Blunder), as the offline replay
- * in main.ts's coachPanel(). Free to request; review-hand rate-limits guests
- * server-side (RLS-equivalent — see billing.md's "never gate a paid feature
- * in the client"), so the only client-side job here is showing whatever
- * message that limit sends back.
+ * in main.ts's coachPanel(). Free once a day on Guest, unlimited on
+ * Yardie/VIP, gated server-side (RLS-equivalent — see billing.md's "never
+ * gate a paid feature in the client") — a guest past today's free slot
+ * gets a distinct ReviewLimitError instead of the generic error path, so
+ * this can offer a 2-coin top-up inline rather than just a dead end.
  */
 function coachSection(game: OnlineGame): HTMLElement {
   const wrap = el('div', 'panel');
@@ -1556,6 +1557,17 @@ function coachSection(game: OnlineGame): HTMLElement {
       reviewView.scrollIntoView({ block: 'start' });
     };
     wrap.appendChild(open);
+    return wrap;
+  }
+
+  if (game.reviewLimitMessage) {
+    wrap.append(el('p', 'muted', game.reviewLimitMessage));
+    const payButton = document.createElement('button');
+    payButton.className = 'act ghost';
+    payButton.textContent = game.reviewPending ? 'Unlocking…' : 'Pay 2 coins for this review';
+    payButton.disabled = game.reviewPending;
+    payButton.onclick = () => void game.requestCoachReview(true);
+    wrap.appendChild(payButton);
     return wrap;
   }
 

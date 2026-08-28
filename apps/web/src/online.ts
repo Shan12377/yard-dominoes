@@ -138,6 +138,14 @@ export class DuppyTurnConflictError extends Error {
   constructor() { super('duppy turn changed'); }
 }
 
+/** review-hand's only 429: a guest's daily free review is already used on
+ *  a DIFFERENT hand than this one — coins can unlock this specific hand
+ *  instead. Typed rather than string-matched so the UI can offer the coin
+ *  top-up reliably, same reasoning as ConflictError above. */
+export class ReviewLimitError extends Error {
+  constructor(message: string) { super(message); }
+}
+
 async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await client().functions.invoke(fn, { body });
   if (error) {
@@ -154,7 +162,9 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
     // the player instead of a placeholder.
     if (error instanceof FunctionsHttpError) {
       const parsed = await error.context.json().catch(() => null);
-      throw new Error(parsed?.error ?? error.message);
+      const message = parsed?.error ?? error.message;
+      if (fn === 'review-hand' && error.context?.status === 429) throw new ReviewLimitError(message);
+      throw new Error(message);
     }
     throw new Error(error.message);
   }
@@ -204,8 +214,12 @@ export const playMove = (handId: string, move: Move) =>
 export const advanceDuppy = (handId: string) =>
   call<{ handOver: boolean; turn?: number }>('advance-duppy', { handId });
 
-export const requestReview = (handId: string) =>
-  call<{ review: HandReview; accuracy: number }>('review-hand', { handId });
+/** payCoins spends 2 coins for a guest's already-used-today free review —
+ *  see review-hand's own header. Omit it (or pass false) for the normal,
+ *  possibly-free request; the server 429s with a distinct message when a
+ *  coin top-up is the only way to get this specific hand reviewed today. */
+export const requestReview = (handId: string, payCoins = false) =>
+  call<{ review: HandReview; accuracy: number }>('review-hand', { handId, payCoins });
 
 /** Free — every seat's starting tiles on a finished hand, plus the
  *  commit-reveal receipt so the browser can verify the shuffle itself.
