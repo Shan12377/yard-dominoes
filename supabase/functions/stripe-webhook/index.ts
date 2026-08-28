@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         amount_cents: session.amount_total ?? 0,
         currency: session.currency ?? 'usd',
       });
-      await creditReferralCommission(db, userId, session.amount_total ?? 0, session.id);
+      await creditReferralCommission(db, userId, session.amount_total ?? 0, session.id, true);
     }
   }
 

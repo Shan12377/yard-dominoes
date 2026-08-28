@@ -9,10 +9,20 @@
 // client insert policy at all); this path only ever writes PUBLIC_PCT, so
 // the founders' rate stays a deliberately different, standout number
 // rather than something self-serve could ever reach.
+//
+// Public rate is 5% recurring cash, not 10% — the other half of that
+// original 10% moved to a one-time 100-coin bonus for the referrer plus a
+// one-time 5% checkout discount for the person they referred (both paid
+// only on the referred player's FIRST payment — see
+// creditReferralCommission in _shared/referrals.ts and the
+// STRIPE_COUPON_REFERRAL_WELCOME coupon in checkout/index.ts). Coins cost
+// the business nothing to grant, so this trades ongoing cash for a
+// one-time, near-zero-marginal-cost reward without shrinking what the
+// referrer actually gets offered.
 
 import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
 
-const PUBLIC_COMMISSION_PCT = 10;
+const PUBLIC_COMMISSION_PCT = 5;
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I — read out loud without confusion
 
 function randomSuffix(len: number): string {

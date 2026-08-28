@@ -29,7 +29,7 @@ Deno.serve(handled(async (req) => {
 
   const db = serviceClient();
   const { data: profile } = await db.from('profiles')
-    .select('stripe_customer_id, username').eq('id', user.id).single();
+    .select('stripe_customer_id, username, referred_by_code_id').eq('id', user.id).single();
 
   // Trimmed defensively: a stray trailing newline from a pasted dashboard
   // secret once turned this into an embedded-newline URL that Stripe
@@ -69,6 +69,17 @@ Deno.serve(handled(async (req) => {
     // only be traced back to a member by customer id.
     params.set('subscription_data[metadata][user_id]', user.id);
     params.set('subscription_data[metadata][tier]', tier);
+    // A referred signup's welcome discount — `duration: 'once'` on the
+    // coupon itself means Stripe only ever applies it to this first
+    // invoice, never a renewal, with no extra bookkeeping needed here.
+    // Eligibility is just "was this account referred at all" — an
+    // inactive code still gave them the link, so it still honors the
+    // discount even though creditReferralCommission would skip paying
+    // the referrer for it.
+    const welcomeCoupon = Deno.env.get('STRIPE_COUPON_REFERRAL_WELCOME');
+    if (profile?.referred_by_code_id && welcomeCoupon) {
+      params.set('discounts[0][coupon]', welcomeCoupon);
+    }
   } else {
     throw new HttpError(400, 'nothing to buy');
   }

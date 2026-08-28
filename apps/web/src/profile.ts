@@ -233,7 +233,8 @@ function referralSection(rerender: () => void): HTMLElement {
   const section = collapsibleSection('Referrals', myCodeReferralOpen, (v) => { myCodeReferralOpen = v; });
   section.append(el('p', 'muted small',
     'Send people your link. When someone you sent signs up and pays, you earn a cut — '
-    + 'every renewal, not just the first payment.'));
+    + 'every renewal, not just the first payment — plus 100 coins the moment their first '
+    + 'payment clears. They get 5% off that first payment too.'));
 
   if (myCodeError) section.append(el('div', 'banner small', myCodeError));
 

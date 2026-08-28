@@ -2,9 +2,14 @@
 paths:
   - "supabase/functions/checkout/**"
   - "supabase/functions/stripe-webhook/**"
+  - "supabase/functions/referrals/**"
+  - "supabase/functions/referral-admin/**"
+  - "supabase/functions/_shared/referrals.ts"
   - "supabase/migrations/**"
   - "apps/web/src/lounges.ts"
   - "apps/web/src/loungeview.ts"
+  - "apps/web/src/myreferral.ts"
+  - "apps/web/src/referraladmin.ts"
 ---
 
 # Billing rules
@@ -15,6 +20,41 @@ path.
 
 Tiers: Guest free forever, Yardie $24/yr, VIP $69/yr. The game is free; the
 subscription buys the social layer.
+
+## Referral economics
+
+Two tiers of `referral_codes.commission_pct`, both cash-recurring on every
+payment a referred member makes (`_shared/referrals.ts`'s
+`creditReferralCommission`, called from both `checkout.session.completed`
+and `invoice.paid`):
+
+- **20% — the two founders.** Hand-granted by an admin directly in the
+  database (`referral_codes` has no client insert policy at all). Deliberately
+  a different, standout number — compensation in lieu of a share of the
+  company, confirmed directly, not something self-serve can ever reach.
+- **5% — everyone else**, self-served via `referrals/index.ts`'s `become`
+  action (Profile → Referrals → "Become a referrer"). `PUBLIC_COMMISSION_PCT`
+  in that file is the only place this rate lives; it started at 10% and was
+  cut to 5% specifically to fund the two perks below without raising the
+  business's total giveaway.
+
+On top of the cash cut, the referred player's **first payment only** (never a
+renewal) triggers two more things, both idempotent on the Stripe session id:
+
+- The **referrer** gets a one-time **100-coin bonus** (`grant_coins` with
+  `p_kind = 'referral_bonus'`, added in `0050_referral_bonus_coins.sql`).
+  Coins cost the business nothing to grant — they're money in, never out
+  (see `0021_coin_economy.sql`) — so this is a real-feeling reward with no
+  cash cost, which is exactly why the cash rate could drop from 10% to 5%
+  without the total offer getting worse.
+- The **referred player** gets **5% off that one invoice** via a Stripe
+  coupon (`id: referral-welcome-5pct`, `percent_off: 5`, `duration: 'once'`
+  — the `once` duration is what stops it from silently applying to a
+  renewal too, no extra bookkeeping needed). Its id lives in the
+  `STRIPE_COUPON_REFERRAL_WELCOME` secret; `checkout/index.ts` attaches it
+  whenever `profiles.referred_by_code_id` is set, regardless of whether that
+  code is still active (the referrer's payout can still be skipped
+  separately by `creditReferralCommission`'s own active check).
 
 ## Access is decided in one place
 
