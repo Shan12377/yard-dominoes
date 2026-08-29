@@ -1,4 +1,5 @@
-import type { Drill, TileId } from '@yard/engine';
+import { halves } from '@yard/engine';
+import type { Drill, Pip, TileId } from '@yard/engine';
 
 export interface AcademyVisual {
   alt: string;
@@ -28,16 +29,16 @@ export const ACADEMY_VISUALS: Record<string, AcademyVisual> = {
   B2L6: { alt: 'Four blocked hands show 10, 4, 2 and 6 pips; the player with 2 wins for the north-south side.', notice: 'North and South hold more together, but South alone has the lowest hand.', takeaway: 'Lowest individual wins the block for their side.', tryIt: 'Partner has 11, you have 3, opponents have 4 each. Who wins?', answer: 'Your side. Your individual 3 is lowest.' },
   B2L7: { alt: 'A six-pip score track fills to six-love, while a second track at five-nil is cleared by one opposing win.', notice: 'One win by the side under love bruks the run back to zero-zero.', takeaway: 'Six-love needs an unbroken run while they stay on zero.', tryIt: 'You lead 5-0 and they win the next hand. New score?', answer: '0-0. Your five is bruk.' },
   B2L8: { alt: 'A one-all score moves through a highlighted playoff and finishes two-zero.', notice: 'At one-all, the playoff winner goes straight to two-zero.', takeaway: 'One all play two makes the next hand worth the set swing.', tryIt: 'At 1-1 you win the playoff. What is the score?', answer: '2-0.' },
-  B2L9: { alt: 'Partner seating joins opposite seats into two sides while cut throat shows four separate sides.', notice: 'Same table, different meaning for who wins with whom.', takeaway: 'Partner: opposite seats share a side. Cut throat: every player is alone.', tryIt: 'In partner play, where does your partner sit?', answer: 'Directly opposite you.' },
+  B2L9: { alt: 'Labels compare partner play as two shared sides with cut throat as four separate players and scores.', notice: 'Same table, different meaning for who wins with whom.', takeaway: 'Partner: opposite seats share a side. Cut throat: every player is alone.', tryIt: 'In partner play, where does your partner sit?', answer: 'Directly opposite you.' },
 
   B3L1: { alt: 'Seven tiles sit beside a suit tally that marks a long five suit and a blank void.', notice: 'The tally shows where the hand is long, short and empty before play begins.', takeaway: 'Read your own suit shape before choosing a plan.', tryIt: 'You hold four tiles carrying five. What is your long suit?', answer: 'Fives.' },
   B3L2: { alt: 'A hand long in fives poses double-five with three callouts around the tile.', notice: 'The pose keeps a route home, denies fives and signals the partner.', takeaway: 'Pose the double of your strongest suit when the rules allow it.', tryIt: 'You are long in fives and hold 5-5. Strong casual pose?', answer: '5-5.' },
-  B3L3: { alt: 'Two boards compare ends your hand can answer with ends that shut your hand out.', notice: 'Control means the open ends keep returning to suits you hold.', takeaway: 'Shape the ends toward your long suits.', tryIt: 'Both ends match tiles in your hand. Who has control?', answer: 'You have ways back into the board.' },
+  B3L3: { alt: 'A two-tile hand is compared with open ends it can answer and open ends that shut it out.', notice: 'Control means the open ends keep returning to suits you hold.', takeaway: 'Shape the ends toward your long suits.', tryIt: 'Both ends match tiles in your hand. Who has control?', answer: 'You have ways back into the board.' },
   B3L4: { alt: 'Two legal plays branch to show what each opens for the player on your right.', notice: 'A legal tile can still feed the next player exactly what they want.', takeaway: 'Judge the new end, not only the tile leaving your hand.', tryIt: 'Your right-hand opponent has shown fives. Should you open a five without a reason?', answer: 'Usually no. You may be feeding them.' },
   B3L5: { alt: 'Heavy six-six and six-five tiles are flagged beside a blocked-board count.', notice: 'Heavy tiles become expensive when the hand blocks.', takeaway: 'Shed weight early unless the tile is controlling the board.', tryIt: 'Which costs more in a block: 6-5 or 2-1?', answer: '6-5: eleven pips instead of three.' },
   B3L6: { alt: 'Playing four-four leaves four open while playing four-one changes the end to one.', notice: 'A double repeats its suit; a mixed tile moves the board on.', takeaway: 'Play a double when keeping that suit open helps you.', tryIt: 'What end remains after 4-4 is played on a four?', answer: 'Four.' },
 
-  B4L1: { alt: 'East passes on open four and one; permanent no-four and no-one badges remain as the board changes.', notice: 'The pass proves two voids, and tiles never return to that hand.', takeaway: 'Record both open suits mentally and never erase them.', tryIt: 'A player passes on 4 and 1; later ends are 6 and 1. Which end stops them?', answer: 'The 1.' },
+  B4L1: { alt: 'A before-and-after record shows East passing on four and one, then remaining void in both after the ends change to five and six.', notice: 'The pass proves two voids, and tiles never return to that hand.', takeaway: 'Record both open suits mentally and never erase them.', tryIt: 'A player passes on 4 and 1; later ends are 6 and 1. Which end stops them?', answer: 'The 1.' },
   B4L2: { alt: 'Six tiles carrying five are crossed off and the seventh five glows in your hand.', notice: 'All seven fives are accounted for.', takeaway: 'When you hold the seventh, that suit belongs to you.', tryIt: 'Six fours are visible and you hold the only remaining four. Is four safe to leave open?', answer: 'Yes. Only you can answer it.' },
   B4L3: { alt: 'Three opponent seats each carry a short permanent list of suits they passed on.', notice: 'The void map grows with every pass and never shrinks.', takeaway: 'Track three small lists, not twenty-eight hidden tiles.', tryIt: 'West passed on 2 and 6, then later on 3 and 6. What is West void in?', answer: '2, 3 and 6.' },
   B4L4: { alt: 'Four frames show a partner signal, a pass, stopping a feed and opening the partner’s repeated suit.', notice: 'Legal plays and passes form a conversation across the table.', takeaway: 'Support the partner’s long suit; stop feeding a suit they passed on.', tryIt: 'Partner passes on fives. Should you keep opening five?', answer: 'No. The pass proved they cannot answer it.' },
@@ -67,10 +68,41 @@ export interface DrillScenario {
     label: string;
     line?: TileId[];
     hand?: TileId[];
+    /** A set score is not a domino line and must never be drawn with tiles. */
+    score?: { you: number; them: number; note?: string };
     /** Names a non-board collection precisely (for example, legal plays or unseen candidates). */
     handLabel?: string;
     facts: readonly string[];
   };
+}
+
+export interface OrientedTeachingTile {
+  id: TileId;
+  left: Pip;
+  right: Pip;
+}
+
+/**
+ * Orient a canonical low-high tile list into one legal teaching line. This is
+ * deliberately strict: a drill cannot render as a board unless every pair of
+ * touching halves matches in the exact direction shown on screen.
+ */
+export function orientTeachingLine(ids: readonly TileId[]): OrientedTeachingTile[] {
+  const walk = (index: number, previous?: Pip): OrientedTeachingTile[] | null => {
+    if (index === ids.length) return [];
+    const id = ids[index];
+    const [a, b] = halves(id);
+    const candidates: Array<[Pip, Pip]> = [[a, b], [b, a]];
+    for (const [left, right] of candidates) {
+      if (previous !== undefined && left !== previous) continue;
+      const rest = walk(index + 1, right);
+      if (rest) return [{ id, left, right }, ...rest];
+    }
+    return null;
+  };
+  const oriented = walk(0);
+  if (!oriented) throw new Error(`Disconnected Academy teaching line: ${ids.join(' → ')}`);
+  return oriented;
 }
 
 export const GAME_GUIDES = [
@@ -128,7 +160,8 @@ const SCENARIOS: Record<string, DrillScenario> = {
     { label: 'It is tied', explanation: 'Only the lowest individual count matters first.' },
   ] },
   B2D2: { setup: 'You lead 5-0 in six-love. The other side wins one hand.', visual: {
-    label: 'Six-love score', line: ['5-5', '0-5'], facts: ['Before · you lead 5–0', 'Next hand · they win'],
+    label: 'Six-love score', score: { you: 5, them: 0, note: 'Next hand · they win' },
+    facts: ['Before · you lead 5–0', 'Next hand · they win'],
   }, choices: [
     { label: '5-1', explanation: 'Six-love does not keep two live scores.' },
     { label: '0-0', correct: true, explanation: 'Their win bruks your run back to nothing.' },

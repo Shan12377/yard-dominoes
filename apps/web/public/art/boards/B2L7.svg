@@ -1,18 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-labelledby="title description">
-  <title id="title">Six-love and the bruk</title><desc id="description">One score track reaches six-nil; another five-nil run is cleared by one opponent win.</desc>
+  <title id="title">Six-love and the bruk</title><desc id="description">Score pips represent hands won, not domino tiles. Six unanswered wins make six-love; one opposing win during a five-nil run clears it to zero-zero.</desc>
   <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
   <rect width="760" height="380" rx="18" fill="#052B43"/>
   <rect x="12" y="12" width="736" height="356" rx="13" fill="url(#felt)" stroke="#10698F" stroke-width="3"/>
-  
-  <g transform="translate(90 130) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
-    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
-    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
-    <circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(185 130) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
-    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
-    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
-    <circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g>
-<g transform="translate(250 90)"><rect x="-63.5" y="-18" width="127" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">● ● ● ● ● ●</text></g><g transform="translate(510 90)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#2DD46F"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">● ● ● ● ●</text></g><g transform="translate(510 275)"><rect x="-59" y="-18" width="118" height="36" rx="18" fill="#FF5A3C"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">BRUK → 0-0</text></g>
-<text x="380" y="330" text-anchor="middle" fill="#FFF9EA" font-family="system-ui,sans-serif" font-size="19" font-weight="800">Their one win bruks your five to 0-0</text>
+
+
+<g transform="translate(225 82)"><rect x="-68" y="-18" width="136" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">YOU · 6 WINS</text></g><g transform="translate(535 82)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#2DD46F"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">THEM · 0</text></g><g transform="translate(225 205)"><rect x="-68" y="-18" width="136" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">YOU · 5 WINS</text></g><g transform="translate(535 205)"><rect x="-99.5" y="-18" width="199" height="36" rx="18" fill="#FF5A3C"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">THEY WIN · BRUK 0-0</text></g>
+<text x="225" y="135" text-anchor="middle" fill="#FFC928" font-family="system-ui,sans-serif" font-size="19" font-weight="800">● ● ● ● ● ●</text><text x="535" y="135" text-anchor="middle" fill="#B9DCEB" font-family="system-ui,sans-serif" font-size="19" font-weight="800">○ ○ ○ ○ ○ ○</text><text x="225" y="258" text-anchor="middle" fill="#FFC928" font-family="system-ui,sans-serif" font-size="19" font-weight="800">● ● ● ● ● ○</text><text x="535" y="258" text-anchor="middle" fill="#B9DCEB" font-family="system-ui,sans-serif" font-size="19" font-weight="800">RESET → ○ ○ ○ ○ ○ ○</text><text x="380" y="330" text-anchor="middle" fill="#FFF9EA" font-family="system-ui,sans-serif" font-size="19" font-weight="800">Their one win bruks your five to 0-0</text>
   </svg>

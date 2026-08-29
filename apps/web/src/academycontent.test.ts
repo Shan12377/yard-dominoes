@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { access, readFile } from 'node:fs/promises';
 import { BELTS, halves } from '@yard/engine';
-import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, scenarioFor } from './academycontent.ts';
+import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor } from './academycontent.ts';
 
 test('every Academy lesson has teaching copy and a generated diagram', async () => {
   for (const lesson of BELTS.flatMap((belt) => belt.lessons)) {
@@ -19,18 +19,17 @@ test('every declared drill is visible, answerable and has exactly one correct ch
     assert.ok(scenario.setup.length > 0, `${drill.id} needs a table position`);
     assert.ok(scenario.visual.label.length > 0, `${drill.id} needs a visual situation label`);
     assert.ok(scenario.visual.facts.length > 0, `${drill.id} needs visible public facts`);
-    assert.ok(scenario.visual.line?.length || scenario.visual.hand?.length,
-      `${drill.id} needs visible dominoes, not a text-only drill`);
+    assert.ok(scenario.visual.line?.length || scenario.visual.hand?.length || scenario.visual.score,
+      `${drill.id} needs a visible board, hand or score—not a text-only drill`);
     for (const tile of [...(scenario.visual.line ?? []), ...(scenario.visual.hand ?? [])]) {
       const [low, high] = halves(tile);
       assert.ok(low <= high, `${drill.id} must use canonical low-high tile ids: ${tile}`);
     }
     const line = scenario.visual.line ?? [];
-    for (let index = 1; index < line.length; index++) {
-      const previous = halves(line[index - 1]);
-      const next = halves(line[index]);
-      assert.ok(previous.some((pip) => next.includes(pip)),
-        `${drill.id} visual line has a disconnected join at ${line[index - 1]} → ${line[index]}`);
+    const oriented = orientTeachingLine(line);
+    for (let index = 1; index < oriented.length; index++) {
+      assert.equal(oriented[index - 1].right, oriented[index].left,
+        `${drill.id} visual line has a mismatched rendered join at ${line[index - 1]} → ${line[index]}`);
     }
     assert.ok(scenario.choices.length >= 2, `${drill.id} needs a real decision`);
     assert.equal(
@@ -76,10 +75,18 @@ test('the first pip-counting diagram labels the three and five halves correctly'
     'the callout beside the lower five must say 5 pips');
 });
 
-test('teaching lines are generated only after their domino joins are validated', async () => {
-  for (const lessonId of ['B1L3', 'B2L5', 'B4L4', 'B4L5', 'B4L7', 'B5L2']) {
+test('teaching lines are generated only after their domino joins and physical spacing are validated', async () => {
+  for (const lessonId of ['B1L3', 'B2L5', 'B4L4', 'B4L5', 'B4L7', 'B5L2', 'B5L5']) {
     const svg = await readFile(new URL(`../public/art/boards/${lessonId}.svg`, import.meta.url), 'utf8');
     assert.match(svg, /data-connected-line="true"/, `${lessonId} must be a validated legal line`);
+    const tiles = [...svg.matchAll(/data-visible-halves="(\d)-(\d)" transform="translate\(([\d.]+) ([\d.]+)\) scale\(([\d.]+)\)"/g)]
+      .map((match) => ({ left: Number(match[1]), right: Number(match[2]), x: Number(match[3]), y: Number(match[4]), scale: Number(match[5]) }));
+    for (let index = 1; index < tiles.length; index++) {
+      assert.equal(tiles[index - 1].right, tiles[index].left, `${lessonId} must match at join ${index}`);
+      assert.equal(tiles[index].y, tiles[index - 1].y, `${lessonId} must stay on one baseline`);
+      assert.equal(tiles[index].x - tiles[index - 1].x, 110 * tiles[index - 1].scale,
+        `${lessonId} tiles must touch without overlap or gaps`);
+    }
   }
 });
 
@@ -88,6 +95,39 @@ test('privacy diagram shows seven faces for you and seven backs for every oppone
   assert.match(svg, /data-face-count="7"/);
   assert.equal((svg.match(/data-back-count="7"/g) ?? []).length, 3);
   assert.match(svg, /Your seven tile faces are visible/);
+  assert.match(svg, /Three opponents · seven backs each/);
+});
+
+test('reported beginner diagrams separate hands, boards and score markers truthfully', async () => {
+  const line = await readFile(new URL('../public/art/boards/B1L3.svg', import.meta.url), 'utf8');
+  assert.deepEqual([...line.matchAll(/data-visible-halves="(\d-\d)"/g)].map((match) => match[1]),
+    ['0-1', '1-3', '3-3', '3-5', '5-6']);
+  assert.match(line, /OPEN · 0/);
+  assert.match(line, /OPEN · 6/);
+
+  const playingOut = await readFile(new URL('../public/art/boards/B1L5.svg', import.meta.url), 'utf8');
+  for (const stage of ['3 tiles', '2 tiles', '1 tile', 'EMPTY · DOMINO!']) assert.match(playingOut, new RegExp(stage));
+  assert.doesNotMatch(playingOut, /data-connected-line/);
+
+  const pass = await readFile(new URL('../public/art/boards/B2L4.svg', import.meta.url), 'utf8');
+  assert.match(pass, /YOUR HAND/);
+  assert.doesNotMatch(pass, /data-connected-line/);
+
+  for (const lessonId of ['B2L7', 'B2L8']) {
+    const score = await readFile(new URL(`../public/art/boards/${lessonId}.svg`, import.meta.url), 'utf8');
+    assert.doesNotMatch(score, /data-tile-id=/, `${lessonId} must not use domino tiles as score markers`);
+  }
+
+  const control = await readFile(new URL('../public/art/boards/B3L3.svg', import.meta.url), 'utf8');
+  assert.equal((control.match(/data-tile-id=/g) ?? []).length, 2, 'B3L3 shows the two-tile hand only');
+  assert.match(control, /2 OR 6 OPEN · CONTROL/);
+  assert.match(control, /0 OR 4 OPEN · NO WAY IN/);
+});
+
+test('blocked-hand drill renders as one exactly oriented board', () => {
+  const blocked = scenarioFor(BELTS[1].drills.find((drill) => drill.id === 'B2D1')!);
+  assert.deepEqual(orientTeachingLine(blocked.visual.line ?? []).map(({ left, right }) => `${left}-${right}`),
+    ['4-4', '4-1', '1-1']);
 });
 
 test('the five reported Table General visuals keep their dominoes aligned with the teaching facts', async () => {

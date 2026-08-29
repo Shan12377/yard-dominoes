@@ -1,30 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-labelledby="title description" data-connected-line="true">
-  <title id="title">The line has two open ends</title><desc id="description">Five legally connected tiles form one line; only the two outside ends accept a play.</desc>
+  <title id="title">The line has two open ends</title><desc id="description">Five legally connected tiles form one line; only the zero at the far left and six at the far right accept the next play.</desc>
   <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
   <rect width="760" height="380" rx="18" fill="#052B43"/>
   <rect x="12" y="12" width="736" height="356" rx="13" fill="url(#felt)" stroke="#10698F" stroke-width="3"/>
-  <line x1="55" y1="202" x2="90" y2="202" stroke="#FFC928" stroke-width="5" stroke-linecap="round" /><line x1="565" y1="202" x2="700" y2="202" stroke="#FFC928" stroke-width="5" stroke-linecap="round" />
-  <g transform="translate(90 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
+<line x1="95" y1="103" x2="80" y2="185" stroke="#FFC928" stroke-width="5" stroke-linecap="round" /><line x1="665" y1="103" x2="625" y2="185" stroke="#FFC928" stroke-width="5" stroke-linecap="round" />
+<g data-tile-id="0-1" data-visible-halves="0-1" transform="translate(105 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="30" cy="86" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(185 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
+  </g></g><g data-tile-id="1-3" data-visible-halves="1-3" transform="translate(215 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(280 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
+  </g></g><g data-tile-id="3-3" data-visible-halves="3-3" transform="translate(325 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(375 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
+  </g></g><g data-tile-id="3-5" data-visible-halves="3-5" transform="translate(435 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(470 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
+  </g></g><g data-tile-id="5-6" data-visible-halves="5-6" transform="translate(545 145) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
   </g></g>
-<g transform="translate(54 202)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">OPEN</text></g><g transform="translate(700 202)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">OPEN</text></g>
-<text x="380" y="330" text-anchor="middle" fill="#FFF9EA" font-family="system-ui,sans-serif" font-size="19" font-weight="800">Play here or here</text>
+<g transform="translate(95 82)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">OPEN · 0</text></g><g transform="translate(665 82)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">OPEN · 6</text></g>
+<text x="380" y="330" text-anchor="middle" fill="#FFF9EA" font-family="system-ui,sans-serif" font-size="19" font-weight="800">Only the two outside ends accept a tile</text>
   </svg>

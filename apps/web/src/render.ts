@@ -45,6 +45,26 @@ export function tileEl(id: TileId): HTMLElement {
   return el;
 }
 
+/** A small board bone with its exact visible left and right halves supplied. */
+export function horizontalTileEl(id: TileId, faces: [Pip, Pip]): HTMLElement {
+  const canonical = halves(id);
+  if ([...faces].sort().join('-') !== [...canonical].sort().join('-')) {
+    throw new Error(`Faces ${faces.join('-')} do not belong to ${id}`);
+  }
+  const el = document.createElement('div');
+  el.className = 'tile h';
+  el.dataset.tile = id;
+  el.dataset.visibleHalves = faces.join('-');
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', `${faces[0]} ${faces[1]}`);
+  el.appendChild(face(faces[0], true));
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  el.appendChild(bar);
+  el.appendChild(face(faces[1], true));
+  return el;
+}
+
 /**
  * Give a domino win one deliberate, theatrical beat without touching the
  * board state. The real winning bone remains in its legal position; this is

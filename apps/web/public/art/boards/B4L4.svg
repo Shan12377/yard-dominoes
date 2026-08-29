@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-labelledby="title description" data-connected-line="true">
-  <title id="title">Partner talk without words</title><desc id="description">A signal, a pass and repeated suit plays guide what the partner should open.</desc>
+  <title id="title">Partner talk without words</title><desc id="description">A legal line plus a signal, a pass and repeated suit plays guide what the partner should open.</desc>
   <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
   <rect width="760" height="380" rx="18" fill="#052B43"/>
   <rect x="12" y="12" width="736" height="356" rx="13" fill="url(#felt)" stroke="#10698F" stroke-width="3"/>
-  
-  <g transform="translate(90 130) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
+
+<g data-tile-id="2-5" data-visible-halves="2-5" transform="translate(145 130) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(185 130) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+  </g></g><g data-tile-id="3-5" data-visible-halves="5-3" transform="translate(255 130) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(280 130) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
+  </g></g><g data-tile-id="3-6" data-visible-halves="3-6" transform="translate(365 130) scale(1)" opacity="1"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(375 130) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+  </g></g><g data-tile-id="5-6" data-visible-halves="6-5" transform="translate(475 130) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#10698F" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>

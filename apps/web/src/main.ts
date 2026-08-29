@@ -22,8 +22,8 @@ import { captureReferralCode } from './referral.ts';
 // Supabase client it drags in) is ever touched. See referral.ts.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
-import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
+import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -1644,9 +1644,11 @@ function academyDrillSituation(scenario: DrillScenario): HTMLElement {
   scene.appendChild(el('div', 'eyebrow', scenario.visual.label));
 
   const addBones = (bones: TileId[], kind: 'line' | 'hand') => {
-    const row = el('div', `academy-drill-bones${kind === 'hand' ? ' hand' : ''}`);
-    for (const id of bones) {
-      const bone = tileEl(id);
+    const row = el('div', `academy-drill-bones ${kind === 'hand' ? 'hand' : 'board'}`);
+    const teachingBones = kind === 'line'
+      ? orientTeachingLine(bones).map(({ id, left, right }) => horizontalTileEl(id, [left, right]))
+      : bones.map((id) => tileEl(id));
+    for (const bone of teachingBones) {
       bone.setAttribute('aria-hidden', 'true');
       bone.removeAttribute('role');
       row.appendChild(bone);
@@ -1657,6 +1659,16 @@ function academyDrillSituation(scenario: DrillScenario): HTMLElement {
   if (scenario.visual.hand?.length) {
     scene.appendChild(el('div', 'academy-drill-hand-label', scenario.visual.handLabel ?? 'Your hand after this play'));
     addBones(scenario.visual.hand, 'hand');
+  }
+  if (scenario.visual.score) {
+    const score = el('div', 'academy-drill-score');
+    score.append(
+      el('span', 'academy-drill-score-side', `You · ${scenario.visual.score.you}`),
+      el('strong', undefined, '—'),
+      el('span', 'academy-drill-score-side', `Them · ${scenario.visual.score.them}`),
+    );
+    scene.appendChild(score);
+    if (scenario.visual.score.note) scene.appendChild(el('div', 'academy-drill-score-note', scenario.visual.score.note));
   }
 
   const facts = el('div', 'academy-drill-facts');
@@ -1842,7 +1854,6 @@ function academyView(): DocumentFragment {
           scenario.choices.forEach((choice, index) => {
             const button = document.createElement('button');
             button.className = 'academy-drill-choice';
-            if (d.id === 'B5D1' || d.id === 'B5D2') button.classList.add('academy-b5-drill-choice');
             if (selected === index) button.classList.add(choice.correct ? 'correct' : 'wrong');
             if (/^[0-6]-[0-6]$/.test(choice.label)) {
               button.setAttribute('aria-label', `Choose ${choice.label}`);

@@ -3,32 +3,32 @@
   <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
   <rect width="760" height="380" rx="18" fill="#052B43"/>
   <rect x="12" y="12" width="736" height="356" rx="13" fill="url(#felt)" stroke="#10698F" stroke-width="3"/>
-  
-  <g transform="translate(90 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+
+<g data-tile-id="0-5" data-visible-halves="0-5" transform="translate(55 115) scale(1)" opacity="0.42"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(185 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+  </g></g><g data-tile-id="1-5" data-visible-halves="1-5" transform="translate(173 115) scale(1)" opacity="0.42"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(280 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+  </g></g><g data-tile-id="2-5" data-visible-halves="2-5" transform="translate(291 115) scale(1)" opacity="0.42"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(375 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+  </g></g><g data-tile-id="3-5" data-visible-halves="3-5" transform="translate(409 115) scale(1)" opacity="0.42"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(470 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+  </g></g><g data-tile-id="4-5" data-visible-halves="4-5" transform="translate(527 115) scale(1)" opacity="0.42"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(565 115) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
+  </g></g><g data-tile-id="5-5" data-visible-halves="5-5" transform="translate(645 115) scale(1)" opacity="0.42"><g transform="rotate(-90 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(585 205) scale(1)" opacity="1"><g transform="rotate(0 28 56)">
+  </g></g><g data-tile-id="5-6" data-visible-halves="5-6" transform="translate(585 205) scale(1)" opacity="1"><g transform="rotate(0 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#FFC928" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>

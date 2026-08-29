@@ -66,21 +66,55 @@ export function visibleHorizontalHalves(tile: DiagramTile): [number, number] {
 export function validateConnectedLine(tiles: DiagramTile[]): void {
   const ordered = [...tiles].sort((left, right) => left.x - right.x);
   for (let index = 0; index < ordered.length - 1; index += 1) {
-    const [, right] = visibleHorizontalHalves(ordered[index]);
-    const [nextLeft] = visibleHorizontalHalves(ordered[index + 1]);
+    const tile = ordered[index];
+    const nextTile = ordered[index + 1];
+    const scale = tile.scale ?? 1;
+    const nextScale = nextTile.scale ?? 1;
+    if (tile.y !== nextTile.y || scale !== nextScale) {
+      throw new Error('Connected teaching tiles must share one baseline and scale');
+    }
+    const expectedStep = 110 * scale;
+    if (Math.abs((nextTile.x - tile.x) - expectedStep) > .01) {
+      throw new Error(`Connected teaching tiles must touch without overlap or gaps: ${tile.id} → ${nextTile.id}`);
+    }
+    const [, right] = visibleHorizontalHalves(tile);
+    const [nextLeft] = visibleHorizontalHalves(nextTile);
     if (right !== nextLeft) {
-      throw new Error(`Broken teaching line: ${ordered[index].id} does not join ${ordered[index + 1].id}`);
+      throw new Error(`Broken teaching line: ${tile.id} does not join ${nextTile.id}`);
+    }
+  }
+}
+
+function tileBounds(tile: DiagramTile): { left: number; top: number; right: number; bottom: number } {
+  const scale = tile.scale ?? 1;
+  if (tile.rotate === -90 || tile.rotate === 90) {
+    return { left: tile.x - 28 * scale, top: tile.y + 28 * scale, right: tile.x + 82 * scale, bottom: tile.y + 82 * scale };
+  }
+  return { left: tile.x, top: tile.y, right: tile.x + 56 * scale, bottom: tile.y + 112 * scale };
+}
+
+export function validateNoTileOverlap(tiles: DiagramTile[]): void {
+  for (let leftIndex = 0; leftIndex < tiles.length; leftIndex += 1) {
+    const left = tileBounds(tiles[leftIndex]);
+    for (let rightIndex = leftIndex + 1; rightIndex < tiles.length; rightIndex += 1) {
+      const right = tileBounds(tiles[rightIndex]);
+      const overlapX = Math.min(left.right, right.right) - Math.max(left.left, right.left);
+      const overlapY = Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top);
+      if (overlapX > .01 && overlapY > .01) {
+        throw new Error(`Teaching tiles overlap and hide pips: ${tiles[leftIndex].id} and ${tiles[rightIndex].id}`);
+      }
     }
   }
 }
 
 function tileSvg(tile: DiagramTile): string {
   const [a, b] = tile.id.split('-').map(Number);
+  const visible = tile.rotate === -90 ? [a, b] : tile.rotate === 90 ? [b, a] : [a, b];
   const outline = tile.tone === 'gold' ? COLOR.gold : tile.tone === 'coral' ? COLOR.coral : tile.tone === 'muted' ? COLOR.muted : COLOR.blue;
   const opacity = tile.tone === 'muted' ? .42 : 1;
   const pipFace = (value: number, offset: number) => PIPS[value].map(([cx, cy]) =>
     `<circle cx="${18 + cx * 12}" cy="${offset + 14 + cy * 12}" r="4.1" fill="${COLOR.pip}"/>`).join('');
-  return `<g transform="translate(${tile.x} ${tile.y}) scale(${tile.scale ?? 1})" opacity="${opacity}"><g transform="rotate(${tile.rotate ?? 0} 28 56)">
+  return `<g data-tile-id="${esc(tile.id)}" data-visible-halves="${visible[0]}-${visible[1]}" transform="translate(${tile.x} ${tile.y}) scale(${tile.scale ?? 1})" opacity="${opacity}"><g transform="rotate(${tile.rotate ?? 0} 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="${COLOR.bone}" stroke="${outline}" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="${COLOR.pip}" stroke-width="2"/>
     ${pipFace(a, 4)}${pipFace(b, 60)}
@@ -100,6 +134,7 @@ function backsSvg(group: DiagramBacks): string {
 /** Render a lesson diagram with built-in accessible title and description. */
 export function renderDiagram(spec: DiagramSpec): string {
   if (spec.connectedLine) validateConnectedLine(spec.tiles);
+  validateNoTileOverlap(spec.tiles);
   const width = spec.width ?? 760;
   const height = spec.height ?? 380;
   const tone = (name?: string) => COLOR[(name ?? 'muted') as keyof typeof COLOR] ?? COLOR.muted;
@@ -108,8 +143,8 @@ export function renderDiagram(spec: DiagramSpec): string {
   <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
   <rect width="${width}" height="${height}" rx="18" fill="${COLOR.deep}"/>
   <rect x="12" y="12" width="${width - 24}" height="${height - 24}" rx="13" fill="url(#felt)" stroke="${COLOR.blue}" stroke-width="3"/>
-  ${(spec.lines ?? []).map((line) => `<line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" stroke="${tone(line.tone)}" stroke-width="5" stroke-linecap="round" ${line.dash ? 'stroke-dasharray="10 10"' : ''}/>`).join('')}
-  ${spec.tiles.map(tileSvg).join('')}${(spec.backs ?? []).map(backsSvg).join('')}
+${(spec.lines ?? []).map((line) => `<line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" stroke="${tone(line.tone)}" stroke-width="5" stroke-linecap="round" ${line.dash ? 'stroke-dasharray="10 10"' : ''}/>`).join('')}
+${spec.tiles.map(tileSvg).join('')}${(spec.backs ?? []).map(backsSvg).join('')}
 ${(spec.badges ?? []).map((badge) => {
     const width = Math.max(110, badge.text.length * 9 + 28);
     return `<g transform="translate(${badge.x} ${badge.y})"><rect x="${-width / 2}" y="-18" width="${width}" height="36" rx="18" fill="${tone(badge.tone)}"/><text text-anchor="middle" y="6" fill="${COLOR.pip}" font-family="system-ui,sans-serif" font-size="15" font-weight="800">${esc(badge.text)}</text></g>`;

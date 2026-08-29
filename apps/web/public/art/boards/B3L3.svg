@@ -1,26 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-labelledby="title description">
-  <title id="title">Keep control of the ends</title><desc id="description">The left branch exposes suits your hand answers; the right branch shuts it out.</desc>
+  <title id="title">Keep control of the ends</title><desc id="description">Your separate hand tiles answer open twos, fives and sixes. A board left on two or six gives you a route back; a board left on blank or four shuts this hand out.</desc>
   <defs><pattern id="felt" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="12" height="12" fill="#147A42"/><line x1="0" y1="0" x2="0" y2="12" stroke="#22A45B" stroke-opacity=".28" stroke-width="3"/></pattern></defs>
   <rect width="760" height="380" rx="18" fill="#052B43"/>
   <rect x="12" y="12" width="736" height="356" rx="13" fill="url(#felt)" stroke="#10698F" stroke-width="3"/>
-  
-  <g transform="translate(90 115) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+
+<g data-tile-id="2-5" data-visible-halves="2-5" transform="translate(160 155) scale(0.82)" opacity="1"><g transform="rotate(0 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#FFC928" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="30" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(185 115) scale(1)" opacity="1"><g transform="rotate(90 28 56)">
+  </g></g><g data-tile-id="5-6" data-visible-halves="5-6" transform="translate(238 155) scale(0.82)" opacity="1"><g transform="rotate(0 28 56)">
     <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#FFC928" stroke-width="3"/>
     <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
     <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="42" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="18" cy="42" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="86" r="4.1" fill="#17130F"/><circle cx="42" cy="86" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(90 225) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
-    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
-    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
-    <circle cx="30" cy="86" r="4.1" fill="#17130F"/>
-  </g></g><g transform="translate(185 225) scale(1)" opacity="0.42"><g transform="rotate(90 28 56)">
-    <rect x="1" y="1" width="54" height="110" rx="8" fill="#FFF9EA" stroke="#B9DCEB" stroke-width="3"/>
-    <line x1="7" y1="56" x2="49" y2="56" stroke="#17130F" stroke-width="2"/>
-    <circle cx="18" cy="18" r="4.1" fill="#17130F"/><circle cx="30" cy="30" r="4.1" fill="#17130F"/><circle cx="42" cy="42" r="4.1" fill="#17130F"/><circle cx="18" cy="74" r="4.1" fill="#17130F"/><circle cx="42" cy="74" r="4.1" fill="#17130F"/><circle cx="18" cy="98" r="4.1" fill="#17130F"/><circle cx="42" cy="98" r="4.1" fill="#17130F"/>
   </g></g>
-<g transform="translate(260 75)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">CONTROL</text></g><g transform="translate(510 185)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FF5A3C"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">NO WAY IN</text></g>
-<text x="380" y="330" text-anchor="middle" fill="#FFF9EA" font-family="system-ui,sans-serif" font-size="19" font-weight="800">Ends that come home beat ends that lock you out</text>
+<g transform="translate(220 90)"><rect x="-55" y="-18" width="110" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">YOUR HAND</text></g><g transform="translate(520 130)"><rect x="-108.5" y="-18" width="217" height="36" rx="18" fill="#FFC928"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">2 OR 6 OPEN · CONTROL</text></g><g transform="translate(520 215)"><rect x="-117.5" y="-18" width="235" height="36" rx="18" fill="#FF5A3C"/><text text-anchor="middle" y="6" fill="#17130F" font-family="system-ui,sans-serif" font-size="15" font-weight="800">0 OR 4 OPEN · NO WAY IN</text></g>
+<text x="380" y="330" text-anchor="middle" fill="#FFF9EA" font-family="system-ui,sans-serif" font-size="19" font-weight="800">Keep ends in suits your hand actually holds</text>
   </svg>
