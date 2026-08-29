@@ -48,6 +48,17 @@ test('the Academy explains the two modes that change board or seat control', () 
   }
 });
 
+test('the Across guide visibly maps each person to the two opposite seats they control', async () => {
+  const main = await readFile(new URL('./main.ts', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
+  assert.match(main, /You ↕ Players 1 \+ 3/);
+  assert.match(main, /Opponent ↔ Players 2 \+ 4/);
+  assert.match(main, /guide-pair-line you/);
+  assert.match(main, /guide-pair-line them/);
+  assert.match(styles, /\.guide-pair-line\.you[\s\S]*?top: 35px;[\s\S]*?bottom: 35px;/);
+  assert.match(styles, /\.guide-pair-line\.them[\s\S]*?right: 46px;[\s\S]*?left: 46px;/);
+});
+
 test('the French guide is a legal four-arm cross with every inner half matching the centre', () => {
   const [centerA, centerB] = FRENCH_GUIDE_CROSS.center.split('-').map(Number);
   assert.equal(centerA, centerB, 'the centre must be a double');

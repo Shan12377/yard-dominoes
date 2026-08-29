@@ -17,6 +17,8 @@ import { LocalGame } from './local.ts';
 import type { DuppyPace } from './local.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import { captureReferralCode } from './referral.ts';
+import { WALKTHROUGH_STEPS } from './walkthrough.ts';
+import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.ts';
 
 // Stash a ?ref=CODE the instant the app loads, before online.ts (and the
 // Supabase client it drags in) is ever touched. See referral.ts.
@@ -114,6 +116,16 @@ function scheduleSiteHandsFetch(): void {
 }
 
 let view: View = 'play';
+const WALKTHROUGH_SEEN_KEY = 'yard:walkthrough-v1';
+function walkthroughWasSeen(): boolean {
+  // Storage can be blocked outright in some private/embedded browsers. A
+  // first-visit helper must never be allowed to stop the game from loading.
+  try { return localStorage.getItem(WALKTHROUGH_SEEN_KEY) !== null; } catch { return true; }
+}
+/** -1 is the first-visit invitation; 0+ is a live walkthrough step. */
+let walkthroughStep: number | null = walkthroughWasSeen() ? null : -1;
+let walkthroughReturnView: View = 'play';
+let walkthroughMusicPlaying = false;
 let game: LocalGame | null = null;
 let review: HandReview | null = null;
 /**
@@ -270,6 +282,7 @@ function chrome(): HTMLElement {
     const b = document.createElement('button');
     b.textContent = label;
     b.dataset.view = id;
+    b.dataset.tour = `nav-${id}`;
     b.setAttribute('aria-current', String(view === id));
     b.onclick = () => {
       if (view === 'lounges' && id !== 'lounges') loungeModule?.leaveCurrentLounge();
@@ -288,7 +301,16 @@ function chrome(): HTMLElement {
   // one, updateBar() (rendered right below this) already carries its own
   // "Reload now" button, so there's nothing further to hunt for once you've
   // clicked this.
-  bar.append(brand, nav, checkForUpdateLink());
+  bar.append(brand, nav);
+  if (!(view === 'play' && game)) {
+    const tour = document.createElement('button');
+    tour.className = 'tour-link';
+    tour.textContent = 'Take a tour';
+    tour.setAttribute('aria-label', 'Take a tour of YaadDominoes');
+    tour.onclick = () => startWalkthrough();
+    bar.appendChild(tour);
+  }
+  bar.append(checkForUpdateLink());
   return bar;
 }
 
@@ -804,6 +826,7 @@ function lobby(): HTMLElement {
   // resolvedMode/resolvedFormat below) — the engine's own createSet() forces
   // that pairing regardless of what this form sends.
   const mode = document.createElement('select');
+  mode.dataset.tour = 'game';
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>
                     <option value="openhand">Open hand — partner sees your tiles</option>
                     <option value="cutthroat">Cut throat — every man for himself</option>
@@ -812,6 +835,7 @@ function lobby(): HTMLElement {
   const resolvedFormat = (): SetFormat => mode.value === 'french' ? 'french' : (format.value as SetFormat);
 
   const format = document.createElement('select');
+  format.dataset.tour = 'set';
   const formatField = el('label', 'field');
   const syncFormat = () => {
     if (mode.value === 'french') {
@@ -837,6 +861,7 @@ function lobby(): HTMLElement {
   format.onchange = syncFormatHint;
 
   const duppy = document.createElement('select');
+  duppy.dataset.tour = 'duppy';
   duppy.innerHTML = `
     <option value="pickney">Pickney — plays anything legal</option>
     <option value="yard">Yard — sheds heavy tiles</option>
@@ -852,6 +877,7 @@ function lobby(): HTMLElement {
   duppyPace.value = 'yard';
 
   const tournament = document.createElement('select');
+  tournament.dataset.tour = 'rules';
   tournament.innerHTML = `<option value="0">Casual — sporting allowed</option>
                           <option value="1">Tournament — must lead the six</option>`;
 
@@ -868,6 +894,7 @@ function lobby(): HTMLElement {
   const go = document.createElement('button');
   go.className = 'act';
   go.textContent = 'Deal';
+  go.dataset.tour = 'deal';
   go.onclick = () => void startGame({
     mode: resolvedMode(),
     format: resolvedFormat(),
@@ -1737,13 +1764,21 @@ function academyView(): DocumentFragment {
         visual.append(bone);
       }
     } else {
+      const youLine = el('span', 'guide-pair-line you');
+      const opponentLine = el('span', 'guide-pair-line them');
+      youLine.setAttribute('aria-hidden', 'true');
+      opponentLine.setAttribute('aria-hidden', 'true');
+      visual.append(youLine, opponentLine);
       for (const [label, place, side] of [
         ['Player 3', 'north', 'you'], ['Player 2', 'east', 'them'],
         ['Player 1', 'south', 'you'], ['Player 4', 'west', 'them'],
       ] as const) {
         visual.append(el('span', `guide-seat ${place} ${side}`, label));
       }
-      visual.append(el('span', 'guide-side you', 'You'), el('span', 'guide-side them', 'Opponent'));
+      visual.append(
+        el('span', 'guide-side you', 'You ↕ Players 1 + 3'),
+        el('span', 'guide-side them', 'Opponent ↔ Players 2 + 4'),
+      );
     }
     card.append(
       visual,
@@ -1907,11 +1942,11 @@ function fairView(): HTMLElement {
   promise.append(
     el('p', undefined,
       'Before every hand, we publish a lock on the shuffle. After the hand ends, tap Verify this deal ' +
-      'to see the starting hands and check that the locked shuffle produced them.'),
+      'to reveal every player\'s original starting dominoes and check that the locked shuffle produced them.'),
     el('p', undefined,
-      'In standard private-hand games, your tiles stay private during play. Other players, spectators ' +
+      'In standard private-hand games, all hands stay private while the hand is being played. Other players, spectators ' +
       'and duppies receive only the board, tile counts and moves already made. Open Hand visibly shares ' +
-      'a partner\'s tiles with their partner.'),
+      'a partner\'s tiles with their partner. The full starting hands become visible only after the hand ends and you run the check.'),
     el('strong', undefined, 'A deal you can verify. Free.'),
   );
   panel.appendChild(promise);
@@ -1927,7 +1962,7 @@ function fairView(): HTMLElement {
   const steps: [string, string][] = [
     ['Before the deal', 'We create a secret server key and publish its fingerprint. That locks the key for this hand: changing it would change the fingerprint.'],
     ['The shuffle', 'The locked key, together with this hand\'s fixed inputs, decides the tile order through one fixed calculation.'],
-    ['After the hand', 'We reveal the server key. Your device repeats the shuffle and checks it against the deal you received.'],
+    ['After the hand', 'We reveal the server key. Your device repeats the shuffle, checks the deal, and shows every original starting hand.'],
   ];
   for (const [title, body] of steps) {
     const item = el('div', 'lesson');
@@ -1995,6 +2030,184 @@ function pending(message: string): HTMLElement {
   const panel = el('div', 'panel');
   panel.append(el('div', 'eyebrow', 'One moment'), el('h2', undefined, message));
   return panel;
+}
+
+// ----------------------------------------------------------- walkthrough --
+function saveWalkthroughSeen(): void {
+  try { localStorage.setItem(WALKTHROUGH_SEEN_KEY, '1'); } catch { /* private mode */ }
+}
+
+function loadWalkthroughView(next: number): void {
+  const step = WALKTHROUGH_STEPS[next];
+  if (!step) return;
+  walkthroughStep = next;
+  view = step.view;
+  if (step.view === 'lounges' || step.view === 'rankings' || step.view === 'membership' || step.view === 'profile') {
+    void ensureLoungeModule();
+  }
+  render();
+}
+
+function startWalkthrough(): void {
+  if (game) return;
+  walkthroughReturnView = view;
+  startWalkthroughMusic();
+  loadWalkthroughView(0);
+}
+
+function startWalkthroughMusic(): void {
+  walkthroughMusicPlaying = playWalkthroughMusic(() => {
+    walkthroughMusicPlaying = false;
+    scheduleRender();
+  });
+}
+
+function finishWalkthrough(skipped = false): void {
+  const returnView = walkthroughReturnView;
+  walkthroughStep = null;
+  walkthroughMusicPlaying = false;
+  stopWalkthroughMusic();
+  saveWalkthroughSeen();
+  document.querySelector('.walkthrough-layer')?.remove();
+  app.inert = false;
+  view = skipped ? returnView : 'play';
+  render();
+  requestAnimationFrame(() => {
+    const focusTarget = skipped
+      ? document.querySelector<HTMLButtonElement>('.tour-link')
+      : document.querySelector<HTMLButtonElement>('[data-tour="deal"]');
+    focusTarget?.focus();
+  });
+}
+
+function walkthroughDialog(): HTMLElement | null {
+  // A shared replay or password-recovery link has a job of its own. Keep the
+  // first-visit invitation waiting until the player reaches the normal lobby.
+  if (walkthroughStep === null || game || (walkthroughStep === -1 && view !== 'play')) return null;
+
+  const layer = el('div', 'walkthrough-layer');
+  const dialog = el('section', 'walkthrough-card');
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'walkthrough-title');
+  dialog.tabIndex = -1;
+
+  if (walkthroughStep === -1) {
+    layer.classList.add('is-welcome');
+    dialog.classList.add('walkthrough-welcome');
+    dialog.append(
+      el('div', 'walkthrough-bone', '●  ●\n●  ●'),
+      el('div', 'eyebrow', 'First time in the yard?'),
+      el('h2', undefined, 'Know where everything lives'),
+      el('p', 'walkthrough-caption',
+        'Take a two-minute tour of practice play, social rooms, lessons, your profile, and the deal checker. Nothing will start or change while we look around.'),
+    );
+    dialog.querySelector('h2')!.id = 'walkthrough-title';
+
+    const actions = el('div', 'walkthrough-actions');
+    const skip = document.createElement('button');
+    skip.className = 'act ghost';
+    skip.textContent = 'Skip for now';
+    skip.onclick = () => finishWalkthrough(true);
+    const start = document.createElement('button');
+    start.className = 'act';
+    start.textContent = 'Show me around';
+    start.onclick = () => {
+      walkthroughReturnView = 'play';
+      startWalkthroughMusic();
+      loadWalkthroughView(0);
+    };
+    actions.append(skip, start);
+    dialog.appendChild(actions);
+  } else {
+    const step = WALKTHROUGH_STEPS[walkthroughStep];
+    const progress = el('div', 'walkthrough-progress');
+    progress.setAttribute('aria-label', `Step ${walkthroughStep + 1} of ${WALKTHROUGH_STEPS.length}`);
+    for (let i = 0; i < WALKTHROUGH_STEPS.length; i++) {
+      const pip = el('span', i <= walkthroughStep ? 'is-filled' : undefined);
+      pip.setAttribute('aria-hidden', 'true');
+      progress.appendChild(pip);
+    }
+    dialog.append(
+      el('div', 'eyebrow', `${step.label} · ${walkthroughStep + 1} of ${WALKTHROUGH_STEPS.length}`),
+      el('h2', undefined, step.title),
+      el('p', 'walkthrough-caption', step.caption),
+      progress,
+    );
+    dialog.querySelector('h2')!.id = 'walkthrough-title';
+
+    const actions = el('div', 'walkthrough-actions');
+    const music = document.createElement('button');
+    music.className = 'walkthrough-music';
+    music.textContent = walkthroughMusicPlaying ? 'Stop music' : 'Play music';
+    music.setAttribute('aria-pressed', String(walkthroughMusicPlaying));
+    music.onclick = () => {
+      if (walkthroughMusicPlaying) {
+        walkthroughMusicPlaying = false;
+        stopWalkthroughMusic();
+        render();
+      } else {
+        startWalkthroughMusic();
+        render();
+      }
+    };
+    const exit = document.createElement('button');
+    exit.className = 'act ghost';
+    exit.textContent = 'Exit tour';
+    exit.onclick = () => finishWalkthrough(true);
+    const next = document.createElement('button');
+    next.className = 'act';
+    const last = walkthroughStep === WALKTHROUGH_STEPS.length - 1;
+    next.textContent = last ? 'Finish tour' : 'Next';
+    next.onclick = () => last ? finishWalkthrough() : loadWalkthroughView(walkthroughStep! + 1);
+    actions.append(music, exit, next);
+    dialog.appendChild(actions);
+
+    const target = document.querySelector<HTMLElement>(step.target);
+    if (target) {
+      target.scrollIntoView({ block: 'center', inline: 'nearest' });
+      const rect = target.getBoundingClientRect();
+      const ring = el('div', 'walkthrough-ring');
+      ring.setAttribute('aria-hidden', 'true');
+      ring.style.setProperty('--tour-x', `${Math.max(8, rect.left - 7)}px`);
+      ring.style.setProperty('--tour-y', `${Math.max(8, rect.top - 7)}px`);
+      ring.style.setProperty('--tour-w', `${Math.min(window.innerWidth - 16, rect.width + 14)}px`);
+      ring.style.setProperty('--tour-h', `${rect.height + 14}px`);
+      layer.appendChild(ring);
+      dialog.classList.toggle('place-top', rect.top > window.innerHeight * 0.55);
+    }
+  }
+
+  const focusable = () => Array.from(dialog.querySelectorAll<HTMLButtonElement>('button:not([disabled])'));
+  layer.onkeydown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      finishWalkthrough(true);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const controls = focusable();
+    if (!controls.length) return;
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  };
+  layer.appendChild(dialog);
+  return layer;
+}
+
+function mountWalkthrough(): void {
+  document.querySelector('.walkthrough-layer')?.remove();
+  const layer = walkthroughDialog();
+  app.inert = Boolean(layer);
+  document.body.classList.toggle('walkthrough-open', Boolean(layer));
+  if (!layer) return;
+  document.body.appendChild(layer);
+  requestAnimationFrame(() => layer.querySelector<HTMLElement>('.walkthrough-card')?.focus());
 }
 
 // ---------------------------------------------------------------- render --
@@ -2082,6 +2295,7 @@ function render() {
   // reads as the game having ended.
   if (!(view === 'play' && game)) next.appendChild(legalFooter());
   app.replaceChildren(next);
+  mountWalkthrough();
 }
 
 /**

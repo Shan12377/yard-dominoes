@@ -109,6 +109,7 @@ body {
     linear-gradient(145deg, var(--signal-hi), var(--signal) 48%, var(--signal-lo));
   background-size: 28px 28px, auto, auto;
 }
+body.walkthrough-open { overflow: hidden; }
 
 #app {
   max-width: 940px; margin: 0 auto;
@@ -202,6 +203,141 @@ p { line-height: 1.55; }
 }
 .nav button[aria-current='true'] { color: var(--signal-lo); background: var(--gold); }
 .nav button:hover:not([aria-current='true']) { color: var(--ink); }
+
+.tour-link {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 249, 234, 0.42);
+  border-radius: 999px;
+  color: var(--bone);
+  background: rgba(5, 43, 67, 0.58);
+  font: 700 13px var(--body);
+  cursor: pointer;
+}
+.tour-link:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ----------------------------------------------------------- walkthrough
+   The progress strip borrows the pips and centre line of a domino without
+   turning the whole UI into casino imagery. One bright object—the caption
+   card—does all the teaching while the real control remains visible below. */
+.walkthrough-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: auto;
+}
+.walkthrough-layer.is-welcome { background: rgba(2, 20, 31, 0.82); }
+
+.walkthrough-ring {
+  position: fixed;
+  left: var(--tour-x);
+  top: var(--tour-y);
+  width: var(--tour-w);
+  height: var(--tour-h);
+  border: 3px solid var(--gold);
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(2, 20, 31, 0.78), 0 0 0 6px rgba(255, 201, 40, 0.2);
+  pointer-events: none;
+  animation: walkthrough-pulse 1.8s ease-in-out infinite;
+}
+
+.walkthrough-card {
+  position: fixed;
+  z-index: 1;
+  left: 50%;
+  bottom: max(24px, calc(18px + env(safe-area-inset-bottom)));
+  width: min(520px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  padding: 22px;
+  color: var(--pip);
+  background: linear-gradient(155deg, #FFFDF6, var(--bone));
+  border: 1px solid var(--bone-shade);
+  border-bottom: 7px solid #B99D57;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52);
+  outline: none;
+}
+.walkthrough-card.place-top { top: max(24px, env(safe-area-inset-top)); bottom: auto; }
+.walkthrough-card .eyebrow { color: #466170; }
+.walkthrough-card h2 {
+  margin-top: 6px;
+  color: var(--signal-lo);
+  font-family: var(--signage);
+  font-size: clamp(23px, 5vw, 32px);
+  line-height: 1.06;
+}
+.walkthrough-caption { margin: 11px 0 16px; color: #263E49; line-height: 1.5; }
+.walkthrough-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.walkthrough-actions .act { min-width: 108px; }
+.walkthrough-actions .act.ghost { color: var(--signal); border-color: rgba(7, 59, 92, 0.28); }
+.walkthrough-actions .act.ghost:hover { border-color: var(--signal); }
+.walkthrough-music {
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  color: var(--signal);
+  background: transparent;
+  font: 800 13px var(--body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.walkthrough-music[aria-pressed='true']::before { content: '♫ '; color: var(--forest-lo); }
+
+.walkthrough-progress {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 5px;
+  margin: 0 0 18px;
+}
+.walkthrough-progress span {
+  height: 7px;
+  border: 1px solid #9EA9A5;
+  border-radius: 999px;
+  background: transparent;
+}
+.walkthrough-progress span.is-filled { border-color: var(--forest-lo); background: var(--forest); }
+
+.walkthrough-welcome { top: 50%; bottom: auto; transform: translate(-50%, -50%); }
+.walkthrough-bone {
+  float: right;
+  width: 62px;
+  height: 96px;
+  margin: -38px 0 10px 18px;
+  padding: 12px 8px;
+  white-space: pre;
+  text-align: center;
+  line-height: 32px;
+  color: var(--pip);
+  background: var(--bone);
+  border: 2px solid #B99D57;
+  border-radius: 9px;
+  box-shadow: inset 0 -42px 0 rgba(220, 207, 171, 0.26), 5px 8px 0 rgba(0, 0, 0, 0.18);
+}
+
+@keyframes walkthrough-pulse {
+  0%, 100% { border-color: var(--gold); }
+  50% { border-color: var(--gold-hi); }
+}
+
+@media (max-width: 620px) {
+  .walkthrough-card,
+  .walkthrough-card.place-top {
+    top: auto;
+    bottom: 0;
+    width: 100%;
+    max-height: min(62vh, 520px);
+    overflow: auto;
+    border-radius: 20px 20px 0 0;
+  }
+  .walkthrough-welcome { top: 50%; bottom: auto; width: calc(100vw - 24px); transform: translate(-50%, -50%); border-radius: 18px; }
+  .walkthrough-actions { flex-wrap: wrap; }
+  .walkthrough-music { order: 3; width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .walkthrough-ring { animation: none; }
+}
 
 /* ------------------------------------------------------------------- cards */
 /* Cards are objects on the yard floor, not rectangles filled with a colour:
@@ -1449,19 +1585,45 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .guide-seat.west { left: 10px; top: 50%; transform: translateY(-50%); }
 .guide-seat.you { color: var(--gold); border-color: var(--gold); }
 .guide-seat.them { color: var(--sky); border-color: var(--sky); }
+.guide-pair-line {
+  position: absolute;
+  z-index: 0;
+  border-radius: 999px;
+  opacity: .58;
+  pointer-events: none;
+}
+.guide-pair-line.you {
+  top: 35px;
+  bottom: 35px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--gold);
+}
+.guide-pair-line.them {
+  top: 50%;
+  right: 46px;
+  left: 46px;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--sky);
+}
+.guide-seat { z-index: 2; }
 .guide-side {
   position: absolute;
+  z-index: 3;
   left: 50%;
   transform: translate(-50%, -50%);
-  padding: 2px 7px;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
   border-radius: 999px;
-  background: rgba(20, 122, 66, .88);
-  font: 700 11px var(--mono);
+  background: var(--signal-lo);
+  font: 700 10px var(--mono);
   text-transform: uppercase;
   white-space: nowrap;
 }
-.guide-side.you { top: 34%; color: var(--gold); }
-.guide-side.them { top: 66%; color: var(--sky); }
+.guide-side.you { top: 37%; color: var(--gold); }
+.guide-side.them { top: 63%; color: var(--sky); }
 @media (max-width: 680px) { .academy-guide-grid { grid-template-columns: 1fr; } }
 .coach-actions { display: flex; justify-content: space-between; gap: 10px; padding: 18px 22px 22px; }
 .coach-actions .act:last-child { margin-left: auto; }
