@@ -1017,7 +1017,10 @@ label.field > span {
   width: 28%; height: 28%; right: 3%; top: 6%; left: auto; bottom: auto;
 }
 .table-seat-identity .avatar-accessory-canadapin,
-.table-seat-identity .avatar-accessory-ukpin {
+.table-seat-identity .avatar-accessory-ukpin,
+.table-seat-identity .avatar-accessory-poinsettia,
+.table-seat-identity .avatar-accessory-emancipendence,
+.table-seat-identity .avatar-accessory-goldbone {
   width: 28%; height: 28%; right: 3%; top: 6%; left: auto; bottom: auto;
 }
 .table-seat-identity .avatar-accessory-bandana {
@@ -2209,8 +2212,11 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   width: 31%; height: 31%; right: 0; top: 5%; left: auto; bottom: auto;
 }
 .avatar-accessory-canadapin,
-.avatar-accessory-ukpin {
-  /* Diaspora flags follow the same temple-pin treatment as the Jamaica pin. */
+.avatar-accessory-ukpin,
+.avatar-accessory-poinsettia,
+.avatar-accessory-emancipendence,
+.avatar-accessory-goldbone {
+  /* Small pins share a temple treatment so they never cover the face. */
   width: 31%; height: 31%; right: 0; top: 5%; left: auto; bottom: auto;
 }
 .avatar-accessory-bandana {

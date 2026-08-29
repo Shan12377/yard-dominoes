@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Grand Market poinsettia pin">
+  <g stroke="#101827" stroke-width="3" stroke-linejoin="round">
+    <path fill="#119B52" d="M29 36C19 43 11 42 7 35c8-6 15-7 24-2z"/>
+    <path fill="#119B52" d="M35 36c10 7 18 6 22-1-8-6-15-7-24-2z"/>
+    <path fill="#FF4F5E" d="M32 31C20 27 18 18 23 12c7 2 11 8 10 17z"/>
+    <path fill="#FF4F5E" d="M32 31c-5-11 1-18 9-19 4 6 2 14-7 19z"/>
+    <path fill="#FF4F5E" d="M32 31c9-8 18-5 21 2-5 6-13 7-20 1z"/>
+    <path fill="#FF4F5E" d="M32 31c8 9 4 18-4 20-5-5-5-13 1-20z"/>
+    <path fill="#FF4F5E" d="M32 31c-9 8-18 4-20-4 5-5 13-5 20 1z"/>
+    <circle fill="#FFD447" cx="32" cy="31" r="7"/>
+  </g>
+</svg>

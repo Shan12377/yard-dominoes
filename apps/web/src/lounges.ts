@@ -149,7 +149,8 @@ export const ORIGIN_LABEL: Record<Origin, string> = {
 export type Avatar = 'tam' | 'wrap' | 'granny' | 'straw' | 'hoops' | 'cap'
   | 'phones' | 'plain' | 'afro' | 'braids' | 'twists' | 'goldtooth'
   | 'marigold' | 'cedar' | 'sonia' | 'devon' | 'otis' | 'nadia' | 'kyro' | 'levi'
-  | 'harold' | 'mei' | 'imani' | 'tariq';
+  | 'harold' | 'mei' | 'imani' | 'tariq' | 'gideon' | 'anika' | 'kai'
+  | 'malcolm' | 'renee' | 'nia';
 
 export const AVATARS: Avatar[] = [
   'hoops', 'plain', 'granny', 'tam',
@@ -158,6 +159,8 @@ export const AVATARS: Avatar[] = [
   'marigold', 'cedar', 'sonia', 'devon',
   'otis', 'nadia', 'kyro', 'levi',
   'harold', 'mei', 'imani', 'tariq',
+  'gideon', 'anika', 'kai',
+  'malcolm', 'renee', 'nia',
 ];
 
 /** What each character is wearing — read aloud by a screen reader in place
@@ -187,6 +190,12 @@ export const AVATAR_LABEL: Record<Avatar, string> = {
   mei: 'Silver bob and round glasses',
   imani: 'Curly puff and bright yellow top',
   tariq: 'Curly fade and green hoodie',
+  gideon: 'Silver beard and low locs · Limited',
+  anika: 'Wavy dark hair and burgundy blouse · Limited',
+  kai: 'Textured crop and teal shirt · Limited',
+  malcolm: 'Low fade, shaped beard and rust shirt · Limited',
+  renee: 'Natural twists and teal blouse · Limited',
+  nia: 'Braided ponytail and gold hoodie · Limited',
 };
 
 /** `apps/web/public/avatars/<id>.webp` is the only thing that ever renders one. */
@@ -195,11 +204,13 @@ export function avatarUrl(avatar: Avatar): string {
 }
 
 export type AvatarAccessory = 'shades' | 'crown' | 'flower' | 'headphones' | 'flagpin'
-  | 'canadapin' | 'ukpin' | 'bandana' | 'beanie' | 'necklace';
+  | 'canadapin' | 'ukpin' | 'bandana' | 'beanie' | 'necklace'
+  | 'poinsettia' | 'emancipendence' | 'goldbone';
 
 export const AVATAR_ACCESSORIES: AvatarAccessory[] = [
   'shades', 'crown', 'flower', 'headphones', 'flagpin',
   'canadapin', 'ukpin', 'bandana', 'beanie', 'necklace',
+  'poinsettia', 'emancipendence', 'goldbone',
 ];
 
 export const AVATAR_ACCESSORY_LABEL: Record<AvatarAccessory, string> = {
@@ -213,6 +224,9 @@ export const AVATAR_ACCESSORY_LABEL: Record<AvatarAccessory, string> = {
   bandana: 'Red, gold and green bandana',
   beanie: 'Knitted beanie',
   necklace: 'Gold necklace',
+  poinsettia: 'Grand Market poinsettia pin',
+  emancipendence: 'Emancipendence rosette pin',
+  goldbone: 'Rare gold double-six pin',
 };
 
 export function avatarAccessoryUrl(accessory: AvatarAccessory): string {
@@ -244,9 +258,12 @@ function missingAccessoryColumn(error: { code?: string; message?: string } | nul
  * Cosmetic yard-scene backdrop, worn behind a seat card — plan §7.1. Purely
  * decorative, no new real-time infra, generated once by `gen_backgrounds.py`.
  */
-export type Background = 'midday' | 'evening' | 'rain' | 'beach' | 'shop';
+export type Background = 'midday' | 'evening' | 'rain' | 'beach' | 'shop'
+  | 'grandmarket' | 'emancipendence';
 
-export const BACKGROUNDS: Background[] = ['midday', 'evening', 'rain', 'beach', 'shop'];
+export const BACKGROUNDS: Background[] = [
+  'midday', 'evening', 'rain', 'beach', 'shop', 'grandmarket', 'emancipendence',
+];
 
 export const BACKGROUND_LABEL: Record<Background, string> = {
   midday: 'Kingston midday',
@@ -254,6 +271,8 @@ export const BACKGROUND_LABEL: Record<Background, string> = {
   rain: 'Rain on the zinc',
   beach: 'South coast',
   shop: 'Corner shop',
+  grandmarket: 'Christmas Grand Market',
+  emancipendence: 'Emancipendence evening',
 };
 
 /** `apps/web/public/backgrounds/<id>.webp` is the only thing that ever renders one. */

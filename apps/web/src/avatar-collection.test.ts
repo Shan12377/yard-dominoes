@@ -11,14 +11,21 @@ test('every selectable portrait and wearable has a local asset and accessible la
     'hoops', 'plain', 'granny', 'tam', 'wrap', 'straw', 'phones', 'afro',
     'braids', 'cap', 'twists', 'goldtooth', 'marigold', 'cedar', 'sonia',
     'devon', 'otis', 'nadia', 'kyro', 'levi', 'harold', 'mei', 'imani', 'tariq',
+    'gideon', 'anika', 'kai',
+    'malcolm', 'renee', 'nia',
   ];
   const wearables = [
     'shades', 'crown', 'flower', 'headphones', 'flagpin', 'canadapin', 'ukpin',
     'bandana', 'beanie', 'necklace',
+    'poinsettia', 'emancipendence', 'goldbone',
+  ];
+  const backgrounds = [
+    'midday', 'evening', 'rain', 'beach', 'shop', 'grandmarket', 'emancipendence',
   ];
 
-  assert.equal(portraits.length, 24);
-  assert.equal(wearables.length, 10);
+  assert.equal(portraits.length, 30);
+  assert.equal(wearables.length, 13);
+  assert.equal(backgrounds.length, 7);
 
   for (const avatar of portraits) {
     assert.match(source, new RegExp(`${avatar}: '\\w`));
@@ -28,5 +35,10 @@ test('every selectable portrait and wearable has a local asset and accessible la
   for (const accessory of wearables) {
     assert.match(source, new RegExp(`${accessory}: '\\w`));
     assert.ok(existsSync(resolve(import.meta.dirname, '../public/accessories', `${accessory}.svg`)));
+  }
+
+  for (const background of backgrounds) {
+    assert.match(source, new RegExp(`${background}: '\\w`));
+    assert.ok(existsSync(resolve(import.meta.dirname, '../public/backgrounds', `${background}.webp`)));
   }
 });

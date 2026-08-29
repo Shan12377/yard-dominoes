@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Rare gold double-six pin">
+  <g transform="rotate(-10 32 32)" stroke="#101827" stroke-width="3">
+    <rect x="18" y="4" width="28" height="56" rx="7" fill="#FFD447"/>
+    <path d="M18 32h28"/>
+    <g fill="#101827" stroke="none">
+      <circle cx="25" cy="12" r="2.3"/><circle cx="39" cy="12" r="2.3"/>
+      <circle cx="25" cy="19" r="2.3"/><circle cx="39" cy="19" r="2.3"/>
+      <circle cx="25" cy="26" r="2.3"/><circle cx="39" cy="26" r="2.3"/>
+      <circle cx="25" cy="39" r="2.3"/><circle cx="39" cy="39" r="2.3"/>
+      <circle cx="25" cy="46" r="2.3"/><circle cx="39" cy="46" r="2.3"/>
+      <circle cx="25" cy="53" r="2.3"/><circle cx="39" cy="53" r="2.3"/>
+    </g>
+  </g>
+</svg>
