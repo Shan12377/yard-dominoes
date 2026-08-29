@@ -1812,7 +1812,9 @@ export function rankingsView(rerender: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
   const head = el('div', 'panel');
   head.append(el('div', 'eyebrow', 'Rankings'));
-  head.append(el('h2', undefined, 'Who runs the yard'));
+  const rankingsHeading = el('h2', undefined, 'Who runs the yard ');
+  rankingsHeading.appendChild(el('span', 'heading-gloss', '(the leaderboard)'));
+  head.append(rankingsHeading);
   head.append(el('p', 'muted',
     'Every rated set moves this. Duppy-filled tables never count — only real games.'));
 

@@ -905,7 +905,9 @@ export function profilePanel(
 ): HTMLElement {
   const panel = el('div', 'panel');
   panel.append(el('div', 'eyebrow', 'Your profile'));
-  panel.append(el('h2', undefined, 'Who yuh be'));
+  const heading = el('h2', undefined, 'Who yuh be ');
+  heading.appendChild(el('span', 'heading-gloss', '(who are you)'));
+  panel.append(heading);
 
   panel.appendChild(feedbackSection(rerender));
   panel.appendChild(coinSection(rerender));

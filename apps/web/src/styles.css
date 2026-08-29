@@ -147,6 +147,18 @@ h1 { font-size: clamp(28px, 6vw, 44px); line-height: 0.95; }
 h2 { font-size: 20px; }
 p { line-height: 1.55; }
 
+/* A quiet English gloss beside a Patois heading — for a newcomer who
+   doesn't know the phrase yet. The Patois stays the real heading; this
+   is a caption, not a translation replacing it. */
+.heading-gloss {
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--muted);
+}
+
 /* Used everywhere as the section-header label ("PLAY", "MEMBERSHIP", "YOUR
    PLAY") — the single most-repeated small text in the app, so bumping it
    once here is high-leverage: every panel on every screen reads easier. */
