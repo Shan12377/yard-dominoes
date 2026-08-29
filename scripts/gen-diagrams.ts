@@ -157,8 +157,15 @@ Object.assign(diagrams, {
     { text: 'HARD 6', x: 170, y: 82, tone: 'gold' }, { text: 'DEAD 5-5', x: 380, y: 82, tone: 'coral' }, { text: 'KEY: 4 & 6', x: 585, y: 82, tone: 'green' },
   ]), connectedLine: true },
 
-  B5L1: simple('Eliminate the impossible', 'The board, your hand and void badges cross impossible tiles from the unseen set.', row(['2-5', '3-5', '4-6', '2-6'], 130), 'Public facts narrow hidden hands', [
-    { text: 'WEST: no 2, no 6', x: 380, y: 80, tone: 'coral' }, { text: '2-5 ✕', x: 240, y: 275, tone: 'coral' }, { text: '3-5 ✓', x: 380, y: 275, tone: 'green' }, { text: '4-6 ✕', x: 520, y: 275, tone: 'coral' },
+  B5L1: simple('Eliminate the impossible', 'West passed on open two and six. Of the three unseen candidates, only three-five contains neither forbidden suit.', [
+    { id: '2-5', x: 225, y: 125, rotate: -90, tone: 'coral' },
+    { id: '3-5', x: 350, y: 125, rotate: -90, tone: 'gold' },
+    { id: '4-6', x: 475, y: 125, rotate: -90, tone: 'coral' },
+  ], 'Public facts narrow hidden hands', [
+    { text: 'WEST: no 2, no 6', x: 380, y: 72, tone: 'coral' },
+    { text: '2-5 ✕', x: 253, y: 245, tone: 'coral' },
+    { text: '3-5 ✓', x: 378, y: 245, tone: 'green' },
+    { text: '4-6 ✕', x: 503, y: 245, tone: 'coral' },
   ]),
   B5L2: { ...simple('The score changes the play', 'One position has different priorities at five-nil, nil-five and one-all.', row(['1-4', '4-6', '2-6'], 130).map((tile, index) => ({ ...tile, rotate: (index < 2 ? -90 : 90) as -90 | 90 })), '5-0 safe · 0-5 jam · 1-1 final', [
     { text: '5-0 · CLOSE', x: 180, y: 82, tone: 'gold' }, { text: '0-5 · BRUK', x: 380, y: 82, tone: 'coral' }, { text: '1-1 · PLAY TWO', x: 590, y: 82, tone: 'green' },
@@ -166,12 +173,25 @@ Object.assign(diagrams, {
   B5L3: simple('A false signal', 'A believable conventional signal is deliberately reversed and the opponent follows it.', [{ id: '5-5', x: 215, y: 125, tone: 'muted' }, { id: '2-4', x: 500, y: 125, tone: 'gold' }], 'First speak the language—then choose when to lie', [
     { text: 'THEY EXPECT 5', x: 240, y: 82, tone: 'coral' }, { text: 'REAL HOME: 2/4', x: 530, y: 82, tone: 'gold' },
   ]),
-  B5L4: simple('Read the player over time', 'The same starting hand is played by heavy shedding or careful control.', [...row(['6-6', '5-6', '2-3'], 100), ...row(['2-3', '5-6', '6-6'], 215)], 'Pattern across hands—not one dramatic move', [
-    { text: 'AGGRESSIVE', x: 180, y: 65, tone: 'coral' }, { text: 'CAREFUL', x: 180, y: 180, tone: 'green' },
+  B5L4: simple('Read the player over time', 'Two separate play histories use the same three tiles. The highlighted first choice reveals a repeated tendency.', [
+    { id: '6-6', x: 240, y: 92, rotate: -90, tone: 'gold' },
+    { id: '5-6', x: 365, y: 92, rotate: -90 },
+    { id: '2-3', x: 490, y: 92, rotate: -90 },
+    { id: '2-3', x: 240, y: 218, rotate: -90, tone: 'gold' },
+    { id: '5-6', x: 365, y: 218, rotate: -90 },
+    { id: '6-6', x: 490, y: 218, rotate: -90 },
+  ], 'Pattern across hands—not one dramatic move', [
+    { text: 'HEAVY FIRST', x: 140, y: 90, tone: 'coral' },
+    { text: 'CONTROL FIRST', x: 140, y: 216, tone: 'green' },
   ]),
-  B5L5: simple('Do not leak with tempo', 'Even timing hides hand strength; one long stall gives a hard decision away.', row(['1-2', '2-4', '4-6'], 125), 'Same deliberate rhythm, every hand', [
-    { text: '━━ ━━ ━━ EVEN', x: 245, y: 85, tone: 'green' }, { text: '━━ ━━━━━━━ STALL', x: 520, y: 245, tone: 'coral' },
-  ]),
+  B5L5: { ...simple('Do not leak with tempo', 'The line joins one-two to two-four to four-six. Equal turn times reveal less than a sudden long stall.', [
+    { id: '1-2', x: 215, y: 125, rotate: -90 },
+    { id: '2-4', x: 325, y: 125, rotate: -90 },
+    { id: '4-6', x: 435, y: 125, rotate: -90 },
+  ], 'Same deliberate rhythm, every hand', [
+    { text: 'EVEN · 3.5  3.5  3.5', x: 380, y: 78, tone: 'green' },
+    { text: 'TELL · 3.5  3.5  10.0', x: 380, y: 250, tone: 'coral' },
+  ]), connectedLine: true },
   B5L6: simple('Tournament forces the six-six', 'The double-six opening is highlighted and the sporting alternative is rejected.', [{ id: '6-6', x: 215, y: 125, tone: 'gold' }, { id: '2-5', x: 500, y: 125, tone: 'muted' }], 'No sporting in tournament play', [
     { text: 'MUST LEAD', x: 240, y: 82, tone: 'gold' }, { text: 'NOT LEGAL', x: 530, y: 82, tone: 'coral' },
   ]),

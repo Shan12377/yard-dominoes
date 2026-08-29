@@ -67,6 +67,8 @@ export interface DrillScenario {
     label: string;
     line?: TileId[];
     hand?: TileId[];
+    /** Names a non-board collection precisely (for example, legal plays or unseen candidates). */
+    handLabel?: string;
     facts: readonly string[];
   };
 }
@@ -165,14 +167,16 @@ const SCENARIOS: Record<string, DrillScenario> = {
     { label: 'Yes. Protect the 1-1 count', correct: true, explanation: 'Two pips can win the block if it remains your lowest hand.' },
     { label: 'No. Partner’s total decides', explanation: 'The partner’s pips do not decide the lowest individual.' },
   ] },
-  B5D1: { setup: 'You lead 5-0. One play keeps control; another chases a flashy domino but opens their long suit.', visual: {
-    label: 'Set score changes the plan', line: ['5-5', '0-5'], facts: ['Score · 5–0', 'Keep control to close six-love'],
+  B5D1: { setup: 'You lead 5-0 and control fives. Choose between 5-5, which keeps five open, and 0-5, which opens the opponent’s shown blank suit.', visual: {
+    label: 'Set score changes the plan', hand: ['5-5', '0-5'], handLabel: 'Your two legal plays',
+    facts: ['Score · 5–0', '5-5 keeps control', '0-5 opens their blank suit'],
   }, choices: [
-    { label: 'Keep control', correct: true, explanation: 'At 5-0, the safe hand closes six-love.' },
-    { label: 'Chase the flashy line', explanation: 'Style is not worth giving away the set-closing hand.' },
+    { label: '5-5', correct: true, explanation: 'At 5-0, keeping your controlled five open protects the set-closing hand.' },
+    { label: '0-5', explanation: 'Opening the opponent’s shown blank suit gives away control when one safe hand can close six-love.' },
   ] },
   B5D2: { setup: 'West passed on 2 and 6. Unseen candidates are 2-5, 3-5 and 4-6.', visual: {
-    label: 'Eliminate the impossible', line: ['2-2', '2-6'], facts: ['West passed', 'No 2', 'No 6', 'Candidates · 2-5, 3-5, 4-6'],
+    label: 'Eliminate the impossible', hand: ['2-5', '3-5', '4-6'], handLabel: 'Unseen candidates',
+    facts: ['West passed on ends 2 and 6', 'No 2', 'No 6'],
   }, choices: [
     { label: 'Only 3-5 remains possible', correct: true, explanation: 'The pass eliminates every tile carrying 2 or 6.' },
     { label: '2-5 and 3-5', explanation: 'West cannot hold a two after that pass.' },

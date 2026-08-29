@@ -1655,7 +1655,7 @@ function academyDrillSituation(scenario: DrillScenario): HTMLElement {
   };
   if (scenario.visual.line?.length) addBones(scenario.visual.line, 'line');
   if (scenario.visual.hand?.length) {
-    scene.appendChild(el('div', 'academy-drill-hand-label', 'Your hand after this play'));
+    scene.appendChild(el('div', 'academy-drill-hand-label', scenario.visual.handLabel ?? 'Your hand after this play'));
     addBones(scenario.visual.hand, 'hand');
   }
 
@@ -1842,6 +1842,7 @@ function academyView(): DocumentFragment {
           scenario.choices.forEach((choice, index) => {
             const button = document.createElement('button');
             button.className = 'academy-drill-choice';
+            if (d.id === 'B5D1' || d.id === 'B5D2') button.classList.add('academy-b5-drill-choice');
             if (selected === index) button.classList.add(choice.correct ? 'correct' : 'wrong');
             if (/^[0-6]-[0-6]$/.test(choice.label)) {
               button.setAttribute('aria-label', `Choose ${choice.label}`);

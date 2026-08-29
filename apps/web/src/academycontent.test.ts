@@ -89,3 +89,29 @@ test('privacy diagram shows seven faces for you and seven backs for every oppone
   assert.equal((svg.match(/data-back-count="7"/g) ?? []).length, 3);
   assert.match(svg, /Your seven tile faces are visible/);
 });
+
+test('the five reported Table General visuals keep their dominoes aligned with the teaching facts', async () => {
+  const elimination = await readFile(new URL('../public/art/boards/B5L1.svg', import.meta.url), 'utf8');
+  assert.equal((elimination.match(/ opacity="[\d.]+"><g transform="rotate/g) ?? []).length, 3,
+    'B5L1 must show exactly its three named candidates');
+  for (const label of ['2-5 ✕', '3-5 ✓', '4-6 ✕']) assert.match(elimination, new RegExp(label));
+
+  const playerRead = await readFile(new URL('../public/art/boards/B5L4.svg', import.meta.url), 'utf8');
+  assert.match(playerRead, /HEAVY FIRST/);
+  assert.match(playerRead, /CONTROL FIRST/);
+  assert.equal((playerRead.match(/ opacity="[\d.]+"><g transform="rotate/g) ?? []).length, 6,
+    'B5L4 must show the same three tiles in two separate histories');
+
+  const tempo = await readFile(new URL('../public/art/boards/B5L5.svg', import.meta.url), 'utf8');
+  assert.match(tempo, /data-connected-line="true"/);
+  assert.match(tempo, /EVEN · 3.5  3.5  3.5/);
+  assert.match(tempo, /TELL · 3.5  3.5  10.0/);
+
+  const safePlay = scenarioFor(BELTS[4].drills.find((drill) => drill.id === 'B5D1')!);
+  assert.deepEqual(safePlay.visual.hand, ['5-5', '0-5']);
+  assert.deepEqual(safePlay.choices.map((choice) => choice.label), ['5-5', '0-5']);
+
+  const narrowHand = scenarioFor(BELTS[4].drills.find((drill) => drill.id === 'B5D2')!);
+  assert.deepEqual(narrowHand.visual.hand, ['2-5', '3-5', '4-6']);
+  assert.equal(narrowHand.visual.handLabel, 'Unseen candidates');
+});

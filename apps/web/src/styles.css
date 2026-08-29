@@ -1582,6 +1582,13 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .academy-drill-choice.correct { border-color: var(--forest-hi); background: #E7F8ED; }
 .academy-drill-choice.wrong { border-color: var(--coral); background: #FFF0EC; }
 .academy-drill-choice:disabled { cursor: default; opacity: .82; }
+.academy-b5-drill-choice:disabled {
+  /* iOS Safari otherwise washes disabled answer text into the pale button. */
+  color: var(--pip);
+  -webkit-text-fill-color: var(--pip);
+  opacity: 1;
+}
+.academy-b5-drill-choice { color: var(--pip); }
 .academy-drill-result {
   margin-top: 10px; padding: 11px 12px; border-left: 4px solid var(--forest-hi);
   border-radius: 7px; background: rgba(45, 212, 111, .12); color: var(--bone);
