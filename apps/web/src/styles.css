@@ -1434,9 +1434,19 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .guide-seat.west { left: 10px; top: 50%; transform: translateY(-50%); }
 .guide-seat.you { color: var(--gold); border-color: var(--gold); }
 .guide-seat.them { color: var(--sky); border-color: var(--sky); }
-.guide-side { position: absolute; top: calc(50% - 13px); font: 700 11px var(--mono); text-transform: uppercase; }
-.guide-side.you { left: calc(50% - 64px); color: var(--gold); }
-.guide-side.them { right: calc(50% - 82px); color: var(--sky); }
+.guide-side {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(20, 122, 66, .88);
+  font: 700 11px var(--mono);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.guide-side.you { top: 34%; color: var(--gold); }
+.guide-side.them { top: 66%; color: var(--sky); }
 @media (max-width: 680px) { .academy-guide-grid { grid-template-columns: 1fr; } }
 .coach-actions { display: flex; justify-content: space-between; gap: 10px; padding: 18px 22px 22px; }
 .coach-actions .act:last-child { margin-left: auto; }
