@@ -227,6 +227,10 @@ let cashoutBusy = false;
 let cashoutError: string | null = null;
 let cashoutJustRequestedCents: number | null = null;
 
+export function openReferralSection(): void {
+  myCodeReferralOpen = true;
+}
+
 function referralSection(rerender: () => void): HTMLElement {
   if (myCode === undefined && !myCodeLoading) {
     myCodeLoading = true;

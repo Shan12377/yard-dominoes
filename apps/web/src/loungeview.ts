@@ -21,7 +21,8 @@ import type {
   Bredrin, Invite, Lounge, LoungeMessage, LoungeRoom, MyProfile, Origin, PresenceEntry, Tier,
   PublicProfile, RankedPlayer, RatingCategory,
 } from './lounges.ts';
-import { profilePanel, adminSection, avatarImg, timeAgo } from './profile.ts';
+import { profilePanel, adminSection, avatarImg, timeAgo, openReferralSection } from './profile.ts';
+export { openReferralSection };
 import {
   ensureSignedIn, findActiveSeat, videoSessionCall, turnCredentialsCall,
   secureAccount, signInWithPassword, isAnonymousUser,

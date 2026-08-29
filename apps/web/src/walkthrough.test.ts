@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { WALKTHROUGH_STEPS } from './walkthrough.ts';
+const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('walkthrough covers practice setup and every public destination', () => {
   assert.deepEqual(
@@ -24,4 +26,9 @@ test('the Fair Deal stop says the completed-hand check shows every starting hand
   assert.ok(fair);
   assert.match(fair.caption, /shows every original starting hand/);
   assert.match(fair.caption, /After a hand ends/);
+});
+
+test('the welcome domino stays inside the card instead of clipping its top border', () => {
+  assert.match(styles, /\.walkthrough-bone \{[\s\S]*?margin: -8px 2px 10px 18px;/);
+  assert.doesNotMatch(styles, /\.walkthrough-bone \{[\s\S]*?margin: -38px/);
 });

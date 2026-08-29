@@ -55,6 +55,7 @@ const app = document.getElementById('app')!;
 type LoungeModule = typeof import('./loungeview.ts');
 let loungeModule: LoungeModule | null = null;
 let loungeLoading = false;
+let openReferralOnProfile = false;
 const LOUNGES_VISITED_KEY = 'yard:visited-lounges';
 
 async function ensureLoungeModule(isBootCheck = false) {
@@ -668,6 +669,77 @@ function brandStories(): HTMLElement {
   } else {
     revealImages();
   }
+  return section;
+}
+
+function playerReview(): HTMLElement {
+  const section = el('section', 'player-review');
+  section.setAttribute('aria-labelledby', 'player-review-title');
+
+  const summary = el('div', 'player-review-summary');
+  const title = el('h2', undefined, 'Early player feedback');
+  title.id = 'player-review-title';
+  const rating = el('div', 'player-review-rating');
+  rating.setAttribute('aria-label', '5 out of 5 stars');
+  const stars = el('span', undefined, '★★★★★');
+  stars.setAttribute('aria-hidden', 'true');
+  rating.appendChild(stars);
+  summary.append(title, rating);
+
+  const quote = document.createElement('blockquote');
+  quote.append(el('p', undefined,
+    'Super cool real domino game!! I love to play dominoes and this game helps me to keep enjoying my favorite board game!'));
+  const attribution = document.createElement('footer');
+  const cite = document.createElement('cite');
+  cite.textContent = 'YaadDominoes player';
+  attribution.append('— ', cite);
+  quote.appendChild(attribution);
+
+  section.append(summary, quote);
+  return section;
+}
+
+function referralCallout(): HTMLElement {
+  const section = el('section', 'referral-callout');
+  section.setAttribute('aria-labelledby', 'referral-callout-title');
+
+  const copy = el('div', 'referral-callout-copy');
+  copy.append(
+    el('div', 'eyebrow', 'Referral rewards'),
+    el('h2', undefined, 'Bring your people. Earn when they join.'),
+    el('p', undefined,
+      'Share your personal link. When a friend becomes a paid member, you earn '
+      + '5% commission on their first payment and every renewal, plus 100 coins '
+      + 'when their first payment clears. They get 5% off that first payment too.'),
+  );
+  copy.querySelector('h2')!.id = 'referral-callout-title';
+
+  const rewards = el('div', 'referral-rewards');
+  const rewardDetails = [
+    ['5%', 'commission, including renewals'],
+    ['+100', 'coins after their first payment'],
+    ['5% off', 'their first payment'],
+  ];
+  for (const [amount, label] of rewardDetails) {
+    const reward = el('div', 'referral-reward');
+    reward.append(el('strong', undefined, amount), el('span', undefined, label));
+    rewards.appendChild(reward);
+  }
+
+  const action = document.createElement('button');
+  action.type = 'button';
+  action.className = 'act referral-callout-action';
+  action.textContent = 'Get my referral link';
+  action.onclick = () => {
+    view = 'profile';
+    openReferralOnProfile = true;
+    void ensureLoungeModule();
+    scheduleRender();
+  };
+
+  const actionWrap = el('div', 'referral-callout-action-wrap');
+  actionWrap.append(action, el('span', undefined, 'Find it in Profile → Referrals'));
+  section.append(copy, rewards, actionWrap);
   return section;
 }
 
@@ -2056,10 +2128,7 @@ function startWalkthrough(): void {
 }
 
 function startWalkthroughMusic(): void {
-  walkthroughMusicPlaying = playWalkthroughMusic(() => {
-    walkthroughMusicPlaying = false;
-    scheduleRender();
-  });
+  walkthroughMusicPlaying = playWalkthroughMusic();
 }
 
 function finishWalkthrough(skipped = false): void {
@@ -2245,6 +2314,8 @@ function render() {
       const card = installCard();
       if (card) next.appendChild(card);
       next.appendChild(lobby());
+      next.appendChild(playerReview());
+      next.appendChild(referralCallout());
       next.appendChild(brandStories());
     }
   } else if (view === 'lounges') {
@@ -2275,6 +2346,10 @@ function render() {
       ? loungeModule.membershipView(scheduleRender, () => { view = 'profile'; scheduleRender(); })
       : pending('Loading membership'));
   } else if (view === 'profile') {
+    if (loungeModule && openReferralOnProfile) {
+      loungeModule.openReferralSection();
+      openReferralOnProfile = false;
+    }
     next.appendChild(loungeModule ? loungeModule.profileView(scheduleRender) : pending('Loading profile'));
   } else if (view === 'admin') {
     // Reachable only via the nav tab chrome() only shows to a confirmed
