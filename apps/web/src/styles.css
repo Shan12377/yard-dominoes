@@ -1135,10 +1135,10 @@ label.field > span {
   height: var(--seat-identity-size);
 }
 .table-seat-identity .avatar { object-fit: cover; }
-.table-seat-identity-top { top: -12px; left: calc(50% - 66px); transform: translateX(-50%); }
-.table-seat-identity-bottom { bottom: -12px; left: calc(50% - 66px); transform: translateX(-50%); }
-.table-seat-identity-left { left: -12px; top: calc(50% - 66px); transform: translateY(-50%); }
-.table-seat-identity-right { right: -12px; top: calc(50% - 66px); transform: translateY(-50%); }
+.table-seat-identity-top { top: 8px; left: calc(50% - 66px); transform: translateX(-50%); }
+.table-seat-identity-bottom { bottom: 8px; left: calc(50% - 66px); transform: translateX(-50%); }
+.table-seat-identity-left { left: 8px; top: calc(50% - 66px); transform: translateY(-50%); }
+.table-seat-identity-right { right: 8px; top: calc(50% - 66px); transform: translateY(-50%); }
 /* Full-size shades work in the 68px profile editor, but bury the face in a
    28–32px table medallion. Scale them to the eye line only at table scale. */
 .table-seat-identity .avatar-accessory-shades {
@@ -2656,10 +2656,10 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   .table-seat-identity .avatar-shell,
   .table-seat-identity .avatar,
   .table-seat-identity .avatar-shell.live-video { width: 30px; height: 30px; --seat-identity-size: 30px; }
-  .table-seat-identity-top { top: -10px; left: calc(50% - 60px); }
-  .table-seat-identity-bottom { bottom: -10px; left: calc(50% - 60px); }
-  .table-seat-identity-left { left: -10px; top: calc(50% - 60px); }
-  .table-seat-identity-right { right: -10px; top: calc(50% - 60px); }
+  .table-seat-identity-top { top: 6px; left: calc(50% - 60px); }
+  .table-seat-identity-bottom { bottom: 6px; left: calc(50% - 60px); }
+  .table-seat-identity-left { left: 6px; top: calc(50% - 60px); }
+  .table-seat-identity-right { right: 6px; top: calc(50% - 60px); }
   .table-seat-duppy-cue { min-width: 12px; font-size: 7px; }
 }
 

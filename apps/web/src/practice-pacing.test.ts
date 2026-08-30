@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const localSource = readFileSync(new URL('./local.ts', import.meta.url), 'utf8');
 const practiceSource = readFileSync(new URL('./main.ts', import.meta.url), 'utf8');
 const onlineTableSource = readFileSync(new URL('./onlinetableview.ts', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('practice Duppies never move faster than 3.5 seconds and pause for the final bone', () => {
   assert.match(localSource, /quick: DUPPY_PACE_SECONDS\.quick \* 1_000/);
@@ -26,6 +27,15 @@ test('practice Duppies sit visibly at their physical table edges', () => {
   assert.match(practiceSource, /function practiceDuppyIdentity/);
   assert.match(practiceSource, /duppyPersonaUrl\(duppyPersona\(level, seat\)\)/);
   assert.match(practiceSource, /DUPPY_LABELS\[level\].*AI opponent/);
+});
+
+test('all four seat portraits stay fully inside the felt on desktop and mobile', () => {
+  assert.match(styles, /\.table-seat-identity-top \{ top: 8px;/);
+  assert.match(styles, /\.table-seat-identity-bottom \{ bottom: 8px;/);
+  assert.match(styles, /\.table-seat-identity-left \{ left: 8px;/);
+  assert.match(styles, /\.table-seat-identity-right \{ right: 8px;/);
+  assert.match(styles, /\.table-seat-identity-top \{ top: 6px;/);
+  assert.doesNotMatch(styles, /\.table-seat-identity-(?:top|bottom|left|right) \{[^}]*-10px/);
 });
 
 test('practice leaves a named record of the last non-winning play during the reading beat', () => {
