@@ -297,6 +297,9 @@ function referralSection(rerender: () => void): HTMLElement {
     rerender();
   })();
   section.appendChild(copy);
+  section.append(el('p', 'muted small',
+    'Send it to someone brand new to the game. If they already have an account, '
+    + 'the link won’t attach credit — it only counts at their very first sign-up.'));
 
   section.appendChild(cashoutBlock(myCode, rerender));
   return section;
