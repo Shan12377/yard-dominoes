@@ -1258,6 +1258,12 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
   }
   frag.appendChild(head);
 
+  // At the top, not the bottom — someone handed a code (by a bredrin, over
+  // the phone, from another screen) wants to type it in and play, not scroll
+  // past the whole room list first. Moved up after a real player had to
+  // scroll to the very bottom to find this.
+  frag.appendChild(joinByCodeField((tableId) => void attachTable(tableId, rerender)));
+
   // Above the lounge cards: the countdown is the thing a player should not be
   // able to miss, and this is the screen they land on. Returns null with no
   // active tournament (the common case), so this costs nothing then.
@@ -1310,12 +1316,6 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
     card.append(left, right);
     frag.appendChild(card);
   }
-
-  // Below the room list, not above it — a join code is a power-user path
-  // (someone read it off another screen or heard it called out), not how
-  // someone new finds a room. It used to sit right under the header,
-  // pushing the actual list of rooms an extra section further down.
-  frag.appendChild(joinByCodeField((tableId) => void attachTable(tableId, rerender)));
 
   return frag;
 }

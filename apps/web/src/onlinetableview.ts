@@ -90,7 +90,15 @@ export async function openTablesPanel(
       join.textContent = t.status === 'waiting' ? 'Sit down' : 'Watch';
       join.onclick = () => void (async () => {
         try {
-          if (t.status === 'waiting') await joinTable(t.joinCode);
+          if (t.status === 'waiting') {
+            await joinTable(t.joinCode);
+          } else {
+            // Not a fresh sit-down, but it might be reclaiming a seat this
+            // player left within the rejoin window — try quietly. Anyone
+            // else's "Watch" tap on a playing table just falls through to
+            // spectating, exactly as before.
+            try { await joinTable(t.joinCode); } catch { /* not a rejoin — spectate */ }
+          }
           onJoin(t.id);
         } catch (err) {
           showInlineError(row, err);

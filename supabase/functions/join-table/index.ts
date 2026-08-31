@@ -1,6 +1,11 @@
 // POST /join-table  { joinCode }  or  { tableId, seatIndex }
 import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
 
+// A player who leaves mid-hand drops to a duppy fill-in (leave-seat), not a
+// truly open seat. This is how long they get to come back and reclaim it
+// before the normal "already started" block applies to them too.
+const REJOIN_WINDOW_MS = 5 * 60 * 1000;
+
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
   const { joinCode, tableId, seatIndex } = await req.json();
@@ -11,7 +16,6 @@ Deno.serve(handled(async (req) => {
     : db.from('tables').select('*').eq('id', tableId);
   const { data: table } = await query.single();
   if (!table) throw new HttpError(404, 'no table with that code');
-  if (table.status !== 'waiting') throw new HttpError(409, 'that game has already started');
 
   if (table.lounge_id) {
     const { data: lounge } = await db.from('lounges').select('min_tier').eq('id', table.lounge_id).single();
@@ -40,6 +44,27 @@ Deno.serve(handled(async (req) => {
   }
 
   const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
+
+  if (table.status !== 'waiting') {
+    // Not a fresh join — the only door still open once play has started is
+    // reclaiming a seat this exact player left within the last few minutes.
+    const cutoff = Date.now() - REJOIN_WINDOW_MS;
+    const mySeats = seats!.filter((s: any) =>
+      s.left_by_user_id === user.id && s.left_at !== null && Date.parse(s.left_at) > cutoff);
+    if (mySeats.length === 0) throw new HttpError(409, 'that game has already started');
+
+    const { error: rejoinErr } = await db.from('seats')
+      .update({
+        user_id: user.id, duppy_level: null, connected_at: new Date().toISOString(),
+        left_by_user_id: null, left_at: null,
+      })
+      .eq('table_id', table.id).in('seat_index', mySeats.map((s: any) => s.seat_index))
+      .eq('left_by_user_id', user.id);
+    if (rejoinErr) throw new HttpError(500, rejoinErr.message);
+
+    return json({ ok: true, tableId: table.id, seatIndex: mySeats[0].seat_index });
+  }
+
   const existing = seats!.find((s: any) => s.user_id === user.id);
   if (existing) return json({ ok: true, tableId: table.id, seatIndex: existing.seat_index });
 

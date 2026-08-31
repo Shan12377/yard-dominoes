@@ -12,6 +12,11 @@
 // further changes there) and the departing player's abandons count goes up.
 // Score is untouched — it lives on `sets`, not per-seat, so anyone who later
 // joins that vacated seat inherits the running score automatically.
+//
+// `left_by_user_id`/`left_at` (0053) remember who just stepped away and when
+// — join-table reads them back to hand this exact seat straight to this
+// exact player if they return within REJOIN_WINDOW_MS, bypassing the
+// "already started" block that applies to everyone else.
 
 import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
 
@@ -36,7 +41,10 @@ Deno.serve(handled(async (req) => {
   // this is the one seat-lifecycle path reliably reached on the way out,
   // so it is where stale video state actually gets swept up.
   const { error: seatError } = await db.from('seats')
-    .update({ user_id: null, duppy_level: 'yard', connected_at: null, video_session_id: null })
+    .update({
+      user_id: null, duppy_level: 'yard', connected_at: null, video_session_id: null,
+      left_by_user_id: user.id, left_at: new Date().toISOString(),
+    })
     .eq('table_id', tableId).eq('user_id', user.id);
   if (seatError) throw new HttpError(500, seatError.message);
 
