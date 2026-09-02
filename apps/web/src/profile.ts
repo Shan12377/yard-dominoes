@@ -18,7 +18,8 @@ import {
   liveNowPlayers,
 } from './lounges.ts';
 import type { LivePlayer } from './lounges.ts';
-import type { Avatar, AvatarAccessory, Background, Gender, MyProfile, Origin } from './lounges.ts';
+import type { Avatar, AvatarAccessory, Background, Gender, MyProfile, Origin, Tier } from './lounges.ts';
+import { TIER_LABEL } from './lounges.ts';
 import {
   listReports, resolveReport, dismissReport, listAdmins, grantAdmin, revokeAdmin,
 } from './reports.ts';
@@ -29,6 +30,8 @@ import { listReferralStats, listPayoutRequests, markPayoutPaid } from './referra
 import type { ReferralCodeStats, PayoutRequest } from './referraladmin.ts';
 import { myReferralCode, becomeReferrer, requestCashout } from './myreferral.ts';
 import type { MyReferralCode } from './myreferral.ts';
+import { generateRedeemCode, listRedeemCodes } from './redeemcodes.ts';
+import type { RedeemCodeRow } from './redeemcodes.ts';
 
 /** Roughly how long ago, for a last-seen or filed-at line — a coarse grain
  *  is the useful one here, not a live-ticking clock. Exported: loungeview.ts
@@ -838,6 +841,95 @@ let adminDataLoaded = false;
  *  for that. `isOwner` gates referral financials specifically (0052) —
  *  narrower than plain admin, so a future admin granted for ordinary
  *  report/feedback moderation doesn't automatically see money data too. */
+let redeemCodesList: RedeemCodeRow[] | null = null;
+let redeemCodesLoading = false;
+let redeemCodesError: string | null = null;
+let redeemGenBusy = false;
+let redeemJustGenerated: RedeemCodeRow | null = null;
+
+function loadRedeemCodes(rerender: () => void) {
+  redeemCodesLoading = true;
+  redeemCodesError = null;
+  rerender();
+  void listRedeemCodes()
+    .then((rows) => { redeemCodesList = rows; })
+    .catch((err) => { redeemCodesError = err instanceof Error ? err.message : 'could not load'; })
+    .finally(() => { redeemCodesLoading = false; rerender(); });
+}
+
+function redeemCodesSection(rerender: () => void): HTMLElement {
+  const section = el('div', 'stack');
+  section.append(el('h3', undefined, 'Free membership codes'));
+  section.append(el('p', 'muted small',
+    'Generate one ahead of time — before you need it, not while someone is waiting on you — '
+    + 'then hand it over however you like. Redeems once, for a free year.'));
+
+  if (redeemJustGenerated) {
+    const line = el('div', 'person');
+    line.append(el('strong', undefined, redeemJustGenerated.code));
+    line.append(el('span', 'muted small', `${TIER_LABEL[redeemJustGenerated.tier as Tier]} · not yet redeemed`));
+    section.appendChild(line);
+  }
+
+  const row = el('div', 'row');
+  for (const tier of ['yardie', 'vip'] as const) {
+    const gen = document.createElement('button');
+    gen.type = 'button';
+    gen.className = 'act ghost small';
+    gen.textContent = redeemGenBusy ? 'Generating…' : `Generate ${TIER_LABEL[tier]} code`;
+    gen.disabled = redeemGenBusy;
+    gen.onclick = () => void (async () => {
+      redeemGenBusy = true; redeemCodesError = null; rerender();
+      try {
+        const result = await generateRedeemCode(tier);
+        redeemJustGenerated = {
+          id: result.code, code: result.code, tier: result.tier as 'yardie' | 'vip',
+          createdAt: result.createdAt, redeemedAt: null, redeemedByUsername: null,
+        };
+        redeemCodesList = null; // stale — refetch next open, don't block on it now
+      } catch (err) {
+        redeemCodesError = err instanceof Error ? err.message : 'could not generate a code';
+      } finally {
+        redeemGenBusy = false;
+        rerender();
+      }
+    })();
+    row.appendChild(gen);
+  }
+  section.appendChild(row);
+
+  if (redeemCodesError) section.append(el('div', 'banner small', redeemCodesError));
+
+  if (redeemCodesLoading && redeemCodesList === null) {
+    section.append(el('p', 'muted small', 'Loading…'));
+  } else if (redeemCodesList) {
+    const codes = redeemCodesList;
+    if (codes.length === 0) {
+      section.append(el('p', 'muted small', 'No codes generated yet.'));
+    } else {
+      const list = el('div', 'roster');
+      for (const c of codes) {
+        const line = el('div', 'person');
+        line.append(el('span', undefined, `${c.code} — ${TIER_LABEL[c.tier as Tier]}`));
+        line.append(el('span', 'muted small',
+          c.redeemedAt ? `redeemed by ${c.redeemedByUsername ?? 'someone'} · ${timeAgo(c.redeemedAt)}` : 'not yet redeemed'));
+        list.appendChild(line);
+      }
+      section.appendChild(list);
+    }
+  }
+
+  const refresh = document.createElement('button');
+  refresh.type = 'button';
+  refresh.className = 'act small ghost';
+  refresh.textContent = redeemCodesLoading ? 'Refreshing…' : 'Refresh list';
+  refresh.disabled = redeemCodesLoading;
+  refresh.onclick = () => loadRedeemCodes(rerender);
+  section.appendChild(refresh);
+
+  return section;
+}
+
 export function adminSection(rerender: () => void, isOwner: boolean): HTMLElement {
   if (!adminDataLoaded) {
     adminDataLoaded = true;
@@ -848,6 +940,7 @@ export function adminSection(rerender: () => void, isOwner: boolean): HTMLElemen
     if (isOwner) {
       loadReferralStats(rerender);
       loadPayoutRequests(rerender);
+      loadRedeemCodes(rerender);
     }
   }
   const wrap = el('div', 'stack');
@@ -858,6 +951,7 @@ export function adminSection(rerender: () => void, isOwner: boolean): HTMLElemen
   if (isOwner) {
     wrap.appendChild(referralStatsSection(rerender));
     wrap.appendChild(payoutRequestsSection(rerender));
+    wrap.appendChild(redeemCodesSection(rerender));
   }
   wrap.appendChild(adminsManageSection(rerender));
   return wrap;

@@ -37,6 +37,7 @@ import { canSpeak, joinVoice } from './voice.ts';
 import type { VoiceRoom } from './voice.ts';
 import { canShowVideo, joinVideo, CAMERA_TRACK_NAME } from './video.ts';
 import { photoUrl, uploadMyPhoto, removeMyPhoto } from './photo.ts';
+import { redeemCode } from './redeemcodes.ts';
 import type { VideoRoom, RemotePeer } from './video.ts';
 import { loadTournament, stopTournamentClock, tournamentPanel } from './tournamentview.ts';
 
@@ -1556,6 +1557,53 @@ export function loungesView(rerender: () => void, goToMembership: () => void): D
 }
 
 // --------------------------------------------------------- membership ----
+let redeemDraft = '';
+let redeemBusy = false;
+let redeemError: string | null = null;
+let redeemSuccess: string | null = null;
+
+function redeemCodeBox(rerender: () => void): HTMLElement {
+  const wrap = el('div', 'panel');
+  wrap.append(el('p', 'muted small', 'Got a free membership code from somebody? Enter it here.'));
+
+  const row = el('div', 'row');
+  const input = document.createElement('input');
+  input.className = 'field';
+  input.placeholder = 'Code';
+  input.maxLength = 6;
+  input.value = redeemDraft;
+  input.setAttribute('aria-label', 'Membership code');
+  input.oninput = () => { redeemDraft = input.value; };
+
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'act ghost small';
+  go.textContent = redeemBusy ? 'Checking…' : 'Redeem';
+  go.disabled = redeemBusy;
+  go.onclick = () => void (async () => {
+    const code = redeemDraft.trim();
+    if (!code) return;
+    redeemBusy = true; redeemError = null; redeemSuccess = null; rerender();
+    try {
+      const result = await redeemCode(code);
+      redeemDraft = '';
+      redeemSuccess = `You're ${TIER_LABEL[result.tier as Tier]} now — enjoy.`;
+      if (loungeState.me) loungeState.me = { ...loungeState.me, tier: result.tier as Tier };
+    } catch (err) {
+      redeemError = err instanceof Error ? err.message : 'could not redeem that code';
+    } finally {
+      redeemBusy = false;
+      rerender();
+    }
+  })();
+
+  row.append(input, go);
+  wrap.appendChild(row);
+  if (redeemError) wrap.append(el('div', 'banner small', redeemError));
+  if (redeemSuccess) wrap.append(el('p', 'muted small', redeemSuccess));
+  return wrap;
+}
+
 export function membershipView(rerender: () => void, goToProfile: () => void): DocumentFragment {
   const frag = document.createDocumentFragment();
   const myTier: Tier = loungeState.me?.tier ?? 'guest';
@@ -1622,6 +1670,8 @@ export function membershipView(rerender: () => void, goToProfile: () => void): D
     'Card payment, active the second it clears. Cancel any time and you keep ' +
     'the year you paid for.'));
   frag.appendChild(note);
+
+  if (loungeState.me) frag.appendChild(redeemCodeBox(rerender));
 
   return frag;
 }
