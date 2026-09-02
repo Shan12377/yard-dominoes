@@ -28,8 +28,14 @@ export interface ReferralCodeStats {
   ownerEmail: string | null;
   commissionPct: number;
   active: boolean;
+  /** When this player became a referrer — not when anyone they referred
+   *  joined. See `referred` for that. */
   createdAt: string;
+  /** Paying referrals only — drives the earnings math below. */
   referredCount: number;
+  /** Everyone ever attributed to this code, paying or not, newest first —
+   *  the fuller referral funnel `referredCount` alone can't show. */
+  referred: { username: string; joinedAt: string }[];
   totalEarnedCents: number;
   /** Lifetime earned minus whatever's already been paid out. */
   totalOwedCents: number;

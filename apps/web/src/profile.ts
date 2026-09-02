@@ -564,9 +564,20 @@ function referralStatsSection(rerender: () => void): HTMLElement {
         const line = el('div', 'person');
         line.append(el('span', undefined, `${c.ownerUsername} — ${c.code}${c.active ? '' : ' (inactive)'}`));
         line.append(el('span', 'muted small', c.ownerEmail ?? 'no email on file — anonymous guest account'));
-        line.append(el('span', 'muted small', `${c.commissionPct}% · ${c.referredCount} referred`));
+        line.append(el('span', 'muted small', `referrer since ${timeAgo(c.createdAt)}`));
+        line.append(el('span', 'muted small', `${c.commissionPct}% · ${c.referredCount} paying`));
         line.append(el('span', 'muted small',
           `owed $${(c.totalOwedCents / 100).toFixed(2)}${c.hasOpenPayoutRequest ? ' — cash-out requested' : ''}`));
+        if (c.referred.length > 0) {
+          const SHOWN = 5;
+          for (const r of c.referred.slice(0, SHOWN)) {
+            line.append(el('span', 'muted small', `↳ ${r.username} — joined ${timeAgo(r.joinedAt)}`));
+          }
+          const extra = c.referred.length - SHOWN;
+          if (extra > 0) line.append(el('span', 'muted small', `↳ +${extra} more`));
+        } else {
+          line.append(el('span', 'muted small', '↳ nobody has joined through this code yet'));
+        }
         list.appendChild(line);
       }
       section.appendChild(list);

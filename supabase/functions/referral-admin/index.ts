@@ -41,6 +41,26 @@ Deno.serve(handled(async (req) => {
       stats.set(c.referral_code_id, s);
     }
 
+    // Everyone ever attributed to a code, not just the ones who went on to
+    // pay — `referred_by_code_id` is stamped at account creation (0045), so
+    // this is the whole funnel: guests still deciding as well as converted
+    // payers. `referredCount` above stays scoped to paying referrals (it
+    // drives the earnings math); this is a separate, fuller picture.
+    const codeIds = (codes ?? []).map((row: any) => row.id);
+    const { data: referredProfiles, error: referredError } = codeIds.length > 0
+      ? await db.from('profiles')
+        .select('username, created_at, referred_by_code_id')
+        .in('referred_by_code_id', codeIds)
+        .order('created_at', { ascending: false })
+      : { data: [] as any[], error: null };
+    if (referredError) throw new HttpError(500, referredError.message);
+    const referredByCode = new Map<string, { username: string; joinedAt: string }[]>();
+    for (const p of referredProfiles ?? []) {
+      const list = referredByCode.get(p.referred_by_code_id) ?? [];
+      list.push({ username: p.username, joinedAt: p.created_at });
+      referredByCode.set(p.referred_by_code_id, list);
+    }
+
     const { data: payouts, error: payoutsError } = await db.from('referral_payouts')
       .select('referral_code_id, status, amount_cents');
     if (payoutsError) throw new HttpError(500, payoutsError.message);
@@ -78,6 +98,7 @@ Deno.serve(handled(async (req) => {
         active: row.active,
         createdAt: row.created_at,
         referredCount: s?.referredUserIds.size ?? 0,
+        referred: referredByCode.get(row.id) ?? [],
         totalEarnedCents,
         // What's actually still owed right now — lifetime earned minus
         // whatever's already been paid out. This is what used to be called
