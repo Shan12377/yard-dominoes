@@ -25,9 +25,20 @@ import { handled, json, requireUser, serviceClient, HttpError } from '../_shared
 const PUBLIC_COMMISSION_PCT = 5;
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I — read out loud without confusion
 
+// CSPRNG, not Math.random() — a referral code is guessable-attack surface
+// too (whoever holds one earns commission on real payments), so the same
+// rejection-sampling draw as redeem-admin's randomCode() belongs here.
 function randomSuffix(len: number): string {
+  const limit = 256 - (256 % CODE_CHARS.length);
   let s = '';
-  for (let i = 0; i < len; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  const buf = new Uint8Array(len);
+  while (s.length < len) {
+    crypto.getRandomValues(buf);
+    for (const b of buf) {
+      if (s.length >= len) break;
+      if (b < limit) s += CODE_CHARS[b % CODE_CHARS.length];
+    }
+  }
   return s;
 }
 

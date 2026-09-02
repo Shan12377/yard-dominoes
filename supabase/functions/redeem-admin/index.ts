@@ -14,9 +14,23 @@ import { handled, json, requireUser, serviceClient, HttpError } from '../_shared
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I — read out loud without confusion
 
+// A code here is a bearer secret worth a free year of membership, not just
+// an identifier — Math.random() is not safe to guess-resist against, so this
+// draws from the platform CSPRNG instead. Rejection sampling (discarding any
+// byte that would land unevenly across CODE_CHARS.length) keeps every
+// character uniformly distributed rather than slightly favouring the low end
+// of the alphabet, the way a plain `byte % 33` would.
 function randomCode(len: number): string {
+  const limit = 256 - (256 % CODE_CHARS.length);
   let s = '';
-  for (let i = 0; i < len; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  const buf = new Uint8Array(len);
+  while (s.length < len) {
+    crypto.getRandomValues(buf);
+    for (const b of buf) {
+      if (s.length >= len) break;
+      if (b < limit) s += CODE_CHARS[b % CODE_CHARS.length];
+    }
+  }
   return s;
 }
 
