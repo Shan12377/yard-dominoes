@@ -231,3 +231,83 @@ test('one side short of a pair means no table at all', () => {
   assert.deepEqual(draw.tables, []);
   assert.deepEqual(draw.substitutes, ['w1', 'w2', 'm1']);
 });
+
+// --------------------------------------------------------------- couples --
+
+const couple = (
+  userId: string, partnerUserId: string | null, signedUpAt = '2026-01-01T09:00:00Z', tier = 'guest',
+) => ({
+  userId, partnerUserId, tier, tierExpiresAt: tier === 'guest' ? null : '2027-01-01T00:00:00Z',
+  signedUpAt, gender: null,
+});
+
+test('two couples make a table, partners opposite each other', () => {
+  const ordered = [
+    couple('a1', 'a2'), couple('a2', 'a1'), couple('b1', 'b2'), couple('b2', 'b1'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'couples');
+  assert.equal(draw.tables.length, 1);
+  const [t] = draw.tables;
+  assert.deepEqual([t[0], t[2]], ['a1', 'a2'], 'the first couple holds seats 0 and 2');
+  assert.deepEqual([t[1], t[3]], ['b1', 'b2'], 'the second holds 1 and 3');
+  assert.deepEqual(draw.substitutes, []);
+});
+
+test('a claim nobody confirmed is not a couple', () => {
+  // a1 names a2, but a2 named somebody else entirely. Seating on a one-sided
+  // claim would put a stranger in a partner seat on the strength of a typed
+  // username.
+  const ordered = [
+    couple('a1', 'a2'), couple('a2', 'zz'), couple('b1', 'b2'), couple('b2', 'b1'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'couples');
+  assert.deepEqual(draw.tables, [], 'one confirmed couple is not two, so no table');
+  assert.deepEqual(draw.substitutes, ['a1', 'a2', 'b1', 'b2']);
+});
+
+test('naming somebody who never entered leaves you unpaired', () => {
+  const ordered = [
+    couple('a1', 'ghost'), couple('b1', 'b2'), couple('b2', 'b1'),
+    couple('c1', 'c2'), couple('c2', 'c1'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'couples');
+  assert.equal(draw.tables.length, 1);
+  assert.deepEqual(draw.tables[0], ['b1', 'c1', 'b2', 'c2']);
+  assert.deepEqual(draw.substitutes, ['a1'], 'the unpaired entrant waits, in queue order');
+});
+
+test('entering alone in a couples event seats nobody', () => {
+  const ordered = [couple('a', null), couple('b', null), couple('c', null), couple('d', null)];
+  const draw = drawForTheme(ordered, 4, 'couples');
+  assert.deepEqual(draw.tables, []);
+  assert.deepEqual(draw.substitutes, ['a', 'b', 'c', 'd']);
+});
+
+test('an odd couple out waits as a pair, in queue order', () => {
+  const ordered = [
+    couple('a1', 'a2'), couple('a2', 'a1'),
+    couple('b1', 'b2'), couple('b2', 'b1'),
+    couple('c1', 'c2'), couple('c2', 'c1'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'couples');
+  assert.equal(draw.tables.length, 1);
+  assert.deepEqual(draw.substitutes, ['c1', 'c2'], 'the third couple waits together');
+});
+
+test('a VIP brings their partner up the line, because a couple is one entry', () => {
+  const now = Date.parse('2026-01-01T12:00:00Z');
+  const ordered = queueOrder([
+    couple('g1', 'g2', '2026-01-01T09:00:00Z'),
+    couple('g2', 'g1', '2026-01-01T09:00:00Z'),
+    couple('h1', 'h2', '2026-01-01T09:01:00Z'),
+    couple('h2', 'h1', '2026-01-01T09:01:00Z'),
+    // Signed up last, but VIP — and their guest partner comes with them.
+    couple('vip', 'spouse', '2026-01-01T11:00:00Z', 'vip'),
+    couple('spouse', 'vip', '2026-01-01T11:00:00Z'),
+  ], now);
+  const draw = drawForTheme(ordered, 4, 'couples');
+  assert.equal(draw.tables.length, 1);
+  assert.ok(draw.tables[0].includes('vip'));
+  assert.ok(draw.tables[0].includes('spouse'),
+    'the VIP cannot be seated without the partner they entered with');
+});

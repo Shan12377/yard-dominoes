@@ -20,12 +20,13 @@ import { supabase } from './online.ts';
 export type TournamentStatus =
   | 'announced' | 'signups_open' | 'seating' | 'running' | 'finished' | 'cancelled';
 
-export type TournamentTheme = 'open' | 'battle_of_the_sexes';
+export type TournamentTheme = 'open' | 'battle_of_the_sexes' | 'couples';
 
 /** What a player is told this event is. */
 export const THEME_LABEL: Record<TournamentTheme, string> = {
   open: 'Open to all',
   battle_of_the_sexes: 'Battle of the sexes — women against men',
+  couples: "Couple's tourney — enter with your partner",
 };
 
 export interface Tournament {
@@ -136,8 +137,8 @@ interface SignupReply { entered: boolean; standing: Standing }
 export const myStanding = (tournamentId: string) =>
   call<SignupReply>('tournament-signup', { tournamentId, action: 'status' });
 
-export const enterTournament = (tournamentId: string) =>
-  call<SignupReply>('tournament-signup', { tournamentId, action: 'enter' });
+export const enterTournament = (tournamentId: string, partner?: string) =>
+  call<SignupReply>('tournament-signup', { tournamentId, action: 'enter', partner });
 
 export const withdrawFromTournament = (tournamentId: string) =>
   call<SignupReply>('tournament-signup', { tournamentId, action: 'withdraw' });

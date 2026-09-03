@@ -238,6 +238,21 @@ Do not relitigate these without asking.
     `tournament-signup` refuses entry without `profiles.gender` set, because
     finding out on Sunday morning that you were never seatable is worse than
     being told while it is one tap to fix.
+  - `couples` (0057) — two people who entered together sit as partners against
+    another couple. A pair is two ordinary signup rows naming each other via
+    `partner_user_id`, so confirmation falls out of the data instead of needing
+    a status column, and **a one-sided claim never seats anybody**: a typed
+    username must not be able to put a stranger in somebody's partner seat.
+    A pair inherits the queue position of its higher-standing member, so a VIP
+    does bring their partner up the line — the only coherent reading, since a
+    couples event cannot seat a VIP without the partner they entered with.
+
+  **`tournament_signups` now holds two foreign keys to `profiles`** (`user_id`
+  and `partner_user_id`), which means a PostgREST embed there MUST name its
+  key — `profiles!tournament_signups_user_id_fkey(...)`. A bare `profiles(...)`
+  became ambiguous the moment 0057 landed and PostgREST refuses the whole query
+  rather than choosing, which broke every tournament read for every theme until
+  the hint went in. Caught only by running the real endpoint.
 
   **The trap a theme sets, already sprung once:** "above the cut" and "in the
   first N of the queue" are the same sentence only for an open event. With six

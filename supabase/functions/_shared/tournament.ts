@@ -40,6 +40,10 @@ export interface QueuedPlayer {
    * make battle of the sexes seat nobody at all, silently.
    */
   gender: string | null;
+  /** Who they entered WITH, for the couples theme. Null everywhere else. */
+  partnerUserId: string | null;
+  /** Their partner's name, for the "you entered with X" line on screen. */
+  partnerUsername: string | null;
 }
 
 /**
@@ -56,7 +60,13 @@ export async function loadQueue(
   now = Date.now(),
 ): Promise<QueuedPlayer[]> {
   const { data, error } = await db.from('tournament_signups')
-    .select('user_id, signed_up_at, status, round, table_id, profiles(username, tier, tier_expires_at, gender)')
+    // The embed MUST name its foreign key. 0057 added partner_user_id, giving
+    // this table two references to `profiles`, and a bare `profiles(...)` then
+    // stops being unambiguous — PostgREST refuses the whole query rather than
+    // picking one. That broke every tournament read, not just couples, until
+    // the hint went in.
+    .select('user_id, signed_up_at, status, round, table_id, partner_user_id, '
+      + 'profiles!tournament_signups_user_id_fkey(username, tier, tier_expires_at, gender)')
     .eq('tournament_id', tournamentId)
     .in('status', IN_LINE);
   if (error) throw new Error(error.message);
@@ -73,7 +83,17 @@ export async function loadQueue(
     round: (r.round ?? null) as number | null,
     tableId: (r.table_id ?? null) as string | null,
     gender: (r.profiles?.gender ?? null) as string | null,
+    partnerUserId: (r.partner_user_id ?? null) as string | null,
+    partnerUsername: null,
   }));
+
+  // Resolve partner names from the queue itself rather than a second query —
+  // a partner who has not entered has no name to show here, which is exactly
+  // the state the player needs to see ("waiting on them to enter too").
+  const nameById = new Map(players.map((p) => [p.userId, p.username]));
+  for (const p of players) {
+    p.partnerUsername = p.partnerUserId ? (nameById.get(p.partnerUserId) ?? null) : null;
+  }
 
   return queueOrder(players, now);
 }

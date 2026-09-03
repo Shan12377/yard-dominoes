@@ -37,6 +37,11 @@ export interface QueueEntry {
    * enter one.
    */
   gender?: string | null;
+  /**
+   * Who this player entered WITH, for a theme that seats pairs. A pair only
+   * counts when both name each other — see `drawCouples`.
+   */
+  partnerUserId?: string | null;
 }
 
 /**
@@ -46,7 +51,7 @@ export interface QueueEntry {
  *
  * `open` is the ordinary event — the queue, cut into full tables.
  */
-export type TournamentTheme = 'open' | 'battle_of_the_sexes';
+export type TournamentTheme = 'open' | 'battle_of_the_sexes' | 'couples';
 
 /**
  * Where a player's membership puts them in line.
@@ -179,6 +184,61 @@ function drawBattleOfTheSexes<T extends QueueEntry>(
 }
 
 /**
+ * Couples: two people who entered together sit as partners, against another
+ * couple.
+ *
+ * A pair counts only when **both name each other**. One-sided is not a couple
+ * — it is one person naming somebody who never turned up, or named somebody
+ * else — and seating on a claim nobody confirmed would put a stranger in your
+ * partner seat on the strength of a typed username.
+ *
+ * Pairs are taken in queue order, and a pair inherits the position of whichever
+ * member stands higher in that line. That follows from walking `ordered` (which
+ * `queueOrder` has already sorted by live tier, then signup time) and taking
+ * each pair the first time either member appears. So a VIP does bring their
+ * partner up the line with them — which is the only coherent reading of the
+ * perk here, because a couples event cannot seat a VIP without their partner
+ * anyway. Their partner is not jumping ahead of them; the couple is one entry.
+ *
+ * Seats 0&2 take one couple and 1&3 the other, so partners land opposite each
+ * other exactly as `sideOf()` expects, and two couples make one table.
+ */
+function drawCouples<T extends QueueEntry>(
+  ordered: readonly T[],
+  seatCount: number,
+): Draw {
+  if (seatCount !== 4) return { tables: [], substitutes: ordered.map((e) => e.userId) };
+
+  const byId = new Map(ordered.map((e) => [e.userId, e]));
+  const pairs: [T, T][] = [];
+  const paired = new Set<string>();
+  for (const entry of ordered) {
+    if (paired.has(entry.userId) || !entry.partnerUserId) continue;
+    const partner = byId.get(entry.partnerUserId);
+    // Not entered, or naming somebody else: not a couple.
+    if (!partner || partner.partnerUserId !== entry.userId) continue;
+    pairs.push([entry, partner]);
+    paired.add(entry.userId);
+    paired.add(partner.userId);
+  }
+
+  const tableCount = Math.floor(pairs.length / 2);
+  const tables: string[][] = [];
+  const seated = new Set<string>();
+  for (let t = 0; t < tableCount; t++) {
+    const [a1, a2] = pairs[t * 2];
+    const [b1, b2] = pairs[t * 2 + 1];
+    tables.push([a1.userId, b1.userId, a2.userId, b2.userId]);
+    for (const e of [a1, a2, b1, b2]) seated.add(e.userId);
+  }
+
+  return {
+    tables,
+    substitutes: ordered.filter((e) => !seated.has(e.userId)).map((e) => e.userId),
+  };
+}
+
+/**
  * The draw for an event, whatever its theme. `tournament-host` calls this
  * rather than `drawCutLine` directly, so adding a theme never means teaching
  * the host a new seating rule.
@@ -189,5 +249,6 @@ export function drawForTheme<T extends QueueEntry>(
   theme: TournamentTheme,
 ): Draw {
   if (theme === 'battle_of_the_sexes') return drawBattleOfTheSexes(ordered, seatCount);
+  if (theme === 'couples') return drawCouples(ordered, seatCount);
   return drawCutLine(ordered.map((e) => e.userId), seatCount);
 }

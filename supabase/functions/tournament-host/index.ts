@@ -30,7 +30,7 @@ const CLOCKS = ['blitz', 'speed', 'yard', 'relaxed'];
  * Only themes whose seating is actually built belong here — a theme the draw
  * cannot seat is a host scheduling an event that seats nobody.
  */
-const THEMES = ['open', 'battle_of_the_sexes'];
+const THEMES = ['open', 'battle_of_the_sexes', 'couples'];
 
 /**
  * The statuses a host may set on a signup by hand.
@@ -78,8 +78,10 @@ Deno.serve(handled(async (req) => {
     // Battle of the sexes IS two against two. 0056 constrains this as well —
     // both, so neither a host nor a direct insert can schedule an event whose
     // draw could never seat a single table.
-    if (theme === 'battle_of_the_sexes' && !(mode === 'partner' && seatCount === 4)) {
-      throw new HttpError(422, 'battle of the sexes is a four-handed partner event');
+    // Both themes seat partners opposite each other, which is a four-handed
+    // partner table by definition. 0056/0057 constrain this as well.
+    if (theme !== 'open' && !(mode === 'partner' && seatCount === 4)) {
+      throw new HttpError(422, `${theme.replace(/_/g, ' ')} is a four-handed partner event`);
     }
 
     const { data, error } = await db.from('tournaments').insert({

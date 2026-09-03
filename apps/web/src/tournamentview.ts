@@ -41,11 +41,20 @@ interface State {
   busy: boolean;
   error: string | null;
   hostOpen: boolean;
+  /**
+   * The partner name being typed for a couples event. Module state, not DOM
+   * state: the countdown re-renders this panel every second, and an input
+   * rebuilt mid-word would lose what somebody was typing. Same reason the
+   * chat draft lives outside the DOM — see .claude/rules/client.md.
+   */
+  partnerDraft: string;
+  /** Caret inside partnerDraft, restored with it. */
+  partnerCaret: number;
 }
 
 const state: State = {
   tournament: null, standing: null, queue: null, wouldSeat: 0,
-  loaded: false, busy: false, error: null, hostOpen: false,
+  loaded: false, busy: false, error: null, hostOpen: false, partnerDraft: '', partnerCaret: 0,
 };
 
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -212,13 +221,52 @@ function body(
     wrap.append(el('p', undefined,
       'Enter now. VIPs are seated first, then everybody else in the order they '
       + 'signed up — so the earlier you are in, the better your place.'));
+    // A couples event is entered two by two, so the partner is named here.
+    // Held in module state like every other in-progress input, because
+    // render() rebuilds this panel whenever the countdown ticks — see
+    // .claude/rules/client.md.
+    let partnerField: HTMLInputElement | null = null;
+    if (t.theme === 'couples') {
+      wrap.append(el('p', 'muted small',
+        'Name who you are entering with. You are only seated together once they '
+        + 'enter and name you back.'));
+      partnerField = document.createElement('input');
+      partnerField.className = 'field';
+      partnerField.placeholder = "Your partner's name";
+      partnerField.maxLength = 24;
+      partnerField.value = state.partnerDraft;
+      partnerField.setAttribute('aria-label', 'Partner name');
+      partnerField.oninput = () => {
+        state.partnerDraft = partnerField!.value;
+        state.partnerCaret = partnerField!.selectionStart ?? state.partnerDraft.length;
+      };
+      // This panel rebuilds every second while the countdown runs, so without
+      // restoring focus and caret the field would drop out from under whoever
+      // is typing in it, once a second. Only when they had already started —
+      // otherwise opening the tab would steal focus. Same pattern as the chat
+      // draft in loungeview.ts.
+      if (state.partnerDraft) {
+        const field = partnerField;
+        requestAnimationFrame(() => {
+          field.focus();
+          field.setSelectionRange(state.partnerCaret, state.partnerCaret);
+        });
+      }
+      wrap.append(partnerField);
+    }
+
     const go = document.createElement('button');
     // `pulse` is a slow breath, and CSS turns it off entirely under
     // prefers-reduced-motion. See the note on tournamentPanel.
     go.className = 'act pulse';
     go.textContent = state.busy ? 'Signing you up…' : 'Sign up';
     go.disabled = state.busy;
-    go.onclick = () => void run(() => enterTournament(t.id), me, rerender);
+    go.onclick = () => void run(async () => {
+      const reply = await enterTournament(t.id, state.partnerDraft.trim() || undefined);
+      state.partnerDraft = '';
+      state.partnerCaret = 0;
+      return reply;
+    }, me, rerender);
     wrap.append(go);
     return wrap;
   }
@@ -423,12 +471,16 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
   // worse form than one that decides for you.
   const theme = document.createElement('select');
   theme.innerHTML = '<option value="open">Open to all</option>'
-    + '<option value="battle_of_the_sexes">Battle of the sexes — women v men</option>';
+    + '<option value="battle_of_the_sexes">Battle of the sexes — women v men</option>'
+    + '<option value="couples">Couple\'s tourney — pairs</option>';
   theme.setAttribute('aria-label', 'Kind of event');
   theme.onchange = () => {
-    const battle = theme.value === 'battle_of_the_sexes';
-    if (battle) mode.value = 'partner';
-    mode.disabled = battle;
+    // Both themes seat partners opposite each other, which only works at a
+    // four-handed partner table — the server and 0056/0057 refuse anything
+    // else, so decide it here rather than offering a rejected combination.
+    const paired = theme.value !== 'open';
+    if (paired) mode.value = 'partner';
+    mode.disabled = paired;
   };
 
   const row = el('div', 'row');

@@ -19,9 +19,11 @@ import { loadQueue, signupsOpen, standingFor } from '../_shared/tournament.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
-  const { tournamentId, action } = await req.json() as {
+  const { tournamentId, action, partner } = await req.json() as {
     tournamentId?: string;
     action?: string;
+    /** Username of the person you are entering WITH, for a couples event. */
+    partner?: string;
   };
   if (!tournamentId) throw new HttpError(422, 'which tournament?');
   if (action !== 'enter' && action !== 'withdraw' && action !== 'status') {
@@ -60,6 +62,26 @@ Deno.serve(handled(async (req) => {
           'this one is women against men — set "Call me" to She or He on your profile first');
       }
 
+      // A couples event is entered two by two. The partner is named here and
+      // confirmed by them naming you back — `drawCouples` seats nobody on a
+      // one-sided claim, so a typed username can never put a stranger in
+      // somebody's partner seat.
+      let partnerUserId: string | null = null;
+      if (t.theme === 'couples') {
+        const named = String(partner ?? '').trim();
+        if (!named) throw new HttpError(422, 'this one is played in couples — name who you are entering with');
+
+        const { data: found } = await db.from('profiles')
+          .select('id, username').ilike('username', named).limit(2);
+        if (!found?.length) throw new HttpError(404, `nobody here is called "${named}"`);
+        // Usernames are not unique in this schema, so an ambiguous one has to
+        // be refused rather than guessed at — picking the wrong person would
+        // seat a stranger with them.
+        if (found.length > 1) throw new HttpError(409, `more than one player is called "${named}" — ask them to change it or check the spelling`);
+        if (found[0].id === user.id) throw new HttpError(422, 'you cannot enter with yourself');
+        partnerUserId = found[0].id as string;
+      }
+
       // `tier_at_signup` is a snapshot for disputes and is NEVER ordered by.
       // The queue reads the live tier at seating time, which is what lets an
       // afternoon upgrade jump the morning's line.
@@ -71,10 +93,22 @@ Deno.serve(handled(async (req) => {
         tournament_id: t.id,
         user_id: user.id,
         tier_at_signup: profile?.tier ?? 'guest',
+        partner_user_id: partnerUserId,
       });
       // 23505 is the primary key — they were already signed up, which is
       // exactly what they asked for. Anything else is real.
-      if (error && error.code !== '23505') throw new HttpError(500, error.message);
+      //
+      // One exception: naming a partner on a second tap is a correction, not a
+      // duplicate. Their place in line is untouched (signed_up_at is never
+      // rewritten); only who they say they are playing with changes.
+      if (error && error.code === '23505' && partnerUserId) {
+        const { error: fixError } = await db.from('tournament_signups')
+          .update({ partner_user_id: partnerUserId })
+          .eq('tournament_id', t.id).eq('user_id', user.id);
+        if (fixError) throw new HttpError(500, fixError.message);
+      } else if (error && error.code !== '23505') {
+        throw new HttpError(500, error.message);
+      }
     }
   }
 
