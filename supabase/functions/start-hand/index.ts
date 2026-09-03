@@ -37,7 +37,14 @@ Deno.serve(handled(async (req) => {
     const { data } = await db.from('sets').insert({
       table_id: tableId,
       scores: new Array(sides).fill(0),
-      pose_must_be_double_six: true,
+      // Mirrors the engine's createSet (`opts.tournament || french`), which is
+      // what practice already does. A blanket `true` here forced the six to be
+      // LED on the first hand of every online set including casual ones, where
+      // the rule is that the six's holder opens but may go "sporting" and lead
+      // another bone — the `|| table.tournament` at the deal below only means
+      // anything if this can be false. French still needs true: its round 1
+      // forces the chucha through this same flag.
+      pose_must_be_double_six: table.tournament || table.format === 'french',
     }).select().single();
     set = data;
   }
@@ -74,7 +81,16 @@ Deno.serve(handled(async (req) => {
     seatCount: table.seat_count,
     mode: table.mode,
     useBoneyard: table.use_boneyard,
-    poser: set!.pose_must_be_double_six ? undefined : set!.poser,
+    // `undefined` lets deal() seat the open with the double-six holder. Right
+    // whenever the 6-6 is forced AND on the first hand of any set, casual
+    // included: the 6-6 holder opens every set, he is merely free to go
+    // "sporting" and lead another bone when the table is casual. Passing
+    // set.poser means "the previous winner opens", and hand one has no
+    // previous winner — it silently gave the open to seat 0 regardless of
+    // who held the six.
+    poser: set!.pose_must_be_double_six || set!.hands_played === 0
+      ? undefined
+      : set!.poser,
     poseMustBeDoubleSix: set!.pose_must_be_double_six || table.tournament,
     // French, round 2+ only — round 1 (and a tie-break reshuffle) already
     // forces the chucha specifically via poseMustBeDoubleSix above; this is

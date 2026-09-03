@@ -115,7 +115,16 @@ export class LocalGame {
       seatCount: this.options.seatCount,
       mode: this.options.mode,
       useBoneyard: false,
-      poser: this.set.poseMustBeDoubleSix ? undefined : this.set.poser,
+      // `undefined` hands the choice of opener to deal(), which seats it with
+      // the double-six holder. That is right whenever the 6-6 is forced AND on
+      // the first hand of any set, casual included: the 6-6 holder opens every
+      // set, he is merely allowed to go "sporting" and lead something else when
+      // the table is casual. Passing set.poser here instead means "the previous
+      // winner opens" — but on hand one there is no previous winner, so it
+      // silently handed the open to seat 0 whoever actually held the six.
+      poser: this.set.poseMustBeDoubleSix || this.set.handsPlayed === 0
+        ? undefined
+        : this.set.poser,
       poseMustBeDoubleSix: this.set.poseMustBeDoubleSix || this.options.tournament,
       // French, round 2+ only — round 1 (and a tie-break reshuffle) already
       // forces the chucha specifically via poseMustBeDoubleSix above; this

@@ -40,6 +40,47 @@ describe('six love', () => {
     assert.equal(s.sixLove, true, 'six straight with the opponent under love');
   });
 
+  test('the double-six holder opens the first hand of a set, casual included', async () => {
+    // Real rule (pagat, gamerules): for the first round the 6-6 HOLDER starts.
+    // Tournament forces him to actually lead it; casual lets him go "sporting"
+    // and lead another bone. What casual never means is somebody else opening.
+    //
+    // The callers decide this by choosing what to pass deal() as `poser`, and
+    // both used to pass set.poser ("the previous winner opens") on hand one —
+    // where there is no previous winner — handing every casual set's open to
+    // seat 0 whoever actually held the six. This pins the caller's rule.
+    for (const tournament of [false, true]) {
+      const s = createSet({ mode: 'cutthroat', format: 'firstToSix', seatCount: 4, tournament });
+      assert.equal(s.handsPlayed, 0);
+
+      for (let i = 0; i < 25; i++) {
+        const order = await provablyFairShuffle({
+          serverSeed: `seed-${tournament}-${i}`, clientSeeds: ['c'], handId: `h${i}`,
+        });
+        const h = deal({
+          order,
+          seatCount: 4,
+          mode: 'cutthroat',
+          useBoneyard: false,
+          // The caller rule under test, mirrored from local.ts / start-hand.
+          poser: s.poseMustBeDoubleSix || s.handsPlayed === 0 ? undefined : s.poser,
+          poseMustBeDoubleSix: s.poseMustBeDoubleSix || tournament,
+        });
+        assert.ok(
+          h.hands[h.poser].includes('6-6'),
+          `${tournament ? 'tournament' : 'casual'}: seat ${h.poser} opened without holding the six`,
+        );
+        const moves = legalMoves(h);
+        if (tournament) {
+          assert.deepEqual(moves, [{ kind: 'pose', seat: h.poser, tile: '6-6' }],
+            'tournament must LEAD the six, not merely hold it');
+        } else {
+          assert.equal(moves.length, 7, 'casual may go sporting with any bone in hand');
+        }
+      }
+    }
+  });
+
   test('the winner of a hand poses the next one, and may pose anything', () => {
     let s = createSet({ mode: 'partner', format: 'sixlove' });
     s = applyHandResult(s, won(3));
