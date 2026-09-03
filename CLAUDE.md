@@ -133,10 +133,21 @@ Jamaican players notice these immediately. All are covered by tests.
   `poseMustBeDoubleSix: true` and `start-hand` inserts the set flag the same
   way — do not make either conditional on `tournament`, because the lounge's
   create-table form never sends that field, so every online table is casual and
-  a conditional would mean no online set ever forces the six. What `tournament`
-  still changes is the hands AFTER the first: casual gives them to the previous
-  winner to pose freely, tournament keeps forcing the six every hand. French is
-  the same rule with the chucha (0-0) as its opening tile.
+  a conditional would mean no online set ever forces the six. French is the
+  same rule with the chucha (0-0) as its opening tile.
+- **The six is forced at exactly three moments, and `tournament` is not one of
+  them.** A set's first hand, a tied blocked hand's replay, and the hand after
+  a bruk — identical in casual and tournament play. Every other hand is opened
+  by the previous winner, who poses what he likes. `set.ts` already sets
+  `poseMustBeDoubleSix` at precisely those three points, so the callers must
+  pass it straight through: do NOT reintroduce `|| tournament` into
+  `local.ts`'s or `start-hand`'s deal, which forced the six on every hand of a
+  tournament set and meant the winner never posed. Confirmed 2026-09-03.
+  Consequence: `tables.tournament` now changes nothing about play. The practice
+  picker is left in place with neutral labels pending a decision on what
+  tournament should enforce (etiquette, clock, something else) — if it is to
+  stay meaningful, give it a real behaviour rather than re-attaching it to the
+  pose.
 - **A win by the side under love BRUKS the score to 0-0.** They do not score
   one. Under six love only one side can hold points at a time.
 - **Tied blocked hands replay at a flat 2 points, double-six forced.** The

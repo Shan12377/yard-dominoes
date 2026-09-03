@@ -90,13 +90,18 @@ Deno.serve(handled(async (req) => {
     poser: set!.pose_must_be_double_six || set!.hands_played === 0
       ? undefined
       : set!.poser,
-    poseMustBeDoubleSix: set!.pose_must_be_double_six || table.tournament,
+    // The set alone decides this, never the tournament flag. The six opens a
+    // set's first hand, a tied replay, and the hand after a bruk — the SAME
+    // three moments in casual and tournament play. ORing in `tournament`
+    // forced the six on every hand of a tournament set, so the previous
+    // winner never got to pose.
+    poseMustBeDoubleSix: set!.pose_must_be_double_six,
     // French, round 2+ only — round 1 (and a tie-break reshuffle) already
     // forces the chucha specifically via poseMustBeDoubleSix above; this is
     // the "any double, your choice, or you're fined and it passes to
     // someone who has one" rule for every hand after that.
     poseMustBeAnyDouble:
-      table.format === 'french' && !(set!.pose_must_be_double_six || table.tournament),
+      table.format === 'french' && !set!.pose_must_be_double_six,
     // French round 1 is opened by whoever holds the chucha (0-0). The
     // pose_must_be_double_six flag stays TRUE for that first hand (createSet
     // sets it), and openingTile switches from 6-6 to 0-0 for French.

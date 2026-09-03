@@ -67,7 +67,7 @@ describe('six love', () => {
           useBoneyard: false,
           // The caller rule under test, mirrored from local.ts / start-hand.
           poser: s.poseMustBeDoubleSix || s.handsPlayed === 0 ? undefined : s.poser,
-          poseMustBeDoubleSix: s.poseMustBeDoubleSix || tournament,
+          poseMustBeDoubleSix: s.poseMustBeDoubleSix,
         });
         assert.ok(
           h.hands[h.poser].includes('6-6'),
@@ -76,6 +76,37 @@ describe('six love', () => {
         assert.deepEqual(legalMoves(h), [{ kind: 'pose', seat: h.poser, tile: '6-6' }],
           `${tournament ? 'tournament' : 'casual'}: the six must be led, no sporting to open a set`);
       }
+    }
+  });
+
+  test('tournament forces the six at the same three moments as casual, not every hand', () => {
+    // The six opens a set's FIRST hand, a tied replay, and the hand after a
+    // bruk. That is the whole list, and it is identical in casual and
+    // tournament play — tournament is not "the six every hand". Both callers
+    // used to OR the tournament flag into the deal, which meant a tournament
+    // set never let the previous winner pose at all.
+    for (const tournament of [false, true]) {
+      const label = tournament ? 'tournament' : 'casual';
+      let s = createSet({ mode: 'partner', format: 'sixlove', tournament });
+      assert.equal(s.poseMustBeDoubleSix, true, `${label}: a set opens on the six`);
+
+      // An ordinary win hands the pose to the winner, six no longer forced.
+      s = applyHandResult(s, won(1));
+      assert.equal(s.poseMustBeDoubleSix, false, `${label}: the winner poses the next hand`);
+      assert.equal(s.poser, 1);
+
+      // A tied blocked hand puts the six back on the open.
+      s = applyHandResult(s, { tie: true, counts: [5, 5, 5, 5], winnerSide: null, winnerSeat: null });
+      assert.equal(s.poseMustBeDoubleSix, true, `${label}: a tie replays on the six`);
+
+      // And the bruk — the side under love wins, the score resets to love-all
+      // and the set effectively starts over, so the six opens again.
+      let b = createSet({ mode: 'partner', format: 'sixlove', tournament });
+      b = applyHandResult(b, won(0));            // side 0 leads 1-0
+      assert.equal(b.poseMustBeDoubleSix, false);
+      b = applyHandResult(b, won(1));            // the side on zero strikes back
+      assert.deepEqual(b.scores, [0, 0], `${label}: a bruk resets to love-all`);
+      assert.equal(b.poseMustBeDoubleSix, true, `${label}: the six opens after a bruk`);
     }
   });
 

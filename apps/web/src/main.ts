@@ -952,12 +952,13 @@ function lobby(): HTMLElement {
 
   const tournament = document.createElement('select');
   tournament.dataset.tour = 'rules';
-  // Every set opens on the six now, casual included, so "sporting allowed" was
-  // no longer true of either option. What still differs is the hands AFTER the
-  // first: casual hands them to the previous winner to pose as he likes,
-  // tournament keeps forcing the six every single hand.
-  tournament.innerHTML = `<option value="0">Casual — six opens, then winner poses</option>
-                          <option value="1">Tournament — six opens every hand</option>`;
+  // Deliberately no rule claim on either option. The six opens a set, a tied
+  // replay and the hand after a bruk, and those are the same moments in both
+  // — so this flag currently changes nothing about play. It is left here as a
+  // table setting rather than removed while we decide what, if anything,
+  // tournament should actually enforce.
+  tournament.innerHTML = `<option value="0">Casual</option>
+                          <option value="1">Tournament</option>`;
 
   for (const [label, control] of [
     ['Game', mode], ['Duppies', duppy], ['Duppy pace', duppyPace], ['Rules', tournament],

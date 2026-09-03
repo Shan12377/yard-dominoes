@@ -234,7 +234,7 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B5L6', title: 'Tournament rules',
-        body: 'No sporting. The six six must be led. Know the etiquette before you sit down for something that matters.',
+        body: 'No sporting — but that is every table here, not a tournament extra: the six six is led to open a set, to replay a tie, and after a bruk. What match play really asks of you is the etiquette. Play at one speed, keep your bones off the table until you lay them, and settle a dispute with the deal check instead of an argument.',
       },
     ],
     drills: [

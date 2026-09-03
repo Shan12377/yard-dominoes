@@ -125,13 +125,18 @@ export class LocalGame {
       poser: this.set.poseMustBeDoubleSix || this.set.handsPlayed === 0
         ? undefined
         : this.set.poser,
-      poseMustBeDoubleSix: this.set.poseMustBeDoubleSix || this.options.tournament,
+      // The set alone decides this, never the tournament flag. The six opens
+      // a set's first hand, a tied replay, and the hand after a bruk — and
+      // those are the SAME three moments in casual and tournament play. ORing
+      // in `tournament` forced the six on every single hand of a tournament
+      // set, so the previous winner never got to pose at all.
+      poseMustBeDoubleSix: this.set.poseMustBeDoubleSix,
       // French, round 2+ only — round 1 (and a tie-break reshuffle) already
       // forces the chucha specifically via poseMustBeDoubleSix above; this
       // is the "any double, your choice, or you're fined and it passes to
       // someone who has one" rule for every hand after that.
       poseMustBeAnyDouble:
-        this.options.format === 'french' && !(this.set.poseMustBeDoubleSix || this.options.tournament),
+        this.options.format === 'french' && !this.set.poseMustBeDoubleSix,
       openingTile: this.options.format === 'french' ? '0-0' : '6-6',
       format: this.options.format,
     });
