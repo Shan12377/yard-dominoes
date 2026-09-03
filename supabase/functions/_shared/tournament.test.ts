@@ -23,6 +23,7 @@ const player = (
   status: 'signed_up',
   round: null,
   tableId: null,
+  gender: null,
   ...over,
 });
 
@@ -125,4 +126,53 @@ test('a future opening time still holds sign-ups shut', () => {
 test('sign-ups open exactly on the stroke, not a second after', () => {
   const opensAt = '2026-08-02T12:00:00Z';
   assert.equal(signupsOpen({ status: 'signups_open', signups_open_at: opensAt }, NOW), true);
+});
+
+// ------------------------------------------------- a themed cut line ----
+//
+// For an open event "above the cut" and "in the first N of the queue" are the
+// same sentence. For a theme they are not, and telling somebody the wrong one
+// is telling them they are playing on Sunday when they are not.
+
+test('a themed standing follows the draw, not the queue position', () => {
+  // Six women and two men, in queue order. One table can be made, and it is
+  // the first two of each side: w1, m1, w2, m2 — who sit at queue positions
+  // 1, 2, 5 and 7. Position alone would have said positions 1-4 were in.
+  const ordered: QueuedPlayer[] = [
+    player('w1', 'guest', { gender: 'f' }),
+    player('w2', 'guest', { gender: 'f' }),
+    player('w3', 'guest', { gender: 'f' }),
+    player('w4', 'guest', { gender: 'f' }),
+    player('m1', 'guest', { gender: 'm' }),
+    player('w5', 'guest', { gender: 'f' }),
+    player('m2', 'guest', { gender: 'm' }),
+    player('w6', 'guest', { gender: 'f' }),
+  ];
+
+  const seated = ['w1', 'w2', 'm1', 'm2'];
+  for (const p of ordered) {
+    const s = standingFor(ordered, 4, p.userId, NOW, 'battle_of_the_sexes');
+    assert.equal(s.aboveCut, seated.includes(p.userId),
+      `${p.userId} was told the wrong thing about whether they are playing`);
+  }
+
+  // The two the old positional rule would have got wrong, stated outright.
+  assert.equal(standingFor(ordered, 4, 'w3', NOW, 'battle_of_the_sexes').aboveCut, false,
+    'position 3 is a woman with no man to face — she is not seated');
+  assert.equal(standingFor(ordered, 4, 'm2', NOW, 'battle_of_the_sexes').aboveCut, true,
+    'position 7 plays, because his side is the short one');
+});
+
+test('the same queue read as an open event seats the first four instead', () => {
+  const ordered: QueuedPlayer[] = [
+    player('w1', 'guest', { gender: 'f' }),
+    player('w2', 'guest', { gender: 'f' }),
+    player('w3', 'guest', { gender: 'f' }),
+    player('w4', 'guest', { gender: 'f' }),
+    player('m1', 'guest', { gender: 'm' }),
+  ];
+  for (const id of ['w1', 'w2', 'w3', 'w4']) {
+    assert.equal(standingFor(ordered, 4, id, NOW).aboveCut, true);
+  }
+  assert.equal(standingFor(ordered, 4, 'm1', NOW).aboveCut, false);
 });

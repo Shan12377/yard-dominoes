@@ -24,9 +24,10 @@ import {
   cancelTournament, clearRound, createTournament, drawRound, enterTournament, finishTournament,
   hostQueue, hostableTournaments, markPlayer, myStanding, nextTournament,
   setNotice, setSignups, withdrawFromTournament,
+  THEME_LABEL,
 } from './tournaments.ts';
 import { joinTableById } from './online.ts';
-import type { QueueRow, Standing, Tournament } from './tournaments.ts';
+import type { QueueRow, Standing, Tournament, TournamentTheme } from './tournaments.ts';
 import type { MyProfile } from './lounges.ts';
 import type { GameMode } from '@yard/engine';
 
@@ -161,6 +162,13 @@ export function tournamentPanel(
   const panel = el('div', 'panel tourney');
   panel.append(el('div', 'eyebrow', 'Tournament'));
   panel.append(el('h2', undefined, t.name));
+
+  // What kind of event this is, said before the countdown — somebody deciding
+  // whether to sign up needs to know it is women against men BEFORE they
+  // commit, not when the draw refuses them.
+  if (t.theme !== 'open') {
+    panel.append(el('div', 'tourney-theme', THEME_LABEL[t.theme]));
+  }
 
   const when = el('div', 'tourney-when');
   when.append(el('span', undefined, whenLabel(t.startsAt)));
@@ -409,8 +417,22 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
     + '<option value="partner">Partner — 2 v 2</option>'
     + '<option value="openhand">Open hand — partner sees your tiles</option>';
 
+  // Battle of the sexes is two-against-two, so picking it settles the mode as
+  // well — the server and 0056 both refuse it on anything but a four-handed
+  // partner table, and offering a combination that would be rejected is a
+  // worse form than one that decides for you.
+  const theme = document.createElement('select');
+  theme.innerHTML = '<option value="open">Open to all</option>'
+    + '<option value="battle_of_the_sexes">Battle of the sexes — women v men</option>';
+  theme.setAttribute('aria-label', 'Kind of event');
+  theme.onchange = () => {
+    const battle = theme.value === 'battle_of_the_sexes';
+    if (battle) mode.value = 'partner';
+    mode.disabled = battle;
+  };
+
   const row = el('div', 'row');
-  row.append(name, starts, mode);
+  row.append(name, starts, mode, theme);
   form.append(row);
 
   const go = document.createElement('button');
@@ -430,6 +452,7 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
       // still be going on Tuesday. Never default a bracket to it.
       format: paired ? 'sixlove' : 'firstToSix',
       seatCount: 4,
+      theme: theme.value as TournamentTheme,
       clock: 'yard',
       startsAt: new Date(starts.value).toISOString(),
       loungeId: state.tournament?.loungeId ?? null,

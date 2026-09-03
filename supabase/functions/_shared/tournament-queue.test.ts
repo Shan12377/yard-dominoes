@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drawCutLine, queueOrder, queueRank } from './tournament-queue.ts';
+import { drawCutLine, drawForTheme, queueOrder, queueRank } from './tournament-queue.ts';
 
 const NOW = Date.parse('2026-08-02T12:00:00Z');
 const LATER = '2026-09-01T00:00:00Z';
@@ -145,4 +145,89 @@ test('the whole pipeline: VIPs take the last seats at the only table, and the '
   const draw = drawCutLine(ids(queueOrder(entries, NOW)), 4);
   assert.deepEqual(draw.tables, [['vip-late', 'vip-later', 'yardie', 'guest-dawn']]);
   assert.deepEqual(draw.substitutes, ['guest-noon']);
+});
+
+// ---------------------------------------------------------------- themes --
+//
+// A theme decides who sits with whom. It must never quietly cost somebody the
+// place in line they paid for, so every case below also checks the leftovers
+// are still in queue order.
+
+const entry = (userId: string, gender: string | null, signedUpAt = '2026-01-01T09:00:00Z') => ({
+  userId, gender, tier: 'guest', tierExpiresAt: null, signedUpAt,
+});
+
+test('an open event ignores gender entirely and just cuts the queue', () => {
+  const ordered = [entry('a', null), entry('b', null), entry('c', 'f'), entry('d', 'm')];
+  const draw = drawForTheme(ordered, 4, 'open');
+  assert.deepEqual(draw.tables, [['a', 'b', 'c', 'd']]);
+  assert.deepEqual(draw.substitutes, []);
+});
+
+test('battle of the sexes seats women against men, never alongside', () => {
+  const ordered = [
+    entry('w1', 'f'), entry('m1', 'm'), entry('w2', 'f'), entry('m2', 'm'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'battle_of_the_sexes');
+  assert.equal(draw.tables.length, 1);
+  const [table] = draw.tables;
+  // Partner sides are 0&2 against 1&3, so this seating IS the two sides.
+  assert.deepEqual([table[0], table[2]], ['w1', 'w2'], 'women hold seats 0 and 2');
+  assert.deepEqual([table[1], table[3]], ['m1', 'm2'], 'men hold seats 1 and 3');
+});
+
+test('the shorter side caps the tables, and the surplus waits in queue order', () => {
+  // Six women, two men: one table only, and the four unseated women keep
+  // their places in line rather than being shuffled.
+  const ordered = [
+    entry('w1', 'f'), entry('w2', 'f'), entry('w3', 'f'),
+    entry('m1', 'm'), entry('w4', 'f'), entry('w5', 'f'),
+    entry('m2', 'm'), entry('w6', 'f'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'battle_of_the_sexes');
+  assert.equal(draw.tables.length, 1);
+  assert.deepEqual(draw.tables[0], ['w1', 'm1', 'w2', 'm2']);
+  assert.deepEqual(draw.substitutes, ['w3', 'w4', 'w5', 'w6'],
+    'the surplus stays in queue order — the VIP promise survives the theme');
+});
+
+test('a VIP still outranks a guest of the same side after the theme draws', () => {
+  const now = Date.parse('2026-01-01T12:00:00Z');
+  const ordered = queueOrder([
+    { userId: 'guestW', gender: 'f', tier: 'guest', tierExpiresAt: null, signedUpAt: '2026-01-01T09:00:00Z' },
+    { userId: 'vipW', gender: 'f', tier: 'vip', tierExpiresAt: '2027-01-01T00:00:00Z', signedUpAt: '2026-01-01T11:00:00Z' },
+    { userId: 'm1', gender: 'm', tier: 'guest', tierExpiresAt: null, signedUpAt: '2026-01-01T09:00:00Z' },
+    { userId: 'm2', gender: 'm', tier: 'guest', tierExpiresAt: null, signedUpAt: '2026-01-01T09:05:00Z' },
+    { userId: 'm3', gender: 'm', tier: 'guest', tierExpiresAt: null, signedUpAt: '2026-01-01T09:10:00Z' },
+  ], now);
+  const draw = drawForTheme(ordered, 4, 'battle_of_the_sexes');
+  // Only two women, so one table; the late-signing VIP woman takes seat 0
+  // ahead of the guest who signed up at 9am.
+  assert.equal(draw.tables[0][0], 'vipW');
+  assert.equal(draw.tables[0][2], 'guestW');
+});
+
+test('nobody without a recorded gender is seated into a side', () => {
+  const ordered = [
+    entry('w1', 'f'), entry('w2', 'f'), entry('m1', 'm'), entry('unknown', null), entry('m2', 'm'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'battle_of_the_sexes');
+  assert.deepEqual(draw.tables, [['w1', 'm1', 'w2', 'm2']]);
+  assert.deepEqual(draw.substitutes, ['unknown']);
+});
+
+test('battle of the sexes seats nobody at a table that is not four-handed', () => {
+  // It IS two against two. Three seats would be a 2-vs-1, which is not the
+  // event — better to seat nobody than to invent a lopsided side.
+  const ordered = [entry('w1', 'f'), entry('m1', 'm'), entry('w2', 'f')];
+  const draw = drawForTheme(ordered, 3, 'battle_of_the_sexes');
+  assert.deepEqual(draw.tables, []);
+  assert.deepEqual(draw.substitutes, ['w1', 'm1', 'w2']);
+});
+
+test('one side short of a pair means no table at all', () => {
+  const ordered = [entry('w1', 'f'), entry('w2', 'f'), entry('m1', 'm')];
+  const draw = drawForTheme(ordered, 4, 'battle_of_the_sexes');
+  assert.deepEqual(draw.tables, []);
+  assert.deepEqual(draw.substitutes, ['w1', 'w2', 'm1']);
 });

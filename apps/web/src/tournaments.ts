@@ -20,6 +20,14 @@ import { supabase } from './online.ts';
 export type TournamentStatus =
   | 'announced' | 'signups_open' | 'seating' | 'running' | 'finished' | 'cancelled';
 
+export type TournamentTheme = 'open' | 'battle_of_the_sexes';
+
+/** What a player is told this event is. */
+export const THEME_LABEL: Record<TournamentTheme, string> = {
+  open: 'Open to all',
+  battle_of_the_sexes: 'Battle of the sexes — women against men',
+};
+
 export interface Tournament {
   id: string;
   loungeId: string | null;
@@ -27,6 +35,11 @@ export interface Tournament {
   mode: GameMode;
   format: string;
   seatCount: number;
+  /**
+   * Which kind of event. Seating only — a theme never changes the rules of
+   * the game. 'open' is the ordinary one and is what any older row reads as.
+   */
+  theme: TournamentTheme;
   startsAt: string;
   signupsOpenAt: string | null;
   rounds: number;
@@ -72,6 +85,7 @@ function shape(row: any): Tournament {
     mode: row.mode,
     format: row.format,
     seatCount: row.seat_count,
+    theme: (row.theme ?? 'open') as TournamentTheme,
     startsAt: row.starts_at,
     signupsOpenAt: row.signups_open_at ?? null,
     rounds: row.rounds,
@@ -139,6 +153,7 @@ export interface NewTournament {
   format: string;
   seatCount: number;
   clock: string;
+  theme?: TournamentTheme;
   startsAt: string;
   signupsOpenAt?: string | null;
   rounds?: number;

@@ -48,7 +48,17 @@ Deno.serve(handled(async (req) => {
       if (error) throw new HttpError(500, error.message);
     } else {
       const { data: profile } = await db.from('profiles')
-        .select('tier, tier_expires_at').eq('id', user.id).single();
+        .select('tier, tier_expires_at, gender').eq('id', user.id).single();
+
+      // Battle of the sexes seats women against men, so a player with no side
+      // recorded cannot be drawn into one. Refused at the door rather than at
+      // the draw: finding out on Sunday morning that you were never seatable
+      // is far worse than being told now, while it is still one tap to fix.
+      // `gender` stays optional everywhere else — no ordinary event asks.
+      if (t.theme === 'battle_of_the_sexes' && !profile?.gender) {
+        throw new HttpError(422,
+          'this one is women against men — set "Call me" to She or He on your profile first');
+      }
 
       // `tier_at_signup` is a snapshot for disputes and is NEVER ordered by.
       // The queue reads the live tier at seating time, which is what lets an
@@ -72,6 +82,6 @@ Deno.serve(handled(async (req) => {
   return json({
     ok: true,
     entered: ordered.some((p) => p.userId === user.id),
-    standing: standingFor(ordered, t.seat_count, user.id),
+    standing: standingFor(ordered, t.seat_count, user.id, Date.now(), t.theme ?? 'open'),
   });
 }));

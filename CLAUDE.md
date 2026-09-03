@@ -224,12 +224,33 @@ Do not relitigate these without asking.
   actions are the escape hatch. If that proves too blunt in a real Sunday, give
   the host a "fill this seat" action — do not reintroduce a duppy.
 
-  **Still to build:** themed events (battle of the sexes, team vs team,
-  couples) and weekly recurrence, which is how JamDom runs theirs. Themes
-  change WHO SITS WITH WHOM, never the game rules. Battle of the sexes is the
-  cheapest first (`profiles.gender` already exists); couples and team-vs-team
-  both need a pair/team concept at sign-up. The draw lives in
-  `_shared/tournament-queue.ts` and is unit-tested — extend it there.
+  **Themes.** `tournaments.theme` (0056) says which kind of event this is, and
+  a theme decides WHO SITS WITH WHOM — never the game rules. Seating lives in
+  one place, `_shared/tournament-queue.ts`'s `drawForTheme`; the host calls
+  that, not `drawCutLine`, so a new theme never means teaching the host a
+  seating rule. Only themes whose draw is actually built may appear in the
+  check constraint — a theme the draw cannot seat is a host scheduling an event
+  that silently seats nobody.
+
+  - `open` — the queue cut into full tables.
+  - `battle_of_the_sexes` — women on seats 0&2, men on 1&3, which IS the two
+    partner sides. Four-handed partner only (enforced in 0056 and in the host).
+    `tournament-signup` refuses entry without `profiles.gender` set, because
+    finding out on Sunday morning that you were never seatable is worse than
+    being told while it is one tap to fix.
+
+  **The trap a theme sets, already sprung once:** "above the cut" and "in the
+  first N of the queue" are the same sentence only for an open event. With six
+  women and two men the four who play sit at queue positions 1, 2, 5 and 7 — so
+  anything comparing an index against a seat count tells two people they are
+  out when they are in. `standingFor` and the host's queue view both ask the
+  draw for membership instead. Any future theme inherits that for free; do not
+  reintroduce a positional cut.
+
+  **Still to build:** `team_vs_team` and `couples`, which both need a pair or
+  team concept at sign-up (a partner reference plus mutual confirmation), and
+  weekly recurrence — JamDom runs weekly events across the game styles, and a
+  host filling the form in each week is the current substitute for that.
 - **Voice is a peer-to-peer mesh, never an SFU.** Live table voice ships in
   `apps/web/src/voice.ts`: each of the four seats sends audio straight to the
   other three, signalling over the Realtime channel the lounge already holds.

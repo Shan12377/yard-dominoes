@@ -31,7 +31,22 @@ export interface QueueEntry {
   tierExpiresAt: string | null;
   /** ISO timestamp, server-set on signup. */
   signedUpAt: string;
+  /**
+   * `'f' | 'm' | null`, read from `profiles.gender`. Only a theme that seats
+   * by it ever looks — an open event never does, and nobody is asked for it to
+   * enter one.
+   */
+  gender?: string | null;
 }
+
+/**
+ * What kind of event this is. A theme decides **who sits with whom** and
+ * nothing else: the rules of the game are the rules of the game, identical at
+ * every table in this product (see CLAUDE.md).
+ *
+ * `open` is the ordinary event — the queue, cut into full tables.
+ */
+export type TournamentTheme = 'open' | 'battle_of_the_sexes';
 
 /**
  * Where a player's membership puts them in line.
@@ -113,4 +128,66 @@ export function drawCutLine(ordered: readonly string[], seatCount: number): Draw
     tables.push(ordered.slice(t * seatCount, (t + 1) * seatCount));
   }
   return { tables, substitutes: [...ordered.slice(tableCount * seatCount)] };
+}
+
+/**
+ * Battle of the sexes: women on one side of every table, men on the other.
+ *
+ * Partner seats are 0&2 against 1&3 — `sideOf()` puts even seats on side 0 and
+ * odd on side 1 — so a table is dealt `[woman, man, woman, man]` and the sides
+ * fall out of the seat numbering without a special case anywhere downstream.
+ * Nothing about the game changes; only who is sitting opposite whom.
+ *
+ * A table needs two of each, so the number of tables is bounded by whichever
+ * side is shorter. Everyone left over — including the entire surplus of the
+ * longer side — stays in the substitutes line **in queue order**, which is
+ * what keeps the VIP promise intact: a VIP woman who cannot be seated because
+ * only three women turned up is still ahead of every guest in that line.
+ *
+ * A player with no gender recorded cannot be placed on a side, so they are
+ * never seated here. `tournament-signup` refuses entry to this theme without
+ * one, so in practice the queue should not contain any — this is the
+ * belt-and-braces for a profile edited after signing up.
+ *
+ * Four seats only. Battle of the sexes IS two-against-two, and partner mode is
+ * four-handed by construction, so any other seat count seats nobody rather
+ * than inventing a 2-vs-1.
+ */
+function drawBattleOfTheSexes<T extends QueueEntry>(
+  ordered: readonly T[],
+  seatCount: number,
+): Draw {
+  if (seatCount !== 4) return { tables: [], substitutes: ordered.map((e) => e.userId) };
+
+  const women = ordered.filter((e) => e.gender === 'f');
+  const men = ordered.filter((e) => e.gender === 'm');
+  const tableCount = Math.min(Math.floor(women.length / 2), Math.floor(men.length / 2));
+
+  const tables: string[][] = [];
+  const seated = new Set<string>();
+  for (let t = 0; t < tableCount; t++) {
+    const [w1, w2] = [women[t * 2], women[t * 2 + 1]];
+    const [m1, m2] = [men[t * 2], men[t * 2 + 1]];
+    tables.push([w1.userId, m1.userId, w2.userId, m2.userId]);
+    for (const e of [w1, m1, w2, m2]) seated.add(e.userId);
+  }
+
+  return {
+    tables,
+    substitutes: ordered.filter((e) => !seated.has(e.userId)).map((e) => e.userId),
+  };
+}
+
+/**
+ * The draw for an event, whatever its theme. `tournament-host` calls this
+ * rather than `drawCutLine` directly, so adding a theme never means teaching
+ * the host a new seating rule.
+ */
+export function drawForTheme<T extends QueueEntry>(
+  ordered: readonly T[],
+  seatCount: number,
+  theme: TournamentTheme,
+): Draw {
+  if (theme === 'battle_of_the_sexes') return drawBattleOfTheSexes(ordered, seatCount);
+  return drawCutLine(ordered.map((e) => e.userId), seatCount);
 }

@@ -19,7 +19,7 @@
 // ordering would necessarily be a second implementation of the paid promise.
 
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import { drawCutLine, queueOrder, queueRank } from './tournament-queue.ts';
+import { drawForTheme, queueOrder, queueRank, type TournamentTheme } from './tournament-queue.ts';
 
 /** Statuses that are still standing in line. */
 const IN_LINE = ['signed_up', 'seated', 'substitute'];
@@ -33,6 +33,13 @@ export interface QueuedPlayer {
   status: string;
   round: number | null;
   tableId: string | null;
+  /**
+   * From `profiles.gender`, and null for most players — it is optional on the
+   * profile and nobody is asked for it to enter an ordinary event. Only a
+   * theme that seats by side reads it (drawForTheme); omitting it here would
+   * make battle of the sexes seat nobody at all, silently.
+   */
+  gender: string | null;
 }
 
 /**
@@ -49,7 +56,7 @@ export async function loadQueue(
   now = Date.now(),
 ): Promise<QueuedPlayer[]> {
   const { data, error } = await db.from('tournament_signups')
-    .select('user_id, signed_up_at, status, round, table_id, profiles(username, tier, tier_expires_at)')
+    .select('user_id, signed_up_at, status, round, table_id, profiles(username, tier, tier_expires_at, gender)')
     .eq('tournament_id', tournamentId)
     .in('status', IN_LINE);
   if (error) throw new Error(error.message);
@@ -65,6 +72,7 @@ export async function loadQueue(
     status: r.status as string,
     round: (r.round ?? null) as number | null,
     tableId: (r.table_id ?? null) as string | null,
+    gender: (r.profiles?.gender ?? null) as string | null,
   }));
 
   return queueOrder(players, now);
@@ -97,12 +105,21 @@ export function standingFor(
   seatCount: number,
   userId: string | null,
   now = Date.now(),
+  theme: TournamentTheme = 'open',
 ): Standing {
   const index = userId === null ? -1 : ordered.findIndex((p) => p.userId === userId);
-  // `drawCutLine` stays the authority on where the line falls — asking it and
-  // comparing an index beats re-deriving `floor(n / seatCount) * seatCount`
-  // here, which would be a second copy of the rule that seats people.
-  const seats = drawCutLine(ordered.map((p) => p.userId), seatCount).tables.length * seatCount;
+  // The draw stays the authority on who is in — asking it beats re-deriving
+  // `floor(n / seatCount) * seatCount` here, which would be a second copy of
+  // the rule that seats people.
+  //
+  // Membership of the drawn set, NOT position in the queue. Those are the same
+  // thing only for an open event. A theme seats by side, so with six women and
+  // two men the four who play are w1, m1, w2, m2 — positions 1, 2, 5 and 7 of
+  // the queue, say. Comparing an index against a seat count would tell two of
+  // them they are out and two of the unseated that they are in.
+  const seated = new Set(
+    drawForTheme(ordered, seatCount, theme).tables.flat(),
+  );
 
   if (index < 0) {
     return {
@@ -119,7 +136,7 @@ export function standingFor(
     position: index + 1,
     vipsAhead,
     total: ordered.length,
-    aboveCut: index < seats,
+    aboveCut: seated.has(me.userId),
     status: me.status,
     round: me.round,
     tableId: me.tableId,

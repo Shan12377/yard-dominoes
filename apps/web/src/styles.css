@@ -2888,6 +2888,15 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   border-left: 3px solid var(--forest); background: rgba(20, 107, 58, 0.08);
   font-size: 14px; color: var(--ink);
 }
+/* Which kind of event this is, read before anyone commits to signing up.
+   Mango on the signal-blue panel: this is an invitation, not a warning. */
+.tourney-theme {
+  margin-top: 8px; display: inline-block; padding: 3px 9px;
+  border-radius: 999px; background: rgba(255, 201, 40, 0.14);
+  border: 1px solid rgba(255, 201, 40, 0.5);
+  color: var(--gold-hi); font-size: 12.5px; font-weight: 600;
+  letter-spacing: 0.01em;
+}
 .tourney-body { margin-top: 14px; display: grid; gap: 10px; justify-items: start; }
 .tourney-body p { font-size: 14.5px; line-height: 1.5; }
 

@@ -17,7 +17,7 @@
 // have shown which assumptions were wrong.
 
 import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
-import { drawCutLine } from '../_shared/tournament-queue.ts';
+import { drawForTheme, type TournamentTheme } from '../_shared/tournament-queue.ts';
 import { loadQueue, standingFor } from '../_shared/tournament.ts';
 import { clockByName } from '../_shared/engine/clock.ts';
 
@@ -25,6 +25,12 @@ const MODES = ['cutthroat', 'partner', 'openhand'];
 const FORMATS = ['sixlove', 'firstToSix', 'single', 'french'];
 /** Mirrors CLOCKS in the engine, and the check constraint in 0015/0048. */
 const CLOCKS = ['blitz', 'speed', 'yard', 'relaxed'];
+/**
+ * Mirrors `theme_is_known` in 0056 and `TournamentTheme` in tournament-queue.
+ * Only themes whose seating is actually built belong here — a theme the draw
+ * cannot seat is a host scheduling an event that seats nobody.
+ */
+const THEMES = ['open', 'battle_of_the_sexes'];
 
 /**
  * The statuses a host may set on a signup by hand.
@@ -67,11 +73,21 @@ Deno.serve(handled(async (req) => {
     }
     if (!body.startsAt) throw new HttpError(422, 'a tournament needs a start time');
 
+    const theme = String(body.theme ?? 'open');
+    if (!THEMES.includes(theme)) throw new HttpError(422, `unknown theme: ${theme}`);
+    // Battle of the sexes IS two against two. 0056 constrains this as well —
+    // both, so neither a host nor a direct insert can schedule an event whose
+    // draw could never seat a single table.
+    if (theme === 'battle_of_the_sexes' && !(mode === 'partner' && seatCount === 4)) {
+      throw new HttpError(422, 'battle of the sexes is a four-handed partner event');
+    }
+
     const { data, error } = await db.from('tournaments').insert({
       name: String(body.name ?? '').trim(),
       mode,
       format,
       seat_count: seatCount,
+      theme,
       // Named, not numeric — the server looks the seconds up when it opens the
       // tables, exactly as create-table does, so nobody can schedule a
       // ten-minute turn by posting a number.
@@ -206,8 +222,8 @@ Deno.serve(handled(async (req) => {
     }
 
     const ordered = await loadQueue(db, t.id);
-    const { tables: draw, substitutes } = drawCutLine(
-      ordered.map((p) => p.userId), t.seat_count);
+    const { tables: draw, substitutes } = drawForTheme(
+      ordered, t.seat_count, (t.theme ?? 'open') as TournamentTheme);
 
     if (draw.length === 0) {
       // Fewer entrants than one full table. Partner needs exactly four seats,
@@ -304,20 +320,24 @@ Deno.serve(handled(async (req) => {
   // What the host sees: the ordered list with the cut line already drawn.
   if (action === 'queue') {
     const ordered = await loadQueue(db, t.id);
-    const { tables: draw, substitutes } = drawCutLine(
-      ordered.map((p) => p.userId), t.seat_count);
+    const { tables: draw, substitutes } = drawForTheme(
+      ordered, t.seat_count, (t.theme ?? 'open') as TournamentTheme);
+    const seatedIds = new Set(draw.flat());
     return json({
       ok: true,
+      // Membership of the drawn set, not the first N of the queue — a themed
+      // draw seats by side, so those are different lists (see standingFor).
       queue: ordered.map((p, i) => ({
         userId: p.userId, username: p.username, tier: p.tier,
         signedUpAt: p.signedUpAt, status: p.status,
         round: p.round, tableId: p.tableId,
         position: i + 1,
-        aboveCut: i < draw.length * t.seat_count,
+        aboveCut: seatedIds.has(p.userId),
       })),
-      wouldSeat: draw.length * t.seat_count,
+      wouldSeat: seatedIds.size,
       substitutes: substitutes.length,
-      standing: standingFor(ordered, t.seat_count, user.id),
+      standing: standingFor(ordered, t.seat_count, user.id, Date.now(),
+        (t.theme ?? 'open') as TournamentTheme),
     });
   }
 
