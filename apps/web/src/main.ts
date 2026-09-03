@@ -394,7 +394,7 @@ let winningSeat: number | null = null;
 let heroHasEntered = false;
 
 async function startGame(opts: {
-  mode: GameMode; format: SetFormat; duppy: DuppyLevel; tournament: boolean;
+  mode: GameMode; format: SetFormat; duppy: DuppyLevel;
   duppyPace: DuppyPace;
 }) {
   const g = new LocalGame({ ...opts, seatCount: 4, oneAllPlayTwo: true });
@@ -544,7 +544,7 @@ function hero(): HTMLElement {
   deal.className = 'act';
   deal.textContent = 'Deal me in';
   deal.onclick = () => void startGame({
-    mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'yard', tournament: false,
+    mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'yard',
   });
   const fair = document.createElement('button');
   fair.className = 'act ghost';
@@ -861,7 +861,7 @@ function replayView(): HTMLElement {
     replayHand = null;
     history.replaceState(null, '', location.pathname);
     view = 'play';
-    void startGame({ mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'yard', tournament: false });
+    void startGame({ mode: 'partner', format: 'sixlove', duppy: 'ranker', duppyPace: 'yard' });
   };
   cta.appendChild(deal);
   frag.appendChild(cta);
@@ -950,18 +950,12 @@ function lobby(): HTMLElement {
     `<option value="${pace}">${DUPPY_PACE_LABELS[pace]}</option>`).join('');
   duppyPace.value = 'yard';
 
-  const tournament = document.createElement('select');
-  tournament.dataset.tour = 'rules';
-  // Deliberately no rule claim on either option. The six opens a set, a tied
-  // replay and the hand after a bruk, and those are the same moments in both
-  // — so this flag currently changes nothing about play. It is left here as a
-  // table setting rather than removed while we decide what, if anything,
-  // tournament should actually enforce.
-  tournament.innerHTML = `<option value="0">Casual</option>
-                          <option value="1">Tournament</option>`;
-
+  // No casual/tournament picker. It chose between two identical rulesets —
+  // the six opens a set, a tied replay and the hand after a bruk on every
+  // table — and "tournament" already names something real here: a scheduled
+  // event played by real people. See CLAUDE.md.
   for (const [label, control] of [
-    ['Game', mode], ['Duppies', duppy], ['Duppy pace', duppyPace], ['Rules', tournament],
+    ['Game', mode], ['Duppies', duppy], ['Duppy pace', duppyPace],
   ] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
@@ -979,7 +973,6 @@ function lobby(): HTMLElement {
     format: resolvedFormat(),
     duppy: duppy.value as DuppyLevel,
     duppyPace: duppyPace.value as DuppyPace,
-    tournament: tournament.value === '1',
   });
 
   panel.append(form, el('div', 'stack'), go);

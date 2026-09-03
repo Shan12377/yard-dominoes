@@ -9,7 +9,9 @@ test('walkthrough covers practice setup and every public destination', () => {
     [...new Set(WALKTHROUGH_STEPS.map((step) => step.view))],
     ['play', 'lounges', 'rankings', 'academy', 'membership', 'profile', 'fair'],
   );
-  assert.equal(WALKTHROUGH_STEPS.length, 11);
+  // 10 since the casual/tournament stop was retired with the picker it
+  // pointed at — it taught sporting, which no table allows any more.
+  assert.equal(WALKTHROUGH_STEPS.length, 10);
 });
 
 test('walkthrough targets and captions are complete and unambiguous', () => {

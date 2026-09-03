@@ -81,7 +81,7 @@ Deno.serve(handled(async (req) => {
     const current = {
       options: {
         mode: table!.mode, format: table!.format, seatCount: table!.seat_count,
-        tournament: table!.tournament, oneAllPlayTwo: table!.one_all_play_two,
+        oneAllPlayTwo: table!.one_all_play_two,
         useBoneyard: table!.use_boneyard, target: table!.format === 'french' ? 100 : 6,
       },
       scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,

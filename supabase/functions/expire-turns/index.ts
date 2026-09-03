@@ -32,6 +32,15 @@ Deno.serve(handled(async () => {
     // It is emptied rather than left alone, or a player could bank time all
     // game and then sit out every turn on the same hoard.
     const timedOut = state.turn;
+
+    // On a tournament table a seat with no user is a PLACEHOLDER waiting for
+    // a real player, not an opponent — leave it alone and let the round wait
+    // for the substitutes line. A timed-out HUMAN seat is different and still
+    // gets a legal move played for it here, tournament or not: that is the
+    // standing rule (timed-out seats play, they do not forfeit) and without it
+    // one absent player could stall a whole event indefinitely.
+    if (table!.tournament_id && !seats![timedOut].user_id) continue;
+
     banks[timedOut] = 0;
 
     // A true Duppy keeps its configured strength even if every browser is
@@ -63,7 +72,7 @@ Deno.serve(handled(async () => {
       const current = {
         options: {
           mode: table!.mode, format: table!.format, seatCount: table!.seat_count,
-          tournament: table!.tournament, oneAllPlayTwo: table!.one_all_play_two,
+          oneAllPlayTwo: table!.one_all_play_two,
           useBoneyard: table!.use_boneyard, target: table!.format === 'french' ? 100 : 6,
         },
         scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,

@@ -28,7 +28,6 @@ export interface LocalOptions {
   seatCount: 2 | 3 | 4;
   duppy: DuppyLevel;
   duppyPace: DuppyPace;
-  tournament: boolean;
   oneAllPlayTwo: boolean;
 }
 
@@ -86,7 +85,6 @@ export class LocalGame {
       mode: options.mode,
       format: options.format,
       seatCount: options.seatCount,
-      tournament: options.tournament,
       oneAllPlayTwo: options.oneAllPlayTwo,
     });
   }

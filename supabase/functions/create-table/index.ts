@@ -56,7 +56,6 @@ Deno.serve(handled(async (req) => {
     // Named like the human clock. The server stores the allowed choice rather
     // than trusting a browser-supplied number of seconds.
     duppy_pace: duppyPaceByName(body.duppyPace),
-    tournament: !!body.tournament,
     one_all_play_two: body.oneAllPlayTwo ?? true,
     use_boneyard: !!body.useBoneyard,
     is_private: !!body.isPrivate,

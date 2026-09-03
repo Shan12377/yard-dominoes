@@ -25,6 +25,26 @@ Deno.serve(handled(async (req) => {
     throw new HttpError(409, 'the table is not full yet');
   }
 
+  // A tournament is played by real people, full stop. Every seat a host draws
+  // starts as a placeholder duppy (0001 forbids a seat that is neither person
+  // nor duppy) and the drawn player displaces it by turning up. A hand must
+  // never be dealt while one of those placeholders is still sitting there.
+  //
+  // This is not only about fairness: `apply-rating.ts` refuses to rate a set
+  // with ANY duppy seat, so a round played against a no-show's placeholder
+  // would score nothing for anybody — the flagship competitive event silently
+  // producing unranked games. The substitutes line is the answer to a no-show,
+  // not a bot.
+  if (table.tournament_id) {
+    const placeholders = seats!.filter((s: any) => !s.user_id).map((s: any) => s.seat_index);
+    if (placeholders.length > 0) {
+      throw new HttpError(409,
+        `waiting on ${placeholders.length === 1 ? 'a player' : `${placeholders.length} players`}`
+        + ' — a tournament hand is played by real people, so a substitute has to take'
+        + ` seat ${placeholders.join(', ')} before this deals`);
+    }
+  }
+
   let { data: set } = await db.from('sets')
     .select('*').eq('table_id', tableId).is('winner_side', null)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();

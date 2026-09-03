@@ -44,13 +44,6 @@ export const WALKTHROUGH_STEPS: readonly WalkthroughStep[] = [
   },
   {
     view: 'play',
-    target: '[data-tour="rules"]',
-    label: 'Practice setup',
-    title: 'Pick casual or tournament rules',
-    caption: 'Casual allows sporting: the poser may open with any tile. Tournament requires the double-six to be the first tile led.',
-  },
-  {
-    view: 'play',
     target: '[data-tour="deal"]',
     label: 'Practice setup',
     title: 'Deal when you are ready',

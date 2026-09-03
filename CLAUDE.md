@@ -143,11 +143,10 @@ Jamaican players notice these immediately. All are covered by tests.
   pass it straight through: do NOT reintroduce `|| tournament` into
   `local.ts`'s or `start-hand`'s deal, which forced the six on every hand of a
   tournament set and meant the winner never posed. Confirmed 2026-09-03.
-  Consequence: `tables.tournament` now changes nothing about play. The practice
-  picker is left in place with neutral labels pending a decision on what
-  tournament should enforce (etiquette, clock, something else) — if it is to
-  stay meaningful, give it a real behaviour rather than re-attaching it to the
-  pose.
+  There is no casual/tournament rules toggle any more — see "What a tournament
+  is" below. `SetOptions` has no `tournament` field, the practice Rules picker
+  and its walkthrough stop are gone, and `tables.tournament` survives in the
+  schema unwritten. Do not resurrect it as a ruleset.
 - **A win by the side under love BRUKS the score to 0-0.** They do not score
   one. Under six love only one side can hold points at a time.
 - **Tied blocked hands replay at a flat 2 points, double-six forced.** The
@@ -197,6 +196,40 @@ Do not relitigate these without asking.
   `academycontent.ts` to one unambiguous, explained decision. Do not replace
   either with decorative AI imagery or a list of inert prompts.
 - **Timed-out seats play a legal move, they do not forfeit.**
+- **A tournament is a scheduled EVENT played by real people. It is never a way
+  to play.** This is the JamDom sense of the word and the only one this product
+  uses: an event with a start time, sign-ups, a host-run draw, rounds, and a
+  substitutes line that VIP goes to the top of. The `tournaments` /
+  `tournament_signups` tables and `tournament-host` are that feature; a table
+  belongs to one when `tables.tournament_id` is set. There is deliberately no
+  "tournament ruleset" — the six opens a set, a tied replay and the hand after
+  a bruk on every table alike (see above), so a rules toggle would have been a
+  difference that does not exist.
+
+  **Real people is enforced, not merely intended, and rating is why.**
+  `apply-rating.ts` refuses to rate a set containing ANY duppy seat. A host's
+  draw fills each seat with a placeholder duppy (0001 forbids a seat that is
+  neither person nor duppy) which the drawn player displaces by turning up — so
+  a single no-show would otherwise produce a whole round that scores for
+  nobody. Three guards prevent that, and `tournament-real-people.test.ts` pins
+  all three: `start-hand` will not deal while any seat is unfilled,
+  `advance-duppy` refuses on a table with a `tournament_id`, and `expire-turns`
+  steps over an unfilled seat. A timed-out HUMAN seat still gets a legal move
+  played for it, tournament or not — otherwise one absent player stalls the
+  event. A walkout leaves a claimable seat: the leaver has 0053's rejoin window,
+  then the substitutes line has it.
+
+  Known consequence, accepted deliberately: a tournament hand PAUSES on an
+  empty seat rather than letting a bot finish it. The host's `cancel`/`clear`
+  actions are the escape hatch. If that proves too blunt in a real Sunday, give
+  the host a "fill this seat" action — do not reintroduce a duppy.
+
+  **Still to build:** themed events (battle of the sexes, team vs team,
+  couples) and weekly recurrence, which is how JamDom runs theirs. Themes
+  change WHO SITS WITH WHOM, never the game rules. Battle of the sexes is the
+  cheapest first (`profiles.gender` already exists); couples and team-vs-team
+  both need a pair/team concept at sign-up. The draw lives in
+  `_shared/tournament-queue.ts` and is unit-tested — extend it there.
 - **Voice is a peer-to-peer mesh, never an SFU.** Live table voice ships in
   `apps/web/src/voice.ts`: each of the four seats sends audio straight to the
   other three, signalling over the Realtime channel the lounge already holds.

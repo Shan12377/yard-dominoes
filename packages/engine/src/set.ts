@@ -5,14 +5,13 @@ export function createSet(options: Partial<SetOptions> = {}): SetState {
   const inputFormat = options.format ?? 'sixlove';
   // French has fixed defaults that would otherwise be caller boilerplate on
   // every start-set call: target is 100 (first to hit it LOSES), the chucha
-  // must lead round 1 regardless of tournament mode, and the whole thing is
-  // cutthroat-4. Overrides still land because `...options` follows.
+  // must lead round 1 regardless, and the whole thing is cutthroat-4.
+  // Overrides still land because `...options` follows.
   const french = inputFormat === 'french';
   const opts: SetOptions = {
     mode: french ? 'cutthroat' : 'partner',
     format: inputFormat,
     seatCount: 4,
-    tournament: false,
     oneAllPlayTwo: true,
     useBoneyard: false,
     target: french ? 100 : 6,

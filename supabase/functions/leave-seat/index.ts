@@ -48,6 +48,14 @@ Deno.serve(handled(async (req) => {
     .eq('table_id', tableId).eq('user_id', user.id);
   if (seatError) throw new HttpError(500, seatError.message);
 
+  // On a tournament table that vacated seat is a PLACEHOLDER, not an
+  // opponent: advance-duppy refuses to drive it, expire-turns steps over it,
+  // and start-hand will not deal the next hand until a real person is in it.
+  // The seat stays claimable by the leaver (0053's rejoin window) or by the
+  // substitutes line. Nothing extra to write here — the guards read
+  // `user_id is null` on a table with a tournament_id, which is exactly the
+  // row this update just produced.
+
   if (table.status === 'playing') {
     const { data: profile } = await db.from('profiles').select('abandons').eq('id', user.id).single();
     const { error: profileError } = await db.from('profiles')

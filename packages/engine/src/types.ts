@@ -267,12 +267,12 @@ export interface SetOptions {
   mode: GameMode;
   format: SetFormat;
   seatCount: 2 | 3 | 4;
-  /**
-   * Tournament mode forces the 6-6 holder to actually LEAD the 6-6 on the
-   * opening hand. Casual mode allows that player to declare "sporting" and
-   * open with any tile instead.
-   */
-  tournament: boolean;
+  // No `tournament` flag lives here. It used to mean "force the 6-6 to be
+  // led", but the six opens a set's first hand, a tied replay and the hand
+  // after a bruk on EVERY table, so the flag described a difference that does
+  // not exist. In this product a tournament is a scheduled event played by
+  // real people (see `tournaments`), never a way to play — do not reintroduce
+  // it as a rules option.
   /** At 1-1, play a two-point playoff hand instead of bruking to 0-0. */
   oneAllPlayTwo: boolean;
   /** 2-player only: deal 7 each and leave a boneyard rather than 14 each. */

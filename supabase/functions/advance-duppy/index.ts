@@ -30,6 +30,12 @@ Deno.serve(handled(async (req) => {
 
   const actor = seats![row.turn];
   if (!actor?.duppy_level) throw new HttpError(409, 'it is not a duppy turn');
+  // A tournament is real people only. A seat without a user there is a
+  // placeholder waiting on the substitutes line, never a bot to be driven —
+  // and a set containing one cannot be rated at all (apply-rating.ts).
+  if (table!.tournament_id) {
+    throw new HttpError(409, 'a tournament seat is played by a real person — waiting on a substitute');
+  }
   const expiresAt = (row as any).turn_expires_at;
   if (!expiresAt || Date.parse(expiresAt) > Date.now()) {
     throw new HttpError(409, 'the duppy is still thinking');
@@ -55,7 +61,7 @@ Deno.serve(handled(async (req) => {
     const current = {
       options: {
         mode: table!.mode, format: table!.format, seatCount: table!.seat_count,
-        tournament: table!.tournament, oneAllPlayTwo: table!.one_all_play_two,
+        oneAllPlayTwo: table!.one_all_play_two,
         useBoneyard: table!.use_boneyard, target: table!.format === 'french' ? 100 : 6,
       },
       scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,

@@ -241,10 +241,6 @@ Deno.serve(handled(async (req) => {
         seat_count: t.seat_count,
         turn_seconds: clock.base,
         turn_cap_seconds: clock.cap,
-        // The RULES flag, not the event: a tournament hand forces the 6-6 to be
-        // LED rather than merely held, which is what Jamaican players notice
-        // first about a real tournament table.
-        tournament: true,
         one_all_play_two: true,
         use_boneyard: false,
         is_private: false,
