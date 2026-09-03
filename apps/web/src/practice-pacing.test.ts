@@ -54,6 +54,21 @@ test('practice leaves a named record of the last non-winning play during the rea
   assert.match(practiceSource, /setTimeout\([\s\S]*?\}, 2_500\)/);
 });
 
+test('last hand\'s winning bone never lands on the next hand\'s felt', () => {
+  // Reported live: after a hand was won, the winning tile kept reappearing as
+  // a giant hero bone over the NEXT hand, because winningTile is module state
+  // that only startGame() cleared — "Next hand" left it set, and every render
+  // re-ran the celebration. Both the slam and its LAST BONE banner must be
+  // tied to a hand that is actually over, and "Next hand" must clear them.
+  assert.match(practiceSource, /const slam = g\.hand\?\.status !== 'active' \? winningTile : null;/);
+  assert.match(practiceSource, /if \(slam\) \{\s*celebrateWinningTile\(slam, line, felt\);/);
+  assert.match(practiceSource,
+    /function practiceWinCallout[\s\S]{0,400}?if \(g\.hand\?\.status === 'active'\) return null;/);
+  // The "Next hand" button clears the same state at the source.
+  assert.match(practiceSource,
+    /next\.onclick[\s\S]{0,700}?winningTile = null;[\s\S]{0,200}?winningSeat = null;[\s\S]{0,300}?await g\.startHand\(\)/);
+});
+
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));

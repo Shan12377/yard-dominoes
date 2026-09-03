@@ -1139,6 +1139,9 @@ function practicePlayCallout(g: LocalGame): HTMLElement | null {
 
 function practiceWinCallout(g: LocalGame): HTMLElement | null {
   if (winningSeat === null || !winningTile) return null;
+  // Same staleness as the slam above: once the next hand is live, last hand's
+  // "LAST BONE" banner is not about anything on this felt.
+  if (g.hand?.status === 'active') return null;
   const slot = (['bottom', 'right', 'top', 'left'] as const)[winningSeat];
   const callout = el('div', `table-win-callout table-win-${slot}`, `${g.seatLabel(winningSeat)} · LAST BONE`);
   callout.setAttribute('role', 'status');
@@ -1375,6 +1378,16 @@ function handResult(g: LocalGame): HTMLElement | null {
       // Last hand's gloating and last hand's link must not carry over.
       talk = new Map();
       shareLink = null;
+      // Nor last hand's winning bone, its LAST BONE banner, or a play/pass
+      // marker still inside its 2.5s beat — all of them describe a hand that
+      // is about to stop existing. The renderers guard on hand status too, so
+      // this is belt and braces rather than the only thing standing between a
+      // player and a phantom tile.
+      winningTile = null;
+      winningSeat = null;
+      recentPlayedTile = null;
+      recentPlaySeat = null;
+      recentPassSeat = null;
       sfx.play('shuffle');
       await g.startHand(); render();
     };
@@ -1649,10 +1662,18 @@ function tableView(g: LocalGame): DocumentFragment {
   const cachedBox = lastFeltHasHandRail === handOnFelt ? lastFeltBox : null;
   renderBoard(line, displayBoard, cachedBox ? { box: cachedBox } : {});
   const animateTile = () => {
-    const tile = winningTile ?? recentPlayedTile;
+    // The slam belongs to the hand it won, and only to that hand. `winningTile`
+    // survives into the next deal (startGame clears it, "Next hand" did not),
+    // so without this guard every render of the NEW hand re-dropped the
+    // previous hand's bone onto the felt as a giant hero tile — reported live:
+    // a 6 kept appearing mid-hand that nobody had played. The online table has
+    // always checked the win against the current hand id; this is the same
+    // check, expressed as "the hand is over" since practice has no hand id.
+    const slam = g.hand?.status !== 'active' ? winningTile : null;
+    const tile = slam ?? recentPlayedTile;
     if (!tile) return;
-    if (winningTile) {
-      celebrateWinningTile(winningTile, line, felt);
+    if (slam) {
+      celebrateWinningTile(slam, line, felt);
     } else {
       line.querySelector(`[data-tile="${tile}"]`)?.classList.add('placed-now');
     }
