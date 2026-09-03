@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { DUPPY_PACE_NAMES, duppyThinkSeconds } from '@yard/engine';
 
 const root = new URL('../../../', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
@@ -14,9 +15,16 @@ const view = read('apps/web/src/onlinetableview.ts');
 const clock = read('packages/engine/src/clock.ts');
 
 test('online Duppies take one visible, server-authoritative turn at a time', () => {
-  assert.match(clock, /quick: 3\.5/);
-  assert.match(clock, /yard: 10/);
-  assert.match(clock, /relaxed: 20/);
+  // What matters here is that every pace is a real, visible beat — not the
+  // specific durations, which are tuning and live under test in the engine's
+  // own clock.test.ts. Pinning the literal numbers in this file's source
+  // text only meant a tuning change broke an unrelated wiring test.
+  for (const pace of DUPPY_PACE_NAMES) {
+    const seconds = duppyThinkSeconds(pace);
+    assert.ok(seconds > 0, `${pace} must give the table a visible beat, not move instantly`);
+    assert.ok(seconds <= 60, `${pace} must not let a Duppy hold the table hostage`);
+  }
+  assert.match(clock, /DUPPY_PACE_SECONDS: Record<DuppyPace, number>/);
   assert.match(create, /duppy_pace: duppyPaceByName\(body\.duppyPace\)/);
   assert.match(start, /duppyThinkSeconds\(table\.duppy_pace\)/);
   assert.match(play, /duppyThinkSeconds\(table!\.duppy_pace\)/);

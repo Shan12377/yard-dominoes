@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   afterTurn, allowance, deadline, duppyThinkSeconds, FRESH_BANK, maxBank, SPEED_CLOCK, usedBy, YARD_CLOCK,
+  DEFAULT_DUPPY_PACE, DUPPY_PACE_LABELS, DUPPY_PACE_NAMES, DUPPY_PACE_SECONDS,
 } from '../src/index.ts';
 import type { Clock } from '../src/index.ts';
 
@@ -94,8 +95,32 @@ test('a nonsense clock from a bad table row still plays', () => {
 
 test('Duppy reading paces are bounded choices, never an arbitrary client delay', () => {
   assert.equal(duppyThinkSeconds('quick'), 3.5);
-  assert.equal(duppyThinkSeconds('yard'), 10);
+  assert.equal(duppyThinkSeconds('brisk'), 5);
+  assert.equal(duppyThinkSeconds('yard'), 7.5);
   assert.equal(duppyThinkSeconds('relaxed'), 20);
-  assert.equal(duppyThinkSeconds('tampered'), 10);
-  assert.equal(duppyThinkSeconds(undefined), 10);
+  // Anything unrecognised falls back to the default pace, never to zero —
+  // a tampered value must not let a Duppy move instantly.
+  assert.equal(duppyThinkSeconds('tampered'), 7.5);
+  assert.equal(duppyThinkSeconds(undefined), 7.5);
+  assert.equal(duppyThinkSeconds(''), 7.5);
+  assert.equal(duppyThinkSeconds(0), 7.5);
+});
+
+test('every Duppy pace is listed fastest first and labelled with its real seconds', () => {
+  const seconds = DUPPY_PACE_NAMES.map((name) => DUPPY_PACE_SECONDS[name]);
+  assert.deepEqual(seconds, [...seconds].sort((a, b) => a - b), 'paces must list fastest to slowest');
+
+  // The label is what a player reads before choosing. If it ever disagrees
+  // with the seconds actually served, the picker is lying about the game.
+  for (const name of DUPPY_PACE_NAMES) {
+    assert.match(
+      DUPPY_PACE_LABELS[name],
+      new RegExp(`\\b${DUPPY_PACE_SECONDS[name]} seconds? per move$`),
+      `${name}'s label must state its own duration`,
+    );
+  }
+
+  // The default has to be one of the real choices, or duppyPaceByName's
+  // fallback would resolve to a pace no picker offers.
+  assert.ok(DUPPY_PACE_NAMES.includes(DEFAULT_DUPPY_PACE));
 });

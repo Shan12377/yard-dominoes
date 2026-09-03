@@ -13,6 +13,7 @@ function formatLabel(format: SetFormat): string {
 }
 import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
+import { DUPPY_PACE_LABELS, DUPPY_PACE_NAMES } from '@yard/engine';
 import { LocalGame } from './local.ts';
 import type { DuppyPace } from './local.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
@@ -941,11 +942,12 @@ function lobby(): HTMLElement {
     <option value="don">Don — counts suits out and blocks</option>
     <option value="general">General — reads the whole table</option>`;
 
+  // Built from the engine's own list, never hand-written options — practice
+  // and a live table must offer the identical paces, and a hardcoded copy
+  // here silently kept saying "10 seconds" after the yard pace moved to 7.5.
   const duppyPace = document.createElement('select');
-  duppyPace.innerHTML = `
-    <option value="quick">Quick — 3.5 seconds per move</option>
-    <option value="yard">Yard — 10 seconds per move</option>
-    <option value="relaxed">Relaxed — 20 seconds per move</option>`;
+  duppyPace.innerHTML = DUPPY_PACE_NAMES.map((pace) =>
+    `<option value="${pace}">${DUPPY_PACE_LABELS[pace]}</option>`).join('');
   duppyPace.value = 'yard';
 
   const tournament = document.createElement('select');

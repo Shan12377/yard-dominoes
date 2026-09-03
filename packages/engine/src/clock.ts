@@ -51,19 +51,32 @@ export const CLOCK_NAMES = Object.keys(CLOCKS) as ClockName[];
  * the board, the pass markers, and who laid each tile before the next seat
  * moves. The pace belongs to the table, not to the browser running it.
  */
-export type DuppyPace = 'quick' | 'yard' | 'relaxed';
+export type DuppyPace = 'quick' | 'brisk' | 'yard' | 'relaxed';
 
-/** Named, accessible Duppy reading beats. Clients choose a name; servers
- * resolve the duration, so no one can quietly speed an AI up. */
+/**
+ * Named, accessible Duppy reading beats. Clients choose a name; servers
+ * resolve the duration, so no one can quietly speed an AI up.
+ *
+ * Declaration order is the order every picker lists them in, so these stay
+ * sorted fastest to slowest.
+ *
+ * `yard` is the default, and it was cut from 10s to 7.5s after real players
+ * said a launched table felt slow: three Duppies at 10s each is half a minute
+ * of waiting between your own turns, which reads as the game being stuck
+ * rather than the Duppies thinking. `brisk` was added in the same pass so the
+ * step down from the default isn't straight to 3.5s.
+ */
 export const DUPPY_PACE_SECONDS: Record<DuppyPace, number> = {
   quick: 3.5,
-  yard: 10,
+  brisk: 5,
+  yard: 7.5,
   relaxed: 20,
 };
 
 export const DUPPY_PACE_LABELS: Record<DuppyPace, string> = {
   quick: 'Quick — 3.5 seconds per move',
-  yard: 'Yard — 10 seconds per move',
+  brisk: 'Brisk — 5 seconds per move',
+  yard: 'Yard — 7.5 seconds per move',
   relaxed: 'Relaxed — 20 seconds per move',
 };
 

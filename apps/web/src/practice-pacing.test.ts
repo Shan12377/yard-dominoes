@@ -8,6 +8,7 @@ const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('practice Duppies never move faster than 3.5 seconds and pause for the final bone', () => {
   assert.match(localSource, /quick: DUPPY_PACE_SECONDS\.quick \* 1_000/);
+  assert.match(localSource, /brisk: DUPPY_PACE_SECONDS\.brisk \* 1_000/);
   assert.match(localSource, /yard: DUPPY_PACE_SECONDS\.yard \* 1_000/);
   assert.match(localSource, /relaxed: DUPPY_PACE_SECONDS\.relaxed \* 1_000/);
   assert.match(localSource, /DUPPY_PACE_MS\[this\.options\.duppyPace\]/);
@@ -16,11 +17,21 @@ test('practice Duppies never move faster than 3.5 seconds and pause for the fina
     /setTimeout\(r, DUPPY_LAST_BONE_PAUSE_MS\)[\s\S]*?this\.finishHand\(\);/);
 });
 
-test('practice exposes the same three Duppy paces as a live table', () => {
-  assert.match(practiceSource, /Quick — 3\.5 seconds per move/);
-  assert.match(practiceSource, /Yard — 10 seconds per move/);
-  assert.match(practiceSource, /Relaxed — 20 seconds per move/);
+test('practice exposes the same Duppy paces as a live table, from the same source', () => {
+  // Both pickers build their options from the engine's list rather than
+  // hand-written <option> tags. Practice previously hardcoded them and went
+  // stale the moment a pace changed, so assert the generation itself: a
+  // literal seconds string in either file is the bug coming back.
+  const generated = /DUPPY_PACE_NAMES\.map\(\(pace\) =>\s*`<option value="\$\{pace\}">\$\{DUPPY_PACE_LABELS\[pace\]\}<\/option>`\)/;
+  assert.match(practiceSource, generated);
+  assert.match(onlineTableSource, generated);
+  // Not "no hardcoded <option> anywhere" — the Duppy *level* picker beside
+  // this one legitimately hardcodes its own, and one of its values is also
+  // called "yard". The drift risk is specifically a pace duration written
+  // out by hand, so that is what must never reappear.
+  assert.doesNotMatch(practiceSource, /seconds? per move/);
   assert.match(practiceSource, /duppyPace\.value = 'yard'/);
+  assert.match(onlineTableSource, /duppyPace\.value = 'yard'/);
 });
 
 test('practice Duppies sit visibly at their physical table edges', () => {

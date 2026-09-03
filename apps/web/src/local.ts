@@ -49,6 +49,7 @@ export interface HandFairness {
  */
 export const DUPPY_PACE_MS: Record<DuppyPace, number> = {
   quick: DUPPY_PACE_SECONDS.quick * 1_000,
+  brisk: DUPPY_PACE_SECONDS.brisk * 1_000,
   yard: DUPPY_PACE_SECONDS.yard * 1_000,
   relaxed: DUPPY_PACE_SECONDS.relaxed * 1_000,
 };
