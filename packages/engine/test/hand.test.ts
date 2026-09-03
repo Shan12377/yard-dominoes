@@ -172,7 +172,10 @@ describe('opening the hand', () => {
     assert.deepEqual(moves[0], { kind: 'pose', seat: h.poser, tile: DOUBLE_SIX });
   });
 
-  test('casual play lets the opener go sporting with any tile', async () => {
+  // Not "casual play" — a set's first hand always forces the six now, casual
+  // included. This is the unforced open every LATER hand gets, where the
+  // previous winner poses whatever he likes.
+  test('an open that is not forced lets the poser lead any tile in hand', async () => {
     const order = await provablyFairShuffle({ serverSeed: 's', clientSeeds: ['a'], handId: 'h' });
     const h = deal({
       order, seatCount: 4, mode: 'partner', useBoneyard: false, poseMustBeDoubleSix: false,

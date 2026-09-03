@@ -23,11 +23,14 @@ export function createSet(options: Partial<SetOptions> = {}): SetState {
     scores: new Array(sideCount(opts.seatCount, opts.mode)).fill(0),
     handValue: 1,
     poser: 0,
-    // The opening hand of every set is opened by the required opening tile's
-    // holder (6-6 outside French, 0-0 inside it). In tournament play or
-    // French round 1 he must actually LEAD it; in casual non-French play he
-    // may declare "sporting" and open with any tile instead.
-    poseMustBeDoubleSix: opts.tournament || french,
+    // The opening hand of EVERY set is opened by the required opening tile's
+    // holder (6-6 outside French, 0-0 inside it), and he must actually LEAD
+    // it — casual tables included. Sporting is real Jamaican vocabulary and
+    // stays in the Academy, but it does not open a set here: confirmed as a
+    // house rule after casual tables were seen posing anything to start.
+    // Later hands are opened by the previous winner, who poses what he likes;
+    // a bruk or a tied replay puts the six back on the open (see below).
+    poseMustBeDoubleSix: true,
     playoff: false,
     handsPlayed: 0,
     winnerSide: null,

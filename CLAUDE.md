@@ -125,8 +125,18 @@ Jamaican players notice these immediately. All are covered by tests.
   and the winning team can hold more pips overall.
 - **Play is anti-clockwise.** Seats are numbered in play order, so seat+1 is
   the player to your physical right and partners land opposite automatically.
-- **Tournament forces the 6-6 to be LED**, not merely held. Casual allows
-  "sporting" — opening with any tile.
+- **Every set opens on the 6-6, LED, casual tables included** — the holder of
+  the six opens, and the six is the only legal first move. Confirmed as a house
+  rule 2026-09-03 after casual tables were seen posing anything to start.
+  "Sporting" (declaring you'll open with another bone) stays in the Academy as
+  real yard vocabulary, but it never opens a set here. `createSet` hardcodes
+  `poseMustBeDoubleSix: true` and `start-hand` inserts the set flag the same
+  way — do not make either conditional on `tournament`, because the lounge's
+  create-table form never sends that field, so every online table is casual and
+  a conditional would mean no online set ever forces the six. What `tournament`
+  still changes is the hands AFTER the first: casual gives them to the previous
+  winner to pose freely, tournament keeps forcing the six every hand. French is
+  the same rule with the chucha (0-0) as its opening tile.
 - **A win by the side under love BRUKS the score to 0-0.** They do not score
   one. Under six love only one side can hold points at a time.
 - **Tied blocked hands replay at a flat 2 points, double-six forced.** The

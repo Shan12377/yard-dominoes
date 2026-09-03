@@ -83,7 +83,7 @@ export const BELTS: Belt[] = [
       },
       {
         id: 'B2L2', title: 'The pose',
-        body: 'The first hand of a set is opened by whoever holds the double six. Opening is called posing. In a friendly game he can say he is sporting and open with something else; in tournament play he must lay the six.',
+        body: 'The first hand of a set is opened by whoever holds the double six, and he lays it. Opening is called posing. Some yards let a friendly game go sporting, where the poser says so and opens with another bone instead — here a set always starts on the six. After that first hand the winner poses, and he can lead whatever he likes.',
         terms: ['pose', 'sporting'],
       },
       {

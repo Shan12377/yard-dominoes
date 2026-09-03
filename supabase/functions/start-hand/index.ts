@@ -37,14 +37,13 @@ Deno.serve(handled(async (req) => {
     const { data } = await db.from('sets').insert({
       table_id: tableId,
       scores: new Array(sides).fill(0),
-      // Mirrors the engine's createSet (`opts.tournament || french`), which is
-      // what practice already does. A blanket `true` here forced the six to be
-      // LED on the first hand of every online set including casual ones, where
-      // the rule is that the six's holder opens but may go "sporting" and lead
-      // another bone — the `|| table.tournament` at the deal below only means
-      // anything if this can be false. French still needs true: its round 1
-      // forces the chucha through this same flag.
-      pose_must_be_double_six: table.tournament || table.format === 'french',
+      // Always true, matching the engine's createSet: the first hand of every
+      // set opens with the required tile LED (6-6, or French's chucha), on
+      // casual tables too. This matters most online, because the lounge's
+      // create-table form never sends `tournament` — every online table is
+      // casual, so anything conditional on that flag would mean no online set
+      // ever forced the six.
+      pose_must_be_double_six: true,
     }).select().single();
     set = data;
   }

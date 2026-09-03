@@ -952,8 +952,12 @@ function lobby(): HTMLElement {
 
   const tournament = document.createElement('select');
   tournament.dataset.tour = 'rules';
-  tournament.innerHTML = `<option value="0">Casual — sporting allowed</option>
-                          <option value="1">Tournament — must lead the six</option>`;
+  // Every set opens on the six now, casual included, so "sporting allowed" was
+  // no longer true of either option. What still differs is the hands AFTER the
+  // first: casual hands them to the previous winner to pose as he likes,
+  // tournament keeps forcing the six every single hand.
+  tournament.innerHTML = `<option value="0">Casual — six opens, then winner poses</option>
+                          <option value="1">Tournament — six opens every hand</option>`;
 
   for (const [label, control] of [
     ['Game', mode], ['Duppies', duppy], ['Duppy pace', duppyPace], ['Rules', tournament],

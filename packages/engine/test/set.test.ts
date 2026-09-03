@@ -40,18 +40,21 @@ describe('six love', () => {
     assert.equal(s.sixLove, true, 'six straight with the opponent under love');
   });
 
-  test('the double-six holder opens the first hand of a set, casual included', async () => {
-    // Real rule (pagat, gamerules): for the first round the 6-6 HOLDER starts.
-    // Tournament forces him to actually lead it; casual lets him go "sporting"
-    // and lead another bone. What casual never means is somebody else opening.
+  test('the six opens the first hand of every set and must be LED, casual included', async () => {
+    // House rule: a set always starts on the double six, led, whatever the
+    // table's casual/tournament setting says. Two things had to be true for
+    // that to hold, and each was separately broken once:
     //
-    // The callers decide this by choosing what to pass deal() as `poser`, and
-    // both used to pass set.poser ("the previous winner opens") on hand one —
-    // where there is no previous winner — handing every casual set's open to
-    // seat 0 whoever actually held the six. This pins the caller's rule.
+    //   1. The 6-6's holder opens — not seat 0. The callers used to pass
+    //      set.poser ("the previous winner opens") on hand one, where there
+    //      is no previous winner, so the open fell to seat 0 whoever held it.
+    //   2. He must LEAD it, not merely hold it. createSet only forced that
+    //      for tournament tables, and the lounge never sends `tournament` at
+    //      all — so no online set forced the six.
     for (const tournament of [false, true]) {
       const s = createSet({ mode: 'cutthroat', format: 'firstToSix', seatCount: 4, tournament });
       assert.equal(s.handsPlayed, 0);
+      assert.equal(s.poseMustBeDoubleSix, true, 'a fresh set always opens on the six');
 
       for (let i = 0; i < 25; i++) {
         const order = await provablyFairShuffle({
@@ -70,14 +73,33 @@ describe('six love', () => {
           h.hands[h.poser].includes('6-6'),
           `${tournament ? 'tournament' : 'casual'}: seat ${h.poser} opened without holding the six`,
         );
-        const moves = legalMoves(h);
-        if (tournament) {
-          assert.deepEqual(moves, [{ kind: 'pose', seat: h.poser, tile: '6-6' }],
-            'tournament must LEAD the six, not merely hold it');
-        } else {
-          assert.equal(moves.length, 7, 'casual may go sporting with any bone in hand');
-        }
+        assert.deepEqual(legalMoves(h), [{ kind: 'pose', seat: h.poser, tile: '6-6' }],
+          `${tournament ? 'tournament' : 'casual'}: the six must be led, no sporting to open a set`);
       }
+    }
+  });
+
+  test('French opens its first hand on the chucha, not the six', async () => {
+    // The same always-forced flag drives French, where the opening tile is
+    // the double blank. Forcing the six there would break the chucha rule.
+    const s = createSet({ format: 'french' });
+    assert.equal(s.poseMustBeDoubleSix, true);
+    for (let i = 0; i < 15; i++) {
+      const order = await provablyFairShuffle({
+        serverSeed: `fr-${i}`, clientSeeds: ['c'], handId: `h${i}`,
+      });
+      const h = deal({
+        order,
+        seatCount: 4,
+        mode: 'cutthroat',
+        useBoneyard: false,
+        poser: undefined,
+        poseMustBeDoubleSix: true,
+        openingTile: '0-0',
+        format: 'french',
+      });
+      assert.ok(h.hands[h.poser].includes('0-0'), 'the chucha holder opens French');
+      assert.deepEqual(legalMoves(h), [{ kind: 'pose', seat: h.poser, tile: '0-0' }]);
     }
   });
 
