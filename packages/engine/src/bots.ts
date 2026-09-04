@@ -299,7 +299,7 @@ function partnerSeat(view: PublicView): number | null {
   return partnerSeatOf(view.seat, view.seatCount, view.mode);
 }
 
-function partnerSeatOf(seat: number, seatCount: number, mode: GameMode): number | null {
+export function partnerSeatOf(seat: number, seatCount: number, mode: GameMode): number | null {
   if (!isPartnered(mode)) return null;
   for (let s = 0; s < seatCount; s++) {
     if (s !== seat && sideOf(s, mode) === sideOf(seat, mode)) return s;
@@ -324,30 +324,71 @@ const WEIGHTS: Record<Exclude<DuppyLevel, 'pickney'>, Weights> = {
   general: { shedPips: 0.7, control: 1.5, blockOpponents: 3.0, feedPartner: 2.5, exhaustion: 2.0, goOut: 50, holdDouble: 0.5 },
 };
 
-/** Heuristic value of a candidate move. Higher is better. */
-export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLevel, 'pickney'>): number {
-  const w = WEIGHTS[level];
-  if (move.kind === 'pass' || move.kind === 'draw') return -1000;
+/**
+ * Why a move scores what it scores, one signed contribution per idea.
+ *
+ * Split out of `scoreMove` so a coach can say WHICH consideration decided a
+ * move rather than quoting a bare number at a player. The sum is the score;
+ * `scoreMove` is literally that sum, so the bots and any explanation of them
+ * can never drift apart.
+ *
+ * Each field maps to counsel Jamaican players give directly: shed the heavy
+ * ones before the board blocks, keep an end you can still answer, block the
+ * other side into a pass, and never strand your partner.
+ */
+export interface MoveFactors {
+  /** Playing my last bone ends the hand. Nothing outranks it. */
+  goOut: number;
+  /** Heavy bones are a liability once the board blocks. */
+  shedPips: number;
+  /** Can I still answer the ends I am about to leave? */
+  control: number;
+  /** A double exposes its own suit without advancing the board. */
+  holdDouble: number;
+  /** Leaving an end an opponent has already passed on forces a pass. */
+  blockOpponents: number;
+  /** Negative: leaving an end my partner passed on strands him. */
+  feedPartner: number;
+  /** That suit is spent and I hold what is left, so the end is mine. */
+  exhaustion: number;
+}
 
-  let score = 0;
+const NO_FACTORS: MoveFactors = {
+  goOut: 0, shedPips: 0, control: 0, holdDouble: 0,
+  blockOpponents: 0, feedPartner: 0, exhaustion: 0,
+};
+
+export function factorTotal(f: MoveFactors): number {
+  return f.goOut + f.shedPips + f.control + f.holdDouble
+    + f.blockOpponents + f.feedPartner + f.exhaustion;
+}
+
+/** The breakdown behind `scoreMove`. Passing and drawing have no breakdown. */
+export function scoreFactors(
+  view: PublicView, move: Move, level: Exclude<DuppyLevel, 'pickney'>,
+): MoveFactors {
+  const w = WEIGHTS[level];
+  if (move.kind === 'pass' || move.kind === 'draw') return { ...NO_FACTORS };
+
+  const f: MoveFactors = { ...NO_FACTORS };
   const tile = move.tile;
 
   // Going out ends the hand in my favour. Nothing outranks it.
-  if (view.myHand.length === 1) score += w.goOut;
+  if (view.myHand.length === 1) f.goOut += w.goOut;
 
   // Heavy tiles are a liability if the board blocks.
-  score += tileCount(tile) * w.shedPips * 0.1;
+  f.shedPips += tileCount(tile) * w.shedPips * 0.1;
 
   const ends = endsAfter(view.board, move, view.format);
   const remaining = view.myHand.filter((t) => t !== tile);
   const strength = suitStrength(remaining);
 
   // Suit control: can I answer the board I am about to leave?
-  for (const end of ends) score += strength[end] * w.control;
+  for (const end of ends) f.control += strength[end] * w.control;
 
   // A double leaves its own suit exposed, so it does not advance the board.
   // Worth holding while I still control that suit.
-  if (isDouble(tile) && ends.length > 0 && strength[ends[0]] > 0) score -= w.holdDouble;
+  if (isDouble(tile) && ends.length > 0 && strength[ends[0]] > 0) f.holdDouble -= w.holdDouble;
 
   if (w.blockOpponents > 0 || w.feedPartner > 0) {
     const voids = voidsFromLog(view);
@@ -356,25 +397,34 @@ export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLeve
 
     // Leaving ends my opponents are void in forces passes.
     for (const opp of opps) {
-      for (const end of ends) if (voids[opp].has(end)) score += w.blockOpponents;
+      for (const end of ends) if (voids[opp].has(end)) f.blockOpponents += w.blockOpponents;
     }
     // Leaving ends my partner is void in strands him.
     if (mate !== null) {
-      for (const end of ends) if (voids[mate].has(end)) score -= w.feedPartner;
+      for (const end of ends) if (voids[mate].has(end)) f.feedPartner -= w.feedPartner;
     }
   }
 
   if (w.exhaustion > 0) {
-    // Seven tiles carry each suit. If I can see six of them and hold the rest,
-    // that suit is mine — leaving it open is safe and strands everyone else.
+    // If every copy of a suit but the ones I hold is already visible, that
+    // suit is mine — leaving it open is safe and strands everyone else.
+    // Counted through unaccountedFor, not `7 - seen`: at three seats the
+    // double-blank is not in play, so blanks only ever have six copies.
     const seen = suitsSeen(view);
     for (const end of ends) {
-      const unseen = 7 - seen[end];
-      if (unseen <= 1 && strength[end] > 0) score += w.exhaustion;
+      if (unaccountedFor(end, seen[end], view.seatCount) <= 1 && strength[end] > 0) {
+        f.exhaustion += w.exhaustion;
+      }
     }
   }
 
-  return score;
+  return f;
+}
+
+/** Heuristic value of a candidate move. Higher is better. */
+export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLevel, 'pickney'>): number {
+  if (move.kind === 'pass' || move.kind === 'draw') return -1000;
+  return factorTotal(scoreFactors(view, move, level));
 }
 
 /**

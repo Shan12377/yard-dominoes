@@ -1,8 +1,9 @@
 import {
   BELTS, lessonByRef, knownVoids, duppyLine, halves, TALK_CHANCE, DUPPY_LABELS,
   EMPTY_LEAKS, recordHand, standoutLeak, describeLeak, isPartnered, sideOf,
-  publicView, readTable, outlookFor, couldHold,
+  publicView, readTable, outlookFor, couldHold, adviseMoves, doubleRisks,
 } from '@yard/engine';
+import type { MoveAdvice, TableRead } from '@yard/engine';
 
 function formatLabel(format: SetFormat): string {
   switch (format) {
@@ -1296,35 +1297,131 @@ function tableReader(g: LocalGame): HTMLElement | null {
     panel.append(list);
   }
 
-  // --- what your own moves would force ------------------------------------
-  // Only the moves that actually force something. "Nothing forced" printed
-  // seven times is noise, and noise is what stops a panel being read.
-  if (g.isMyTurn()) {
-    const forcing: string[] = [];
-    for (const move of g.legal()) {
-      if (move.kind === 'pass' || !('tile' in move)) continue;
-      const outlook = outlookFor(view, move);
-      if (outlook.forcedPasses.length === 0) continue;
-      const who = outlook.forcedPasses.map((s) => g.seatLabel(s)).join(' and ');
-      forcing.push(outlook.comesBackToMe
-        ? `${move.tile} leaves ${outlook.endsAfter.join(' and ')} — nobody else can answer, so it comes straight back to you.`
-        : `${move.tile} leaves ${outlook.endsAfter.join(' and ')} — ${who} would have to pass.`);
+  // --- doubles about to die in your hand ----------------------------------
+  // Ranked above the play advice on purpose: a stranded double is the mistake
+  // that costs a hand you were otherwise winning, and by the time it is dead
+  // there is nothing to be done. Jamaican blocked hands go to the lowest
+  // INDIVIDUAL count, so 6-6 stuck in your hand is twelve pips with nobody to
+  // share them.
+  const risks = doubleRisks(view);
+  if (risks.length > 0) {
+    panel.append(el('div', 'eyebrow', 'Watch your doubles'));
+    const list = document.createElement('ul');
+    list.className = 'reader-doubles';
+    for (const risk of risks) {
+      const line = risk.dead
+        ? `${risk.tile} is dead — every other ${risk.pip} is down and the end is shut. ${risk.pips} pips against you if the board blocks.`
+        : risk.openNow
+          ? `${risk.tile} can go down NOW. Only ${risk.othersOut} more ${risk.pip}${risk.othersOut === 1 ? '' : 's'} left to open that end again — put it down while you can.`
+          : `${risk.tile} is stuck until somebody opens a ${risk.pip}, and only ${risk.othersOut} ${risk.othersOut === 1 ? 'is' : 'are'} left to do it.`;
+      const li = el('li', risk.dead ? 'dead' : risk.openNow ? 'urgent' : undefined, line);
+      list.append(li);
     }
-    panel.append(el('div', 'eyebrow', 'If you play'));
-    if (forcing.length === 0) {
-      panel.append(el('p', 'muted small',
-        'Nothing you can play right now forces anybody to pass — on what the passes have proven so far.'));
-    } else {
-      const list = document.createElement('ul');
-      list.className = 'reader-forcing';
-      for (const line of forcing) list.append(el('li', undefined, line));
-      panel.append(list);
+    panel.append(list);
+  }
+
+  // --- what to play -------------------------------------------------------
+  // The recommendation, not a hint. Ranked by the same scoring the strongest
+  // duppy uses, so following it plays at that tier.
+  if (g.isMyTurn()) {
+    const advice = adviseMoves(view, g.legal());
+    if (advice.length > 0) {
+      const best = advice[0];
+      panel.append(el('div', 'eyebrow', 'Play this'));
+
+      const pick = el('div', 'reader-pick');
+      pick.append(tileEl(best.tile));
+      const why = el('div', 'reader-why');
+      why.append(el('strong', undefined, best.tile));
+      for (const reason of reasonsFor(best, g, read)) {
+        why.append(el('span', 'reader-reason', reason));
+      }
+      pick.append(why);
+      panel.append(pick);
+
+      // "vs that" — the runners-up, and specifically what is wrong with them.
+      const rest = advice.slice(1, 4);
+      if (rest.length > 0) {
+        panel.append(el('div', 'eyebrow', 'Not these'));
+        const list = document.createElement('ul');
+        list.className = 'reader-alternatives';
+        for (const alt of rest) {
+          const against = drawbacksOf(alt, g);
+          list.append(el('li', undefined,
+            `${alt.tile} — ${against.length ? against.join('; ') : 'playable, just weaker here'}.`));
+        }
+        panel.append(list);
+      }
     }
   }
 
   panel.append(el('p', 'muted small reader-footnote',
-    'Counted from the board, your own hand, and who passed on what — the same view the duppies get. Never from their tiles.'));
+    'Counted from the board, your own hand, and who passed on what — the same view the duppies get. '
+    + 'Never from their tiles. Jamaican rules forbid talking or signs, so reading the bones IS the skill.'));
   return panel;
+}
+
+/**
+ * Why the recommended bone is the recommended bone, strongest reason first.
+ *
+ * Note what is NOT here: forcing your own partner to pass. `forcedPasses`
+ * counts every other seat, mate included, and in Partner blocking him loses
+ * hands — the engine scores it negatively via feedPartner and the copy must
+ * not contradict that by selling it as an upside.
+ */
+function reasonsFor(a: MoveAdvice, g: LocalGame, read: TableRead): string[] {
+  const out: string[] = [];
+  if (a.goesOut) out.push('This is your last bone — it ends the hand.');
+  if (a.comesBackToMe) {
+    out.push(`Leaves ${a.endsAfter.join(' and ')} and nobody else can answer — it comes straight back to you.`);
+  } else if (a.forcesOpponents.length > 0) {
+    out.push(`${a.forcesOpponents.map((s) => g.seatLabel(s)).join(' and ')} would have to pass.`);
+  }
+  if (a.unloadsDouble) out.push(`Gets ${a.unloadsDouble} down before that suit closes.`);
+  if (a.factors.exhaustion > 0) {
+    out.push('That suit is spent and you hold what is left — the end is yours.');
+  }
+  if (a.opensNew.length === 0 && a.cannotAnswer.length === 0) {
+    out.push(`Leaves ${a.endsAfter.join(' and ')} — opens nothing new, and you can answer both.`);
+  } else if (a.cannotAnswer.length === 0) {
+    out.push(`Opens ${a.opensNew.join(' and ')}, and you can still answer it.`);
+  }
+  if (a.pipsShed >= 9) out.push(`Sheds ${a.pipsShed} pips before the board can block.`);
+
+  if (out.length === 0) {
+    // The ordinary case, which is most of them. Say something true and useful
+    // rather than "best of what you have", which told a player nothing and is
+    // what made the old panel read as noise.
+    const strongest = [...read.suits]
+      .filter((s) => a.endsAfter.includes(s.pip))
+      .sort((x, y) => y.mine - x.mine)[0];
+    if (a.cannotAnswer.length > 0) {
+      out.push(`Nothing here is clean — this leaves ${a.cannotAnswer.join(' and ')} you cannot answer, but it costs least.`);
+    } else if (strongest && strongest.mine > 0) {
+      out.push(`Keeps a ${strongest.pip} end, where you still hold ${strongest.mine}.`);
+    } else {
+      out.push(`Leaves ${a.endsAfter.join(' and ')}, and sheds ${a.pipsShed} pips.`);
+    }
+  }
+  return out;
+}
+
+/** What is actually wrong with a move, so "not this" teaches something. */
+function drawbacksOf(a: MoveAdvice, g: LocalGame): string[] {
+  const out: string[] = [];
+  if (a.strandsPartner.length > 0) {
+    out.push(`strands your partner, who passed on ${a.strandsPartner.join(' and ')}`);
+  }
+  if (a.cannotAnswer.length > 0) {
+    out.push(`leaves ${a.cannotAnswer.join(' and ')} you cannot answer`);
+  }
+  if (a.opensNew.length > 0 && a.cannotAnswer.length === 0) {
+    out.push(`opens ${a.opensNew.join(' and ')} for everyone else`);
+  }
+  if (a.forcesOpponents.length === 0 && a.factors.blockOpponents === 0) {
+    out.push('forces nobody to pass');
+  }
+  return out.slice(0, 2);
 }
 
 function myHand(g: LocalGame): HTMLElement {

@@ -36,13 +36,18 @@
  */
 
 import { openEnds } from './hand.ts';
-import { tilesCarrying, unaccountedFor } from './tiles.ts';
+import { tileCount, tilesCarrying, unaccountedFor } from './tiles.ts';
 import {
   deadDoubles,
   endsAfter,
+  factorTotal,
+  partnerSeatOf,
+  scoreFactors,
   suitStrength,
   suitsSeen,
   voidsFromLog,
+  type DuppyLevel,
+  type MoveFactors,
   type PublicView,
 } from './bots.ts';
 import type { Move, Pip, TileId } from './types.ts';
@@ -188,6 +193,70 @@ export function outlookFor(view: PublicView, move: Move): MoveOutlook {
 }
 
 /**
+ * A double in my hand that is running out of chances to go down.
+ *
+ * Jamaican players warn about this one constantly: hold the 6-6 while the
+ * other sixes get played out and it is stranded — unplayable, and twelve pips
+ * against you when the board blocks, where the count that decides it is the
+ * LOWEST INDIVIDUAL hand, not the team's. The engine already has
+ * `deadDoubles` for one that is beyond saving; this is the warning that comes
+ * before it, while there is still something to be done.
+ */
+export interface DoubleRisk {
+  tile: TileId;
+  pip: Pip;
+  /** Pips it costs me if the board blocks with it still in my hand. */
+  pips: number;
+  /** Other tiles carrying this suit still unaccounted for anywhere. */
+  othersOut: number;
+  /** That suit is an open end right now, so it can go down this turn. */
+  openNow: boolean;
+  /** Nothing left to open it and it is not open now — already stranded. */
+  dead: boolean;
+  /**
+   * Every remaining copy is with seats that could still play it. Empty when
+   * nobody who could open the suit is left holding one.
+   */
+  couldOpenIt: number[];
+}
+
+/**
+ * Doubles I hold whose suit is thinning out, worst first.
+ *
+ * "Thinning" is deliberately generous — a double with two copies of its suit
+ * still out is already worth thinking about, because both could land in the
+ * same turn and then it is too late to do anything.
+ */
+export function doubleRisks(view: PublicView): DoubleRisk[] {
+  const seen = suitsSeen(view);
+  const open = new Set(view.board ? openEnds(view.board) : []);
+  const read = readTable(view);
+  const risks: DoubleRisk[] = [];
+
+  for (const tile of view.myHand) {
+    const [a, b] = tile.split('-').map(Number) as [Pip, Pip];
+    if (a !== b) continue;
+    // My own double is one of the copies I can see, so the others still out
+    // are whatever is unaccounted for.
+    const othersOut = unaccountedFor(a, seen[a], view.seatCount);
+    const openNow = open.has(a);
+    if (!openNow && othersOut > 2) continue; // plenty of chances left
+    risks.push({
+      tile,
+      pip: a,
+      pips: a * 2,
+      othersOut,
+      openNow,
+      dead: !openNow && othersOut === 0,
+      couldOpenIt: couldHold(a, read),
+    });
+  }
+  // Worst first: stranded, then heaviest, then thinnest suit.
+  return risks.sort((x, y) =>
+    Number(y.dead) - Number(x.dead) || y.pips - x.pips || x.othersOut - y.othersOut);
+}
+
+/**
  * The seats that could still be holding a given suit: not proven void in it,
  * and still holding tiles.
  *
@@ -205,4 +274,99 @@ export function couldHold(pip: Pip, read: TableRead): number[] {
   return read.seats
     .filter((s) => s.handSize > 0 && !s.voids.includes(pip))
     .map((s) => s.seat);
+}
+
+/** One candidate play, ranked, with everything needed to say why. */
+export interface MoveAdvice {
+  move: Move;
+  tile: TileId;
+  /** Higher is better. The duppies' own scoring, so advice and bots agree. */
+  score: number;
+  factors: MoveFactors;
+  endsAfter: Pip[];
+  /**
+   * Suits this move puts on the board that were not open before — "putting
+   * out a new number". Cheap when you can answer it, dangerous when you
+   * cannot: it hands everybody else a fresh way in.
+   */
+  opensNew: Pip[];
+  /** Ends I would leave that I hold nothing for, having played this tile. */
+  cannotAnswer: Pip[];
+  /** Every other seat provably unable to answer any resulting end. */
+  forcedPasses: number[];
+  /**
+   * The same, minus your own partner.
+   *
+   * This is the one worth boasting about. `forcedPasses` counts everybody, and
+   * in Partner that includes your mate — blocking him is a mistake, not an
+   * achievement, which is why `feedPartner` scores it negatively. Never present
+   * a stranded partner as a reason to play something.
+   */
+  forcesOpponents: number[];
+  /** Every other seat is stuck, so the board returns to me untouched. */
+  comesBackToMe: boolean;
+  /** Ends I would leave that my own partner has already passed on. */
+  strandsPartner: Pip[];
+  /** This play is my last bone — it ends the hand. */
+  goesOut: boolean;
+  /** Pips this gets off my hand before the board can block. */
+  pipsShed: number;
+  /** An at-risk double this play unloads, if any. */
+  unloadsDouble: TileId | null;
+}
+
+/**
+ * Every legal play, best first, with the reasoning attached.
+ *
+ * Ranked by the duppies' own `scoreMove` at the tier given, so the advice a
+ * player gets is the same reasoning the strongest duppy uses — take its
+ * suggestion every time and you play at that tier. Defaults to `general`.
+ *
+ * Deliberately the heuristic rather than `chooseMove`'s sampler: the sampler
+ * returns a win rate and no reason, and a number a player cannot interrogate
+ * teaches nothing and cannot be argued with. This one can always say why.
+ *
+ * The caller supplies its own legal moves — see `outlookFor` for why this file
+ * refuses to build a HandState to enumerate them.
+ */
+export function adviseMoves(
+  view: PublicView,
+  legal: Move[],
+  level: Exclude<DuppyLevel, 'pickney'> = 'general',
+): MoveAdvice[] {
+  const before = new Set(view.board ? openEnds(view.board) : []);
+  const voids = voidsFromLog(view);
+  const mate = partnerSeatOf(view.seat, view.seatCount, view.mode);
+  const atRisk = new Set(doubleRisks(view).filter((r) => r.openNow).map((r) => r.tile));
+
+  const advice: MoveAdvice[] = [];
+  for (const move of legal) {
+    if (move.kind === 'pass' || move.kind === 'draw' || !('tile' in move)) continue;
+    const tile = move.tile;
+    const outlook = outlookFor(view, move);
+    const remaining = view.myHand.filter((t) => t !== tile);
+    const strength = suitStrength(remaining);
+    const factors = scoreFactors(view, move, level);
+
+    advice.push({
+      move,
+      tile,
+      score: factorTotal(factors),
+      factors,
+      endsAfter: outlook.endsAfter,
+      opensNew: outlook.endsAfter.filter((e) => !before.has(e)),
+      cannotAnswer: outlook.endsAfter.filter((e) => strength[e] === 0),
+      forcedPasses: outlook.forcedPasses,
+      forcesOpponents: outlook.forcedPasses.filter((s) => s !== mate),
+      comesBackToMe: outlook.comesBackToMe,
+      strandsPartner: mate === null
+        ? []
+        : outlook.endsAfter.filter((e) => voids[mate].has(e)),
+      goesOut: view.myHand.length === 1,
+      pipsShed: tileCount(tile),
+      unloadsDouble: atRisk.has(tile) ? tile : null,
+    });
+  }
+
+  return advice.sort((a, b) => b.score - a.score);
 }

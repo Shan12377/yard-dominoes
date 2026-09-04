@@ -1,9 +1,9 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { readTable, outlookFor, couldHold } from '../src/read.ts';
+import { readTable, outlookFor, couldHold, adviseMoves, doubleRisks } from '../src/read.ts';
 import { tilesCarrying, dealPlan } from '../src/tiles.ts';
-import { publicView } from '../src/bots.ts';
+import { publicView, scoreMove } from '../src/bots.ts';
 import { deal, legalMoves, applyMove, openEnds } from '../src/hand.ts';
 import { provablyFairShuffle } from '../src/shuffle.ts';
 import type { HandState, Move } from '../src/types.ts';
@@ -144,6 +144,164 @@ describe('the live coach reads only what the table shows', () => {
         assert.ok(r.handSize > 0, 'a seat with no tiles holds nothing');
       }
     }
+  });
+});
+
+describe('advice — best to play this, not that', () => {
+  test('the ranking agrees with the duppies own scoring, so advice and bots never diverge', async () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      for (const plies of [1, 7, 15]) {
+        const s = playForward(await freshHand(seed), plies);
+        if (s.status !== 'active') continue;
+        const view = publicView(s, s.turn);
+        const advice = adviseMoves(view, legalMoves(s).filter((m) => m.seat === s.turn));
+        if (advice.length < 2) continue;
+        // Sorted best first...
+        for (let i = 1; i < advice.length; i++) {
+          assert.ok(advice[i - 1].score >= advice[i].score, 'advice is not sorted best first');
+        }
+        // ...and every score is exactly what scoreMove would say.
+        for (const a of advice) {
+          assert.equal(a.score, scoreMove(view, a.move, 'general'),
+            'advice score diverged from the bots own scoring');
+          checked++;
+        }
+      }
+    }
+    assert.ok(checked > 30, `only ${checked} moves ranked — fixture too thin`);
+  });
+
+  test('your own partner is never counted as an opponent you forced to pass', async () => {
+    // Blocking your mate loses hands — feedPartner scores it negatively — so
+    // forcesOpponents must exclude him even though forcedPasses counts him.
+    // Presenting a stranded partner as an upside was a real copy bug.
+    let sawPartnerStuck = false;
+    for (let seed = 1; seed <= 30; seed++) {
+      for (const plies of [9, 17, 25, 33]) {
+        const s = playForward(await freshHand(seed), plies);
+        if (s.status !== 'active') continue;
+        const view = publicView(s, s.turn);
+        const mate = s.turn ^ 2; // partner sits opposite at a four-hander
+        for (const a of adviseMoves(view, legalMoves(s).filter((m) => m.seat === s.turn))) {
+          assert.ok(!a.forcesOpponents.includes(mate),
+            'the partner seat must never appear in forcesOpponents');
+          if (a.forcedPasses.includes(mate)) {
+            sawPartnerStuck = true;
+            assert.equal(a.forcesOpponents.length, a.forcedPasses.length - 1,
+              'exactly the partner should have been filtered out');
+          } else {
+            assert.equal(a.forcesOpponents.length, a.forcedPasses.length);
+          }
+        }
+      }
+    }
+    assert.ok(sawPartnerStuck, 'never hit a position stranding the partner — test proves nothing');
+  });
+
+  test('opensNew names only suits that were not already on an end', async () => {
+    for (let seed = 1; seed <= 8; seed++) {
+      const s = playForward(await freshHand(seed), 11);
+      if (s.status !== 'active' || !s.board) continue;
+      const view = publicView(s, s.turn);
+      const before = new Set(openEnds(s.board));
+      for (const a of adviseMoves(view, legalMoves(s).filter((m) => m.seat === s.turn))) {
+        for (const pip of a.opensNew) {
+          assert.ok(!before.has(pip), `${pip} was already open, so it is not newly opened`);
+          assert.ok(a.endsAfter.includes(pip), 'a newly opened suit must be on an end afterwards');
+        }
+      }
+    }
+  });
+
+  test('cannotAnswer means exactly that — nothing left in hand for that end', async () => {
+    for (let seed = 1; seed <= 8; seed++) {
+      const s = playForward(await freshHand(seed), 13);
+      if (s.status !== 'active') continue;
+      const view = publicView(s, s.turn);
+      for (const a of adviseMoves(view, legalMoves(s).filter((m) => m.seat === s.turn))) {
+        const left = view.myHand.filter((t) => t !== a.tile);
+        for (const pip of a.cannotAnswer) {
+          assert.ok(!left.some((t) => t.split('-').map(Number).includes(pip)),
+            `claimed no answer for ${pip} while still holding one`);
+        }
+      }
+    }
+  });
+
+  test('a play that ends the hand is marked as going out', async () => {
+    const s = await freshHand(1);
+    const view = publicView(s, 0);
+    // Seven tiles in hand, so nothing here goes out...
+    for (const a of adviseMoves(view, legalMoves(s).filter((m) => m.seat === 0))) {
+      assert.equal(a.goesOut, false);
+    }
+    // ...but a one-tile hand does.
+    const lastTile = view.myHand[0];
+    const oneLeft = { ...view, myHand: [lastTile] };
+    const advice = adviseMoves(oneLeft, [{ kind: 'pose', seat: 0, tile: lastTile } as never]);
+    assert.equal(advice.length, 1);
+    assert.equal(advice[0].goesOut, true);
+    assert.ok(advice[0].factors.goOut > 0, 'going out must dominate the score');
+  });
+});
+
+describe('doubles dying in your hand', () => {
+  test('a double whose suit is spent and closed is reported dead', async () => {
+    const s = await freshHand(1);
+    const view = publicView(s, 0);
+    // Hold 6-6 with every other six already visible on the board, and no six
+    // on an open end: it can never go down again.
+    const rigged = {
+      ...view,
+      myHand: ['6-6'],
+      board: {
+        kind: 'linear' as const,
+        line: [
+          { tile: '0-6', crosswise: false }, { tile: '1-6', crosswise: false },
+          { tile: '2-6', crosswise: false }, { tile: '3-6', crosswise: false },
+          { tile: '4-6', crosswise: false }, { tile: '5-6', crosswise: false },
+        ],
+        leftEnd: 0 as never, rightEnd: 5 as never,
+      },
+    };
+    const risks = doubleRisks(rigged as never);
+    assert.equal(risks.length, 1);
+    assert.equal(risks[0].tile, '6-6');
+    assert.equal(risks[0].dead, true, 'nothing can open the six end again');
+    assert.equal(risks[0].othersOut, 0);
+    assert.equal(risks[0].pips, 12, 'a stranded 6-6 is twelve pips against you');
+  });
+
+  test('a double is flagged while its suit is thin but still saveable', async () => {
+    const s = await freshHand(1);
+    const view = publicView(s, 0);
+    const rigged = {
+      ...view,
+      myHand: ['6-6'],
+      board: {
+        kind: 'linear' as const,
+        line: [
+          { tile: '0-6', crosswise: false }, { tile: '1-6', crosswise: false },
+          { tile: '2-6', crosswise: false }, { tile: '3-6', crosswise: false },
+        ],
+        // A six IS on an end, so it can go down right now.
+        leftEnd: 0 as never, rightEnd: 6 as never,
+      },
+    };
+    const risks = doubleRisks(rigged as never);
+    assert.equal(risks.length, 1);
+    assert.equal(risks[0].openNow, true, 'the six end is open, so play it now');
+    assert.equal(risks[0].dead, false);
+    assert.equal(risks[0].othersOut, 2, '4-6 and 5-6 are still unaccounted for');
+  });
+
+  test('a double with its whole suit still out is not nagged about', async () => {
+    const s = await freshHand(1);
+    const view = publicView(s, 0);
+    const rigged = { ...view, myHand: ['0-0'], board: null };
+    // Board not posed, nothing open, six other blanks unaccounted: no urgency.
+    assert.deepEqual(doubleRisks(rigged as never), []);
   });
 });
 

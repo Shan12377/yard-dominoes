@@ -735,6 +735,55 @@ label.field > span {
 .reader-forcing li::marker { color: var(--sky); }
 .reader-footnote { margin-top: 12px; opacity: 0.8; }
 
+/* The recommendation. Gold, because this one IS a call to action — the rest of
+   the panel is information and stays quiet so this reads first. */
+.reader-pick {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--gold);
+  background: rgba(255, 201, 40, 0.10);
+}
+.reader-pick .tile { flex: 0 0 auto; }
+.reader-why { display: grid; gap: 4px; }
+.reader-why strong {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--gold-hi);
+  letter-spacing: 0.04em;
+}
+.reader-reason { font-size: 13.5px; line-height: 1.45; color: var(--ink); }
+
+.reader-alternatives {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+}
+.reader-alternatives li {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.reader-alternatives li::marker { color: rgba(185, 220, 235, 0.5); }
+
+/* A double about to be stranded. Coral: this is the one that costs you the
+   hand, and the palette reserves coral for bruk and warnings. */
+.reader-doubles {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+}
+.reader-doubles li { font-size: 13.5px; line-height: 1.45; }
+.reader-doubles li.urgent { color: var(--gold-hi); }
+.reader-doubles li.urgent::marker { color: var(--gold); }
+.reader-doubles li.dead { color: var(--blood); }
+.reader-doubles li.dead::marker { color: var(--blood); }
+
 /* A replay is reading material, not a live hand: reserve a stable box so
    the renderer can fit the entire completed chain rather than sizing itself
    around an over-wide first draw and exposing a scrollbar. */
