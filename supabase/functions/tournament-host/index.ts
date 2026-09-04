@@ -149,7 +149,10 @@ Deno.serve(handled(async (req) => {
     // `round` is kept on out/disqualified because it records WHICH round they
     // went out in, which is worth having; only a return to the queue clears it.
     const { error } = await db.from('tournament_signups')
-      .update({ status, table_id: null, ...(status === 'signed_up' ? { round: null } : {}) })
+      .update({
+        status, table_id: null, seat_index: null,
+        ...(status === 'signed_up' ? { round: null } : {}),
+      })
       .eq('tournament_id', t.id).eq('user_id', body.userId);
     if (error) throw new HttpError(500, error.message);
     return json({ ok: true });
@@ -189,7 +192,7 @@ Deno.serve(handled(async (req) => {
     // clearing again. The other order strands players pointing at a table that
     // no longer exists in any round.
     const { error: seatError } = await db.from('tournament_signups')
-      .update({ status: 'signed_up', round: null, table_id: null })
+      .update({ status: 'signed_up', round: null, table_id: null, seat_index: null })
       .eq('tournament_id', t.id).in('table_id', ids);
     if (seatError) throw new HttpError(500, seatError.message);
 
@@ -293,9 +296,23 @@ Deno.serve(handled(async (req) => {
         throw new HttpError(500, seatsError.message);
       }
 
-      await db.from('tournament_signups')
-        .update({ status: 'seated', round: roundNo, table_id: table.id })
-        .eq('tournament_id', t.id).in('user_id', group);
+      // Open makes no promise about who ends up beside whom, so it keeps the
+      // existing free-for-all: one bulk update, no seat_index, join-table
+      // hands out whichever seat is open first. A theme DOES promise specific
+      // seating — women on 0&2, a couple opposite itself — so each player
+      // needs their own seat_index written, matching their position in
+      // `group`, which IS the seat plan `drawForTheme` just computed.
+      if (t.theme === 'open') {
+        await db.from('tournament_signups')
+          .update({ status: 'seated', round: roundNo, table_id: table.id })
+          .eq('tournament_id', t.id).in('user_id', group);
+      } else {
+        for (let seatIdx = 0; seatIdx < group.length; seatIdx++) {
+          await db.from('tournament_signups')
+            .update({ status: 'seated', round: roundNo, table_id: table.id, seat_index: seatIdx })
+            .eq('tournament_id', t.id).eq('user_id', group[seatIdx]);
+        }
+      }
 
       opened.push({ tableId: table.id, joinCode: table.join_code, players: group });
     }

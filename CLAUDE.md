@@ -264,6 +264,26 @@ Do not relitigate these without asking.
   rather than choosing, which broke every tournament read for every theme until
   the hint went in. Caught only by running the real endpoint.
 
+  **A themed draw's seating must be enforced, not just computed** — the second
+  trap already sprung. `drawForTheme` computes exactly which seat each drawn
+  player belongs in, but `join-table` used to hand out "any open seat" to
+  whoever tapped Join first, so which literal seat a real person landed in was
+  a race. 0058 adds `tournament_signups.seat_index`, written per player at
+  draw time (`start`, only for a non-open theme — open makes no seating
+  promise, so it keeps the original free-for-all) and cleared on `mark`/
+  `clear` alongside `table_id`. `join-table` enforces it ahead of both the
+  request's own `seatIndex` and the open-seat fallback. Verified live:
+  scrambled the join order — the man drawn for seat 1 joined FIRST, via the
+  join code alone — and he still landed in seat 1, not the seat 0 a race would
+  have given him.
+
+  **Known gap, not yet fixed:** a substitute filling a no-show's seat has no
+  `seat_index` of their own — only the four players the draw actually seated
+  get one — so a substitute still falls through to "any open seat" and can
+  land on the wrong side of a themed table. There is currently no host action
+  to assign a substitute to a specific side. Flag this before relying on
+  substitute-in-progress for a themed event; it is fine for `open`.
+
   **The trap a theme sets, already sprung once:** "above the cut" and "in the
   first N of the queue" are the same sentence only for an open event. With six
   women and two men the four who play sit at queue positions 1, 2, 5 and 7 — so

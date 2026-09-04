@@ -34,13 +34,22 @@ Deno.serve(handled(async (req) => {
   // taking a no-show's seat is the whole point of the substitutes line, and
   // binding a player to a single table would mean a host-only seat-swapping
   // function existed before anyone had run a real Sunday.
+  // A themed draw (battle of the sexes, couples) promises specific seating —
+  // women on 0&2, a couple opposite itself — and that promise is worthless if
+  // whoever taps Join first just gets whichever seat happens to be open.
+  // `assignedSeat` is what tournament-host wrote for THIS player at draw time
+  // (0058); when it is set, it overrides both the request's own `seatIndex`
+  // and the "any open seat" fallback below. Null for an open event, and for
+  // any substitute who was never part of the draw — see the caveat below.
+  let assignedSeat: number | null = null;
   if (table.tournament_id) {
     const { data: signup } = await db.from('tournament_signups')
-      .select('status').eq('tournament_id', table.tournament_id)
+      .select('status, seat_index').eq('tournament_id', table.tournament_id)
       .eq('user_id', user.id).maybeSingle();
     if (!signup || !['seated', 'substitute'].includes(signup.status)) {
       throw new HttpError(403, 'this table belongs to a tournament you are not in');
     }
+    assignedSeat = (signup.seat_index ?? null) as number | null;
   }
 
   const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
@@ -109,10 +118,20 @@ Deno.serve(handled(async (req) => {
     return json({ ok: true, tableId: table.id, seatIndex: openPair[0] });
   }
 
-  const target = seatIndex != null
-    ? seats!.find((s: any) => s.seat_index === seatIndex && !s.user_id)
-    : seats!.find((s: any) => !s.user_id);
-  if (!target) throw new HttpError(409, 'no free seat');
+  // KNOWN GAP: a substitute filling a no-show's seat has no seat_index of
+  // their own (only the four players the draw actually seated get one), so
+  // they still fall through to "any open seat" — which can land them on the
+  // wrong side of a themed table. Substitute seating for a themed event is
+  // not solved by this; a host currently has no way to assign one to a
+  // specific side. Flagged, not fixed, in this pass.
+  const target = assignedSeat != null
+    ? seats!.find((s: any) => s.seat_index === assignedSeat && !s.user_id)
+    : seatIndex != null
+      ? seats!.find((s: any) => s.seat_index === seatIndex && !s.user_id)
+      : seats!.find((s: any) => !s.user_id);
+  if (!target) {
+    throw new HttpError(409, assignedSeat != null ? 'your seat at this table is already taken' : 'no free seat');
+  }
 
   await db.from('seats').update({
     user_id: user.id, duppy_level: null, connected_at: new Date().toISOString(),
