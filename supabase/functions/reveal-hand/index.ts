@@ -18,10 +18,23 @@ Deno.serve(handled(async (req) => {
   if (hand.status === 'active') throw new HttpError(409, 'the hand is still being played');
 
   const { data: set } = await db.from('sets').select('*').eq('id', hand.set_id).single();
-  const { data: seats } = await db.from('seats').select('*').eq('table_id', set!.table_id).order('seat_index');
-
-  const seat = seats!.findIndex((s: any) => s.user_id === user.id);
-  if (seat < 0) throw new HttpError(403, 'you did not play this hand');
+  // Who played THIS hand, from `seat_hands` — not who is sitting at the table
+  // now, from `seats`. They are different questions the moment somebody
+  // leaves: leave-seat nulls `seats.user_id`, so asking `seats` locks a player
+  // out of their own finished hands forever. Deal verification is a settled
+  // promise ("a participant may ask", CLAUDE.md) and the Coach is the reason
+  // to play here at all, so neither may depend on still occupying the chair.
+  // `seat_hands` is written per hand by persist() and never rewritten, which
+  // makes it the honest record of who was actually dealt in.
+  // `limit(1)`, not maybeSingle() on its own: across signs ONE player into TWO
+  // seats (0&2 or 1&3), so this genuinely matches twice and an unqualified
+  // single-row read would throw for exactly those players. The lower seat is a
+  // deterministic choice, and both seats belong to the same person anyway.
+  const { data: mySeatHand } = await db.from('seat_hands')
+    .select('seat_index').eq('hand_id', handId).eq('user_id', user.id)
+    .order('seat_index').limit(1).maybeSingle();
+  if (!mySeatHand) throw new HttpError(403, 'you did not play this hand');
+  const seat = mySeatHand.seat_index as number;
 
   const { data: table } = await db.from('tables').select('seat_count, use_boneyard')
     .eq('id', set!.table_id).single();

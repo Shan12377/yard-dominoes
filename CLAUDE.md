@@ -184,6 +184,16 @@ Do not relitigate these without asking.
 - **No social login is ever required.** Anonymous sign-in is on.
 - **No modal during a live hand.** Not a gift, not a rate prompt, not an ad,
   not a service worker update.
+- **A finished hand belongs to whoever PLAYED it, not to whoever is sitting
+  there now.** `reveal-hand`, `review-hand` and `settle-hand` authorise against
+  `seat_hands` (written per hand by `persist()`, never rewritten), not against
+  `seats`. Asking `seats` was a real bug: `leave-seat` nulls `seats.user_id`,
+  so leaving a table permanently locked a player out of verifying, reviewing or
+  settling hands they had genuinely played — breaking the Verify promise below
+  and the Coach, which is the reason to play here at all. Note the across case
+  when reading that row: one player holds TWO seats (0&2), so the lookup takes
+  the lower seat rather than expecting a single row. Fixed and verified live
+  2026-09-03.
 - **Deal verification is free and visual.** After a hand ends, a participant
   may ask for the immutable starting deal and commit-reveal receipt. Their
   browser reconstructs the shuffle and shows every starting hand; seeds and
