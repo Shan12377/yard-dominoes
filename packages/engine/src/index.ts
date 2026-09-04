@@ -5,6 +5,7 @@ export * from './hand.ts';
 export * from './set.ts';
 export * from './bots.ts';
 export * from './coach.ts';
+export * from './read.ts';
 export * from './academy.ts';
 export * from './talk.ts';
 export * from './leaks.ts';

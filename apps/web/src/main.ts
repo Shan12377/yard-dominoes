@@ -1,6 +1,7 @@
 import {
   BELTS, lessonByRef, knownVoids, duppyLine, halves, TALK_CHANCE, DUPPY_LABELS,
   EMPTY_LEAKS, recordHand, standoutLeak, describeLeak, isPartnered, sideOf,
+  publicView, readTable, outlookFor, couldHold,
 } from '@yard/engine';
 
 function formatLabel(format: SetFormat): string {
@@ -1211,6 +1212,121 @@ function partnerHandPanel(tiles: string[]): HTMLElement {
   return panel;
 }
 
+/**
+ * The live coach — practice only.
+ *
+ * Open state lives here, in module scope, and not on the element: render()
+ * rebuilds the whole page, so a `<details open>` would slam itself shut the
+ * next time a duppy moved. client.md documents that exact bug happening twice
+ * already.
+ */
+let readerOpen = false;
+
+/**
+ * What can be worked out from the table right now, and nothing more.
+ *
+ * Every number here comes from `readTable`/`outlookFor`, which take a
+ * `PublicView` — the same structure the duppies get, with no field able to
+ * hold another seat's tiles. Practice runs in the browser, so `g.hand` really
+ * does contain every duppy's tiles; going through publicView() is what keeps
+ * this a coach rather than an x-ray. Reads learned here are reads that still
+ * work at a real table.
+ */
+function tableReader(g: LocalGame): HTMLElement | null {
+  const hand = g.hand;
+  if (!hand || hand.status !== 'active') return null;
+
+  const panel = el('div', 'panel reader-panel');
+  const toggle = document.createElement('button');
+  toggle.className = 'act ghost small';
+  toggle.setAttribute('aria-expanded', String(readerOpen));
+  toggle.textContent = readerOpen ? 'Hide the read' : 'Read the table';
+  toggle.onclick = () => { readerOpen = !readerOpen; render(); };
+  panel.append(toggle);
+  if (!readerOpen) return panel;
+
+  const view = publicView(hand, g.mySeat);
+  const read = readTable(view);
+
+  // --- the count ---------------------------------------------------------
+  // Bookkeeping, not skill: seven tiles carry each pip, you can see your own
+  // and the board, so the rest is subtraction. Doing it in your head is the
+  // tedious part of playing well, not the clever part.
+  panel.append(el('div', 'eyebrow', 'Still out there'));
+  const counts = el('div', 'reader-counts');
+  for (const suit of read.suits) {
+    const cell = el('div', `reader-count${suit.out === 0 ? ' spent' : ''}${suit.lastOne ? ' last-one' : ''}`);
+    cell.append(el('span', 'reader-pip', String(suit.pip)));
+    cell.append(el('span', 'reader-out', String(suit.out)));
+    const held = suit.mine > 0 ? `, you hold ${suit.mine}` : '';
+    cell.title = `${suit.out} of the ${suit.total} ${suit.pip}s unaccounted for${held}`;
+    cell.setAttribute('aria-label', cell.title);
+    counts.append(cell);
+  }
+  panel.append(counts);
+  if (read.boneyardSize > 0) {
+    // Honesty: with a boneyard, "out" is not the same as "in somebody's hand".
+    panel.append(el('p', 'muted small',
+      `${read.boneyardSize} tiles are still in the boneyard, so not everything counted above is in a hand.`));
+  }
+
+  // --- what the passes proved --------------------------------------------
+  const proven: string[] = [];
+  for (const seat of read.seats) {
+    if (seat.voids.length === 0) continue;
+    const suits = seat.voids.join(', ');
+    proven.push(seat.mustPassNow
+      ? `${g.seatLabel(seat.seat)} has no ${suits} — and cannot answer either end right now.`
+      : `${g.seatLabel(seat.seat)} has no ${suits}.`);
+  }
+  // The strongest read available from public information: everyone else has
+  // passed on a suit, so every remaining copy sits in one known hand.
+  for (const suit of read.suits) {
+    if (suit.out === 0) continue;
+    const holders = couldHold(suit.pip, read);
+    if (holders.length === 1) {
+      proven.push(`All ${suit.out} remaining ${suit.pip}${suit.out === 1 ? '' : 's'} are with ${g.seatLabel(holders[0])} — everyone else passed on it.`);
+    }
+  }
+  if (proven.length > 0) {
+    panel.append(el('div', 'eyebrow', 'The passes proved'));
+    const list = document.createElement('ul');
+    list.className = 'reader-proved';
+    for (const line of proven) list.append(el('li', undefined, line));
+    panel.append(list);
+  }
+
+  // --- what your own moves would force ------------------------------------
+  // Only the moves that actually force something. "Nothing forced" printed
+  // seven times is noise, and noise is what stops a panel being read.
+  if (g.isMyTurn()) {
+    const forcing: string[] = [];
+    for (const move of g.legal()) {
+      if (move.kind === 'pass' || !('tile' in move)) continue;
+      const outlook = outlookFor(view, move);
+      if (outlook.forcedPasses.length === 0) continue;
+      const who = outlook.forcedPasses.map((s) => g.seatLabel(s)).join(' and ');
+      forcing.push(outlook.comesBackToMe
+        ? `${move.tile} leaves ${outlook.endsAfter.join(' and ')} — nobody else can answer, so it comes straight back to you.`
+        : `${move.tile} leaves ${outlook.endsAfter.join(' and ')} — ${who} would have to pass.`);
+    }
+    panel.append(el('div', 'eyebrow', 'If you play'));
+    if (forcing.length === 0) {
+      panel.append(el('p', 'muted small',
+        'Nothing you can play right now forces anybody to pass — on what the passes have proven so far.'));
+    } else {
+      const list = document.createElement('ul');
+      list.className = 'reader-forcing';
+      for (const line of forcing) list.append(el('li', undefined, line));
+      panel.append(list);
+    }
+  }
+
+  panel.append(el('p', 'muted small reader-footnote',
+    'Counted from the board, your own hand, and who passed on what — the same view the duppies get. Never from their tiles.'));
+  return panel;
+}
+
 function myHand(g: LocalGame): HTMLElement {
   const panel = el('div', 'panel my-hand-panel');
   panel.append(el('div', 'eyebrow', g.isMyTurn() ? 'Your play' : 'Your hand'));
@@ -1759,6 +1875,13 @@ function tableView(g: LocalGame): DocumentFragment {
     room.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
   }
   if (!handOnFelt) room.appendChild(myHand(g));
+
+  // Directly under the hand: you read the board, read your tiles, then check
+  // the count — one downward motion. Collapsed by default so it costs no
+  // vertical space until asked for, which matters on the 390px phone the
+  // board-first layout is tuned against.
+  const reader = tableReader(g);
+  if (reader) room.appendChild(reader);
 
   room.appendChild(seats(g));
   room.appendChild(soundToggle());

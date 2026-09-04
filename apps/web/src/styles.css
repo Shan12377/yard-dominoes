@@ -669,6 +669,72 @@ label.field > span {
 .hand-actions-dock > .act { margin: 0; }
 .hand-actions-dock > .muted { margin: 0; flex-basis: 100%; }
 
+/* ------------------------------------------------------- the live coach --
+   Practice only. Sits under the hand and stays collapsed until asked for, so
+   it costs one button of vertical space on a phone until a player wants it.
+   Sky rather than mango: this is information, not an action — gold in this
+   system means "do something", and a panel that reads as a call to action
+   every turn would nag. */
+.reader-panel {
+  margin-top: 10px;
+  border-color: rgba(67, 199, 244, 0.34);
+}
+.reader-panel .eyebrow { margin-top: 14px; }
+.reader-panel > button:first-child { margin-bottom: 2px; }
+
+/* The count. A tight row of seven, because it is read at a glance mid-hand,
+   not studied — the pip above, how many are unaccounted for below. */
+.reader-counts {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+.reader-count {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-radius: 10px;
+  background: var(--signal-lo);
+  border: 1px solid rgba(185, 220, 235, 0.18);
+}
+.reader-pip {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.reader-out {
+  font-family: var(--display);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink);
+}
+/* Nothing left to wait for — dimmed rather than hidden, because "that suit is
+   finished" is itself a read worth seeing. */
+.reader-count.spent { opacity: 0.42; }
+/* One copy left anywhere: the hard end. Worth the accent — this is the single
+   most actionable thing the count can tell you. */
+.reader-count.last-one {
+  border-color: var(--gold);
+  background: rgba(255, 201, 40, 0.12);
+}
+.reader-count.last-one .reader-out { color: var(--gold-hi); }
+
+.reader-proved, .reader-forcing {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+}
+.reader-proved li, .reader-forcing li { font-size: 13.5px; line-height: 1.45; }
+/* Proven from a pass — the same electric green the table uses for a live,
+   settled fact. */
+.reader-proved li::marker { color: var(--forest-hi); }
+.reader-forcing li::marker { color: var(--sky); }
+.reader-footnote { margin-top: 12px; opacity: 0.8; }
+
 /* A replay is reading material, not a live hand: reserve a stable box so
    the renderer can fit the entire completed chain rather than sizing itself
    around an over-wide first draw and exposing a scrollbar. */
