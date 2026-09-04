@@ -62,12 +62,23 @@ interface State {
   newTeamACaret: number;
   newTeamBName: string;
   newTeamBCaret: number;
+  // The rest of "Schedule another" has the exact same problem and had it
+  // before team_vs_team existed — a select's `.value` gets silently reset to
+  // its first option on every rebuild too, which is a worse loss than a lost
+  // caret position: the host picked a mode or theme, a tick fires, and it is
+  // quietly back to "Open to all" with no signal anything changed.
+  newName: string;
+  newNameCaret: number;
+  newStarts: string;
+  newMode: GameMode;
+  newTheme: TournamentTheme;
 }
 
 const state: State = {
   tournament: null, standing: null, queue: null, wouldSeat: 0,
   loaded: false, busy: false, error: null, hostOpen: false, partnerDraft: '', partnerCaret: 0, teamDraft: null,
   newTeamAName: '', newTeamACaret: 0, newTeamBName: '', newTeamBCaret: 0,
+  newName: '', newNameCaret: 0, newStarts: '', newMode: 'cutthroat', newTheme: 'open',
 };
 
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -474,7 +485,7 @@ function hostControls(t: Tournament, me: MyProfile, rerender: () => void): HTMLE
     wrap.append(list);
   }
 
-  wrap.append(newEventForm(me, rerender));
+  wrap.append(newEventForm(me, t, rerender));
   return wrap;
 }
 
@@ -483,25 +494,75 @@ function hostControls(t: Tournament, me: MyProfile, rerender: () => void): HTMLE
  * a host filling this in weekly is thirty seconds and no code, and `pg_cron` is
  * already there (0005) if it ever becomes tedious.
  */
-function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
+/** "2026-12-08T17:00" — what a `datetime-local` input's `.value` needs, in
+ *  the browser's own local time, not UTC. `toISOString()` would silently
+ *  shift the clock by the viewer's offset. */
+function localDateTimeValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Fill the draft from an existing event, one week later — the whole of
+ *  "Repeat next Sunday". Nothing is submitted; the host still reviews and
+ *  confirms via the ordinary Schedule button, free to change anything that
+ *  is different this time. */
+function prefillFromTournament(t: Tournament): void {
+  state.newName = t.name;
+  state.newNameCaret = state.newName.length;
+  state.newStarts = localDateTimeValue(new Date(Date.parse(t.startsAt) + 7 * 24 * 60 * 60 * 1000));
+  state.newMode = t.mode;
+  state.newTheme = t.theme;
+  state.newTeamAName = t.teamAName ?? '';
+  state.newTeamACaret = state.newTeamAName.length;
+  state.newTeamBName = t.teamBName ?? '';
+  state.newTeamBCaret = state.newTeamBName.length;
+}
+
+function newEventForm(me: MyProfile, t: Tournament | null, rerender: () => void): HTMLElement {
   const form = el('div', 'tourney-new');
   form.append(el('div', 'eyebrow', 'Schedule another'));
 
+  if (t) {
+    const repeat = document.createElement('button');
+    repeat.type = 'button';
+    repeat.className = 'linky';
+    repeat.textContent = `Repeat "${t.name}" next week`;
+    repeat.onclick = () => { prefillFromTournament(t); rerender(); };
+    form.append(repeat);
+  }
+
+  // Every field below rebuilds from scratch on the countdown tick this panel
+  // already runs on — as often as once a second near another event's start
+  // time (scheduleTick) — so each one reads its value from `state` and writes
+  // straight back on every change. Without that, the Repeat button above
+  // would appear to work and then silently un-fill itself the moment a tick
+  // fired, and a host who was mid-select on the mode/theme dropdowns would
+  // find them reset to the first option with no signal anything happened.
   const name = document.createElement('input');
   name.className = 'field';
   name.placeholder = 'Sunday Six Love';
   name.maxLength = 80;
   name.setAttribute('aria-label', 'Tournament name');
+  name.value = state.newName;
+  name.oninput = () => {
+    state.newName = name.value;
+    state.newNameCaret = name.selectionStart ?? state.newName.length;
+  };
 
   const starts = document.createElement('input');
   starts.type = 'datetime-local';
   starts.className = 'field';
   starts.setAttribute('aria-label', 'Start time');
+  starts.value = state.newStarts;
+  starts.oninput = () => { state.newStarts = starts.value; };
 
   const mode = document.createElement('select');
   mode.innerHTML = '<option value="cutthroat">Cut throat</option>'
     + '<option value="partner">Partner — 2 v 2</option>'
     + '<option value="openhand">Open hand — partner sees your tiles</option>';
+  mode.value = state.newMode;
+  mode.onchange = () => { state.newMode = mode.value as GameMode; };
 
   // Battle of the sexes is two-against-two, so picking it settles the mode as
   // well — the server and 0056 both refuse it on anything but a four-handed
@@ -513,6 +574,7 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
     + '<option value="couples">Couple\'s tourney — pairs</option>'
     + '<option value="team_vs_team">Team vs team</option>';
   theme.setAttribute('aria-label', 'Kind of event');
+  theme.value = state.newTheme;
 
   // Only team_vs_team needs these, and they need the same focus/caret
   // treatment as the sign-up panel's partner field — see State's comment.
@@ -520,7 +582,7 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
   teamAField.className = 'field';
   teamAField.placeholder = 'Team A name';
   teamAField.maxLength = 40;
-  teamAField.hidden = true;
+  teamAField.hidden = state.newTheme !== 'team_vs_team';
   teamAField.setAttribute('aria-label', 'Team A name');
   teamAField.value = state.newTeamAName;
   teamAField.oninput = () => {
@@ -531,7 +593,7 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
   teamBField.className = 'field';
   teamBField.placeholder = 'Team B name';
   teamBField.maxLength = 40;
-  teamBField.hidden = true;
+  teamBField.hidden = state.newTheme !== 'team_vs_team';
   teamBField.setAttribute('aria-label', 'Team B name');
   teamBField.value = state.newTeamBName;
   teamBField.oninput = () => {
@@ -539,6 +601,7 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
     state.newTeamBCaret = teamBField.selectionStart ?? state.newTeamBName.length;
   };
   for (const [field, draft, caret] of [
+    [name, state.newName, state.newNameCaret],
     [teamAField, state.newTeamAName, state.newTeamACaret],
     [teamBField, state.newTeamBName, state.newTeamBCaret],
   ] as const) {
@@ -551,17 +614,19 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
   }
 
   theme.onchange = () => {
+    state.newTheme = theme.value as TournamentTheme;
     // All three themes seat partners opposite each other, which only works at
     // a four-handed partner table — the server and 0056/0057/0059 refuse
     // anything else, so decide it here rather than offering a combination
     // that would be rejected.
-    const paired = theme.value !== 'open';
-    if (paired) mode.value = 'partner';
+    const paired = state.newTheme !== 'open';
+    if (paired) { mode.value = 'partner'; state.newMode = 'partner'; }
     mode.disabled = paired;
-    const teams = theme.value === 'team_vs_team';
+    const teams = state.newTheme === 'team_vs_team';
     teamAField.hidden = !teams;
     teamBField.hidden = !teams;
   };
+  mode.disabled = state.newTheme !== 'open';
 
   const row = el('div', 'row');
   row.append(name, starts, mode, theme);
@@ -592,6 +657,8 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
       startsAt: new Date(starts.value).toISOString(),
       loungeId: state.tournament?.loungeId ?? null,
     });
+    state.newName = ''; state.newNameCaret = 0;
+    state.newStarts = ''; state.newMode = 'cutthroat'; state.newTheme = 'open';
     state.newTeamAName = ''; state.newTeamACaret = 0;
     state.newTeamBName = ''; state.newTeamBCaret = 0;
     // A newly scheduled event is usually later than the one on screen, so it

@@ -305,9 +305,30 @@ Do not relitigate these without asking.
   free — verified live for `team_vs_team` the same way as the others:
   scrambled join order, correct final seating regardless.
 
-  **Still to build:** weekly recurrence — JamDom runs weekly events across the
-  game styles, and a host filling the form in each week is the current
-  substitute for that.
+  **Weekly recurrence — a "Repeat" button, deliberately not automation.**
+  `prefillFromTournament` in `tournamentview.ts` fills the create form from an
+  existing event (name, mode, theme, both team names, start time +7 days —
+  `localDateTimeValue` keeps it in the browser's own local time rather than
+  letting `toISOString()` silently shift it by the viewer's offset) and stops
+  there: nothing is submitted, the host still reviews and hits Schedule, free
+  to change whatever is different this week. No `pg_cron`, no server-side
+  concept of recurrence at all — chosen deliberately over full automation so a
+  theme or team-name change never has to be caught and fixed after the fact.
+
+  This form's own fields (name, start time, mode, theme, both team names) all
+  live in module state and write back on every keystroke/change, the same
+  reason the team-name fields already needed it (`tournamentview.ts`'s
+  `scheduleTick` can rebuild this panel as often as once a second near another
+  event's start time). Before this pass `name`/`starts`/`mode`/`theme` had none
+  of that — a pre-existing gap, exposed rather than caused by adding Repeat,
+  since prefilling those same fields with a stale value the very next tick
+  would silently discard was the whole reason to fix it now. Verified live
+  with a real DOM check, not just a read: typed into the prefilled name field,
+  forced a full unmount/remount of the host panel (closed and reopened it,
+  which really removes and rebuilds `.tourney-new` — the same shape as a real
+  tick), and the edited value survived; Schedule then created a second real
+  tournament row with every field carried over and the start date shifted
+  exactly +7 days.
 - **Voice is a peer-to-peer mesh, never an SFU.** Live table voice ships in
   `apps/web/src/voice.ts`: each of the four seats sends audio straight to the
   other three, signalling over the Realtime channel the lounge already holds.
