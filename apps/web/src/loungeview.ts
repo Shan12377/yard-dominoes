@@ -1703,38 +1703,13 @@ export function profileView(rerender: () => void): DocumentFragment {
     return frag;
   }
 
-  // Returning members sign in here. Focus the email field so landing on
-  // this tab via the Membership pointer link is immediate and unambiguous.
-  const signInAtTop = accountOpen && accountMode === 'signin';
-  if (signInAtTop) {
-    const inlineAccount = accountPanel(rerender);
-    inlineAccount.classList.add('inline-account-panel');
-    frag.appendChild(inlineAccount);
-  }
-
-  // Right after a Stripe redirect — checkout itself starts from the
-  // Membership tier cards, so this is where the nudge to secure it belongs,
-  // not a screen the player has to happen to revisit.
-  if (justUpgradedTier && loungeState.isAnonymous && !accountOpen) {
-    frag.appendChild(upgradePrompt(justUpgradedTier, rerender));
-  }
-
-  // A paying member asked to see everything they get in one place, rather
-  // than piece it together from the pricing cards on Membership they saw
-  // once at signup. Same copy TIER_PITCH already shows there, just surfaced
-  // where a Yardie/VIP actually lives day to day.
-  if (me.tier !== 'guest') {
-    const perks = el('div', 'panel');
-    perks.append(el('div', 'eyebrow', TIER_LABEL[me.tier]));
-    perks.append(el('h3', undefined, 'Your perks'));
-    const list = document.createElement('ul');
-    for (const point of TIER_PITCH[me.tier].points) list.append(el('li', undefined, point));
-    perks.appendChild(list);
-    frag.appendChild(perks);
-  }
-
-  frag.appendChild(profilePanel(me, rerender, (fresh) => { loungeState.me = fresh; }));
-
+  // Account status leads the whole page, ahead of the gender/avatar/backdrop
+  // form below it. A guest's single most consequential fact on this screen is
+  // "this session can vanish if you clear your browser" — that has to be the
+  // first thing read, not something found after scrolling past Basics,
+  // Presence & accessory, and Seat backdrop. Confirmed live 2026-09-04: a real
+  // player scrolled the whole profile form looking for Sign in and could not
+  // find it, because it sat below Save.
   const accountHead = el('div', 'row');
   const openAccount = (mode: 'secure' | 'signin') => {
     const alreadyActive = accountOpen && accountMode === mode;
@@ -1770,7 +1745,38 @@ export function profileView(rerender: () => void): DocumentFragment {
       'This is a guest session tied to this browser. Secure account keeps it from being '
       + 'lost, or Sign in if you already secured one elsewhere.'));
   }
-  if (accountOpen && !signInAtTop) frag.appendChild(accountPanel(rerender));
+  if (accountOpen) {
+    // Gold-accented at the top the same way a Stripe-redirect landing used
+    // to be singled out lower on the page — this is now the only place the
+    // panel ever renders, so it always gets that emphasis, not just the
+    // deep-linked signin case.
+    const inlineAccount = accountPanel(rerender);
+    inlineAccount.classList.add('inline-account-panel');
+    frag.appendChild(inlineAccount);
+  }
+
+  // Right after a Stripe redirect — checkout itself starts from the
+  // Membership tier cards, so this is where the nudge to secure it belongs,
+  // not a screen the player has to happen to revisit.
+  if (justUpgradedTier && loungeState.isAnonymous && !accountOpen) {
+    frag.appendChild(upgradePrompt(justUpgradedTier, rerender));
+  }
+
+  // A paying member asked to see everything they get in one place, rather
+  // than piece it together from the pricing cards on Membership they saw
+  // once at signup. Same copy TIER_PITCH already shows there, just surfaced
+  // where a Yardie/VIP actually lives day to day.
+  if (me.tier !== 'guest') {
+    const perks = el('div', 'panel');
+    perks.append(el('div', 'eyebrow', TIER_LABEL[me.tier]));
+    perks.append(el('h3', undefined, 'Your perks'));
+    const list = document.createElement('ul');
+    for (const point of TIER_PITCH[me.tier].points) list.append(el('li', undefined, point));
+    perks.appendChild(list);
+    frag.appendChild(perks);
+  }
+
+  frag.appendChild(profilePanel(me, rerender, (fresh) => { loungeState.me = fresh; }));
 
   const bredrinsBtn = document.createElement('button');
   bredrinsBtn.className = 'act ghost small';
