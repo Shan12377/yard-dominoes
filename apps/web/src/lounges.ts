@@ -42,6 +42,7 @@ export const TIER_PITCH: Record<Tier, { price: string; points: string[] }> = {
   yardie: {
     price: '$24 / year',
     points: [
+      'Talk in the lounge, not just listen',
       'Profile photo',
       'Weekly tournament entry',
       'Belts four and five — the tracking and tournament craft',
@@ -52,6 +53,7 @@ export const TIER_PITCH: Record<Tier, { price: string; points: string[] }> = {
   vip: {
     price: '$69 / year',
     points: [
+      'See your table — video calling at every seat',
       'Walk into any lounge, even full ones',
       'Bredrins list — see where your people are',
       'Unlimited Coach reviews',

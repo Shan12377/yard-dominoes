@@ -2869,37 +2869,16 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
    `.pulse` also kills its own outright below, because an "instant" infinite
    animation is still an animation being ticked sixty times a second. */
 .panel.tourney {
+  /* Was a light cream/gold gradient wash — off-brand (nothing in design.md's
+     palette is a pale yellow) and it made every child's --ink/--muted text
+     read as pale-on-pale, invisible except by hover accident. Reported
+     directly, 2026-09-04: "i hate this light yellow... nothing like this is
+     in the branding." Dropped in favour of this panel's ordinary dark
+     treatment (the same gradient every other .panel already uses) — gold
+     stays as the accent it is everywhere else in the system: a border and
+     small badges, never a full-panel fill. */
   border-color: var(--gold);
   border-left: 4px solid var(--gold);
-  background: linear-gradient(180deg, #FFFCEF, #FFF8E2 46%, #F9EFD0);
-  /* Every child below was written for this panel's usual dark-blue
-     background — --ink and --muted are light colours meant to sit on
-     --signal, not on this banner's cream. Left unscoped that's pale text on
-     a pale background: the tournament name, every .eyebrow/.muted line, a
-     ghost button, "Repeat" (.linky). Some only got contrast by accident, via
-     a hover colour swap — exactly the report that surfaced this
-     (2026-09-04): "some of the parts had white... couldn't see it unless
-     you hover over it." Rescoping --ink/--muted here fixes all of them at
-     once through normal inheritance/cascade. */
-  --ink: var(--signal);
-  --muted: rgba(7, 59, 92, 0.68);
-  color: var(--ink);
-}
-/* Two children keep their own dark box regardless of the panel's light
-   wrapper — form fields (--signal-lo) and the team-picker pills
-   (--sand-hi/--forest) — so their light text has to be restored rather than
-   inherit the panel's new dark ink. */
-.panel.tourney input,
-.panel.tourney select,
-.panel.tourney textarea,
-.panel.tourney .choices .choice {
-  --ink: #FFF9EA;
-}
-.panel.tourney button.ghost:hover { color: var(--forest); }
-.panel.tourney .tourney-countdown,
-.panel.tourney .tourney-theme,
-.panel.tourney .eyebrow.tourney-round {
-  color: #8A5C00;
 }
 .tourney-when {
   display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;

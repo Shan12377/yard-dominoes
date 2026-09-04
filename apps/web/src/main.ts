@@ -273,7 +273,12 @@ function chrome(): HTMLElement {
 
   const nav = el('div', 'nav');
   const tabs: [View, string][] = [
-    ['play', 'Play'], ['lounges', 'Lounges'], ['rankings', 'Rankings'], ['academy', 'Academy'],
+    // Labelled 'Practice', not 'Play' — this tab is solo against duppies
+    // (see the comment on the 'lounges' branch below), and calling it 'Play'
+    // read as the main way to play, so a real player never noticed Lounges
+    // was where other people actually are. Reported directly, 2026-09-04.
+    // The route id stays 'play' — only the visible label changed.
+    ['play', 'Practice'], ['lounges', 'Lounges'], ['rankings', 'Rankings'], ['academy', 'Academy'],
     ['membership', 'Membership'], ['profile', 'Profile'], ['fair', 'Fair deal'],
   ];
   // Only rendered once the lounge module has loaded and confirmed admin —
@@ -552,6 +557,20 @@ function hero(): HTMLElement {
   fair.onclick = () => { view = 'fair'; render(); };
   row.append(deal, fair);
   copy.appendChild(row);
+
+  // "Deal me in" above is solo, against duppies — that was never said
+  // anywhere on this screen, so a visitor had no way to know Lounges was
+  // the door to real opponents (or a table code from a friend) rather than
+  // this one. Said explicitly, right under the button that starts the bots.
+  const realPeople = el('p', 'muted small hero-real-people');
+  realPeople.append('Practising against duppies. For real people — or to join a table code — ');
+  const toLounges = document.createElement('button');
+  toLounges.type = 'button';
+  toLounges.className = 'linky';
+  toLounges.textContent = 'head to Lounges';
+  toLounges.onclick = () => { view = 'lounges'; void ensureLoungeModule(); render(); };
+  realPeople.append(toLounges, '.');
+  copy.appendChild(realPeople);
 
   const heroIsEntering = !heroHasEntered;
   const line = el('div', `hero-domino-cascade${heroIsEntering ? ' entering' : ''}`);
@@ -887,6 +906,7 @@ function lobby(): HTMLElement {
   panel.append(
     el('div', 'eyebrow', 'Start a game'),
     el('h2', undefined, 'Sit down'),
+    el('p', 'muted small', 'Against duppies, right here. For real people, Lounges is the door.'),
   );
 
   const form = el('div', 'lobby-form');
