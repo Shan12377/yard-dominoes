@@ -1,7 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { readTable, outlookFor, tilesCarrying, couldHold } from '../src/read.ts';
+import { readTable, outlookFor, couldHold } from '../src/read.ts';
+import { tilesCarrying, dealPlan } from '../src/tiles.ts';
 import { publicView } from '../src/bots.ts';
 import { deal, legalMoves, applyMove, openEnds } from '../src/hand.ts';
 import { provablyFairShuffle } from '../src/shuffle.ts';
@@ -49,6 +50,21 @@ describe('the live coach reads only what the table shows', () => {
     assert.equal(tilesCarrying(0, 3), 6);
     assert.equal(tilesCarrying(0, 4), 7);
     assert.equal(tilesCarrying(6, 3), 7);
+  });
+
+  test('tilesCarrying follows dealPlan rather than restating it', () => {
+    // The whole point of deriving it: if dealPlan ever removes the double-blank
+    // at another seat count, the count must follow automatically. This fails
+    // the moment somebody hardcodes `seatCount === 3` back into it.
+    for (const seatCount of [2, 3, 4]) {
+      const { removeDoubleBlank } = dealPlan(seatCount, false);
+      assert.equal(tilesCarrying(0, seatCount), removeDoubleBlank ? 6 : 7,
+        `blanks disagree with dealPlan at ${seatCount} seats`);
+      for (const pip of [1, 2, 3, 4, 5, 6] as const) {
+        assert.equal(tilesCarrying(pip, seatCount), 7,
+          'only the double-blank is ever removed, so no other suit shrinks');
+      }
+    }
   });
 
   test('at a fresh four-hand deal my own seven tiles are the only ones I can see', async () => {

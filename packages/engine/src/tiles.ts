@@ -107,3 +107,30 @@ export function dealPlan(seatCount: number, useBoneyard: boolean): {
       throw new Error(`unsupported seat count: ${seatCount}`);
   }
 }
+
+/**
+ * How many tiles in play carry a given pip.
+ *
+ * Seven, always — except the blanks at a three-handed table, where `dealPlan`
+ * above removes the double-blank so 27 tiles divide evenly, leaving six.
+ *
+ * Anything reasoning about "how many of this suit are unaccounted for" has to
+ * go through this rather than assuming seven. Testing `seen === 6` for "one
+ * copy left" is right at four seats and wrong at three: for blanks it means
+ * none are left, and it misses the case where one actually is. That bug was
+ * live in `hardEnds`, `deadDoubles` and `hasKey` — the duppies' blocking logic
+ * — until 2026-09-04.
+ *
+ * Derived from `dealPlan` rather than repeating its `seatCount === 3` test, so
+ * the two cannot drift apart.
+ */
+export function tilesCarrying(pip: Pip, seatCount: number): number {
+  // useBoneyard does not affect removeDoubleBlank at any seat count.
+  const { removeDoubleBlank } = dealPlan(seatCount, false);
+  return removeDoubleBlank && pip === 0 ? 6 : 7;
+}
+
+/** Tiles carrying `pip` that are still unaccounted for, given how many are visible. */
+export function unaccountedFor(pip: Pip, seen: number, seatCount: number): number {
+  return Math.max(0, tilesCarrying(pip, seatCount) - seen);
+}

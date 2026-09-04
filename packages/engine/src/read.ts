@@ -36,6 +36,7 @@
  */
 
 import { openEnds } from './hand.ts';
+import { tilesCarrying, unaccountedFor } from './tiles.ts';
 import {
   deadDoubles,
   endsAfter,
@@ -45,23 +46,6 @@ import {
   type PublicView,
 } from './bots.ts';
 import type { Move, Pip, TileId } from './types.ts';
-
-/**
- * How many tiles carry a given pip.
- *
- * Seven, always — except the blanks in a three-hander, where `dealPlan`
- * removes the double-blank so 27 tiles divide evenly (`tiles.ts`). Counting
- * seven there would tell a player one blank is still unaccounted for when the
- * tile does not exist, which is precisely the kind of quiet lie that makes a
- * coach untrustworthy.
- *
- * Note this differs from `bots.ts`'s `hardEnds`/`deadDoubles`, which test
- * `seen === 6` directly and therefore carry that same off-by-one for blanks at
- * a three-handed table.
- */
-export function tilesCarrying(pip: Pip, seatCount: number): number {
-  return seatCount === 3 && pip === 0 ? 6 : 7;
-}
 
 /** One suit's arithmetic, from the player's own side of the table. */
 export interface SuitCount {
@@ -126,7 +110,7 @@ export function readTable(view: PublicView): TableRead {
   const suits: SuitCount[] = [];
   for (let pip = 0 as Pip; pip <= 6; pip = (pip + 1) as Pip) {
     const total = tilesCarrying(pip, view.seatCount);
-    const out = Math.max(0, total - seen[pip]);
+    const out = unaccountedFor(pip, seen[pip], view.seatCount);
     suits.push({ pip, mine: mine[pip], seen: seen[pip], out, total, lastOne: out === 1 });
   }
 

@@ -207,6 +207,43 @@ describe('hard ends, dead doubles and keys — named reads of public board state
       const view = baseView({ board, myHand: ['3-6'], format: 'french', openingTile: '0-0' });
       assert.deepEqual(hardEnds(view), [3]);
     });
+
+    // A three-hander drops the double-blank (dealPlan), so only SIX tiles
+    // carry a blank. Testing `seen === 6` for "one copy left" is right at four
+    // seats and wrong here, in both directions. Both cases below failed before
+    // 2026-09-04.
+    test('at three seats, all six blanks visible means none are left — not a hard end', () => {
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [
+          { tile: '0-1', crosswise: false }, { tile: '0-2', crosswise: false },
+          { tile: '0-3', crosswise: false }, { tile: '0-4', crosswise: false },
+          { tile: '0-5', crosswise: false }, { tile: '0-6', crosswise: false },
+        ],
+        leftEnd: 0, rightEnd: 6,
+      };
+      const view = baseView({ board, seatCount: 3, handSizes: [9, 9, 9], myHand: [] });
+      // Six seen out of six that exist: the suit is spent, so nobody holds one
+      // and the end is dead rather than hard. Counting to seven called this a
+      // hard end and sent the duppies chasing a tile that does not exist.
+      assert.deepEqual(hardEnds(view), []);
+    });
+
+    test('at three seats, five blanks visible leaves exactly one — a real hard end', () => {
+      const board: AnyBoard = {
+        kind: 'linear',
+        line: [
+          { tile: '0-1', crosswise: false }, { tile: '0-2', crosswise: false },
+          { tile: '0-3', crosswise: false }, { tile: '0-4', crosswise: false },
+          { tile: '0-5', crosswise: false },
+        ],
+        leftEnd: 0, rightEnd: 5,
+      };
+      const view = baseView({ board, seatCount: 3, handSizes: [9, 9, 9], myHand: [] });
+      // 0-6 is the only blank unaccounted for. Counting to seven made this look
+      // like two were out, so the duppies missed the block entirely.
+      assert.deepEqual(hardEnds(view), [0]);
+    });
   });
 
   describe('deadDoubles', () => {

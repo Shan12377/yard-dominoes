@@ -32,6 +32,7 @@ import {
   sideOf,
   tileCount,
   fullSet,
+  unaccountedFor,
 } from './tiles.ts';
 import { legalMoves, applyMove, knownVoids, openEnds } from './hand.ts';
 import type { AnyBoard, GameMode, HandState, Move, Pip, SetFormat, TileId } from './types.ts';
@@ -208,7 +209,7 @@ export function voidsFromLog(view: PublicView): Set<Pip>[] {
 export function hardEnds(view: PublicView): Pip[] {
   if (!view.board) return [];
   const seen = suitsSeen(view);
-  return openEnds(view.board).filter((suit) => seen[suit] === 6);
+  return openEnds(view.board).filter((suit) => unaccountedFor(suit, seen[suit], view.seatCount) === 1);
 }
 
 /**
@@ -223,7 +224,7 @@ export function deadDoubles(view: PublicView): TileId[] {
   return view.myHand.filter((t) => {
     const [a, b] = halves(t);
     if (a !== b) return false; // only doubles can be dead in this sense
-    return seen[a] === 6 && !open.has(a);
+    return unaccountedFor(a, seen[a], view.seatCount) === 1 && !open.has(a);
   });
 }
 
@@ -237,8 +238,8 @@ export function hasKey(view: PublicView): boolean {
   const mySuits = new Set<Pip>();
   for (const t of view.myHand) {
     const [a, b] = halves(t);
-    if (seen[a] === 6) mySuits.add(a);
-    if (seen[b] === 6) mySuits.add(b);
+    if (unaccountedFor(a, seen[a], view.seatCount) === 1) mySuits.add(a);
+    if (unaccountedFor(b, seen[b], view.seatCount) === 1) mySuits.add(b);
   }
   return mySuits.size >= 2;
 }
