@@ -256,6 +256,14 @@ Do not relitigate these without asking.
     A pair inherits the queue position of its higher-standing member, so a VIP
     does bring their partner up the line — the only coherent reading, since a
     couples event cannot seat a VIP without the partner they entered with.
+  - `team_vs_team` (0059) — exactly two named teams (`tournaments.team_a_name`/
+    `team_b_name`, required together, enforced by both the host and a check
+    constraint). A table seats two of each on opposite sides — structurally
+    the same shape as battle of the sexes, keyed on `tournament_signups.team`
+    (`'a' | 'b'`, chosen at sign-up) instead of gender. Unlike couples, a
+    team-mate needs no relationship to anybody: "on team A" is a roster
+    affiliation, not a claim about a specific person, so there is nothing to
+    confirm the way a couple's `partner_user_id` has to be mutual.
 
   **`tournament_signups` now holds two foreign keys to `profiles`** (`user_id`
   and `partner_user_id`), which means a PostgREST embed there MUST name its
@@ -292,10 +300,14 @@ Do not relitigate these without asking.
   draw for membership instead. Any future theme inherits that for free; do not
   reintroduce a positional cut.
 
-  **Still to build:** `team_vs_team` and `couples`, which both need a pair or
-  team concept at sign-up (a partner reference plus mutual confirmation), and
-  weekly recurrence — JamDom runs weekly events across the game styles, and a
-  host filling the form in each week is the current substitute for that.
+  All three non-open themes share the seat-assignment machinery above
+  (`tournament_signups.seat_index`), so the join-order fix applies to each for
+  free — verified live for `team_vs_team` the same way as the others:
+  scrambled join order, correct final seating regardless.
+
+  **Still to build:** weekly recurrence — JamDom runs weekly events across the
+  game styles, and a host filling the form in each week is the current
+  substitute for that.
 - **Voice is a peer-to-peer mesh, never an SFU.** Live table voice ships in
   `apps/web/src/voice.ts`: each of the four seats sends audio straight to the
   other three, signalling over the Realtime channel the lounge already holds.

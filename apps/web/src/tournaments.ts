@@ -20,13 +20,14 @@ import { supabase } from './online.ts';
 export type TournamentStatus =
   | 'announced' | 'signups_open' | 'seating' | 'running' | 'finished' | 'cancelled';
 
-export type TournamentTheme = 'open' | 'battle_of_the_sexes' | 'couples';
+export type TournamentTheme = 'open' | 'battle_of_the_sexes' | 'couples' | 'team_vs_team';
 
 /** What a player is told this event is. */
 export const THEME_LABEL: Record<TournamentTheme, string> = {
   open: 'Open to all',
   battle_of_the_sexes: 'Battle of the sexes — women against men',
   couples: "Couple's tourney — enter with your partner",
+  team_vs_team: 'Team vs team',
 };
 
 export interface Tournament {
@@ -41,6 +42,9 @@ export interface Tournament {
    * the game. 'open' is the ordinary one and is what any older row reads as.
    */
   theme: TournamentTheme;
+  /** Set only when theme === 'team_vs_team'. */
+  teamAName: string | null;
+  teamBName: string | null;
   startsAt: string;
   signupsOpenAt: string | null;
   rounds: number;
@@ -87,6 +91,8 @@ function shape(row: any): Tournament {
     format: row.format,
     seatCount: row.seat_count,
     theme: (row.theme ?? 'open') as TournamentTheme,
+    teamAName: row.team_a_name ?? null,
+    teamBName: row.team_b_name ?? null,
     startsAt: row.starts_at,
     signupsOpenAt: row.signups_open_at ?? null,
     rounds: row.rounds,
@@ -137,8 +143,8 @@ interface SignupReply { entered: boolean; standing: Standing }
 export const myStanding = (tournamentId: string) =>
   call<SignupReply>('tournament-signup', { tournamentId, action: 'status' });
 
-export const enterTournament = (tournamentId: string, partner?: string) =>
-  call<SignupReply>('tournament-signup', { tournamentId, action: 'enter', partner });
+export const enterTournament = (tournamentId: string, partner?: string, team?: string) =>
+  call<SignupReply>('tournament-signup', { tournamentId, action: 'enter', partner, team });
 
 export const withdrawFromTournament = (tournamentId: string) =>
   call<SignupReply>('tournament-signup', { tournamentId, action: 'withdraw' });
@@ -155,6 +161,9 @@ export interface NewTournament {
   seatCount: number;
   clock: string;
   theme?: TournamentTheme;
+  /** Required when theme is 'team_vs_team'. */
+  teamAName?: string;
+  teamBName?: string;
   startsAt: string;
   signupsOpenAt?: string | null;
   rounds?: number;

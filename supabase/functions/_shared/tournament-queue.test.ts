@@ -311,3 +311,66 @@ test('a VIP brings their partner up the line, because a couple is one entry', ()
   assert.ok(draw.tables[0].includes('spouse'),
     'the VIP cannot be seated without the partner they entered with');
 });
+
+// ----------------------------------------------------------- team v team --
+
+const teamPlayer = (userId: string, team: string | null, signedUpAt = '2026-01-01T09:00:00Z') =>
+  ({ userId, team, tier: 'guest', tierExpiresAt: null, signedUpAt, gender: null });
+
+test('team vs team seats two of each team, on opposite sides', () => {
+  const ordered = [
+    teamPlayer('a1', 'a'), teamPlayer('b1', 'b'), teamPlayer('a2', 'a'), teamPlayer('b2', 'b'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'team_vs_team');
+  assert.equal(draw.tables.length, 1);
+  const [t] = draw.tables;
+  assert.deepEqual([t[0], t[2]], ['a1', 'a2'], 'team A holds seats 0 and 2');
+  assert.deepEqual([t[1], t[3]], ['b1', 'b2'], 'team B holds seats 1 and 3');
+});
+
+test('team-mates need no relationship to each other, unlike couples', () => {
+  // Four strangers on team A, four on team B — nobody named anybody. A roster
+  // affiliation is enough; drawTeamVsTeam never checks for a confirmed pair.
+  const ordered = [
+    teamPlayer('a1', 'a'), teamPlayer('a2', 'a'), teamPlayer('a3', 'a'), teamPlayer('a4', 'a'),
+    teamPlayer('b1', 'b'), teamPlayer('b2', 'b'), teamPlayer('b3', 'b'), teamPlayer('b4', 'b'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'team_vs_team');
+  assert.equal(draw.tables.length, 2, 'four of each side makes two tables');
+  assert.deepEqual(draw.substitutes, []);
+});
+
+test('the shorter roster caps the tables; the surplus waits in queue order', () => {
+  const ordered = [
+    teamPlayer('a1', 'a'), teamPlayer('a2', 'a'), teamPlayer('a3', 'a'),
+    teamPlayer('b1', 'b'), teamPlayer('a4', 'a'), teamPlayer('a5', 'a'),
+    teamPlayer('b2', 'b'), teamPlayer('a6', 'a'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'team_vs_team');
+  assert.equal(draw.tables.length, 1);
+  assert.deepEqual(draw.tables[0], ['a1', 'b1', 'a2', 'b2']);
+  assert.deepEqual(draw.substitutes, ['a3', 'a4', 'a5', 'a6']);
+});
+
+test('nobody without a chosen team is seated into either side', () => {
+  const ordered = [
+    teamPlayer('a1', 'a'), teamPlayer('a2', 'a'), teamPlayer('b1', 'b'),
+    teamPlayer('unaligned', null), teamPlayer('b2', 'b'),
+  ];
+  const draw = drawForTheme(ordered, 4, 'team_vs_team');
+  assert.deepEqual(draw.tables, [['a1', 'b1', 'a2', 'b2']]);
+  assert.deepEqual(draw.substitutes, ['unaligned']);
+});
+
+test('a VIP moves up within their own team, same rule as every other theme', () => {
+  const now = Date.parse('2026-01-01T12:00:00Z');
+  const ordered = queueOrder([
+    { userId: 'guestA', team: 'a', tier: 'guest', tierExpiresAt: null, signedUpAt: '2026-01-01T09:00:00Z' },
+    { userId: 'vipA', team: 'a', tier: 'vip', tierExpiresAt: '2027-01-01T00:00:00Z', signedUpAt: '2026-01-01T11:00:00Z' },
+    { userId: 'b1', team: 'b', tier: 'guest', tierExpiresAt: null, signedUpAt: '2026-01-01T09:00:00Z' },
+    { userId: 'b2', team: 'b', tier: 'guest', tierExpiresAt: null, signedUpAt: '2026-01-01T09:05:00Z' },
+  ], now);
+  const draw = drawForTheme(ordered, 4, 'team_vs_team');
+  assert.equal(draw.tables[0][0], 'vipA');
+  assert.equal(draw.tables[0][2], 'guestA');
+});

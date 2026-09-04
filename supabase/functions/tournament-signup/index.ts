@@ -19,11 +19,13 @@ import { loadQueue, signupsOpen, standingFor } from '../_shared/tournament.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
-  const { tournamentId, action, partner } = await req.json() as {
+  const { tournamentId, action, partner, team } = await req.json() as {
     tournamentId?: string;
     action?: string;
     /** Username of the person you are entering WITH, for a couples event. */
     partner?: string;
+    /** 'a' | 'b' — which side, for a team_vs_team event. */
+    team?: string;
   };
   if (!tournamentId) throw new HttpError(422, 'which tournament?');
   if (action !== 'enter' && action !== 'withdraw' && action !== 'status') {
@@ -82,6 +84,19 @@ Deno.serve(handled(async (req) => {
         partnerUserId = found[0].id as string;
       }
 
+      // A team-vs-team event needs a side, same reasoning as gender above:
+      // finding out at the draw that you have no side is worse than being
+      // asked now. Unlike a couple's partner, a team-mate needs no relation
+      // to anybody — this is a roster choice, not a claim to confirm.
+      let teamChoice: string | null = null;
+      if (t.theme === 'team_vs_team') {
+        teamChoice = String(team ?? '').trim().toLowerCase();
+        if (teamChoice !== 'a' && teamChoice !== 'b') {
+          throw new HttpError(422,
+            `this one is team vs team — say "a" for ${t.team_a_name} or "b" for ${t.team_b_name}`);
+        }
+      }
+
       // `tier_at_signup` is a snapshot for disputes and is NEVER ordered by.
       // The queue reads the live tier at seating time, which is what lets an
       // afternoon upgrade jump the morning's line.
@@ -94,6 +109,7 @@ Deno.serve(handled(async (req) => {
         user_id: user.id,
         tier_at_signup: profile?.tier ?? 'guest',
         partner_user_id: partnerUserId,
+        team: teamChoice,
       });
       // 23505 is the primary key — they were already signed up, which is
       // exactly what they asked for. Anything else is real.
@@ -101,9 +117,15 @@ Deno.serve(handled(async (req) => {
       // One exception: naming a partner on a second tap is a correction, not a
       // duplicate. Their place in line is untouched (signed_up_at is never
       // rewritten); only who they say they are playing with changes.
-      if (error && error.code === '23505' && partnerUserId) {
+      // Same correction-not-duplicate exception as the partner case: a second
+      // tap that only changes team (or partner) must not push the player back
+      // in line, and signed_up_at is never touched by this branch.
+      if (error && error.code === '23505' && (partnerUserId || teamChoice)) {
         const { error: fixError } = await db.from('tournament_signups')
-          .update({ partner_user_id: partnerUserId })
+          .update({
+            ...(partnerUserId ? { partner_user_id: partnerUserId } : {}),
+            ...(teamChoice ? { team: teamChoice } : {}),
+          })
           .eq('tournament_id', t.id).eq('user_id', user.id);
         if (fixError) throw new HttpError(500, fixError.message);
       } else if (error && error.code !== '23505') {

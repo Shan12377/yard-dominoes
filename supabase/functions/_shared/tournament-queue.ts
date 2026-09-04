@@ -42,6 +42,12 @@ export interface QueueEntry {
    * counts when both name each other — see `drawCouples`.
    */
   partnerUserId?: string | null;
+  /**
+   * `'a' | 'b' | null` for the team_vs_team theme — which of the event's two
+   * named teams this player is on. Only that theme ever looks; nobody is
+   * asked to pick a team to enter any other kind of event.
+   */
+  team?: string | null;
 }
 
 /**
@@ -51,7 +57,7 @@ export interface QueueEntry {
  *
  * `open` is the ordinary event — the queue, cut into full tables.
  */
-export type TournamentTheme = 'open' | 'battle_of_the_sexes' | 'couples';
+export type TournamentTheme = 'open' | 'battle_of_the_sexes' | 'couples' | 'team_vs_team';
 
 /**
  * Where a player's membership puts them in line.
@@ -184,6 +190,44 @@ function drawBattleOfTheSexes<T extends QueueEntry>(
 }
 
 /**
+ * Team vs team: exactly two named teams, `a` and `b`. A table seats two
+ * players from each, on opposite partner sides — structurally the same shape
+ * as battle of the sexes, keyed on `team` instead of `gender`, and with the
+ * same reasoning throughout: the shorter roster caps the tables, and the
+ * surplus stays in queue order.
+ *
+ * Unlike couples, team-mates need not know each other or confirm anything —
+ * "on team A" is a roster affiliation chosen at sign-up (tournament-signup),
+ * not a claim about a specific person that could be forged. Any two team A
+ * members may end up partnered; the event promises A-versus-B, not who
+ * within a side plays with whom.
+ */
+function drawTeamVsTeam<T extends QueueEntry>(
+  ordered: readonly T[],
+  seatCount: number,
+): Draw {
+  if (seatCount !== 4) return { tables: [], substitutes: ordered.map((e) => e.userId) };
+
+  const teamA = ordered.filter((e) => e.team === 'a');
+  const teamB = ordered.filter((e) => e.team === 'b');
+  const tableCount = Math.min(Math.floor(teamA.length / 2), Math.floor(teamB.length / 2));
+
+  const tables: string[][] = [];
+  const seated = new Set<string>();
+  for (let t = 0; t < tableCount; t++) {
+    const [a1, a2] = [teamA[t * 2], teamA[t * 2 + 1]];
+    const [b1, b2] = [teamB[t * 2], teamB[t * 2 + 1]];
+    tables.push([a1.userId, b1.userId, a2.userId, b2.userId]);
+    for (const e of [a1, b1, a2, b2]) seated.add(e.userId);
+  }
+
+  return {
+    tables,
+    substitutes: ordered.filter((e) => !seated.has(e.userId)).map((e) => e.userId),
+  };
+}
+
+/**
  * Couples: two people who entered together sit as partners, against another
  * couple.
  *
@@ -250,5 +294,6 @@ export function drawForTheme<T extends QueueEntry>(
 ): Draw {
   if (theme === 'battle_of_the_sexes') return drawBattleOfTheSexes(ordered, seatCount);
   if (theme === 'couples') return drawCouples(ordered, seatCount);
+  if (theme === 'team_vs_team') return drawTeamVsTeam(ordered, seatCount);
   return drawCutLine(ordered.map((e) => e.userId), seatCount);
 }

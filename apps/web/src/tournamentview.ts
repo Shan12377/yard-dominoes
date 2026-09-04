@@ -50,11 +50,24 @@ interface State {
   partnerDraft: string;
   /** Caret inside partnerDraft, restored with it. */
   partnerCaret: number;
+  /** Chosen side for a team_vs_team sign-up, before it is submitted. */
+  teamDraft: 'a' | 'b' | null;
+  /**
+   * Team names being typed on the host's "Schedule another" form. This panel
+   * rebuilds on the same countdown tick as everything else here (as often as
+   * once a second near another event's start time), so these need the same
+   * outside-the-DOM treatment as partnerDraft above.
+   */
+  newTeamAName: string;
+  newTeamACaret: number;
+  newTeamBName: string;
+  newTeamBCaret: number;
 }
 
 const state: State = {
   tournament: null, standing: null, queue: null, wouldSeat: 0,
-  loaded: false, busy: false, error: null, hostOpen: false, partnerDraft: '', partnerCaret: 0,
+  loaded: false, busy: false, error: null, hostOpen: false, partnerDraft: '', partnerCaret: 0, teamDraft: null,
+  newTeamAName: '', newTeamACaret: 0, newTeamBName: '', newTeamBCaret: 0,
 };
 
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -176,7 +189,10 @@ export function tournamentPanel(
   // whether to sign up needs to know it is women against men BEFORE they
   // commit, not when the draw refuses them.
   if (t.theme !== 'open') {
-    panel.append(el('div', 'tourney-theme', THEME_LABEL[t.theme]));
+    const label = t.theme === 'team_vs_team' && t.teamAName && t.teamBName
+      ? `${t.teamAName} vs ${t.teamBName}`
+      : THEME_LABEL[t.theme];
+    panel.append(el('div', 'tourney-theme', label));
   }
 
   const when = el('div', 'tourney-when');
@@ -255,6 +271,26 @@ function body(
       wrap.append(partnerField);
     }
 
+    // A team-vs-team event needs a side. No focus/caret concerns like the
+    // text fields above — it is a two-way choice, same pattern as the
+    // rankings tab toggle.
+    if (t.theme === 'team_vs_team') {
+      wrap.append(el('p', 'muted small', 'Pick your side.'));
+      const choices = el('div', 'choices');
+      for (const [value, label] of [
+        ['a', t.teamAName ?? 'Team A'], ['b', t.teamBName ?? 'Team B'],
+      ] as const) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'choice';
+        btn.textContent = label;
+        btn.setAttribute('aria-pressed', String(state.teamDraft === value));
+        btn.onclick = () => { state.teamDraft = value; rerender(); };
+        choices.appendChild(btn);
+      }
+      wrap.append(choices);
+    }
+
     const go = document.createElement('button');
     // `pulse` is a slow breath, and CSS turns it off entirely under
     // prefers-reduced-motion. See the note on tournamentPanel.
@@ -262,9 +298,11 @@ function body(
     go.textContent = state.busy ? 'Signing you up…' : 'Sign up';
     go.disabled = state.busy;
     go.onclick = () => void run(async () => {
-      const reply = await enterTournament(t.id, state.partnerDraft.trim() || undefined);
+      const reply = await enterTournament(
+        t.id, state.partnerDraft.trim() || undefined, state.teamDraft ?? undefined);
       state.partnerDraft = '';
       state.partnerCaret = 0;
+      state.teamDraft = null;
       return reply;
     }, me, rerender);
     wrap.append(go);
@@ -472,20 +510,63 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
   const theme = document.createElement('select');
   theme.innerHTML = '<option value="open">Open to all</option>'
     + '<option value="battle_of_the_sexes">Battle of the sexes — women v men</option>'
-    + '<option value="couples">Couple\'s tourney — pairs</option>';
+    + '<option value="couples">Couple\'s tourney — pairs</option>'
+    + '<option value="team_vs_team">Team vs team</option>';
   theme.setAttribute('aria-label', 'Kind of event');
+
+  // Only team_vs_team needs these, and they need the same focus/caret
+  // treatment as the sign-up panel's partner field — see State's comment.
+  const teamAField = document.createElement('input');
+  teamAField.className = 'field';
+  teamAField.placeholder = 'Team A name';
+  teamAField.maxLength = 40;
+  teamAField.hidden = true;
+  teamAField.setAttribute('aria-label', 'Team A name');
+  teamAField.value = state.newTeamAName;
+  teamAField.oninput = () => {
+    state.newTeamAName = teamAField.value;
+    state.newTeamACaret = teamAField.selectionStart ?? state.newTeamAName.length;
+  };
+  const teamBField = document.createElement('input');
+  teamBField.className = 'field';
+  teamBField.placeholder = 'Team B name';
+  teamBField.maxLength = 40;
+  teamBField.hidden = true;
+  teamBField.setAttribute('aria-label', 'Team B name');
+  teamBField.value = state.newTeamBName;
+  teamBField.oninput = () => {
+    state.newTeamBName = teamBField.value;
+    state.newTeamBCaret = teamBField.selectionStart ?? state.newTeamBName.length;
+  };
+  for (const [field, draft, caret] of [
+    [teamAField, state.newTeamAName, state.newTeamACaret],
+    [teamBField, state.newTeamBName, state.newTeamBCaret],
+  ] as const) {
+    if (draft) {
+      requestAnimationFrame(() => {
+        field.focus();
+        field.setSelectionRange(caret, caret);
+      });
+    }
+  }
+
   theme.onchange = () => {
-    // Both themes seat partners opposite each other, which only works at a
-    // four-handed partner table — the server and 0056/0057 refuse anything
-    // else, so decide it here rather than offering a rejected combination.
+    // All three themes seat partners opposite each other, which only works at
+    // a four-handed partner table — the server and 0056/0057/0059 refuse
+    // anything else, so decide it here rather than offering a combination
+    // that would be rejected.
     const paired = theme.value !== 'open';
     if (paired) mode.value = 'partner';
     mode.disabled = paired;
+    const teams = theme.value === 'team_vs_team';
+    teamAField.hidden = !teams;
+    teamBField.hidden = !teams;
   };
 
   const row = el('div', 'row');
   row.append(name, starts, mode, theme);
   form.append(row);
+  form.append(teamAField, teamBField);
 
   const go = document.createElement('button');
   go.className = 'act ghost small';
@@ -505,10 +586,14 @@ function newEventForm(me: MyProfile, rerender: () => void): HTMLElement {
       format: paired ? 'sixlove' : 'firstToSix',
       seatCount: 4,
       theme: theme.value as TournamentTheme,
+      teamAName: theme.value === 'team_vs_team' ? state.newTeamAName.trim() : undefined,
+      teamBName: theme.value === 'team_vs_team' ? state.newTeamBName.trim() : undefined,
       clock: 'yard',
       startsAt: new Date(starts.value).toISOString(),
       loungeId: state.tournament?.loungeId ?? null,
     });
+    state.newTeamAName = ''; state.newTeamACaret = 0;
+    state.newTeamBName = ''; state.newTeamBCaret = 0;
     // A newly scheduled event is usually later than the one on screen, so it
     // will not become `nextTournament()` — say so rather than looking inert.
     const all = await hostableTournaments();

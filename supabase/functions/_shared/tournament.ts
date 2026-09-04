@@ -44,6 +44,8 @@ export interface QueuedPlayer {
   partnerUserId: string | null;
   /** Their partner's name, for the "you entered with X" line on screen. */
   partnerUsername: string | null;
+  /** 'a' | 'b' | null — which side they chose, for team_vs_team. */
+  team: string | null;
 }
 
 /**
@@ -65,7 +67,7 @@ export async function loadQueue(
     // stops being unambiguous — PostgREST refuses the whole query rather than
     // picking one. That broke every tournament read, not just couples, until
     // the hint went in.
-    .select('user_id, signed_up_at, status, round, table_id, partner_user_id, '
+    .select('user_id, signed_up_at, status, round, table_id, partner_user_id, team, '
       + 'profiles!tournament_signups_user_id_fkey(username, tier, tier_expires_at, gender)')
     .eq('tournament_id', tournamentId)
     .in('status', IN_LINE);
@@ -85,6 +87,7 @@ export async function loadQueue(
     gender: (r.profiles?.gender ?? null) as string | null,
     partnerUserId: (r.partner_user_id ?? null) as string | null,
     partnerUsername: null,
+    team: (r.team ?? null) as string | null,
   }));
 
   // Resolve partner names from the queue itself rather than a second query —

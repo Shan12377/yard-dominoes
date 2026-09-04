@@ -30,7 +30,7 @@ const CLOCKS = ['blitz', 'speed', 'yard', 'relaxed'];
  * Only themes whose seating is actually built belong here — a theme the draw
  * cannot seat is a host scheduling an event that seats nobody.
  */
-const THEMES = ['open', 'battle_of_the_sexes', 'couples'];
+const THEMES = ['open', 'battle_of_the_sexes', 'couples', 'team_vs_team'];
 
 /**
  * The statuses a host may set on a signup by hand.
@@ -84,12 +84,23 @@ Deno.serve(handled(async (req) => {
       throw new HttpError(422, `${theme.replace(/_/g, ' ')} is a four-handed partner event`);
     }
 
+    // Both names are how the event gets announced, not optional — 0059
+    // enforces this at the schema too, but failing here means the host sees
+    // the gap on the form they are already looking at.
+    const teamAName = theme === 'team_vs_team' ? String(body.teamAName ?? '').trim() : null;
+    const teamBName = theme === 'team_vs_team' ? String(body.teamBName ?? '').trim() : null;
+    if (theme === 'team_vs_team' && (!teamAName || !teamBName)) {
+      throw new HttpError(422, 'name both teams');
+    }
+
     const { data, error } = await db.from('tournaments').insert({
       name: String(body.name ?? '').trim(),
       mode,
       format,
       seat_count: seatCount,
       theme,
+      team_a_name: teamAName,
+      team_b_name: teamBName,
       // Named, not numeric — the server looks the seconds up when it opens the
       // tables, exactly as create-table does, so nobody can schedule a
       // ten-minute turn by posting a number.
