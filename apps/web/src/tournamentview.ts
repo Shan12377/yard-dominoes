@@ -188,7 +188,22 @@ export function tournamentPanel(
   rerender: () => void,
 ): HTMLElement | null {
   const t = state.tournament;
-  if (!t) return null;
+  if (!t) {
+    // Nothing on the calendar is the common case for a brand-new lounge, and
+    // a host still needs a way to schedule the very first event — newEventForm
+    // already handles t === null (only the "Repeat" button needs a real one),
+    // it was simply unreachable while this whole panel required an existing
+    // tournament just to render. Found live 2026-09-04: a real host, freshly
+    // granted is_host, had no path to create anything at all.
+    if (!me?.isHost) return null;
+    const panel = el('div', 'panel tourney');
+    panel.append(el('div', 'eyebrow', 'Tournament'));
+    panel.append(el('h2', undefined, 'Nothing on the calendar'));
+    panel.append(el('p', 'muted small', 'Schedule the next one below.'));
+    if (state.error) panel.append(el('div', 'banner', state.error));
+    panel.append(newEventForm(me, null, rerender));
+    return panel;
+  }
 
   scheduleTick(t, me, rerender);
 
