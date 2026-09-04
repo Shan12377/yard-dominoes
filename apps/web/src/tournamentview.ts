@@ -424,8 +424,15 @@ function hostControls(t: Tournament, me: MyProfile, rerender: () => void): HTMLE
   toggle.textContent = state.hostOpen ? 'Hide host controls' : 'Host controls';
   toggle.onclick = () => {
     state.hostOpen = !state.hostOpen;
+    // Redraw immediately so the panel opens/closes on the first tap — the
+    // queue fetch below is a second, later redraw that fills the list in,
+    // not the one that has to happen before anything moves. Without this,
+    // nothing changed until loadHostQueue() resolved, so a second tap
+    // during that gap flipped state.hostOpen back before the first tap's
+    // own rerender ever landed. Reported directly, 2026-09-04: "I was
+    // double tapping before it was selected."
+    rerender();
     if (state.hostOpen) void loadHostQueue().then(rerender).catch(() => rerender());
-    else rerender();
   };
   wrap.append(toggle);
   if (!state.hostOpen) return wrap;
