@@ -903,6 +903,34 @@ const FORMAT_HINTS: Record<string, string> = {
 };
 
 // ----------------------------------------------------------------- lobby --
+/**
+ * What the player picked in the lobby form, held outside the DOM.
+ *
+ * render() rebuilds the whole page, so a <select> keeps its value only until
+ * the next redraw — and one is guaranteed here: the site-stats fetch calls
+ * render() ten seconds after load, which is well inside the time it takes to
+ * choose a game. Confirmed on production 2026-09-04: set cut throat + first
+ * to six, wait thirteen seconds, and the form reads partner + six love, with
+ * nothing on screen to say it changed. The player then deals a game they did
+ * not choose — reported as "thought i had it first to 6".
+ *
+ * Same rule client.md sets out for the chat draft and every collapsible.
+ */
+let lobbyMode = 'partner';
+let lobbyFormat = 'sixlove';
+/**
+ * Whether the player actually picked that format, as opposed to inheriting it.
+ *
+ * Six love is the Partner default, so remembering the value unconditionally
+ * would carry it into Cut throat the moment the mode changed — handing over
+ * the ~196-hand marathon CLAUDE.md says never to default to, without anyone
+ * asking for it. An untouched format always follows the mode; a deliberate
+ * one is honoured and survives every redraw.
+ */
+let lobbyFormatChosen = false;
+let lobbyDuppy: DuppyLevel = 'ranker';
+let lobbyPace: DuppyPace = 'yard';
+
 function lobby(): HTMLElement {
   const panel = el('div', 'panel door');
   panel.append(
@@ -926,6 +954,7 @@ function lobby(): HTMLElement {
                     <option value="openhand">Open hand — partner sees your tiles</option>
                     <option value="cutthroat">Cut throat — every man for himself</option>
                     <option value="french">French — race to 100, lowest wins</option>`;
+  mode.value = lobbyMode;
   const resolvedMode = (): GameMode => mode.value === 'french' ? 'cutthroat' : (mode.value as GameMode);
   const resolvedFormat = (): SetFormat => mode.value === 'french' ? 'french' : (format.value as SetFormat);
 
@@ -945,6 +974,15 @@ function lobby(): HTMLElement {
     format.innerHTML = partnered
       ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
       : `<option value="firstToSix">First to six</option><option value="sixlove">Six love — very long</option>`;
+    // Rebuilding the options resets the select to its first entry. Put a
+    // deliberate choice back; leave an inherited one to follow the mode, so
+    // Cut throat lands on first to six rather than dragging Partner's six
+    // love across with it.
+    if (lobbyFormatChosen && [...format.options].some((o) => o.value === lobbyFormat)) {
+      format.value = lobbyFormat;
+    } else {
+      lobbyFormat = format.value;
+    }
   };
   // One line under the picker, not a standalone guide — this is where a
   // player actually needs to know what they're choosing.
@@ -952,8 +990,8 @@ function lobby(): HTMLElement {
   const syncFormatHint = () => { formatHint.textContent = FORMAT_HINTS[resolvedFormat()] ?? ''; };
   syncFormat();
   syncFormatHint();
-  mode.onchange = () => { syncFormat(); syncFormatHint(); };
-  format.onchange = syncFormatHint;
+  mode.onchange = () => { lobbyMode = mode.value; syncFormat(); syncFormatHint(); };
+  format.onchange = () => { lobbyFormat = format.value; lobbyFormatChosen = true; syncFormatHint(); };
 
   const duppy = document.createElement('select');
   duppy.dataset.tour = 'duppy';
@@ -963,6 +1001,8 @@ function lobby(): HTMLElement {
     <option value="ranker" selected>Ranker — remembers who passed</option>
     <option value="don">Don — counts suits out and blocks</option>
     <option value="general">General — reads the whole table</option>`;
+  duppy.value = lobbyDuppy;
+  duppy.onchange = () => { lobbyDuppy = duppy.value as DuppyLevel; };
 
   // Built from the engine's own list, never hand-written options — practice
   // and a live table must offer the identical paces, and a hardcoded copy
@@ -970,7 +1010,8 @@ function lobby(): HTMLElement {
   const duppyPace = document.createElement('select');
   duppyPace.innerHTML = DUPPY_PACE_NAMES.map((pace) =>
     `<option value="${pace}">${DUPPY_PACE_LABELS[pace]}</option>`).join('');
-  duppyPace.value = 'yard';
+  duppyPace.value = lobbyPace;
+  duppyPace.onchange = () => { lobbyPace = duppyPace.value as DuppyPace; };
 
   // No casual/tournament picker. It chose between two identical rulesets —
   // the six opens a set, a tied replay and the hand after a bruk on every

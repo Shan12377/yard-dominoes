@@ -142,6 +142,25 @@ const FORMAT_HINTS: Record<string, string> = {
 let startTableAdvancedOpen = false;
 let openTablesMoreOpen = false;
 
+/**
+ * The start-a-table form's choices, held outside the DOM.
+ *
+ * Same rule as the practice lobby's, and it bites harder here: a lounge
+ * redraws on every chat message, every presence sync and every tick of a
+ * tournament countdown, so a form left open for a few seconds is rebuilt
+ * repeatedly. Without this, picking cut throat and first to six and then
+ * pausing to read the room silently hands you a partner six-love table.
+ */
+let startMode = 'partner';
+let startFormat = 'sixlove';
+/** See main.ts's lobbyFormatChosen: an inherited six love must not ride along
+ *  into Cut throat, only a format the host deliberately picked. */
+let startFormatChosen = false;
+let startSeatCount = '4';
+let startDuppy: DuppyLevel = 'ranker';
+let startClock: ClockName = 'yard';
+let startPace: DuppyPace = 'yard';
+
 function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HTMLElement {
   const form = el('div', 'row');
   // French used to live only as a third option inside Cut throat's "Set"
@@ -157,25 +176,32 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
     + `<option value="across">Across — 2 players, you play both hands</option>`
     + `<option value="cutthroat">Cut throat</option>`
     + `<option value="french">French — race to 100, lowest wins</option>`;
+  mode.value = startMode;
   const resolvedMode = (): GameMode => mode.value === 'french' ? 'cutthroat' : (mode.value as GameMode);
   const resolvedFormat = (): 'sixlove' | 'firstToSix' | 'french' =>
     mode.value === 'french' ? 'french' : (format.value as 'sixlove' | 'firstToSix');
 
   const seatCount = document.createElement('select');
   seatCount.innerHTML = `<option value="4">4 players</option><option value="3">3 players</option><option value="2">2 players</option>`;
+  seatCount.value = startSeatCount;
+  seatCount.onchange = () => { startSeatCount = seatCount.value; };
   const format = document.createElement('select');
   const formatField = el('label', 'field');
   const duppy = document.createElement('select');
   duppy.innerHTML = DUPPY_LEVELS.map((d) => `<option value="${d}">${DUPPY_LABELS[d]}</option>`).join('');
+  duppy.value = startDuppy;
+  duppy.onchange = () => { startDuppy = duppy.value as DuppyLevel; };
   // Without this the clock feature exists but nobody can reach it: every table
   // would take the database default and no speed room could ever be started.
   const clock = document.createElement('select');
   clock.innerHTML = CLOCK_NAMES.map((c) => `<option value="${c}">${CLOCK_LABELS[c]}</option>`).join('');
-  clock.value = 'yard';
+  clock.value = startClock;
+  clock.onchange = () => { startClock = clock.value as ClockName; };
   const duppyPace = document.createElement('select');
   duppyPace.innerHTML = DUPPY_PACE_NAMES.map((pace) =>
     `<option value="${pace}">${DUPPY_PACE_LABELS[pace]}</option>`).join('');
-  duppyPace.value = 'yard';
+  duppyPace.value = startPace;
+  duppyPace.onchange = () => { startPace = duppyPace.value as DuppyPace; };
 
   // Partner AND openhand are both inherently 4-seat, 2-vs-2 formats — lock the
   // seat count when either is selected so the form can never submit an invalid
@@ -202,6 +228,14 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
     format.innerHTML = partnered
       ? `<option value="sixlove">Six love</option><option value="firstToSix">First to six</option>`
       : `<option value="firstToSix">First to six</option><option value="sixlove">Six love — very long</option>`;
+    // The rebuild resets the select to its first option. Put back a chosen
+    // format; let an inherited one follow the mode, so Cut throat opens on
+    // first to six instead of inheriting Partner's six love.
+    if (startFormatChosen && [...format.options].some((o) => o.value === startFormat)) {
+      format.value = startFormat;
+    } else {
+      startFormat = format.value;
+    }
   };
   // One line under the picker, not a standalone guide — this is where the
   // actual confusion was (a player couldn't tell what a format meant, or
@@ -214,8 +248,22 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   syncFormat();
   syncSeatCount();
   syncFormatHint();
-  mode.onchange = () => { syncFormat(); syncSeatCount(); syncFormatHint(); };
-  format.onchange = () => { syncSeatCount(); syncFormatHint(); };
+  // syncSeatCount may have locked the count to 4 for a partnered mode, so the
+  // remembered value follows what is actually on screen.
+  startSeatCount = seatCount.value;
+  mode.onchange = () => {
+    startMode = mode.value;
+    syncFormat(); syncSeatCount(); syncFormatHint();
+    // syncSeatCount can force '4' for a partnered mode — keep the remembered
+    // value honest rather than letting it disagree with what is on screen.
+    startSeatCount = seatCount.value;
+  };
+  format.onchange = () => {
+    startFormat = format.value;
+    startFormatChosen = true;
+    syncSeatCount(); syncFormatHint();
+    startSeatCount = seatCount.value;
+  };
 
   const gameField = el('label', 'field');
   gameField.append(el('span', undefined, 'Game'), mode);

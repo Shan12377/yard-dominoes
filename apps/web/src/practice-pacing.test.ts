@@ -30,8 +30,36 @@ test('practice exposes the same Duppy paces as a live table, from the same sourc
   // called "yard". The drift risk is specifically a pace duration written
   // out by hand, so that is what must never reappear.
   assert.doesNotMatch(practiceSource, /seconds? per move/);
-  assert.match(practiceSource, /duppyPace\.value = 'yard'/);
-  assert.match(onlineTableSource, /duppyPace\.value = 'yard'/);
+  // The default is still 'yard' in both, but it now lives in the module-scope
+  // value the form is restored from rather than being assigned to the element
+  // inline — see the form-memory test below for why that moved.
+  assert.match(practiceSource, /let lobbyPace: DuppyPace = 'yard'/);
+  assert.match(practiceSource, /duppyPace\.value = lobbyPace/);
+  assert.match(onlineTableSource, /let startPace: DuppyPace = 'yard'/);
+  assert.match(onlineTableSource, /duppyPace\.value = startPace/);
+});
+
+test('the game-setup forms remember what was picked across a redraw', () => {
+  // render() rebuilds the page, so a <select> holds its value only until the
+  // next redraw — and the practice page guarantees one, ten seconds after
+  // load, when the site-stats fetch resolves. Confirmed on production
+  // 2026-09-04: choose cut throat + first to six, wait thirteen seconds, and
+  // the form reads partner + six love with nothing on screen to say so, then
+  // deals a game nobody asked for. Every one of these selects must be seeded
+  // from module scope and write back on change.
+  for (const [source, prefix] of [
+    [practiceSource, 'lobby'],
+    [onlineTableSource, 'start'],
+  ] as const) {
+    const mode = prefix === 'lobby' ? 'lobbyMode' : 'startMode';
+    const format = prefix === 'lobby' ? 'lobbyFormat' : 'startFormat';
+    assert.match(source, new RegExp(`mode\\.value = ${mode}`));
+    assert.match(source, new RegExp(`${mode} = mode\\.value`));
+    assert.match(source, new RegExp(`${format} = format\\.value`));
+    // Rebuilding the format options resets the select, so the remembered
+    // choice has to be put back explicitly afterwards.
+    assert.match(source, new RegExp(`format\\.value = ${format}`));
+  }
 });
 
 test('practice Duppies sit visibly at their physical table edges', () => {
