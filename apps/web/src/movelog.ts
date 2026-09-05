@@ -5,10 +5,26 @@ import type { SeatInfo } from './onlinetable.ts';
  *  (onlinetableview.ts) — kept identical here rather than introducing a
  *  shared helper for a two-line expression used in three places, matching
  *  how this codebase already handles the duplication. */
+/**
+ * What to call a seat.
+ *
+ * Duppies are named by seat alone. The level used to hang off the name
+ * ("Duppy 2 · ranker") and it was a poor trade: the player chose it in the
+ * setup form, it does not change mid-hand, and on a phone it ate the width the
+ * name needed — a two-hander's card truncated to "Du…". It is still on the
+ * seat's own aria-label and card title, which is where it belongs, since the
+ * one case where levels genuinely differ is a seat someone walked out of
+ * (leave-seat fills it with a 'yard' duppy).
+ */
 export function seatName(seat: SeatInfo): string {
   return seat.userId
     ? (seat.username ?? `Player ${seat.seatIndex + 1}`)
-    : `Duppy ${seat.seatIndex + 1} · ${seat.duppyLevel}`;
+    : `Duppy ${seat.seatIndex + 1}`;
+}
+
+/** The name plus its level, for the places with room to say both. */
+export function seatNameWithLevel(seat: SeatInfo): string {
+  return seat.userId ? seatName(seat) : `${seatName(seat)} · ${seat.duppyLevel}`;
 }
 
 /**

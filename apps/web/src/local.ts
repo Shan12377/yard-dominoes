@@ -240,11 +240,26 @@ export class LocalGame {
     return verifyHand(this.fairness);
   }
 
+  /**
+   * What to call a seat in anything a player reads.
+   *
+   * No level on the end. Every duppy at a practice table is the level chosen
+   * in the setup form, so repeating it on each seat card only ate the width
+   * the name needed, and it read as noise everywhere else this label goes —
+   * "Duppy 2 · ranker would have to pass" is worse than "Duppy 2 would have to
+   * pass". `duppyLevelLabel` still has it for the one place it is the point.
+   */
   seatLabel(seat: number): string {
     if (seat === this.mySeat) return 'You';
     if (isPartnered(this.options.mode) && sideOf(seat, this.options.mode) === this.mySide) {
       return 'Partner';
     }
+    return `Duppy ${seat + 1}`;
+  }
+
+  /** The seat's name with the duppy level, for a title or a screen reader. */
+  duppyLevelLabel(seat: number): string {
+    if (seat === this.mySeat) return 'You';
     return `Duppy ${seat + 1} · ${this.options.duppy}`;
   }
 

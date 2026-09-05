@@ -18,7 +18,7 @@ import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, french
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition, type SeatSlot } from './seatlayout.ts';
-import { describeMoveLine, describeSeat, seatName } from './movelog.ts';
+import { describeMoveLine, describeSeat, seatName, seatNameWithLevel } from './movelog.ts';
 import { tableRackPresentation } from './table-rack.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import {
@@ -684,6 +684,10 @@ function seatCard(
   // regardless of whether it's a real player or a bot filling the chair.
   who.append(el('span', 'seat-number', `Player ${s.seatIndex + 1}`));
   who.append(el('h3', undefined, seatName(s)));
+  // The duppy's level is off the name now (see seatName) but still one hover
+  // or screen reader away, which matters when a seat somebody walked out of
+  // has been filled with a different level to the rest of the table.
+  if (!s.userId) card.title = seatNameWithLevel(s);
   if (isMyPartner) who.append(el('span', 'badge partner-badge', 'Your partner'));
   // Yard or foreign, if they said. A duppy is from nowhere.
   if (s.origin === 'yardie' || s.origin === 'foreign') {

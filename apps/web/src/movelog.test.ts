@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { describeMoveLine } from './movelog.ts';
+import { describeMoveLine, seatNameWithLevel } from './movelog.ts';
 import type { SeatInfo } from './onlinetable.ts';
 
 function seat(overrides: Partial<SeatInfo>): SeatInfo {
@@ -59,9 +59,20 @@ test('in partner mode, an opposing seat still shows their real name', () => {
   assert.equal(line, 'Bob passed');
 });
 
-test('a duppy seat shows its stable player number and level', () => {
+test('a duppy seat shows its stable player number, without the level', () => {
+  // The level used to ride on the name here and on every seat card. It is the
+  // one the player chose at setup, it does not change mid-hand, and repeated
+  // down a whole turn log it is pure noise — while on a phone it ate the width
+  // a two-hander's card needed and truncated the name to "Du…". It lives on
+  // the card's title and aria-label now instead.
   const line = describeMoveLine({ kind: 'pass', seat: 2 }, seats, 0, false, null);
-  assert.equal(line, 'Duppy 3 · pickney passed');
+  assert.equal(line, 'Duppy 3 passed');
+});
+
+test('the level is still available where there is room to say it', () => {
+  assert.equal(seatNameWithLevel(seats[2]), 'Duppy 3 · pickney');
+  // A real player never gets a level appended, whatever is on the row.
+  assert.equal(seatNameWithLevel(seats[1]), 'Bob');
 });
 
 test('a human seat with no username falls back to its one-based player number', () => {

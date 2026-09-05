@@ -1133,6 +1133,9 @@ function seats(g: LocalGame): HTMLElement {
       card.classList.add('partner');
     }
     card.append(el('h3', undefined, g.seatLabel(seat)));
+    // Level off the visible name, still on the card for a hover or a screen
+    // reader. See LocalGame.seatLabel.
+    if (seat !== g.mySeat) card.title = g.duppyLevelLabel(seat);
     const count = g.hand?.hands[seat].length ?? 0;
     card.append(el('div', 'meta', `${count} tile${count === 1 ? '' : 's'}`));
     // Show what their passes gave away. This is Belt 4 Lesson 1, surfaced in
