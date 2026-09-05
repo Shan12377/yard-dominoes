@@ -468,7 +468,18 @@ export interface OpenTable {
   format: string;
   seatCount: number;
   status: 'waiting' | 'playing';
+  /** Real people sitting here. Duppies hold `user_id = null` and are not counted. */
   occupiedSeats: number;
+  /**
+   * User ids that vacated a seat here inside join-table's rejoin window, so
+   * `joinTable` would still let them back into it.
+   *
+   * This is what separates "abandoned" from "abandoned, but yours to come back
+   * to". A table whose last person walked out keeps `status = 'playing'` — only
+   * a finished set or the 3-hour sweep (0047) clears that — so without this the
+   * lounge advertises a dead table with nobody at it and offers to WATCH it.
+   */
+  recentLeavers: string[];
 }
 
 /** Tables currently running or waiting for players inside one lounge. */
@@ -478,21 +489,33 @@ export async function listLoungeTables(loungeId: string): Promise<OpenTable[]> {
   // catches it — this cap is a second line of defense against the list
   // growing unbounded between sweeps, not the actual fix for staleness.
   const { data, error } = await db().from('tables')
-    .select('id, join_code, mode, format, seat_count, status, seats(user_id)')
+    .select('id, join_code, mode, format, seat_count, status, seats(user_id, left_by_user_id, left_at)')
     .eq('lounge_id', loungeId)
     .in('status', ['waiting', 'playing'])
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw new Error(error.message);
-  return (data as any[]).map((t) => ({
-    id: t.id,
-    joinCode: t.join_code,
-    mode: t.mode,
-    format: t.format,
-    seatCount: t.seat_count,
-    status: t.status,
-    occupiedSeats: (t.seats as { user_id: string | null }[]).filter((s) => s.user_id).length,
-  }));
+  // Must match join-table's REJOIN_WINDOW_MS. A row listed as reclaimable
+  // after the server would refuse it is a button that 409s.
+  const cutoff = Date.now() - 5 * 60 * 1000;
+  return (data as any[]).map((t) => {
+    const seats = t.seats as { user_id: string | null; left_by_user_id: string | null; left_at: string | null }[];
+    return {
+      id: t.id,
+      joinCode: t.join_code,
+      mode: t.mode,
+      format: t.format,
+      seatCount: t.seat_count,
+      status: t.status,
+      occupiedSeats: seats.filter((s) => s.user_id).length,
+      // Who vacated a seat here recently enough that join-table would still
+      // let them reclaim it. Duppies never appear: they hold `user_id = null`
+      // and nobody "leaves" on their behalf.
+      recentLeavers: seats
+        .filter((s) => !s.user_id && s.left_by_user_id && s.left_at && Date.parse(s.left_at) > cutoff)
+        .map((s) => s.left_by_user_id as string),
+    };
+  });
 }
 
 export function canEnter(lounge: Lounge, tier: Tier, occupancy: number): { ok: boolean; why?: string } {

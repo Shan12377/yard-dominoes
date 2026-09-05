@@ -41,6 +41,8 @@ export async function openTablesPanel(
   loungeId: string,
   onJoin: (tableId: string) => void,
   rerender: () => void,
+  /** Who is looking, so a table only they can rejoin is shown only to them. */
+  me?: MyProfile | null,
 ): Promise<HTMLElement> {
   const wrap = el('div', 'panel open-tables-panel');
   // Start with the thing almost every visitor came to do: make a table and
@@ -54,6 +56,22 @@ export async function openTablesPanel(
 
   let tables: OpenTable[] = [];
   try { tables = await listLoungeTables(loungeId); } catch { /* shown as empty below */ }
+
+  // A playing table with nobody at it is finished in every sense that matters
+  // — the last person walked out and only duppies are left moving. It keeps
+  // `status = 'playing'` for up to three hours (0047's sweep), and the lounge
+  // was offering to WATCH it: nought of four seated, nothing happening.
+  // Reported directly after leaving a game mid-set.
+  //
+  // It still shows to the one player who can do something about it, because
+  // this row is their only door back — "Watch" quietly tries a rejoin first
+  // (below), and join-table keeps a seat claimable for five minutes.
+  const meId = me?.id ?? null;
+  tables = tables.filter((t) =>
+    t.occupiedSeats > 0
+    || t.status === 'waiting'
+    || (meId !== null && t.recentLeavers.includes(meId)));
+
   // A player came here to sit down. Put available seats before spectating,
   // then fuller waiting tables first so the fastest game is the first choice.
   tables.sort((a, b) => {
@@ -85,9 +103,14 @@ export async function openTablesPanel(
       );
       row.appendChild(details);
       row.append(el('span', 'open-table-seats', `${t.occupiedSeats}/${t.seatCount} seated`));
+      // Your own seat, still claimable. Say "Rejoin" — "Watch" was actively
+      // wrong here: it already attempts the rejoin, and calling it Watch told
+      // the one player who could resume the game that all they could do was
+      // spectate it.
+      const canRejoin = meId !== null && t.recentLeavers.includes(meId);
       const join = document.createElement('button');
-      join.className = t.status === 'waiting' ? 'act' : 'act ghost';
-      join.textContent = t.status === 'waiting' ? 'Sit down' : 'Watch';
+      join.className = t.status === 'waiting' || canRejoin ? 'act' : 'act ghost';
+      join.textContent = t.status === 'waiting' ? 'Sit down' : canRejoin ? 'Rejoin' : 'Watch';
       join.onclick = () => void (async () => {
         try {
           if (t.status === 'waiting') {

@@ -1408,7 +1408,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
 
   const tablesPanel = document.createElement('div');
   void openTablesPanel(lounge.id, (tableId) => void attachTable(tableId, rerender),
-    rerender).then((panel) => {
+    rerender, loungeState.me).then((panel) => {
     tablesPanel.replaceWith(panel);
   });
   frag.appendChild(tablesPanel);
