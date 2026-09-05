@@ -1361,6 +1361,9 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const legal = pending ? [] : game.legalMovesForMe();
   const playable = new Set(legal.flatMap((m) => ('tile' in m ? [m.tile] : [])));
   const hand = el('div', 'hand');
+  // The in-felt rail shares its width across exactly this many bones. A
+  // two-hander deals fourteen, not seven — see the .in-felt-hand rule.
+  hand.style.setProperty('--hand-count', String(Math.max(tiles.length, 1)));
 
   for (const tile of tiles) {
     const node = tileEl(tile);

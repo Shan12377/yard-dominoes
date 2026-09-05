@@ -635,16 +635,36 @@ label.field > span {
      playable tile off the edge on a narrow phone. The bones retain their
      1:2 material proportion while sharing the available rail width. */
   display: grid;
-  /* Never let a wide desktop/tablet felt turn this into giant bones, but on
-     a narrow phone share the exact available width across all seven. */
-  grid-template-columns: repeat(7, minmax(0, min(40px, calc((100% - 24px) / 7))));
+  /* ONE row, whatever the hand size. This used to be a hard `repeat(7, …)` on
+     the reasoning that "a standard four-player deal is seven bones" — true of
+     a four-hander and wrong everywhere else. A two-player table deals
+     FOURTEEN, so the extra bones wrapped onto a second row that the rail has
+     no height for and the felt clipped: reported on desktop with 13 tiles in
+     hand, half of them cut off. `grid-auto-flow: column` cannot wrap.
+     Never let a wide desktop felt turn this into giant bones, and on a narrow
+     phone share the available width — but stop shrinking at 26px rather than
+     grinding a fourteen-bone hand below a tappable size, and scroll instead.
+     `--hand-count` is set by whoever renders the rail; the 7 fallback keeps a
+     normal deal identical to before. */
+  grid-auto-flow: column;
+  /* NOT minmax(0, …): a zero minimum lets the tracks compress straight past
+     the clamp, which put a fourteen-bone hand at 17px a bone — narrower than
+     a fingertip. A bare clamp fixes the track, so once the bones stop
+     shrinking the rail scrolls instead. */
+  grid-auto-columns: clamp(
+    26px,
+    calc((100% - (4px * (var(--hand-count, 7) - 1))) / var(--hand-count, 7)),
+    40px);
   gap: 4px;
   justify-content: center;
-  overflow: visible;
+  overflow-x: auto;
+  scrollbar-width: thin;
   /* Its own clear header row is safer than taking horizontal space from a
      seven-tile hand on a narrow phone. */
   margin-top: 17px;
-  padding: 5px 2px 7px;
+  /* Roomier at the top than the old 5px: a scroll container clips vertically,
+     and the playable tile's -8px hover lift has to stay inside it. */
+  padding: 12px 2px 7px;
 }
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand .tile {
   width: 100%;

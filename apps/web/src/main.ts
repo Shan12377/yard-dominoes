@@ -1499,6 +1499,10 @@ function myHand(g: LocalGame): HTMLElement {
   const playable = g.playableTiles();
   const legal = g.legal();
   const hand = el('div', 'hand');
+  // See the .in-felt-hand rule: the rail sizes its columns from this rather
+  // than assuming a seven-bone deal.
+  hand.style.setProperty('--hand-count',
+    String(Math.max(g.hand?.hands[g.mySeat]?.length ?? 7, 1)));
 
   for (const tile of g.hand?.hands[g.mySeat] ?? []) {
     const node = tileEl(tile);
