@@ -869,6 +869,11 @@ label.field > span {
   min-height: 0;
   padding: 20px;
 }
+/* The seat cards are wrapped in .seat-strip so a phone can lay them out as one
+   even row (see the mobile block). `display: contents` keeps the wrapper out
+   of the way here, so each slot still resolves against .table-cross's own
+   grid and the desktop cross is byte-for-byte what it was. */
+.seat-strip { display: contents; }
 .seat-slot-top { grid-area: top; }
 .seat-slot-left { grid-area: left; }
 .seat-slot-right { grid-area: right; }
@@ -2373,10 +2378,29 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   /* Board first, uncontested — the spec's top priority for mobile. */
   .table-cross {
     grid-template-columns: repeat(4, 1fr);
+    /* Seats ABOVE the felt. They sat under it, which on a phone put every
+       opponent's tile count below the fold — the same complaint practice had,
+       reported again against a live lounge table. The hand still docks in the
+       felt's own lower rail, so board-first is untouched. */
     grid-template-areas:
+      "seats seats seats seats"
       "felt felt felt felt"
-      "bottom left right top"
       "result result result result";
+  }
+  /* One real row instead of four fixed columns. The columns stranded a
+     two-hander's cards in columns 1 and 4 with a gap between them, each
+     squeezed to a quarter of the width, which truncated "Candy" to "C…".
+     Flex shares the width between however many seats the table actually has. */
+  .seat-strip {
+    grid-area: seats;
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+    min-width: 0;
+  }
+  .seat-strip > .seat-slot {
+    flex: 1 1 0;
+    min-width: 0;
   }
   .table-room .table-cross {
     height: auto;

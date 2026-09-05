@@ -1016,13 +1016,22 @@ export function liveTableView(
   }
   cross.appendChild(feltSlot);
 
+  // Wrapped, but `display: contents` on desktop so each slot still lands in
+  // its own cross area (top/left/right/bottom) exactly as before. On a phone
+  // the wrapper becomes a real flex strip ABOVE the felt: seats used to sit
+  // under the board, off the bottom of the screen, and the four fixed grid
+  // columns stranded a two-hander's cards at opposite edges squeezed to a
+  // quarter width each — which is how "Candy" rendered as "C…". Reported from
+  // a 2-player cut throat table, 2026-09-05.
+  const seatStrip = el('div', 'seat-strip');
   game.seats.forEach((s) => {
     const slot = seatPosition(s.seatIndex, game.mySeat, game.table.seatCount);
     if (!slot) return;
     const wrap = el('div', `seat-slot seat-slot-${slot}`);
     wrap.appendChild(seatCard(s, game, rerender));
-    cross.appendChild(wrap);
+    seatStrip.appendChild(wrap);
   });
+  cross.appendChild(seatStrip);
 
   // Keep the completed-hand actions with the game, directly below the
   // player's bottom seat. Appending this after `.table-room` made a tall
