@@ -28,7 +28,7 @@ See @README.md for setup and architecture.
 ## Commands
 
 ```bash
-npm test              # 59 engine tests — run after ANY engine change
+npm test              # 401 tests — run after ANY engine change
 npm run bench         # set-length distributions
 npm run dev           # client on :5173
 npm run typecheck     # client types — run before declaring done
@@ -58,9 +58,9 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-08-28, `www.yaaddominoes.com` serves commit `e99adb7`
-  (`feat: 2-coin top-up for a guest's used-up daily Coach review`,
-  service worker v83), a READY production deployment from
+- As of 2026-09-04, `www.yaaddominoes.com` serves commit `3cebb09`
+  (`fix: cut throat six love wiped the board on every non-leader win`,
+  service worker v110), a READY production deployment from
   `design/yaaddominoes-foundation`. For what any specific past deploy
   contained, read `git log` rather than trusting an accumulated list here —
   this line is a pointer to current truth, not a changelog. Update this
@@ -109,9 +109,14 @@ preferences.
    `play-move` Edge Function, which validates with `isLegal()` before applying.
 3. **`hands` is never exposed to clients or Realtime.** Redaction happens in
    exactly one place — `persist()` in `supabase/functions/_shared/lib.ts`.
-4. **Duppies never receive hidden tiles.** They take a `PublicView`, which has
-   no field able to hold another seat's tiles. If you are passing `HandState`
-   to a bot, stop.
+4. **Duppies never receive hidden tiles, and neither does the live coach.**
+   Both take a `PublicView`, which has no field able to hold another seat's
+   tiles. If you are passing `HandState` to a bot, stop. The same applies to
+   `read.ts` (the live coach): practice runs in the browser, so the client
+   genuinely holds every duppy's hand, and a coach that reached for it would
+   teach reads that evaporate at a real table where the tiles are on a server.
+   That file never imports `HandState` — the leak is unwritable, not guarded
+   against. Keep it that way.
 5. **The server seed is revealed only after a hand ends.** Never populate
    `hand_public.server_seed` while `status = 'active'`.
 6. **No real-money play in this codebase.** Not behind a flag, not as hidden
@@ -147,14 +152,32 @@ Jamaican players notice these immediately. All are covered by tests.
   is" below. `SetOptions` has no `tournament` field, the practice Rules picker
   and its walkthrough stop are gone, and `tables.tournament` survives in the
   schema unwritten. Do not resurrect it as a ruleset.
-- **A win by the side under love BRUKS the score to 0-0.** They do not score
-  one. Under six love only one side can hold points at a time.
+- **The score BRUKS when the LAST side still on love comes off it**, and the
+  side that did it does not score one. Six love needs somebody to BE at love,
+  which is the whole reason the reset exists.
+  - **Partner:** two sides, so this is the familiar rule — the side under love
+    wins and it goes straight back to 0-0.
+  - **Cut throat:** four players are four sides, so several hold points at
+    once and the board only wipes once EVERY one of them has won a hand.
+    Winning is reaching six while ANOTHER player is still on zero — not while
+    all of them are.
+  - "Under six love only one side can hold points at a time" used to be
+    written here and it was wrong: it is Partner's rule stated as if it were
+    universal, and `applyHandResult` implemented it that way, wiping the board
+    whenever any non-leader won. Corrected 2026-09-04 against pagat and a
+    Jamaican player who hit it mid-set. `sixLove` (the whitewash celebration)
+    stays stricter than the win condition — every other side on zero.
 - **Tied blocked hands replay at a flat 2 points, double-six forced.** The
   double-six holder opens the replay no matter who currently leads — never
   "sporting" — and it's worth 2 points whoever wins it, however many ties
   happened first. An earlier version escalated the value each successive
   tie (2, then 3, then 4); that was wrong, confirmed against real play.
 - **One all play two:** at 1-1 the playoff winner goes straight to 2-0.
+  Unverified at cut throat, and worth a decision rather than an assumption:
+  it hangs off the bruk, so since 2026-09-04 it fires there when every player
+  is on exactly 1 (that being when the last one comes off love). Left as it
+  was rather than invent a four-handed reading of a Partner rule — no source
+  found either way.
 - **Pass the pose:** in Partner the winner may hand the pose across the table,
   but never when the double-six is forced. The engine rule is tested; the
   online build's server path (`pass-pose`) and client UI for it are in
@@ -175,23 +198,31 @@ Jamaican players notice these immediately. All are covered by tests.
 
 Do not relitigate these without asking.
 
-- **Cut throat defaults to first-to-six.** The default has NOT changed, but the
-  reason written here was wrong and is worth knowing before anyone leans on it.
-  It said six love "needs six consecutive wins from one player out of four" at a
-  measured ~196-hand median. That was a bug in `applyHandResult`, not the rule:
-  any non-leader winning wiped the board, so two players could never hold points
-  at once — Partner's rule applied to four separate sides. Corrected 2026-09-04
-  against pagat and a Jamaican player: several players hold points at once, and
-  the board only wipes once every one of them has won a hand. `npm run bench`
-  now measures a median of **21 hands for cut throat six love against 19 for
-  partner** — no longer a marathon, and no longer a reason on its own. Whether
-  the default should change is an open product question, not a settled one.
+- **Cut throat defaults to first-to-six** — but this is no longer a settled
+  decision, because the reason for it was a bug. It read "six love needs six
+  consecutive wins from one player out of four, a ~196-hand median". Six in a
+  row was never the rule; `applyHandResult` was wiping the board on every
+  non-leader win (see the bruk rule under "Rules competitors get wrong").
+  Fixed 2026-09-04, and `npm run bench` now measures **21 hands for cut throat
+  six love against 19 for partner**. The default is unchanged pending a real
+  decision; the length argument for it is gone.
 - **The game is free; membership buys the social layer.** Guest free, Yardie
   $24/yr, VIP $69/yr. The incumbent gates basic play behind a paywall and
   bounces every newcomer; we do the opposite deliberately.
 - **No social login is ever required.** Anonymous sign-in is on.
 - **No modal during a live hand.** Not a gift, not a rate prompt, not an ad,
   not a service worker update.
+- **The live coach tells you what to play, and it is practice-only.** Built
+  2026-09-04 on the owner's explicit call, reversing an earlier "teach, don't
+  tell" position: the goal is players who walk into the lounge as champions.
+  `read.ts` counts the suits, says what the passes proved, and ranks the plays
+  by the duppies' own `scoreMove`, so following it plays at the strongest tier.
+  Deliberately the heuristic and not `chooseMove`'s sampler — a win rate cannot
+  explain itself, and every line has to say why. It is NOT gated: a server-side
+  flag would drag Supabase into the offline practice bundle for nothing, and
+  practice-only means nobody gains an edge over another player. If it is ever
+  offered in the lounge, that is a competitive-integrity decision, not a
+  feature flag.
 - **A finished hand belongs to whoever PLAYED it, not to whoever is sitting
   there now.** `reveal-hand`, `review-hand` and `settle-hand` authorise against
   `seat_hands` (written per hand by `persist()`, never rewritten), not against
