@@ -670,17 +670,16 @@ label.field > span {
 .hand-actions-dock > .muted { margin: 0; flex-basis: 100%; }
 
 /* ------------------------------------------------------- the live coach --
-   Practice only. Sits under the hand and stays collapsed until asked for, so
-   it costs one button of vertical space on a phone until a player wants it.
-   Sky rather than mango: this is information, not an action — gold in this
-   system means "do something", and a panel that reads as a call to action
-   every turn would nag. */
-.reader-panel {
-  margin-top: 10px;
-  border-color: rgba(67, 199, 244, 0.34);
+   Practice only. The trigger sits in the sticky score bar so it is reachable
+   without scrolling, and the read itself opens over the board (.reader-overlay
+   below) so the two can be read together.
+   Sky rather than mango throughout: this is information, not an action — gold
+   in this system means "do something", and a coach that read as a call to
+   action every turn would nag. */
+.sticky-scores .act.ghost.small.reader-on {
+  border-color: var(--sky);
+  color: var(--sky);
 }
-.reader-panel .eyebrow { margin-top: 14px; }
-.reader-panel > button:first-child { margin-bottom: 2px; }
 
 /* The count. A tight row of seven, because it is read at a glance mid-hand,
    not studied — the pip above, how many are unaccounted for below. */
@@ -734,6 +733,56 @@ label.field > span {
 .reader-proved li::marker { color: var(--forest-hi); }
 .reader-forcing li::marker { color: var(--sky); }
 .reader-footnote { margin-top: 12px; opacity: 0.8; }
+
+/* The read, laid over the board.
+   See-through on purpose: the whole point is reading the count and the board
+   at once, so the felt and the chain stay legible underneath. It covers the
+   board stage only — never the hand rail — so the player can still play with
+   it up, which is also why this is not a modal. */
+.reader-overlay {
+  position: absolute;
+  /* Bottom-anchored and capped, NOT inset:0. Filling the stage put a wash over
+     the whole chain, which defeats the reason it moved here — you cannot read
+     the board through a panel that covers all of it. This keeps the top of the
+     board permanently clear and sits the read nearest the hand, so hand and
+     read are one glance apart. */
+  inset: auto 0 0 0;
+  max-height: 68%;
+  z-index: 6;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 12px 14px;
+  border-radius: 12px 12px 10px 10px;
+  /* Dark enough to read type against a bright felt, and it fades toward the
+     top edge so the board is not cut off by a hard line. */
+  background: linear-gradient(180deg, rgba(5, 43, 67, 0.74), rgba(5, 43, 67, 0.93) 22%);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  border: 1px solid rgba(67, 199, 244, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  animation: reader-rise 160ms cubic-bezier(.16,.84,.22,1.02);
+}
+@keyframes reader-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader-overlay { animation: none; }
+}
+.reader-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  position: sticky;
+  top: -10px;
+  margin: -10px -12px 6px;
+  padding: 10px 12px 8px;
+  background: linear-gradient(180deg, rgba(5, 43, 67, 0.96), rgba(5, 43, 67, 0.72));
+}
+.reader-overlay-head .eyebrow { margin: 0; }
+.reader-overlay .eyebrow { margin-top: 12px; }
+.reader-overlay .reader-counts { margin-top: 6px; }
 
 /* The recommendation. Gold, because this one IS a call to action — the rest of
    the panel is information and stays quiet so this reads first. */

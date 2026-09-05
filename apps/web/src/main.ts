@@ -1055,6 +1055,18 @@ function scoreboard(g: LocalGame): HTMLElement {
 
   const top = el('div', 'spread');
   top.append(el('div', 'eyebrow', 'Practice'));
+  // The read's trigger lives in this bar because this bar is sticky. Below the
+  // hand it sat off the bottom of a 390px phone, so reaching the coach meant
+  // the scrolling the coach was moved onto the board to avoid.
+  if (g.hand?.status === 'active') {
+    const read = document.createElement('button');
+    read.className = `act ghost small${readerOpen ? ' reader-on' : ''}`;
+    read.setAttribute('aria-expanded', String(readerOpen));
+    read.setAttribute('aria-controls', 'reader-overlay');
+    read.textContent = readerOpen ? 'Hide read' : 'Read';
+    read.onclick = () => { readerOpen = !readerOpen; render(); };
+    top.appendChild(read);
+  }
   const leave = document.createElement('button');
   leave.className = 'act ghost small';
   leave.textContent = 'Leave';
@@ -1274,18 +1286,30 @@ let readerOpen = false;
  * this a coach rather than an x-ray. Reads learned here are reads that still
  * work at a real table.
  */
-function tableReader(g: LocalGame): HTMLElement | null {
+/**
+ * The read itself, laid over the board on a see-through ground.
+ *
+ * Not a modal: the board stays visible through it, the hand rail below is
+ * untouched and still tappable, nothing is trapped, and it only ever appears
+ * because the player asked for it. CLAUDE.md's "no modal during a live hand"
+ * is about interrupting a player, which this is the opposite of — you cannot
+ * learn to read a board from a panel that covers it.
+ */
+function readerOverlay(g: LocalGame): HTMLElement | null {
   const hand = g.hand;
-  if (!hand || hand.status !== 'active') return null;
+  if (!hand || hand.status !== 'active' || !readerOpen) return null;
 
-  const panel = el('div', 'panel reader-panel');
-  const toggle = document.createElement('button');
-  toggle.className = 'act ghost small';
-  toggle.setAttribute('aria-expanded', String(readerOpen));
-  toggle.textContent = readerOpen ? 'Hide the read' : 'Read the table';
-  toggle.onclick = () => { readerOpen = !readerOpen; render(); };
-  panel.append(toggle);
-  if (!readerOpen) return panel;
+  const panel = el('div', 'reader-overlay');
+  panel.id = 'reader-overlay';
+
+  const head = el('div', 'reader-overlay-head');
+  head.append(el('div', 'eyebrow', 'The read'));
+  const close = document.createElement('button');
+  close.className = 'act ghost small';
+  close.textContent = 'Close';
+  close.onclick = () => { readerOpen = false; render(); };
+  head.append(close);
+  panel.append(head);
 
   const view = publicView(hand, g.mySeat);
   const read = readTable(view);
@@ -1931,6 +1955,12 @@ function tableView(g: LocalGame): DocumentFragment {
   if (penaltyEvents) frag.appendChild(penaltyBanner(penaltyEvents, (seat) => g.seatLabel(seat)));
 
   const room = el('div', 'practice-room');
+  // Seats ride ABOVE the felt now. They used to sit under the hand, which put
+  // the duppies' tile counts and their table talk below the fold on a phone —
+  // reported directly: "can you put those at the top, so don't have to keep
+  // scrolling down?" The hand still docks immediately under the board, which
+  // is the part design.md's board-first layout actually settles.
+  room.appendChild(seats(g));
   const felt = el('div', 'table-felt live-felt');
   // A real player's hand belongs at their edge of the table. Across is the
   // intentional exception: one person controls two hands there, and forcing
@@ -1967,6 +1997,12 @@ function tableView(g: LocalGame): DocumentFragment {
   };
   animateTile();
   boardStage.appendChild(line);
+  // Over the board, not over the hand: boardStage excludes the protected hand
+  // rail, so the player can still see and play their own tiles with the read
+  // up. On a non-felt hand (across) boardStage IS the felt, and the hand is a
+  // separate panel below, so the same holds.
+  const overlay = readerOverlay(g);
+  if (overlay) boardStage.appendChild(overlay);
   if (handOnFelt) felt.appendChild(boardStage);
   for (let seat = 0; seat < g.options.seatCount; seat += 1) {
     const rack = practiceTableRack(g, seat);
@@ -2029,14 +2065,6 @@ function tableView(g: LocalGame): DocumentFragment {
   }
   if (!handOnFelt) room.appendChild(myHand(g));
 
-  // Directly under the hand: you read the board, read your tiles, then check
-  // the count — one downward motion. Collapsed by default so it costs no
-  // vertical space until asked for, which matters on the 390px phone the
-  // board-first layout is tuned against.
-  const reader = tableReader(g);
-  if (reader) room.appendChild(reader);
-
-  room.appendChild(seats(g));
   room.appendChild(soundToggle());
   frag.appendChild(room);
   const result = handResult(g);
