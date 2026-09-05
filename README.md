@@ -95,13 +95,13 @@ The ones competitors get wrong:
 
 | Format | Median | Max seen | Blocked hands |
 |---|---|---|---|
-| Partner · six love · 4p | 37 | 86 | 24% |
-| **Cut throat · six love · 4p** | **196** | **720** | 26% |
-| Partner · first to six · 4p | 8 | 11 | 22% |
+| Partner · six love · 4p | 19 | 125 | 28% |
+| Cut throat · six love · 4p | 21 | 94 | 28% |
+| Partner · first to six · 4p | 9 | 11 | 26% |
 
-Four-handed cut-throat six-love is a **very** long game, because it needs six consecutive wins from one player out of four. Random play overstates it — real skill gaps shorten it — but the order of magnitude is real, and it matches what the rules sources say about six-love running long.
+**This table used to say cut-throat six-love ran to a 196-hand median, and that was a bug rather than a finding.** `applyHandResult` wiped the board whenever any non-leader won — Partner's two-sided rule applied to four separate sides — so only one player could ever hold points and a set really did need six wins in a row. The actual rule (pagat, and a Jamaican player who spotted it mid-set): several players hold points at once, and the score only returns to zero once every one of them has won a hand. Corrected 2026-09-04; cut-throat six-love is now an ordinary-length game.
 
-**Product implication:** do not default a mobile cut-throat table to six-love. Default cut-throat to first-to-six, and reserve six-love as the default for Partner, where it lands around 37 hands. Otherwise players will abandon sets halfway, which wrecks both your completion metrics and your abandonment penalties.
+**Product implication:** the old conclusion — never default a cut-throat table to six-love — was resting on that bad number. Cut throat still defaults to first-to-six, but the length argument for it is gone, and the choice is worth revisiting on its own merits.
 
 ---
 

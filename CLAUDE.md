@@ -175,9 +175,17 @@ Jamaican players notice these immediately. All are covered by tests.
 
 Do not relitigate these without asking.
 
-- **Never default cut throat to six love.** It needs six consecutive wins from
-  one player out of four; `npm run bench` measures a median of ~196 hands
-  against 37 for partner. Cut throat defaults to first-to-six.
+- **Cut throat defaults to first-to-six.** The default has NOT changed, but the
+  reason written here was wrong and is worth knowing before anyone leans on it.
+  It said six love "needs six consecutive wins from one player out of four" at a
+  measured ~196-hand median. That was a bug in `applyHandResult`, not the rule:
+  any non-leader winning wiped the board, so two players could never hold points
+  at once — Partner's rule applied to four separate sides. Corrected 2026-09-04
+  against pagat and a Jamaican player: several players hold points at once, and
+  the board only wipes once every one of them has won a hand. `npm run bench`
+  now measures a median of **21 hands for cut throat six love against 19 for
+  partner** — no longer a marathon, and no longer a reason on its own. Whether
+  the default should change is an open product question, not a settled one.
 - **The game is free; membership buys the social layer.** Guest free, Yardie
   $24/yr, VIP $69/yr. The incumbent gates basic play behind a paywall and
   bounces every newcomer; we do the opposite deliberately.

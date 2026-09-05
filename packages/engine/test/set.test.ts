@@ -261,6 +261,51 @@ describe('other formats', () => {
     assert.deepEqual(s.scores, [0, 0, 1, 0]);
   });
 
+  test('cut throat: several players hold points at once — the board only wipes when the LAST one comes off love', () => {
+    // Reported by a Jamaican player mid-set and confirmed against pagat: "the
+    // game only goes back to 0 when the last remaining player on zero finally
+    // wins a hand... so if player 1 and 2 wins the game continues." Before
+    // this, ANY non-leader winning wiped the board — two players could never
+    // hold points at the same time, which is Partner's rule wrongly applied
+    // to four separate sides.
+    let s = createSet({ mode: 'cutthroat', format: 'sixlove', seatCount: 4 });
+
+    s = applyHandResult(s, { ...won(0), winnerSide: 0 });
+    assert.deepEqual(s.scores, [1, 0, 0, 0]);
+
+    // Player 2 wins. Seats 2 and 3 are still on love, so play continues and
+    // BOTH scorers keep what they have.
+    s = applyHandResult(s, { ...won(1), winnerSide: 1 });
+    assert.deepEqual(s.scores, [1, 1, 0, 0], 'a second scorer must not wipe the first');
+
+    s = applyHandResult(s, { ...won(0), winnerSide: 0 });
+    assert.deepEqual(s.scores, [2, 1, 0, 0], 'the leader can still add on');
+
+    // Seat 2 comes off love. Seat 3 is still on it, so still no wipe.
+    s = applyHandResult(s, { ...won(2), winnerSide: 2 });
+    assert.deepEqual(s.scores, [2, 1, 1, 0]);
+    assert.equal(s.poseMustBeDoubleSix, false, 'no bruk yet, so the winner poses');
+
+    // Seat 3 is the last one under love. Now the board bruks.
+    s = applyHandResult(s, { ...won(3), winnerSide: 3 });
+    assert.deepEqual(s.scores, [0, 0, 0, 0], 'the last player off love wipes the board');
+    assert.equal(s.poseMustBeDoubleSix, true, 'and the six opens the next hand');
+    assert.equal(s.winnerSide, null);
+  });
+
+  test('cut throat: six wins takes the set while somebody is still under love, even if others scored', () => {
+    let s = createSet({ mode: 'cutthroat', format: 'sixlove', seatCount: 4 });
+    // Seat 1 gets on the board; seats 2 and 3 never do, so nothing ever wipes.
+    s = applyHandResult(s, { ...won(1), winnerSide: 1 });
+    for (let i = 0; i < 6; i++) s = applyHandResult(s, { ...won(0), winnerSide: 0 });
+    assert.equal(s.winnerSide, 0, 'six wins with seats 2 and 3 still on love takes it');
+    assert.ok(s.scores[0] >= 6);
+    // Not a whitewash though — seat 1 scored, so the six-love celebration
+    // must not fire. That distinction is why sixLove stays stricter than the
+    // win condition.
+    assert.equal(s.sixLove, false);
+  });
+
   test('a single hand decides immediately', () => {
     let s = createSet({ format: 'single' });
     s = applyHandResult(s, won(1));
@@ -367,13 +412,17 @@ describe('full game simulation', () => {
 
   test('cut throat sets always terminate', async () => {
     for (let seed = 1; seed <= 5; seed++) {
-      // Six love in a four-hander demands six wins IN A ROW from one player.
-      // Under random play that is a rare event, so this needs a long horizon.
+      // Cut throat six love does NOT demand six wins in a row. Several players
+      // can hold points at once; the board only wipes once every one of them
+      // has won a hand, and the set is won by reaching six while at least one
+      // other player is still on love (pagat, and confirmed by a Jamaican
+      // player mid-set). The old assertion here — exactly one player ever
+      // holding points — encoded the bug, not the rule.
       const s = await playSet({ mode: 'cutthroat', format: 'sixlove', seatCount: 4 }, seed, 40000);
       assert.ok(s.scores[s.winnerSide!] >= 6);
-      assert.equal(
-        s.scores.filter((v) => v > 0).length, 1,
-        'everyone else finishes under love',
+      assert.ok(
+        s.scores.some((v, i) => i !== s.winnerSide && v === 0),
+        'a six-love set can only be won while somebody is still under love',
       );
     }
   });

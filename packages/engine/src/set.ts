@@ -53,8 +53,20 @@ export function leadingSide(s: SetState): number | null {
  * Six Love, in full:
  *
  *   - A side that already holds points and wins again ADDS to its total.
- *   - A side on zero that wins while another side leads BRUKS the score:
- *     everything resets to 0-0 and the double-six holder opens the next hand.
+ *   - The score BRUKS — everything to zero, double-six holder opens next —
+ *     when the LAST side still on love comes off it, because six love needs
+ *     somebody to be at love for the race to mean anything.
+ *
+ *     In Partner that is the familiar rule: two sides, so the moment the side
+ *     under love wins, nobody is at love and it goes back to 0-0.
+ *
+ *     At CUT THROAT it is not the same rule, and conflating them was a real
+ *     bug (fixed 2026-09-04, reported by a player mid-set). Four players are
+ *     four sides, so several can hold points at once and the board only wipes
+ *     once every one of them has won a hand. Pagat: "If everyone wins a hand
+ *     before anyone reaches 6, the score returns to zero points each."
+ *     Previously ANY non-leader winning wiped the board, which made a cut
+ *     throat six-love set close to unplayable.
  *   - Under "one all play two", a bruk that would happen while the leader sits
  *     on exactly 1 is replaced by a playoff hand worth two points, so the
  *     winner jumps straight to 2-0 rather than starting over.
@@ -64,7 +76,11 @@ export function leadingSide(s: SetState): number | null {
  *     escalating 2/3/4 an earlier version used, which real play doesn't do.
  *     A tie on the replay itself just repeats: forced double-six again,
  *     still worth 2, however many times in a row it happens.
- *   - Winning means reaching the target with every opponent still on zero.
+ *   - Winning means reaching the target while ANOTHER side is still on zero
+ *     (pagat: "provided that another player has zero"). In Partner that is the
+ *     same as "every opponent on zero" since there is only one opponent; at
+ *     cut throat it is looser, and `sixLove` keeps the strict reading for the
+ *     whitewash worth celebrating.
  *   - A KEY win (hand.ts's isKeyTile — the board's two open ends needed
  *     different values and the winner's last tile was provably the only
  *     bone left in the whole set that could still close either one) scores
@@ -181,8 +197,23 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
   // --- Six Love ------------------------------------------------------------
   const lead = leadingSide(s);
 
-  if (lead === null || lead === winnerSide) {
-    // Nobody was ahead, or the side that was ahead has won again. Add on.
+  // Six love needs somebody to BE at love, so the score only bruks when the
+  // last side still on zero comes off it. Everyone else's score is untouched
+  // by this hand, so that is exactly "every other side has already scored".
+  //
+  // In Partner there are two sides, so this is the familiar rule — the side
+  // under love wins and it goes back to 0-0 (pagat: "If the other side wins a
+  // hand, the score returns to 0 - 0"). At cut throat it is NOT the same
+  // thing, and treating it as one was the bug: any non-leader winning wiped
+  // the board, so two different players could never hold points at once.
+  // Pagat, on cut throat: "Each player keeps a score of games won and the
+  // first player to achieve 6 wins is the overall winner, provided that
+  // ANOTHER player has zero" and "If EVERYONE wins a hand before anyone
+  // reaches 6, the score returns to zero points each."
+  const othersHaveAllScored = s.scores.every((v, i) => i === winnerSide || v > 0);
+
+  if (!othersHaveAllScored) {
+    // Somebody is still on love, so the run continues. Add on.
     // A key win (see hand.ts's isKeyTile) always scores a flat 2, never
     // stacking on top of handValue — confirmed directly: "key strictly
     // means 2, full stop."
@@ -192,15 +223,23 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
     s.poser = winnerSeat;
     s.poseMustBeDoubleSix = false;
 
-    if (s.scores[winnerSide] >= target && s.scores.every((v, i) => i === winnerSide || v === 0)) {
+    // Reaching the target wins provided another side is still on zero. That
+    // is structurally guaranteed inside this branch — it is what put us here
+    // — but it is spelled out because it IS the rule, not an implementation
+    // detail. `sixLove` stays stricter: the whitewash is every other side on
+    // zero, which in Partner is the same thing and at cut throat is the rarer,
+    // louder result worth celebrating.
+    const someoneAtLove = s.scores.some((v, i) => i !== winnerSide && v === 0);
+    if (s.scores[winnerSide] >= target && someoneAtLove) {
       s.winnerSide = winnerSide;
-      s.sixLove = true;
+      s.sixLove = s.scores.every((v, i) => i === winnerSide || v === 0);
     }
     return s;
   }
 
-  // A side on zero has beaten the leader. The run is broken.
-  const leaderScore = s.scores[lead];
+  // Nobody is left under love — the six-love race cannot be run from here, so
+  // the board goes back to nothing and starts again.
+  const leaderScore = lead === null ? 0 : s.scores[lead];
   s.scores = s.scores.map(() => 0);
   s.poseMustBeDoubleSix = true;
 
