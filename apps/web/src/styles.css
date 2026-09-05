@@ -1933,6 +1933,15 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   padding: 12px 14px; border-radius: var(--r); font-size: 14px;
   border: 1px solid var(--wood-hi); background: rgba(90, 58, 30, 0.08);
 }
+/* A bruk wipes the board — coral, the colour this palette reserves for bruk
+   and emotional warnings (design.md). Loud enough that nobody reads a hand
+   they won as a scoring bug. */
+.banner.bruk-banner {
+  border-color: var(--blood);
+  background: rgba(255, 90, 60, 0.12);
+  color: var(--ink);
+  font-weight: 700;
+}
 .banner.six-love {
   font-family: var(--signage); font-size: 22px; text-align: center;
   color: #2A1B00; border-color: var(--gold);

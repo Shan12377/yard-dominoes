@@ -1568,8 +1568,23 @@ function handResult(g: LocalGame): HTMLElement | null {
         'Lowest single hand takes it — a partner\'s tiles never come into it.'));
     }
   }
+  // A bruk is the most confusing moment in the game for anyone who has not met
+  // the rule: somebody clearly won the hand and NOBODY scores, because a win by
+  // the side under love wipes the board instead of scoring. Reported directly
+  // (2026-09-04): "the duppy 2 wins... it did not give duppy 2 the win or even
+  // me, so i don't know." That was the rule working correctly and the app
+  // failing to say so, in muted text that also never named who opens next.
   if (g.lastResultBruk) {
-    panel.append(el('p', 'muted', 'Score bruk. Back to love all, and the six opens.'));
+    panel.append(el('div', 'banner bruk-banner',
+      `${g.seatLabel(r.winnerSeat!)} won it from under love — so nobody scores and the whole board bruks back to love all.`));
+  }
+
+  // Who opens the next hand, and why. Being asked to pose out of nowhere reads
+  // as a bug when the rule behind it is never stated.
+  if (g.set.winnerSide === null) {
+    panel.append(el('p', 'muted', g.set.poseMustBeDoubleSix
+      ? 'The six opens the next hand — whoever was dealt the double-six poses, whatever the score.'
+      : `${g.seatLabel(g.set.poser)} won, so ${g.set.poser === g.mySeat ? 'you pose' : 'they pose'} the next hand.`));
   }
 
   // French penalties (board pass, three-in-a-row pass, no double to pose)
