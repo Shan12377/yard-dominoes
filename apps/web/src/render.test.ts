@@ -257,7 +257,18 @@ test('French bone size is fixed from opening pose through the late hand', () => 
     [24, 24, 24, 24]);
 });
 
-test('a played-out live hand fits in its protected stage without a board scrollbar', () => {
+test('a played-out live hand never overruns sideways, and pans when it is too tall', () => {
+  // Rewritten. This used to pass `maxUnit` — a ceiling — and assert that a
+  // full board always fits without a scrollbar. Both live tables now PIN their
+  // unit, so it was green while guarding a path the app no longer takes, which
+  // is worse than no test. It now measures what actually ships.
+  //
+  // Width is the hard invariant on both: the chain must never run off
+  // sideways. Height is allowed to exceed the stage — that is the whole point
+  // of pinning the bone — and the stage pans vertically instead, with
+  // keepTileInView following the play. `tall` records how often that happens
+  // so the number is measured rather than assumed.
+  const tall: Record<string, number> = { phone: 0, desktop: 0 };
   for (let seed = 1; seed <= 100; seed++) {
     for (const [label, box, viewportWidth, minUnit] of [
       ['phone', PHONE_LIVE_STAGE, 390, 10],
@@ -265,20 +276,28 @@ test('a played-out live hand fits in its protected stage without a board scrollb
     ] as const) {
       const board = boardOf(28, mulberry32(seed));
       const line = orientLine(board);
+      const unit = liveTableUnit(viewportWidth, board);
       const { u, placements } = chooseUnit(line, box, {
-        maxUnit: liveTableUnit(viewportWidth, board),
+        unit,
+        maxUnit: unit,
         minUnit,
         maxUnits: label === 'phone' ? 20 : 36,
       });
+      assert.equal(u, unit, `${label} seed ${seed}: the pinned bone must be honoured`);
       const across = Math.max(...placements.map((p) => p.col + p.colSpan));
       assert.ok(across * u <= box.width,
         `${label} seed ${seed} needed ${across * u}px of ${box.width}px wide`);
-      assert.ok(rowsOf(placements) * u <= box.height,
-        `${label} seed ${seed} needed ${rowsOf(placements) * u}px of ${box.height}px high`);
-      if (label === 'phone') assert.ok(u >= 10, 'phone board bones stay at least 20px wide');
-      else assert.ok(u >= 18, 'desktop board bones remain visually comparable to the hand');
+      if (rowsOf(placements) * u > box.height) tall[label] += 1;
+      if (label === 'desktop') assert.ok(u >= 18, 'desktop bones stay comparable to the hand');
+      else assert.ok(u >= 14, 'a phone bone holds its 28px short side however full the board');
     }
   }
+  // Measured, and recorded here so the next person does not have to guess how
+  // often the pan actually engages on a full board.
+  assert.ok(tall.phone >= 90,
+    `a phone board is expected to be taller than its stage nearly always, got ${tall.phone}/100`);
+  assert.ok(tall.desktop > 0 && tall.desktop < 50,
+    `desktop should overflow sometimes but not usually, got ${tall.desktop}/100`);
 });
 
 test('the width cap is respected even when there is room to be bigger', () => {

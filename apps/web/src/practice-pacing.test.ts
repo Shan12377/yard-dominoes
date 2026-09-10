@@ -149,8 +149,15 @@ test('Practice and Lounge pin the French route and invisible guard for the whole
       'French must never enter the after-paint board rebuild path');
     assert.doesNotMatch(source,
       /if \(changed \|\| boardOverflowedGuard \|\| displayBoard\?\.kind === 'cross'\)/);
-    assert.match(source, /\.\.\.\(frenchTable \? \{ unit: tableUnit \} : \{\}\)/,
-      'French must pass the pre-deal unit back into every render');
+    // Was: /\.\.\.\(frenchTable \? \{ unit: tableUnit \} : \{\}\)/ — the pin used
+    // to be French-only, which is exactly why the linear double-six game still
+    // shrank as the chain filled. The intent behind this assertion ("pass the
+    // pre-deal unit back into every render") is unchanged and now stronger:
+    // every mode pins, so the conditional is gone rather than weakened.
+    assert.match(source, /\n\s*unit: tableUnit,/,
+      'every mode must pass the pre-deal unit back into every render');
+    assert.doesNotMatch(source, /frenchTable \? \{ unit: tableUnit \}/,
+      'the pin must not be conditional on French again');
   }
 });
 

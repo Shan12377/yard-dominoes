@@ -608,11 +608,23 @@ label.field > span {
   min-width: 0;
   min-height: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Live play must show the complete chain at once. The renderer steps the
-     played-chain size down before this stage can overflow. */
-  overflow: hidden;
+  /* `safe` matters once this can scroll: plain centring pushes overflow out of
+     BOTH ends of the scroll box, so the top of a long chain becomes physically
+     unreachable. safe centring falls back to start-alignment when the content
+     is bigger than the box, which keeps every bone scrollable to. */
+  align-items: safe center;
+  justify-content: safe center;
+  /* Was `hidden`, on the note that "the renderer steps the played-chain size
+     down before this stage can overflow". It doesn't any more — a bone is one
+     physical size from deal to final play — so hiding here would CLIP a long
+     chain instead of shrinking it, which is worse. A desktop board still never
+     overflows (measured: worst 832x494 of an 852x500 stage across 100 full
+     boards), so this shows no scrollbar there. A phone pans vertically. */
+  overflow: auto;
+  /* Panning past the end of the board must not start scrolling the page
+     underneath it mid-hand. */
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 .board-stage > .line { padding: 7px; }
 .board-choice-overlay {

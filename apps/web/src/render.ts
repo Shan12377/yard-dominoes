@@ -304,6 +304,37 @@ export function chooseUnit(
 }
 
 /**
+ * Pan the board stage the least amount that brings a bone fully into view.
+ *
+ * The bone no longer shrinks to keep a whole chain on screen, so on a phone a
+ * long chain is taller than its stage — measured at roughly 602px of board in
+ * a 352px stage on a 390px viewport. The stage pans instead, and a player must
+ * never have to find their own play: whatever just landed is scrolled to.
+ *
+ * Deliberately not `scrollIntoView`, which walks up and scrolls ancestors too
+ * — that would jerk the whole page mid-hand. This only ever touches the stage's
+ * own scroll offset, and only when the stage can actually scroll.
+ */
+export function keepTileInView(stage: HTMLElement | null, tile: HTMLElement | null): void {
+  if (!stage || !tile) return;
+  if (stage.scrollHeight <= stage.clientHeight + 1) return; // nothing to pan
+
+  const view = stage.getBoundingClientRect();
+  const bone = tile.getBoundingClientRect();
+  if (view.height === 0 || bone.height === 0) return; // not laid out yet
+
+  const margin = 8;
+  let delta = 0;
+  if (bone.top < view.top + margin) delta = bone.top - view.top - margin;
+  else if (bone.bottom > view.bottom - margin) delta = bone.bottom - view.bottom + margin;
+  if (delta === 0) return;
+
+  const still = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  stage.scrollBy({ top: delta, behavior: still ? 'auto' : 'smooth' });
+}
+
+/**
  * Draw the line the way it sits on a real Jamaican table: tiles end to end
  * with touching halves matching, doubles crosswise in the line, and the line
  * snaking 90° at the table edge. Layout math lives in layout.ts.

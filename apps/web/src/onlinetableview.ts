@@ -14,7 +14,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, keepTileInView } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition, type SeatSlot } from './seatlayout.ts';
@@ -1082,7 +1082,9 @@ export function liveTableView(
       const measuredUnit = renderBoard(line, displayBoard, {
         box,
         maxUnit: tableUnit,
-        ...(frenchTable ? { unit: tableUnit } : {}),
+        // Pinned, same as the first render and same as Practice — see the note
+        // there. A ceiling here let the measured refit undo the pin.
+        unit: tableUnit,
         minUnit: tableMinUnit,
         maxUnits: tableMaxUnits,
       });
@@ -1093,6 +1095,12 @@ export function liveTableView(
       }
       tagWinningTile(line, felt, game);
     }
+    // Same as Practice: with the bone fixed, a phone board pans, so whatever
+    // just landed must be scrolled to rather than left below the fold.
+    const lastMove = game.hand?.move_log[game.hand.move_log.length - 1];
+    const lastTile = lastMove && 'tile' in lastMove ? lastMove.tile : null;
+    keepTileInView(boardStage,
+      lastTile ? line.querySelector(`[data-tile="${lastTile}"]`) : null);
   };
   requestAnimationFrame(() => requestAnimationFrame(refitMeasuredBoard));
   // Realtime updates can replace the pre-measurement node just as Practice

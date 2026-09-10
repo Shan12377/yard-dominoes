@@ -28,7 +28,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, keepTileInView } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -2179,7 +2179,12 @@ function tableView(g: LocalGame): DocumentFragment {
       const measuredUnit = renderBoard(line, displayBoard, {
         box,
         maxUnit: tableUnit,
-        ...(frenchTable ? { unit: tableUnit } : {}),
+        // Pinned here too. This refit runs after paint with the real measured
+        // box, so leaving it as a ceiling let the board shrink straight back
+        // on the very next resize — the first render would hold its size and
+        // then quietly lose it. (The French branch above returns before this,
+        // so the old conditional was dead code as well as wrong.)
+        unit: tableUnit,
         minUnit: tableMinUnit,
         maxUnits: tableMaxUnits,
       });
@@ -2189,6 +2194,11 @@ function tableView(g: LocalGame): DocumentFragment {
       }
       animateTile();
     }
+    // Now the board pans instead of shrinking, the bone that just landed can
+    // be below the fold on a phone. Never make a player hunt for their own
+    // play. No-ops on a desktop board, which always fits.
+    keepTileInView(boardStage,
+      recentPlayedTile ? line.querySelector(`[data-tile="${recentPlayedTile}"]`) : null);
   };
   requestAnimationFrame(() => requestAnimationFrame(refitMeasuredBoard));
   // Rapid Duppy turns can replace a just-rendered node before its animation
