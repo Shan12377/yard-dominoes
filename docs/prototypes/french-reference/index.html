@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YaadDominoes — French table reference</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="screen">
+    <header class="topbar">
+      <div><strong>YaadDominoes</strong><small>French table reference</small></div>
+      <div class="score"><b>YOU 0</b><span>DUPPY 2 · 12</span><span>DUPPY 3 · 8</span><span>DUPPY 4 · 16</span></div>
+      <div class="fixtures" role="group" aria-label="Board fixture">
+        <button data-fixture="opening">Opening</button>
+        <button class="active" data-fixture="late">Late hand · 25 played</button>
+      </div>
+    </header>
+
+    <div class="game-layout">
+    <section class="table" aria-label="French domino table">
+      <div class="station station-top"><div class="identity"><img src="../../../apps/web/public/avatars/granny.webp" alt="Duppy 3"><span>Duppy 3<small>8 points</small></span></div><div class="rack rack-horizontal" data-count="1"></div></div>
+      <div class="station station-left"><div class="identity"><img src="../../../apps/web/public/avatars/harold.webp" alt="Duppy 4"><span>Duppy 4<small>16 points</small></span></div><div class="rack rack-vertical" data-count="1"></div></div>
+      <div class="station station-right"><div class="identity"><img src="../../../apps/web/public/avatars/malcolm.webp" alt="Duppy 2"><span>Duppy 2<small>12 points</small></span></div><div class="rack rack-vertical" data-count="1"></div></div>
+
+      <div class="board-guard" aria-label="Played board"></div>
+
+      <div class="local-rail">
+        <div class="local-label"><img src="../../../apps/web/public/avatars/nadia.webp" alt="You"><span class="turn">YOUR PLAY</span></div>
+        <div class="local-hand" aria-label="Your hand"></div>
+      </div>
+    </section>
+    <aside class="side-rail" aria-label="Table activity">
+      <section class="activity">
+        <h2>AT DI TABLE</h2>
+        <ol>
+          <li><img src="../../../apps/web/public/avatars/nadia.webp" alt=""><span><b>You</b><small>0 points · your turn</small></span></li>
+          <li><img src="../../../apps/web/public/avatars/malcolm.webp" alt=""><span><b>Duppy 2</b><small>12 points · 1 bone</small></span></li>
+          <li><img src="../../../apps/web/public/avatars/granny.webp" alt=""><span><b>Duppy 3</b><small>8 points · 1 bone</small></span></li>
+          <li><img src="../../../apps/web/public/avatars/harold.webp" alt=""><span><b>Duppy 4</b><small>16 points · 1 bone</small></span></li>
+        </ol>
+      </section>
+      <section class="table-talk">
+        <h2>TABLE TALK</h2>
+        <div class="messages"><p><b>Duppy 2</b> Good play.</p><p><b>Duppy 4</b> Watch di five.</p><p><b>Duppy 3</b> Your move.</p></div>
+        <div class="talk-input"><span>Chat here…</span><button>Send</button></div>
+      </section>
+      <div class="rail-actions"><button>Voice on</button><button>Leave table</button></div>
+    </aside>
+    </div>
+    <output class="measurements" aria-live="polite"></output>
+  </main>
+  <script src="board.js"></script>
+</body>
+</html>

@@ -1,0 +1,1185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>YaadDominoes — Authentic Table Concept</title>
+  <style>
+    :root {
+      --room: #073b5c;
+      --room-deep: #031f33;
+      --signal: #0c4f73;
+      --sky: #43c7f4;
+      --felt-hi: #22a45b;
+      --felt: #147a42;
+      --felt-lo: #07502a;
+      --mango: #ffc928;
+      --coral: #ff5a3c;
+      --bone: #f8f8f8;
+      --bone-highlight: #ffffff;
+      --bone-shadow-face: #f0f0f0;
+      --bone-edge: #c8c8c6;
+      --bone-outline: #b8b8b6;
+      --pip: #111111;
+      --divider: #171717;
+      --muted: #b9dceb;
+      --ink: #fff9ea;
+      --rim: #052b43;
+      --display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+      --body: Avenir, "Avenir Next", system-ui, sans-serif;
+      --mono: "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--room-deep); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--body);
+      background:
+        radial-gradient(circle at 9% 6%, rgba(67,199,244,.14) 0 2px, transparent 3px),
+        radial-gradient(circle at 92% 85%, rgba(255,201,40,.08) 0 3px, transparent 4px),
+        linear-gradient(150deg, var(--room) 0%, #052e49 54%, var(--room-deep) 100%);
+      background-size: 56px 56px, 78px 78px, auto;
+      min-height: 100vh;
+      padding: clamp(12px, 2.6vw, 34px);
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; }
+
+    .prototype-shell { width: min(1480px, 100%); margin: 0 auto; }
+    .masthead {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 18px;
+      padding: 0 4px;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .brand-mark {
+      width: 45px; height: 45px; flex: none;
+      filter: drop-shadow(0 5px 6px rgba(0,0,0,.28));
+    }
+    .brand-name {
+      font: 900 clamp(22px, 2.2vw, 34px)/.9 var(--display);
+      letter-spacing: .035em;
+      text-transform: uppercase;
+      color: var(--mango);
+    }
+    .brand-name small {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font: 700 9px/1 var(--mono);
+      letter-spacing: .21em;
+    }
+    .concept-label {
+      padding-left: 17px;
+      border-left: 1px solid rgba(185,220,235,.3);
+      color: var(--muted);
+      font: 700 11px/1.4 var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .state-switch {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+      padding: 4px;
+      border: 1px solid rgba(67,199,244,.24);
+      border-radius: 999px;
+      background: rgba(3,31,51,.54);
+    }
+    .state-switch button {
+      min-height: 38px;
+      padding: 8px 14px;
+      border: 0;
+      border-radius: 999px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 800;
+    }
+    .state-switch button[aria-pressed="true"] {
+      color: var(--room-deep);
+      background: var(--mango);
+      box-shadow: 0 3px 0 #b77d00;
+    }
+
+    .game-frame {
+      display: grid;
+      grid-template-columns: minmax(620px, 1fr) 292px;
+      gap: 16px;
+      align-items: start;
+    }
+    .table-column { min-width: 0; }
+    .scorebar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 10px;
+      padding: 10px 14px;
+      border: 1px solid rgba(67,199,244,.3);
+      border-bottom: 3px solid rgba(3,31,51,.7);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(12,79,115,.96), rgba(5,43,67,.96));
+      box-shadow: 0 12px 28px rgba(0,0,0,.24);
+    }
+    .match-id { min-width: 0; }
+    .eyebrow {
+      color: var(--sky);
+      font: 700 9px/1 var(--mono);
+      letter-spacing: .19em;
+      text-transform: uppercase;
+    }
+    .match-id strong { display: block; margin-top: 4px; font-size: 15px; }
+    .score-pair { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .score-side { text-align: right; }
+    .score-side small { display: block; color: var(--muted); font: 700 9px var(--mono); text-transform: uppercase; }
+    .score-side b { color: var(--mango); font: 900 23px/1 var(--mono); }
+    .score-divider { color: rgba(185,220,235,.5); font: 20px var(--mono); }
+    .sound-pill {
+      border: 1px solid rgba(67,199,244,.36);
+      border-radius: 999px;
+      padding: 8px 10px;
+      background: rgba(3,31,51,.44);
+      color: var(--bone);
+      font: 700 10px var(--mono);
+      letter-spacing: .08em;
+    }
+
+    .table {
+      /* One physical bone measurement owns the whole table. A played bone,
+         a hand bone and a face-down bone never choose independent sizes. */
+      /* Whole-pixel tiers keep every pip and edge crisp. The board and hand
+         always consume this same measurement. */
+      --bone-short: 42px;
+      container-type: inline-size;
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / .82;
+      overflow: hidden;
+      border: clamp(12px, 2cqi, 25px) solid var(--rim);
+      border-radius: clamp(22px, 3.2cqi, 42px);
+      background:
+        repeating-linear-gradient(2deg, rgba(255,226,167,.07) 0 2px, transparent 2px 7px),
+        repeating-linear-gradient(177deg, rgba(40,18,7,.13) 0 1px, transparent 1px 13px),
+        linear-gradient(96deg, #4b2714, #8e5930 18%, #5e321b 42%, #9d6638 62%, #4b2714);
+      box-shadow:
+        inset 0 0 0 3px rgba(67,199,244,.24),
+        inset 0 0 70px rgba(1,25,19,.5),
+        0 26px 54px rgba(0,0,0,.4);
+      isolation: isolate;
+    }
+    .table::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 24px, rgba(255,217,151,.06) 25px, transparent 27px),
+        linear-gradient(to bottom, rgba(255,255,255,.08), transparent 18%, rgba(24,9,2,.15));
+      z-index: 0;
+    }
+    .table::after {
+      z-index: 0;
+      content: 'YAADDOMINOES';
+      position: absolute;
+      left: 50%; top: 50%;
+      color: rgba(255,249,234,.11);
+      font: 900 clamp(38px, 8cqi, 92px)/1 var(--display);
+      letter-spacing: .05em;
+      transform: translate(-50%, -50%) rotate(-9deg);
+      pointer-events: none;
+    }
+
+    .seat {
+      position: absolute;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      gap: clamp(5px, .8cqi, 10px);
+      max-width: 32%;
+      padding: clamp(5px, .65cqi, 9px) clamp(7px, .9cqi, 12px);
+      border: 1px solid rgba(67,199,244,.4);
+      border-bottom: clamp(2px, .35cqi, 4px) solid rgba(3,31,51,.8);
+      border-radius: 999px;
+      background: linear-gradient(145deg, rgba(7,59,92,.98), rgba(3,31,51,.97));
+      box-shadow: 0 8px 18px rgba(0,0,0,.33);
+    }
+    .seat.top { top: 1.5%; left: 50%; transform: translateX(-50%); }
+    .seat.bottom { bottom: 1.5%; left: 50%; transform: translateX(-50%); }
+    .seat.left { left: 1.2%; top: 49%; transform: translateY(-50%); }
+    .seat.right { right: 1.2%; top: 49%; transform: translateY(-50%); }
+    .seat.turn {
+      border-color: var(--mango);
+      box-shadow: 0 0 0 2px rgba(255,201,40,.24), 0 0 24px rgba(255,201,40,.38), 0 8px 18px rgba(0,0,0,.33);
+    }
+    .seat.partner::after {
+      content: 'PARTNER';
+      position: absolute;
+      top: -7px; right: 10px;
+      padding: 1px 5px;
+      border-radius: 5px;
+      background: var(--felt-hi);
+      color: var(--room-deep);
+      font: 900 clamp(5px, .7cqi, 8px) var(--mono);
+      letter-spacing: .08em;
+    }
+    .portrait {
+      width: clamp(28px, 4.6cqi, 50px);
+      height: clamp(28px, 4.6cqi, 50px);
+      flex: none;
+      object-fit: cover;
+      border: 2px solid var(--sky);
+      border-radius: 50%;
+      background: var(--signal);
+    }
+    .seat.turn .portrait { border-color: var(--mango); }
+    .seat-copy { min-width: 0; }
+    .seat-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: clamp(8px, 1.35cqi, 15px);
+      font-weight: 900;
+    }
+    .seat-meta {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+      color: var(--muted);
+      font: 700 clamp(6px, .88cqi, 10px)/1 var(--mono);
+      white-space: nowrap;
+    }
+    .seat-score { color: var(--mango); }
+    .turn-flag {
+      display: none;
+      color: var(--mango);
+      font: 900 clamp(6px, .82cqi, 9px) var(--mono);
+      letter-spacing: .08em;
+    }
+    .seat.turn .turn-flag { display: block; }
+
+    .rack {
+      position: absolute;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: none;
+    }
+    .rack.top { top: 12.5%; left: 50%; transform: translateX(-50%); }
+    /* Side racks need their own lane below the identity pill. Centring them on
+       the seat hid five of the six backs underneath the higher-z player card. */
+    .rack.left { left: 8.7%; top: 64%; transform: translate(-50%, -50%) rotate(90deg); }
+    .rack.right { right: 8.7%; top: 64%; transform: translate(50%, -50%) rotate(90deg); }
+    .rack.bottom { bottom: 12%; left: 50%; transform: translateX(-50%); }
+    .back {
+      width: var(--bone-short);
+      aspect-ratio: 1 / 2;
+      margin-left: clamp(2px, .38cqi, 5px);
+      border: 1px solid var(--bone-outline);
+      border-radius: clamp(2px, .4cqi, 4px);
+      background: linear-gradient(180deg, #fff, #f4f4f4);
+      box-shadow: none;
+    }
+    .back:first-child { margin-left: 0; }
+
+    .hand-rack {
+      position: absolute;
+      z-index: 7;
+      left: 50%; bottom: 10.5%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: clamp(3px, .45cqi, 6px);
+      padding: clamp(5px, .65cqi, 9px);
+      border: 1px solid rgba(255,201,40,.62);
+      border-radius: clamp(8px, 1.3cqi, 15px);
+      background: rgba(3,31,51,.78);
+      box-shadow: 0 10px 24px rgba(0,0,0,.28);
+      backdrop-filter: blur(6px);
+    }
+    .hand-rack .domino {
+      --short: var(--bone-short);
+      cursor: pointer;
+      transition: transform 150ms ease, filter 150ms ease;
+    }
+    .hand-rack .domino:hover,
+    .hand-rack .domino.selected { transform: translateY(-7px); filter: brightness(1.04); }
+    .hand-rack .domino.selected { outline: 2px solid var(--mango); outline-offset: 2px; }
+
+    .board-zone {
+      position: absolute;
+      z-index: 2;
+      inset: 17% 8% 22%;
+      display: grid;
+      place-items: center;
+    }
+    .chain {
+      --u: calc(var(--bone-short) / 2);
+      display: grid;
+      grid-template-columns: repeat(20, var(--u));
+      grid-template-rows: repeat(20, var(--u));
+      width: calc(20 * var(--u));
+      height: calc(20 * var(--u));
+      transform-origin: center;
+    }
+    .chain .domino {
+      --short: var(--bone-short);
+      /* Preserve the grid's legal edge-to-edge geometry but cut a one-pixel
+         wood reveal between neighbours. This makes each played bone read as
+         an individual physical domino, not one joined white strip. */
+      clip-path: inset(1px round 3px);
+    }
+    .chain .domino.horizontal { flex-direction: row; }
+    .chain .domino.horizontal .divider { width: 2px; height: auto; }
+    .table[data-state="late"] .chain {
+      grid-template-columns: repeat(16, var(--u));
+      width: calc(16 * var(--u));
+      transform: translateY(20px);
+    }
+    /* The late route rises directly beneath the opponent's top rack. Keep
+       that rack in its own lane so a full board never hides under a back. */
+    .table[data-state="late"] .rack.top { top: 11%; }
+    .table[data-state="french"] .chain,
+    .table[data-state="frenchlate"] .chain {
+      grid-template-columns: repeat(26, var(--u));
+      grid-template-rows: repeat(25, var(--u));
+      width: calc(26 * var(--u));
+      height: calc(25 * var(--u));
+    }
+    /* French needs more board cells, so the entire physical set moves to one
+       smaller tier together. The hand, backs and played cross all inherit it. */
+    .table[data-state="french"] { --bone-short: 24px; }
+    .table[data-state="frenchlate"] { --bone-short: 24px; }
+    .table[data-state="french"] .rack.left,
+    .table[data-state="french"] .rack.right,
+    .table[data-state="frenchlate"] .rack.left,
+    .table[data-state="frenchlate"] .rack.right {
+      top: 64%;
+      flex-direction: column;
+      gap: 4px;
+      transform: translateY(-50%);
+    }
+    .table[data-state="french"] .rack.left,
+    .table[data-state="frenchlate"] .rack.left { left: 1%; }
+    .table[data-state="french"] .rack.right,
+    .table[data-state="frenchlate"] .rack.right { right: 1%; }
+    .table[data-state="french"] .rack.left .back,
+    .table[data-state="french"] .rack.right .back,
+    .table[data-state="frenchlate"] .rack.left .back,
+    .table[data-state="frenchlate"] .rack.right .back {
+      width: calc(var(--bone-short) * 2);
+      height: var(--bone-short);
+      aspect-ratio: auto;
+      margin: 0;
+    }
+    .table[data-state="draw14"] .pass-callout,
+    .table[data-state="draw9"] .pass-callout,
+    .table[data-state="french"] .pass-callout,
+    .table[data-state="frenchlate"] .pass-callout,
+    .table[data-state="draw14"] .end-hint,
+    .table[data-state="draw9"] .end-hint,
+    .table[data-state="french"] .end-hint,
+    .table[data-state="frenchlate"] .end-hint { display: none; }
+    .seat.inactive, .rack.inactive { display: none; }
+
+    .domino {
+      --short: 24px;
+      display: flex;
+      flex-direction: column;
+      width: var(--short);
+      height: calc(var(--short) * 2);
+      flex: none;
+      overflow: hidden;
+      border: 1px solid var(--bone-outline);
+      border-radius: 4px;
+      background: linear-gradient(168deg, var(--bone-highlight), var(--bone) 48%, var(--bone-shadow-face));
+      box-shadow: none;
+      padding: 0;
+      color: var(--pip);
+    }
+    button.domino { appearance: none; }
+    .domino.horizontal { width: calc(var(--short) * 2); height: var(--short); flex-direction: row; }
+    .half {
+      display: grid;
+      place-items: center;
+      flex: 1 1 0;
+      min-width: 0; min-height: 0;
+    }
+    .pip-grid {
+      /* This square is the immutable face. Horizontal play rotates this
+         finished grid; it never receives a second set of coordinates. */
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      width: calc(var(--short) * .82);
+      aspect-ratio: 1;
+    }
+    .half.sideways .pip-grid { transform: rotate(90deg); }
+    .cell { display: grid; place-items: center; }
+    .pip {
+      width: 68%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--pip);
+      box-shadow: none;
+    }
+    .divider { width: auto; height: 2px; flex: none; background: var(--divider); opacity: .96; }
+
+    .pass-callout {
+      position: absolute;
+      z-index: 8;
+      right: 11%; top: 34%;
+      padding: clamp(5px, .7cqi, 8px) clamp(8px, 1.1cqi, 13px);
+      border-radius: 999px;
+      color: #25100b;
+      background: var(--coral);
+      box-shadow: 0 5px 14px rgba(0,0,0,.3);
+      font: 950 clamp(7px, 1cqi, 11px) var(--mono);
+      letter-spacing: .1em;
+      transform: rotate(4deg);
+    }
+    .end-hint {
+      display: none;
+      position: absolute;
+      z-index: 9;
+      top: 50%;
+      width: clamp(24px, 4cqi, 44px); aspect-ratio: 1;
+      place-items: center;
+      border: 2px solid var(--mango);
+      border-radius: 50%;
+      color: var(--room-deep);
+      background: var(--mango);
+      box-shadow: 0 0 0 7px rgba(255,201,40,.18);
+      font-weight: 950;
+      animation: pulse 900ms ease-in-out infinite alternate;
+    }
+    .table.choosing .end-hint { display: grid; }
+    .end-hint.left { left: 25%; }
+    .end-hint.right { right: 25%; }
+
+    .rail { display: grid; gap: 10px; }
+    .panel {
+      border: 1px solid rgba(67,199,244,.25);
+      border-bottom: 3px solid rgba(3,31,51,.76);
+      border-radius: 12px;
+      background: linear-gradient(150deg, rgba(12,79,115,.95), rgba(5,43,67,.97));
+      padding: 13px;
+      box-shadow: 0 13px 28px rgba(0,0,0,.2);
+    }
+    .panel h2 {
+      margin: 0 0 10px;
+      color: var(--bone);
+      font: 900 15px/1 var(--display);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .standing { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 7px 0; border-top: 1px solid rgba(185,220,235,.12); }
+    .standing:first-of-type { border-top: 0; }
+    .standing span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 800; }
+    .standing small { color: var(--muted); font: 9px var(--mono); }
+    .standing b { color: var(--mango); font: 14px var(--mono); }
+    .talk-line { margin: 8px 0; font-size: 12px; line-height: 1.35; }
+    .talk-line b { color: var(--sky); }
+    .chatbox { display: flex; gap: 6px; margin-top: 10px; }
+    .chatbox input {
+      min-width: 0; width: 100%;
+      border: 1px solid rgba(67,199,244,.35); border-radius: 8px;
+      background: rgba(3,31,51,.6); color: var(--bone);
+      padding: 9px; font: 12px var(--body);
+    }
+    .chatbox button {
+      border: 0; border-radius: 8px; padding: 8px 10px;
+      background: var(--mango); color: var(--room-deep); font-weight: 900;
+    }
+    .move { display: flex; gap: 8px; padding: 6px 0; color: var(--muted); font: 10px/1.35 var(--mono); border-top: 1px solid rgba(185,220,235,.1); }
+    .move b { color: var(--bone); }
+    .prototype-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font: 10px/1.5 var(--mono);
+      letter-spacing: .03em;
+    }
+
+    @keyframes pulse { to { transform: scale(1.08); } }
+
+    @media (max-width: 960px) {
+      .table { --bone-short: 34px; }
+      .table[data-state="late"] .chain { transform: translateY(30px); }
+      .rack.top { top: 10%; }
+      .game-frame { grid-template-columns: 1fr; }
+      .rail { grid-template-columns: repeat(3, 1fr); }
+      .panel { min-width: 0; }
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 0; background: #f4f3ef; }
+      .prototype-shell { width: 100%; }
+      .masthead { flex-wrap: wrap; gap: 7px; margin-bottom: 9px; }
+      .brand-mark { width: 34px; height: 34px; }
+      .brand-name { font-size: 18px; }
+      .brand-name small { display: none; }
+      .concept-label { display: none; }
+      .state-switch {
+        order: 3;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        width: 100%;
+        margin-left: 0;
+        padding: 3px;
+        border-radius: 12px;
+      }
+      .state-switch button { min-height: 32px; padding: 5px 2px; font-size: 9px; }
+      .game-frame { gap: 0; }
+      .scorebar { margin-bottom: 0; padding: 7px 9px; border-radius: 0; border-inline: 0; }
+      .match-id strong { font-size: 12px; }
+      .sound-pill { display: none; }
+      .score-side b { font-size: 18px; }
+      /* Mobile follows the familiar JamDom physical arrangement: wood in the
+         centre, opponents fixed to three edges, and a full-width hand tray. */
+      .table {
+        --bone-short: 28px;
+        aspect-ratio: 1 / 1.22;
+        border: 0;
+        border-radius: 0;
+        background:
+          linear-gradient(to bottom, transparent 0 79%, rgba(132,177,8,.96) 79% 100%),
+          repeating-linear-gradient(2deg, rgba(255,226,167,.07) 0 2px, transparent 2px 7px),
+          repeating-linear-gradient(177deg, rgba(40,18,7,.13) 0 1px, transparent 1px 13px),
+          linear-gradient(96deg, #4b2714, #8e5930 18%, #5e321b 42%, #9d6638 62%, #4b2714);
+        box-shadow: inset 0 -3px 0 rgba(45,55,6,.55);
+      }
+      .table::before {
+        background:
+          repeating-linear-gradient(0deg, transparent 0 24px, rgba(255,217,151,.06) 25px, transparent 27px),
+          linear-gradient(to bottom, rgba(255,255,255,.08), transparent 18%, rgba(24,9,2,.15) 78%, transparent 79%);
+      }
+      .table::after {
+        content: 'YAAD DOMINOES';
+        top: 42%;
+        color: rgba(255,249,234,.14);
+        font-size: 42px;
+        text-shadow: 0 2px 0 rgba(35,14,4,.18);
+      }
+      .board-zone { inset: 15% 1% 24%; }
+
+      .seat {
+        max-width: 42%;
+        padding: 3px 7px;
+        border-radius: 5px;
+        border-color: rgba(255,255,255,.18);
+        background: linear-gradient(#333, #171717);
+      }
+      .seat .portrait { display: none; }
+      .seat-name { font-size: 9px; color: #fff; }
+      .seat-meta { font-size: 7px; color: #6cff3e; }
+      .seat.partner::after { display: none; }
+      .seat.top { top: -4px; left: auto; right: 5%; transform: none; }
+      .seat.bottom { display: none; }
+      .seat.left, .seat.right { top: 47%; max-width: none; padding: 4px 5px; }
+      .seat.left { left: 0; transform: translateY(-50%) rotate(-90deg); transform-origin: left top; }
+      .seat.right { right: 0; transform: translateY(-50%) rotate(90deg); transform-origin: right top; }
+      .seat.left .seat-copy, .seat.right .seat-copy { display: block; }
+      .seat-meta span:first-child { display: none; }
+
+      /* The top hand enters from beyond the physical screen edge, matching a
+         player sitting opposite and preserving the board's vertical room. */
+      .rack.top { top: calc(-8% - 4px); }
+      .rack.left, .rack.right {
+        top: 43%;
+        flex-direction: column;
+        gap: 4px;
+        transform: translateY(-50%);
+      }
+      .rack.left { left: 0; }
+      .rack.right { right: 0; }
+      .rack.left .back, .rack.right .back {
+        width: calc(var(--bone-short) * 2);
+        height: var(--bone-short);
+        aspect-ratio: auto;
+        margin: 0;
+      }
+      .back {
+        margin-left: 4px;
+        border-color: var(--bone-outline);
+        background: linear-gradient(180deg, #fff, #f4f4f4);
+        box-shadow: none;
+      }
+
+      .hand-rack {
+        left: 0;
+        right: 0;
+        bottom: 1.2%;
+        transform: none;
+        justify-content: center;
+        gap: 4px;
+        padding: 5px 4px 8px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+      .hand-rack .domino:hover,
+      .hand-rack .domino.selected { transform: translateY(-5px); }
+      .table[data-state="late"] .chain {
+        transform: translateY(-38px);
+      }
+      .table[data-state="draw14"] {
+        --bone-short: 32px;
+        aspect-ratio: 1 / 1.5;
+        background:
+          linear-gradient(to bottom, transparent 0 67%, rgba(132,177,8,.96) 67% 100%),
+          repeating-linear-gradient(2deg, rgba(255,226,167,.07) 0 2px, transparent 2px 7px),
+          repeating-linear-gradient(177deg, rgba(40,18,7,.13) 0 1px, transparent 1px 13px),
+          linear-gradient(96deg, #4b2714, #8e5930 18%, #5e321b 42%, #9d6638 62%, #4b2714);
+      }
+      .table[data-state="draw14"] .hand-rack,
+      .table[data-state="draw14"] .rack.top {
+        width: 260px;
+        flex-wrap: wrap;
+      }
+      .table[data-state="draw14"] .hand-rack { bottom: 1.2%; }
+      .table[data-state="draw14"] .rack.top { top: calc(-10% - 4px); }
+      .table[data-state="frenchlate"] { --bone-short: 14px; }
+      /* Turn/pass messaging belongs in the status area below on this compact
+         layout; floating labels would cover the physical line. */
+      .pass-callout, .end-hint { display: none; }
+      .rail { grid-template-columns: 1fr; }
+      .rail .move-panel { display: none; }
+      .panel { border-radius: 0; }
+      .prototype-note { margin: 0; padding: 8px 10px 12px; background: #f4f3ef; color: #52636a; }
+    }
+
+    @media (max-width: 370px) {
+      .seat-copy .seat-meta { display: none; }
+      .seat { padding: 4px 6px; }
+      .table { --bone-short: 28px; }
+      .brand-name { font-size: 16px; }
+    }
+
+    /* A nearly complete French cross needs more vertical room than the
+       standard board. At these intermediate viewport bands, reduce the whole
+       physical set together so the final arms keep clear of every rack. */
+    @media (max-width: 340px) {
+      .table[data-state="frenchlate"] { --bone-short: 12px; }
+    }
+    @media (min-width: 701px) and (max-width: 800px),
+           (min-width: 961px) and (max-width: 1220px) {
+      .table[data-state="frenchlate"] { --bone-short: 12px; }
+    }
+    @media (min-width: 801px) and (max-width: 960px) {
+      .table[data-state="frenchlate"] { --bone-short: 18px; }
+    }
+    @media (min-width: 701px) {
+      .table[data-state="frenchlate"] .rack.top { top: 10%; }
+    }
+    /* A wide desktop has enough clear felt for a true late-hand board. Let
+       the compact turning cross use that room instead of leaving a toy-sized
+       line in the middle of the table. */
+    @media (min-width: 1380px) {
+      .table[data-state="frenchlate"] { --bone-short: 34px; }
+      .table[data-state="frenchlate"] .rack.top { top: 5%; }
+      .table[data-state="frenchlate"] .hand-rack { bottom: 5%; }
+    }
+    @media (min-width: 1340px) and (max-width: 1379px) and (min-height: 1000px) {
+      .table[data-state="frenchlate"] { --bone-short: 32px; }
+      .table[data-state="frenchlate"] .rack.top { top: 5%; }
+      .table[data-state="frenchlate"] .hand-rack { bottom: 5%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="prototype-shell">
+    <header class="masthead">
+      <div class="brand">
+        <img class="brand-mark" src="../../apps/web/public/art/yaaddominoes-mark.svg" alt="">
+        <div class="brand-name">YaadDominoes<small>Beat di table.</small></div>
+      </div>
+      <div class="concept-label">Authentic table concept<br>Player feedback prototype</div>
+      <div class="state-switch" role="group" aria-label="Table example">
+        <button type="button" data-state="early" aria-pressed="true">Early hand</button>
+        <button type="button" data-state="late" aria-pressed="false">Late hand</button>
+        <button type="button" data-state="draw14" aria-pressed="false">14 each</button>
+        <button type="button" data-state="draw9" aria-pressed="false">9 each</button>
+        <button type="button" data-state="french" aria-pressed="false">French</button>
+        <button type="button" data-state="frenchlate" aria-pressed="false">French late</button>
+      </div>
+    </header>
+
+    <div class="game-frame">
+      <section class="table-column" aria-label="Four-player partner domino table">
+        <div class="scorebar">
+          <div class="match-id"><span class="eyebrow">Yard Gate · Partner</span><strong>Table 446839</strong></div>
+          <div class="score-pair" aria-label="Score: us 3, them 1">
+            <div class="score-side"><small>We</small><b>3</b></div>
+            <span class="score-divider">—</span>
+            <div class="score-side"><small>Dem</small><b>1</b></div>
+          </div>
+          <div class="sound-pill">● TABLE SOUND ON</div>
+        </div>
+
+        <div class="table" id="table">
+          <div class="seat top partner">
+            <img class="portrait" src="../../apps/web/public/avatars/granny.webp" alt="">
+            <div class="seat-copy"><div class="seat-name">Miss Cherry</div><div class="seat-meta"><span>1,284 rated</span><span class="seat-score">3 pts</span></div></div>
+          </div>
+          <div class="seat left">
+            <img class="portrait" src="../../apps/web/public/avatars/gideon.webp" alt="">
+            <div class="seat-copy"><div class="seat-name">Ras K</div><div class="seat-meta"><span>1,361 rated</span><span class="seat-score">1 pt</span></div><div class="turn-flag">PLAYING</div></div>
+          </div>
+          <div class="seat right turn">
+            <img class="portrait" src="../../apps/web/public/avatars/nadia.webp" alt="">
+            <div class="seat-copy"><div class="seat-name">Nadia</div><div class="seat-meta"><span>1,318 rated</span><span class="seat-score">1 pt</span></div><div class="turn-flag">PLAYING</div></div>
+          </div>
+          <div class="seat bottom">
+            <img class="portrait" src="../../apps/web/public/avatars/goldtooth.webp" alt="">
+            <div class="seat-copy"><div class="seat-name">You · Candy</div><div class="seat-meta"><span>1,427 rated</span><span class="seat-score">3 pts</span></div></div>
+          </div>
+
+          <div class="rack top" data-rack="top"></div>
+          <div class="rack left" data-rack="left"></div>
+          <div class="rack right" data-rack="right"></div>
+          <div class="board-zone"><div class="chain" id="chain" aria-label="Played domino chain"></div></div>
+          <div class="hand-rack" id="hand" aria-label="Your hand"></div>
+          <div class="pass-callout">NADIA · PASS</div>
+          <div class="end-hint left" aria-hidden="true">←</div>
+          <div class="end-hint right" aria-hidden="true">→</div>
+        </div>
+
+        <p class="prototype-note">Concept only — tap a bone in your hand to preview the left/right choice. Switch hand states above to judge the table with both a short and a crowded chain.</p>
+      </section>
+
+      <aside class="rail" aria-label="Table information">
+        <section class="panel">
+          <h2>At di table</h2>
+          <div class="standing"><span>Candy</span><small data-count="bottom">7 bones</small><b>3</b></div>
+          <div class="standing"><span>Nadia</span><small data-count="right">6 bones</small><b>1</b></div>
+          <div class="standing"><span>Miss Cherry</span><small data-count="top">6 bones</small><b>3</b></div>
+          <div class="standing"><span>Ras K</span><small data-count="left">6 bones</small><b>1</b></div>
+        </section>
+        <section class="panel">
+          <h2>Table talk</h2>
+          <p class="talk-line"><b>Ras K</b> Easy nuh man.</p>
+          <p class="talk-line"><b>Miss Cherry</b> Watch di six.</p>
+          <p class="talk-line"><b>Nadia</b> Mi pass.</p>
+          <div class="chatbox"><input aria-label="Table message" placeholder="Say something…"><button type="button">Send</button></div>
+        </section>
+        <section class="panel move-panel">
+          <h2>Last plays</h2>
+          <div class="move"><b>Nadia</b><span>passes on 2 · 5</span></div>
+          <div class="move"><b>Miss Cherry</b><span>plays 5—1</span></div>
+          <div class="move"><b>Ras K</b><span>plays 3—5</span></div>
+          <div class="move"><b>Candy</b><span>plays 6—3</span></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const PIPS = {
+      0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8],
+      5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8],
+    };
+
+    function half(value, sideways = false) {
+      const face = document.createElement('span');
+      face.className = `half${sideways ? ' sideways' : ''}`;
+      const grid = document.createElement('span');
+      grid.className = 'pip-grid';
+      const occupied = PIPS[value];
+      for (let i = 0; i < 9; i += 1) {
+        const cell = document.createElement('span');
+        cell.className = 'cell';
+        if (occupied.includes(i)) {
+          const pip = document.createElement('i');
+          pip.className = 'pip';
+          cell.appendChild(pip);
+        }
+        grid.appendChild(cell);
+      }
+      face.appendChild(grid);
+      return face;
+    }
+
+    function domino(a, b, horizontal = false, button = false) {
+      const bone = document.createElement(button ? 'button' : 'div');
+      bone.className = `domino${horizontal ? ' horizontal' : ''}`;
+      bone.setAttribute('aria-label', `${a} ${b}`);
+      bone.append(half(a, horizontal), Object.assign(document.createElement('i'), { className: 'divider' }), half(b, horizontal));
+      return bone;
+    }
+
+    const states = {
+      early: {
+        modeLabel: 'Yard Gate · Partner',
+        score: [3, 1],
+        widthUnits: 20,
+        counts: { top: 5, left: 5, right: 6 },
+        hand: [[0,3], [1,4], [2,5], [3,3], [4,6], [0,5], [1,1]],
+        joins: [2, 2, 6, 6, 3, 5],
+        chain: [
+          { a: 2, b: 2, x: 2, y: 8, o: 'v' },
+          { a: 2, b: 6, x: 4, y: 9, o: 'h' },
+          { a: 6, b: 6, x: 8, y: 8, o: 'v' },
+          { a: 6, b: 3, x: 10, y: 9, o: 'h' },
+          { a: 3, b: 5, x: 14, y: 9, o: 'h' },
+        ],
+      },
+      late: {
+        modeLabel: 'Yard Gate · Partner',
+        score: [3, 1],
+        widthUnits: 16,
+        counts: { top: 2, left: 2, right: 2 },
+        hand: [[0,3], [0,4], [0,6], [1,2]],
+        joins: [0, 5, 5, 2, 6, 6, 3, 3, 1, 4, 4, 2, 0, 0, 1, 1, 5, 6, 4],
+        chain: [
+          // Generated from the production layout algorithm at 16 units wide.
+          // Every touching face matches and no placement overlaps another.
+          { a: 0, b: 5, x: 0, y: 1, o: 'h' },
+          { a: 5, b: 5, x: 4, y: 0, o: 'v' },
+          { a: 5, b: 2, x: 6, y: 1, o: 'h' },
+          { a: 2, b: 6, x: 10, y: 1, o: 'h' },
+          { a: 6, b: 6, x: 14, y: 0, o: 'v' },
+          { a: 6, b: 3, x: 14, y: 4, o: 'v' },
+          { a: 3, b: 3, x: 14, y: 8, o: 'v' },
+          { a: 1, b: 3, x: 10, y: 8, o: 'h' },
+          { a: 4, b: 1, x: 6, y: 8, o: 'h' },
+          { a: 4, b: 4, x: 4, y: 7, o: 'v' },
+          { a: 2, b: 4, x: 0, y: 8, o: 'h' },
+          { a: 2, b: 0, x: 0, y: 10, o: 'v' },
+          { a: 0, b: 0, x: 0, y: 14, o: 'v' },
+          { a: 0, b: 1, x: 2, y: 14, o: 'h' },
+          { a: 1, b: 1, x: 6, y: 13, o: 'v' },
+          { a: 1, b: 5, x: 8, y: 14, o: 'h' },
+          { a: 5, b: 6, x: 12, y: 14, o: 'h' },
+          { a: 6, b: 4, x: 14, y: 16, o: 'v' },
+        ],
+      },
+      draw14: {
+        modeLabel: 'Two-player · 14 each deal · Mid-hand',
+        score: [0, 0],
+        widthUnits: 20,
+        setSize: 28,
+        activeSeats: ['top', 'bottom'],
+        counts: { top: 11, left: 0, right: 0 },
+        hand: [[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6]],
+        joins: [2, 2, 6, 6, 3, 5],
+        chain: [
+          { a: 2, b: 2, x: 2, y: 8, o: 'v' },
+          { a: 2, b: 6, x: 4, y: 9, o: 'h' },
+          { a: 6, b: 6, x: 8, y: 8, o: 'v' },
+          { a: 6, b: 3, x: 10, y: 9, o: 'h' },
+          { a: 3, b: 5, x: 14, y: 9, o: 'h' },
+        ],
+      },
+      draw9: {
+        modeLabel: 'Three-player · 9 each deal · Mid-hand',
+        score: [0, 0],
+        widthUnits: 20,
+        setSize: 27,
+        activeSeats: ['left', 'right', 'bottom'],
+        counts: { top: 0, left: 7, right: 8 },
+        hand: [[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[1,1]],
+        joins: [2, 2, 6, 6, 3, 5],
+        chain: [
+          { a: 2, b: 2, x: 2, y: 8, o: 'v' },
+          { a: 2, b: 6, x: 4, y: 9, o: 'h' },
+          { a: 6, b: 6, x: 8, y: 8, o: 'v' },
+          { a: 6, b: 3, x: 10, y: 9, o: 'h' },
+          { a: 3, b: 5, x: 14, y: 9, o: 'h' },
+        ],
+      },
+      french: {
+        modeLabel: 'French · Cross board · Mid-hand',
+        score: [0, 0],
+        kind: 'cross',
+        widthUnits: 26,
+        heightUnits: 25,
+        counts: { top: 5, left: 5, right: 5 },
+        hand: [[0,1],[0,3],[1,1],[1,3]],
+        chain: [
+          { a: 0, b: 0, x: 12, y: 11, o: 'v' },
+          { a: 0, b: 6, x: 14, y: 12, o: 'h' },
+          { a: 6, b: 6, x: 18, y: 11, o: 'v' },
+          { a: 5, b: 0, x: 8, y: 12, o: 'h' },
+          { a: 5, b: 5, x: 6, y: 11, o: 'v' },
+          { a: 4, b: 0, x: 12, y: 7, o: 'v' },
+          { a: 4, b: 4, x: 11, y: 5, o: 'h' },
+          { a: 0, b: 2, x: 12, y: 15, o: 'v' },
+          { a: 2, b: 2, x: 11, y: 19, o: 'h' },
+        ],
+      },
+      frenchlate: {
+        modeLabel: 'French · Four-arm board · Almost played out',
+        score: [0, 0],
+        kind: 'cross',
+        widthUnits: 36,
+        heightUnits: 34,
+        counts: { top: 1, left: 1, right: 1 },
+        hand: [[0,1], [1,2]],
+        chain: [
+          // Each arm turns only through a double, so the dense board uses the
+          // full felt without shrinking its physical dominoes.
+          { a: 0, b: 0, x: 15, y: 15, o: 'v' },
+          { a: 0, b: 4, x: 15, y: 11, o: 'v' },
+          { a: 4, b: 4, x: 14, y: 9, o: 'h' },
+          { a: 4, b: 5, x: 18, y: 9, o: 'h' },
+          { a: 5, b: 5, x: 22, y: 8, o: 'v' },
+          { a: 5, b: 6, x: 24, y: 9, o: 'h' },
+          { a: 6, b: 6, x: 28, y: 8, o: 'v' },
+          { a: 6, b: 3, x: 30, y: 9, o: 'h' },
+          { a: 0, b: 3, x: 17, y: 16, o: 'h' },
+          { a: 3, b: 3, x: 21, y: 15, o: 'v' },
+          { a: 3, b: 5, x: 21, y: 19, o: 'v' },
+          { a: 5, b: 2, x: 21, y: 23, o: 'v' },
+          { a: 2, b: 2, x: 20, y: 27, o: 'h' },
+          { a: 2, b: 4, x: 24, y: 27, o: 'h' },
+          { a: 0, b: 2, x: 15, y: 19, o: 'v' },
+          { a: 2, b: 3, x: 15, y: 23, o: 'v' },
+          { a: 3, b: 4, x: 15, y: 27, o: 'v' },
+          { a: 0, b: 5, x: 11, y: 16, o: 'h' },
+          { a: 5, b: 1, x: 7, y: 16, o: 'h' },
+          { a: 1, b: 1, x: 5, y: 15, o: 'v' },
+          { a: 1, b: 4, x: 5, y: 11, o: 'v' },
+          { a: 4, b: 6, x: 5, y: 7, o: 'v' },
+          { a: 6, b: 1, x: 5, y: 3, o: 'v' },
+        ],
+      },
+    };
+
+    function tileRect(tile) {
+      return {
+        left: tile.x,
+        top: tile.y,
+        right: tile.x + (tile.o === 'h' ? 4 : 2),
+        bottom: tile.y + (tile.o === 'h' ? 2 : 4),
+      };
+    }
+
+    function overlaps(a, b) {
+      return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    }
+
+    function joinsAtEdge(a, b) {
+      const verticalEdge = (a.right === b.left || b.right === a.left)
+        && Math.max(a.top, b.top) < Math.min(a.bottom, b.bottom);
+      const horizontalEdge = (a.bottom === b.top || b.bottom === a.top)
+        && Math.max(a.left, b.left) < Math.min(a.right, b.right);
+      return verticalEdge || horizontalEdge;
+    }
+
+    function validateState(name, state) {
+      if (state.kind !== 'cross' && state.chain.length > 0 && state.joins.length !== state.chain.length + 1) {
+        throw new Error(`${name}: invalid join list`);
+      }
+      const visibleTiles = [
+        ...state.chain.map((tile) => [tile.a, tile.b]),
+        ...state.hand,
+      ].map(([a, b]) => [Math.min(a, b), Math.max(a, b)].join('-'));
+      if ([...state.chain.flatMap((tile) => [tile.a, tile.b]), ...state.hand.flat()].some((pip) => pip < 0 || pip > 6)) {
+        throw new Error(`${name}: a domino has an invalid pip value`);
+      }
+      if (new Set(visibleTiles).size !== visibleTiles.length) {
+        throw new Error(`${name}: a domino appears more than once across the board and hand`);
+      }
+      const hiddenCount = Object.values(state.counts).reduce((sum, count) => sum + count, 0);
+      if (state.chain.length + state.hand.length + hiddenCount !== (state.setSize ?? 28)) {
+        throw new Error(`${name}: tile counts do not add up to a double-six set`);
+      }
+      const rects = state.chain.map(tileRect);
+      state.chain.forEach((tile, index) => {
+        const rect = rects[index];
+        if (rect.left < 0 || rect.top < 0 || rect.right > state.widthUnits || rect.bottom > (state.heightUnits ?? 20)) {
+          throw new Error(`${name}: bone ${index} leaves the board grid`);
+        }
+        if (state.kind !== 'cross') {
+          const expected = [state.joins[index], state.joins[index + 1]].sort().join('-');
+          const actual = [tile.a, tile.b].sort().join('-');
+          if (actual !== expected) throw new Error(`${name}: bone ${index} breaks the pip chain`);
+        }
+        for (let prior = 0; prior < index; prior += 1) {
+          if (overlaps(rect, rects[prior])) throw new Error(`${name}: bones ${prior} and ${index} overlap`);
+        }
+        if (state.kind !== 'cross' && index > 0 && !joinsAtEdge(rects[index - 1], rect)) {
+          throw new Error(`${name}: bones ${index - 1} and ${index} do not touch edge-to-edge`);
+        }
+      });
+    }
+
+    Object.entries(states).forEach(([name, state]) => validateState(name, state));
+
+    function validateRenderedTable() {
+      const epsilon = .02;
+      const table = document.querySelector('#table');
+      const faceBones = [...document.querySelectorAll('.hand-rack .domino, .chain .domino')];
+      const shortSides = faceBones.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return Math.min(rect.width, rect.height);
+      });
+      if (shortSides.some((side) => Math.abs(side - shortSides[0]) > epsilon)) {
+        throw new Error(`Hand and played bones do not share one physical size: ${shortSides.join(', ')}`);
+      }
+      const backs = [...document.querySelectorAll('.rack .back')]
+        .filter((node) => getComputedStyle(node.closest('.rack')).display !== 'none')
+        .map((node) => {
+          const rect = node.getBoundingClientRect();
+          return Math.min(rect.width, rect.height);
+        });
+      if (backs.some((side) => Math.abs(side - shortSides[0]) > epsilon)) {
+        throw new Error('Face-down racks do not share the table bone size');
+      }
+      const grids = [...document.querySelectorAll('.hand-rack .pip-grid, .chain .pip-grid')].map((node) => node.getBoundingClientRect());
+      const pips = [...document.querySelectorAll('.hand-rack .pip, .chain .pip')].map((node) => node.getBoundingClientRect());
+      if (grids.some((grid) => Math.abs(grid.width - grids[0].width) > epsilon || Math.abs(grid.height - grids[0].height) > epsilon)) {
+        throw new Error('Hand and played pip grids are not uniform');
+      }
+      if (pips.some((pip) => Math.abs(pip.width - pips[0].width) > epsilon || Math.abs(pip.height - pips[0].height) > epsilon)) {
+        throw new Error('Hand and played pips are not uniform');
+      }
+
+      const played = [...document.querySelectorAll('.chain .domino')].map((node) => node.getBoundingClientRect());
+      const blockers = [...document.querySelectorAll('.rack .back, .hand-rack .domino, .seat, .pass-callout')]
+        .filter((node) => getComputedStyle(node).display !== 'none')
+        .map((node) => node.getBoundingClientRect());
+      if (played.some((bone) => blockers.some((blocker) => overlaps(
+        { left: bone.left, top: bone.top, right: bone.right, bottom: bone.bottom },
+        { left: blocker.left, top: blocker.top, right: blocker.right, bottom: blocker.bottom },
+      )))) throw new Error('A protected table lane overlaps the played chain');
+
+      // A late board must look materially late, not like a miniature placed in
+      // the middle of an otherwise empty table. This guards the exact desktop
+      // viewport used for feedback while preserving the compact mobile fit.
+      if (table.dataset.state === 'frenchlate' && innerWidth >= 1340 && innerHeight >= 1000) {
+        const tableRect = table.getBoundingClientRect();
+        const chainRect = played.reduce((box, bone) => ({
+          left: Math.min(box.left, bone.left),
+          top: Math.min(box.top, bone.top),
+          right: Math.max(box.right, bone.right),
+          bottom: Math.max(box.bottom, bone.bottom),
+        }), { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
+        if (chainRect.right - chainRect.left < tableRect.width * .3
+          || chainRect.bottom - chainRect.top < tableRect.height * .3) {
+          throw new Error('Late French line is not visibly filling the table');
+        }
+      }
+    }
+
+    function syncChainUnit() {
+      const table = document.querySelector('#table');
+      const chain = document.querySelector('#chain');
+      const state = states[table.dataset.state];
+      const renderedHandBone = document.querySelector('#hand .domino');
+      const renderedHandRect = renderedHandBone?.getBoundingClientRect();
+      const boneSize = renderedHandRect?.width
+        ? Math.min(renderedHandRect.width, renderedHandRect.height)
+        : parseFloat(getComputedStyle(table).getPropertyValue('--bone-short'));
+      const unit = boneSize / 2;
+      const rows = state.heightUnits ?? 20;
+      chain.style.setProperty('--u', `${unit}px`);
+      chain.style.gridTemplateColumns = `repeat(${state.widthUnits}, ${unit}px)`;
+      chain.style.gridTemplateRows = `repeat(${rows}, ${unit}px)`;
+      chain.style.width = `${state.widthUnits * unit}px`;
+      chain.style.height = `${rows * unit}px`;
+    }
+
+    let renderVersion = 0;
+    function render(stateName) {
+      const version = ++renderVersion;
+      const state = states[stateName];
+      const chain = document.querySelector('#chain');
+      const hand = document.querySelector('#hand');
+      const table = document.querySelector('#table');
+      chain.replaceChildren(); hand.replaceChildren(); table.classList.remove('choosing');
+      table.dataset.state = stateName;
+      syncChainUnit();
+      document.querySelector('.eyebrow').textContent = state.modeLabel;
+      const scoreValues = document.querySelectorAll('.score-side b');
+      scoreValues[0].textContent = state.score[0];
+      scoreValues[1].textContent = state.score[1];
+      document.querySelector('.score-pair').setAttribute(
+        'aria-label',
+        `Score: us ${state.score[0]}, them ${state.score[1]}`,
+      );
+
+      for (const slot of ['top', 'left', 'right', 'bottom']) {
+        const active = !state.activeSeats || state.activeSeats.includes(slot);
+        document.querySelector(`.seat.${slot}`)?.classList.toggle('inactive', !active);
+        document.querySelector(`.rack.${slot}`)?.classList.toggle('inactive', !active);
+        document.querySelector(`[data-count="${slot}"]`)?.closest('.standing')?.toggleAttribute('hidden', !active);
+      }
+
+      state.chain.forEach((tile, index) => {
+        const bone = domino(tile.a, tile.b, tile.o === 'h');
+        bone.style.gridColumn = `${tile.x + 1} / span ${tile.o === 'h' ? 4 : 2}`;
+        bone.style.gridRow = `${tile.y + 1} / span ${tile.o === 'h' ? 2 : 4}`;
+        bone.style.setProperty('--i', index);
+        chain.appendChild(bone);
+      });
+
+      state.hand.forEach(([a, b]) => {
+        const bone = domino(a, b, false, true);
+        bone.type = 'button';
+        bone.addEventListener('click', () => {
+          const selected = bone.classList.toggle('selected');
+          hand.querySelectorAll('.domino').forEach((other) => { if (other !== bone) other.classList.remove('selected'); });
+          table.classList.toggle('choosing', selected);
+        });
+        hand.appendChild(bone);
+      });
+
+      for (const [slot, count] of Object.entries(state.counts)) {
+        const rack = document.querySelector(`[data-rack="${slot}"]`);
+        rack.replaceChildren();
+        for (let i = 0; i < count; i += 1) rack.appendChild(Object.assign(document.createElement('i'), { className: 'back' }));
+      }
+      const visibleCounts = { ...state.counts, bottom: state.hand.length };
+      for (const [slot, count] of Object.entries(visibleCounts)) {
+        const label = document.querySelector(`[data-count="${slot}"]`);
+        if (label) label.textContent = `${count} bone${count === 1 ? '' : 's'}`;
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (version !== renderVersion) return;
+        // State-specific responsive CSS can settle one frame after data-state
+        // changes. Re-read the shared physical size before checking the board,
+        // or a previous state's grid tracks can survive the switch.
+        syncChainUnit();
+        requestAnimationFrame(() => {
+          if (version === renderVersion) validateRenderedTable();
+        });
+      }));
+    }
+
+    document.querySelectorAll('[data-state]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-state]').forEach((other) => other.setAttribute('aria-pressed', String(other === button)));
+        render(button.dataset.state);
+      });
+    });
+
+    const requestedState = new URLSearchParams(location.search).get('state');
+    const initialState = requestedState && states[requestedState] ? requestedState : 'early';
+    document.querySelectorAll('[data-state]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.state === initialState));
+    });
+    render(initialState);
+
+    let resizeTimer;
+    addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        syncChainUnit();
+        validateRenderedTable();
+      }, 100);
+    });
+
+  </script>
+</body>
+</html>
