@@ -106,12 +106,58 @@ test('online keeps the last played tile beside its player until the next move', 
   assert.match(onlineTableSource, /function playCallout\(game: OnlineGame\)/);
   assert.match(onlineTableSource, /lastMove\.seat === game\.mySeat\) return null/);
   assert.ok(onlineTableSource.includes('`${name} · ${lastMove.tile}`'));
-  assert.match(onlineTableSource, /const lastPlay = playCallout\(game\);[\s\S]*?feltShell\.appendChild\(lastPlay\)/);
+  // The cue belongs to the same enclosed station as the player's portrait,
+  // name and rack. A direct felt child can drift over the board or hand.
+  assert.match(onlineTableSource,
+    /const calloutHost =[\s\S]*?tableStations\.get\(lastMoveSlot\)[\s\S]*?const lastPlay = playCallout\(game\);[\s\S]*?\(calloutHost \?\? feltShell\)\.appendChild\(lastPlay\)/);
 });
 
-test('the two-end choice stays above the turn clock in an online hand', () => {
-  const dock = onlineTableSource.indexOf('if (handActions) feltSlot.appendChild(handActions);');
-  const clock = onlineTableSource.indexOf("if (game.hand?.status === 'active' && game.hand.turn_expires_at)", dock);
-  assert.ok(dock >= 0);
-  assert.ok(clock > dock);
+test('the turn clock stays above the felt and end choices are anchored on the board', () => {
+  const clock = onlineTableSource.indexOf("if (game.hand?.status === 'active' && game.hand.turn_expires_at)");
+  const felt = onlineTableSource.indexOf('feltSlot.appendChild(feltShell);', clock);
+  const choices = onlineTableSource.indexOf('placeBoardChoices(boardStage, handActions)', felt);
+  assert.ok(clock >= 0);
+  assert.ok(felt > clock, 'clock must be appended before the felt');
+  assert.ok(choices > felt, 'choice controls must be moved onto the rendered board stage');
+});
+
+test('Practice and Lounge keep Pass and other hand decisions on the felt', () => {
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    const choices = source.indexOf('placeBoardChoices(boardStage, handActions)');
+    assert.ok(choices >= 0, `${surface} must process end choices`);
+    const decisionDock = source.slice(choices, choices + 300);
+    assert.ok(decisionDock.includes("handActions.classList.add('in-felt-actions')"),
+      `${surface} decisions need the protected in-felt dock`);
+    assert.ok(decisionDock.includes('felt.appendChild(handActions)'),
+      `${surface} Pass must remain visible on the table`);
+  }
+});
+
+test('Practice and Lounge reserve rounding room inside the measured board guard', () => {
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.ok(source.includes('fitHost.clientWidth - 18'), `${surface} must inset the fitted width`);
+    assert.ok(source.includes('fitHost.clientHeight - 18'), `${surface} must inset the fitted height`);
+  }
+});
+
+test('Practice and Lounge pin the French route and invisible guard for the whole hand', () => {
+  for (const source of [practiceSource, onlineTableSource]) {
+    assert.match(source, /line\.scrollWidth > fitHost\.clientWidth/);
+    assert.match(source, /line\.scrollHeight > fitHost\.clientHeight/);
+    assert.match(source, /boardStage\.dataset\.boardGuard = 'pinned-hand-square'/);
+    assert.match(source, /if \(frenchTable\) return;/,
+      'French must never enter the after-paint board rebuild path');
+    assert.doesNotMatch(source,
+      /if \(changed \|\| boardOverflowedGuard \|\| displayBoard\?\.kind === 'cross'\)/);
+    assert.match(source, /\.\.\.\(frenchTable \? \{ unit: tableUnit \} : \{\}\)/,
+      'French must pass the pre-deal unit back into every render');
+  }
+});
+
+test('Lounge social utility bars follow the table instead of stealing board height', () => {
+  const room = onlineTableSource.indexOf("const room = el('div', 'table-room')");
+  const extras = onlineTableSource.indexOf("const liveExtras = el('div', 'table-live-extras')", room);
+  assert.ok(room >= 0 && extras > room);
+  assert.ok(!onlineTableSource.slice(0, room).includes('frag.appendChild(social.voicePanel)'));
+  assert.ok(onlineTableSource.slice(extras, extras + 500).includes('liveExtras.appendChild(social.voicePanel)'));
 });

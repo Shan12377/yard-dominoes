@@ -1,10 +1,9 @@
 /**
  * The colour of the table.
  *
- * Green is the default because the table is the app's largest surface and the
- * first thing that should carry YaadDominoes' vibrancy. Brown remains available
- * for players who want a bare plywood-yard table, but it no longer defines a
- * new player's first impression.
+ * Wood is the default because players confirmed the physical yard-table
+ * reference is what makes the board immediately readable. Green remains a
+ * personal option, not the first impression.
  *
  * Being able to change it at all matters more than which one wins. Players
  * sit at this table for hours, and the rival app lets them pick — this is one
@@ -28,7 +27,7 @@ export const FELTS: Felt[] = [
 ];
 
 const KEY = 'yard:felt';
-const DEFAULT = 'green';
+const DEFAULT = 'brown';
 
 /**
  * An unknown stored value falls back to the default rather than being written

@@ -53,11 +53,18 @@ export interface TilePlacement {
   row: number;
   colSpan: number;
   rowSpan: number;
+  /** French-only metadata used to attach a legal-choice marker to the
+   * actual exposed bone instead of rendering an abstract button elsewhere. */
+  crossArm?: number;
+  crossStep?: number;
 }
 
 const TILE_LONG = 4;
 const TILE_SHORT = 2;
-export const MIN_WIDTH_UNITS = 3 * TILE_LONG;
+// Two ordinary bones make a believable table run before an elbow. Requiring
+// three made each French arm spend twelve half-bone cells in a straight ray,
+// so a four-arm board could only fit by turning every bone into a counter.
+export const MIN_WIDTH_UNITS = 2 * TILE_LONG;
 
 export function layoutLine(line: OrientedTile[], widthUnits: number): TilePlacement[] {
   const w = Math.max(MIN_WIDTH_UNITS, widthUnits);

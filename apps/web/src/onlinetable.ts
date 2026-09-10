@@ -19,7 +19,7 @@ import * as sfx from './sfx.ts';
 import { staleUserIds } from './name-cache.ts';
 import { duppyPaceByName, isPartnered, legalMoves, provablyFairShuffle, sideOf, verifyHand as verifyReceipt } from '@yard/engine';
 import type { AnyBoard, DuppyPace, GameMode, HandReceipt, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
-import { predictMyMove } from './predict.ts';
+import { predictMyMove, withoutBoardTiles } from './predict.ts';
 
 export interface TableInfo {
   id: string;
@@ -533,6 +533,12 @@ export class OnlineGame {
           this.emit({ type: 'penalty', events: hand.last_penalties });
         }
         this.hand = hand;
+        // The public hand and private seat_hands row are separate Realtime
+        // messages with no ordering guarantee. If the board wins that race,
+        // remove its tiles from our last-known hand immediately; the private
+        // row will replace this filtered snapshot when it arrives.
+        this.myTiles = withoutBoardTiles(this.myTiles, hand.board);
+        if (this.partnerTiles) this.partnerTiles = withoutBoardTiles(this.partnerTiles, hand.board);
         this.reconcileMyTilesIfMissing();
         this.scheduleDuppyTurn();
         // Real data has arrived — whatever was predicted in play() is either
@@ -554,10 +560,10 @@ export class OnlineGame {
         // to make impossible. A row I do not recognise gets dropped.
         if (handId !== this.hand?.hand_id) return;
         if (seatIndex === this.mySeat) {
-          this.myTiles = tiles;
+          this.myTiles = withoutBoardTiles(tiles, this.hand.board);
         } else if (seatIndex === this.partnerSeat()
           && (this.table.mode === 'openhand' || this.table.mode === 'across')) {
-          this.partnerTiles = tiles;
+          this.partnerTiles = withoutBoardTiles(tiles, this.hand.board);
         } else {
           return;
         }

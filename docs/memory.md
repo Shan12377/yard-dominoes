@@ -5,6 +5,82 @@ still coming. Update this file whenever a doc lands, a phase finishes, or a
 decision gets made — this is the single place to check status instead of
 re-deriving it from chat history.
 
+## Authentic live-table domino rule (2026-09-06)
+
+- Player feedback identifies physical table familiarity as a switching issue,
+  not decoration. The live game must feel like close Jamaican table play: four
+  people at their physical edges, a quiet felt centre, and a connected line
+  that visibly occupies the available board.
+- The confirmed default table reference is the incumbent's physical screen layout,
+  not the earlier green-felt concept: a large wood-grain board, the three
+  opponents' face-down racks anchored to the top/left/right edges, the local
+  player's seven large face-up bones on a bright bottom tray, then game
+  status and controls below. Keep YaadDominoes identity and original artwork,
+  but preserve that spatial familiarity. Do not float large profile cards over
+  the mobile playing surface.
+- Prototype states must be valid domino states, not decorative arrangements.
+  Across the visible board and local hand, each physical tile may appear only
+  once. Runtime validation must reject duplicates before rendering.
+- A deal-size prototype is incomplete if it shows only unplayed racks. The
+  7-each, 9-each, and 14-each review states must each include a valid played
+  position so reviewers can judge the table path and the exact transition
+  from hand bone to board bone.
+- The player's hand is the canonical domino design. A bone in the hand, a
+  played bone, and a face-down opponent bone are one physical object with the
+  same 1:2 footprint, thickness, face material, edge, divider, pip geometry,
+  pip colour, and lighting at a given viewport scale. A played bone must never
+  become paler, translucent, tinted by the felt, compressed, or independently
+  smaller. Normal placement must render at final physical size from its first
+  frame: never fade or scale the bone, face, or pips. Scale animation makes
+  touching bones overlap and can visibly cut off an adjoining half.
+- **Immutable pip-map rule:** each value from blank through six has one and
+  only one pip-coordinate map. Moving a bone from the hand to the board must
+  preserve that map, pip diameter, edge inset, colour, and spacing exactly.
+  Orientation may only rotate the complete square face grid by 90 degrees;
+  code must never recalculate or substitute dot positions for a played bone.
+  The final requested material target is the flatter JamDom treatment for all
+  bones: clean white face, restrained medium pips, firm centre bar, thin
+  light-grey perimeter, and no bevel, raised bottom edge, dark outline, or
+  dramatic shadow. Preserve that exact appearance when the bone is played.
+- Responsive scaling happens once for the whole table's bone system, using
+  crisp whole-pixel sizes. The hand and board consume the same shared unit.
+  If a long line needs more room, adapt the board route or usable surface;
+  never solve capacity by miniaturising only the played bones.
+- A long line fills the board by turning cleanly at safe boundaries. Every
+  join touches exactly without a gap or overlap, each double remains a full
+  crosswise 1:2 bone, and parallel runs retain consistent spacing. Dense late
+  hands are expected and should still look uniform.
+- Opponent racks remain count-only and face-down for privacy, but each back
+  keeps the same physical footprint as the face-up bones and sits visibly at
+  that opponent's table edge.
+- Edge racks and the local hand occupy protected lanes. The played chain must
+  remain wholly inside the clear board rectangle in early and late states;
+  no identity, hidden rack, callout, or hand bone may cover any played bone.
+- The accepted wood-table redesign is not complete until its responsive suite
+  covers every deal shape: four-player seven each, three-player nine each
+  (double-blank removed), and two-player fourteen each without a boneyard.
+  Fourteen fits as two ordered rows of seven on portrait phones; nine uses a
+  compact complete rack. The local hand and every playable bone remain fully
+  on-screen—never a horizontally clipped rail.
+- French requires a separate wood-table proof using its real four-arm cross
+  renderer. A normal dense cross must fit as one centred overview above the
+  protected hand. Only an unusually wide/tall legal cross may pan inside the
+  board stage; the page, hand, and open ends remain fixed and visible.
+- QA must change examples through the visible state controls, not only
+  fresh-load each layout. When a state changes the board grid dimensions or
+  bone size, synchronize both explicit grid axes before rendering, then
+  measure the played line, local hand, and visible backs after switching away
+  and back. All three must retain one physical short-side size.
+- Before asking anyone to review a prototype, run a visibility check at the
+  exact reported viewport. For dense late boards, confirm the played line is
+  materially large enough to read and occupies a meaningful portion of the
+  felt; a technically valid but toy-sized line is a failed review state.
+- These observations were confirmed from `WhatsApp Video 2026-07-28 at
+  23.33.51.mp4` (first minute reviewed continuously and later states sampled)
+  and the supplied JamDom screenshots. The reviewable concept lives at
+  `docs/prototypes/authentic-table.html`; it is a prototype, not production
+  game code.
+
 ## Live-table viewport rule (2026-08-22)
 
 - The board, four seat summaries, scores, turn clock, and the player's rack
@@ -790,8 +866,8 @@ Everything below is live and verified, not just written:
   scrolls directly to that surface without reducing the board. Never render
   quick words or stickers as loose controls below the full table again.
 - Unplayed hands belong on the felt edge at their physical seats in both
-  Practice and online play. Other players render as compact face-down blue
-  racks made only from the public hand count, and the rack loses one bone
+  Practice and online play. Other players render as compact plain-ivory
+  face-down racks made only from the public hand count, and the rack loses one bone
   whenever that count drops. The local player's playable hand remains large
   below the felt. In Open Hand only, the authorized partner rack is face-up;
   opponents remain hidden. Across keeps both controlled hands together below

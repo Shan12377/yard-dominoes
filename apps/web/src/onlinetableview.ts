@@ -14,7 +14,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition, type SeatSlot } from './seatlayout.ts';
@@ -23,7 +23,7 @@ import { tableRackPresentation } from './table-rack.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import {
   CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, DUPPY_PACE_LABELS, DUPPY_PACE_NAMES, duppyThinkSeconds,
-  isPartnered, sideOf, type ClockName, type DuppyLevel, type DuppyPace, type GameMode,
+  dealPlan, isPartnered, sideOf, type ClockName, type DuppyLevel, type DuppyPace, type GameMode,
 } from '@yard/engine';
 import * as sfx from './sfx.ts';
 
@@ -407,6 +407,10 @@ let lastFeltBox: { width: number; height: number } | null = null;
 // lower rail. Keep their measurements separate so the first dealt frame does
 // not briefly render below the rail.
 let lastFeltHasHandRail: boolean | null = null;
+// Pin the French guard to its opening-hand measurement. Opponents losing
+// bones must not make the played layout expand, contract or recenter.
+let lastFrenchGuardKey: string | null = null;
+let lastFrenchGuardInset: string | null = null;
 
 /**
  * The social layer, handed in by whoever owns the Realtime channel it rides on.
@@ -739,6 +743,7 @@ function tableRack(s: SeatInfo, game: OnlineGame, slot: 'top' | 'left' | 'right'
   if (presentation.kind === 'none') return null;
 
   const rack = el('div', `table-rack table-rack-${slot}`);
+  rack.classList.toggle('table-rack-many', presentation.kind === 'hidden' && presentation.count >= 10);
   if (presentation.kind === 'open') {
     rack.classList.add('table-rack-open');
     rack.setAttribute('aria-label', `${seatName(s)} has ${presentation.tiles.length} face-up tiles`);
@@ -846,11 +851,6 @@ export function liveTableView(
   if (game.isSpectator) head.append(el('div', 'muted', 'Watching — spectators never see anyone\'s tiles'));
   frag.appendChild(head);
 
-  // Voice sits at the top, where a persistent control belongs — it is a state
-  // you are in, not an action you take mid-hand.
-  if (social?.voicePanel) frag.appendChild(social.voicePanel);
-  if (social?.videoPanel) frag.appendChild(social.videoPanel);
-
   const scoreWrap = el('div', 'panel sticky-scores');
   const board = el('div', 'scoreboard');
   // French is race-to-100 (lower wins) and always cutthroat — createSet()
@@ -900,9 +900,17 @@ export function liveTableView(
   // just-tapped tile landing — see predict.ts. Preferred over the last
   // confirmed board until the real state arrives and clears it.
   const displayBoard = game.predictedBoard ?? game.hand?.board ?? null;
+  if (!game.isSpectator && game.mySeat !== null) {
+    assertVisibleTilesDisjoint(displayBoard, game.predictedTilesFor(game.mySeat) ?? game.myTiles);
+  }
 
   const feltSlot = el('div', 'felt-slot');
+  // Across renders both controlled hands as siblings below the felt. Keep the
+  // board's fitted physical scale on their common host so those hands cannot
+  // silently fall back to the generic hand size.
+  feltSlot.classList.add('shared-table-hand-scale');
   const feltShell = el('div', 'felt-shell');
+  feltShell.classList.add(`seat-count-${game.table.seatCount}`);
   const felt = el('div', 'table-felt live-felt');
   // Keep a single controlled hand in the lower edge of the felt. Spectators
   // have no hand, and Across deliberately keeps its two controlled hands
@@ -910,6 +918,7 @@ export function liveTableView(
   const handOnFelt = !game.isSpectator && !!game.hand && game.table.mode !== 'across';
   const boardStage = handOnFelt ? el('div', 'board-stage') : felt;
   if (handOnFelt) felt.classList.add('hand-on-felt');
+  if (handOnFelt && game.myTiles.length >= 10) felt.classList.add('hand-many');
   // A French cross grows in four directions. Its mobile felt gets a little
   // more vertical room so late arms remain above—not underneath—the hand.
   if (handOnFelt && displayBoard?.kind === 'cross') felt.classList.add('french-cross-live');
@@ -918,8 +927,54 @@ export function liveTableView(
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
   // measured.
-  const cachedBox = lastFeltHasHandRail === handOnFelt ? lastFeltBox : null;
-  renderBoard(line, displayBoard, cachedBox ? { box: cachedBox } : {});
+  const cachedBox = lastFeltHasHandRail === handOnFelt && displayBoard?.kind !== 'cross'
+    ? lastFeltBox : null;
+  const frenchTable = game.table.format === 'french';
+  const frenchGuardKey = frenchTable && handOnFelt
+    ? `${game.hand?.hand_id ?? 'undealt'}:${window.innerWidth}`
+    : null;
+  if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
+    boardStage.style.inset = lastFrenchGuardInset;
+    boardStage.dataset.boardGuard = 'pinned-hand-square';
+  }
+  const tableCapUnit = liveTableUnit(window.innerWidth, null, frenchTable);
+  const tableUnit = liveTableUnit(window.innerWidth, displayBoard, frenchTable);
+  const tableMinUnit = window.innerWidth <= 700 ? 10 : 11;
+  // Match Practice: a broad desktop table uses its centre before reducing
+  // bone size; only a phone turns at the tighter 20-cell lane.
+  // Only phones and French quadrants need a deliberate lane cap. An ordinary
+  // Lounge line spends the full measured width before it turns, like bones on
+  // a physical table.
+  const tableMaxUnits = window.innerWidth <= 700 ? 20 : undefined;
+  feltShell.style.setProperty('--table-bone-cap-short', `${tableCapUnit * 2}px`);
+  // Begin the whole physical set at the readable deal-size tier. The fitted
+  // unit below updates board, visible hand and perimeter racks together.
+  feltShell.style.setProperty('--table-bone-short', `${tableCapUnit * 2}px`);
+  feltSlot.style.setProperty('--table-bone-short', `${tableCapUnit * 2}px`);
+  // .table-felt declares a desktop fallback of its own, so set the live value
+  // on the felt as well; otherwise Lounge hands stay at 42px on a 390px phone
+  // while the surrounding racks correctly use 28px.
+  felt.style.setProperty('--table-bone-short', `${tableCapUnit * 2}px`);
+  const fittedUnit = renderBoard(line, displayBoard, {
+    ...(cachedBox ? { box: cachedBox } : {}),
+    maxUnit: tableUnit,
+    // PIN, not a ceiling — and for every mode, not only French. Passing just
+    // maxUnit let chooseUnit search downward from it until the whole chain
+    // fitted the stage, which is precisely the shrinking a JamDom player
+    // notices. French already pinned; the linear game is the same physical
+    // table and gets the same treatment.
+    unit: tableUnit,
+    minUnit: tableMinUnit,
+    maxUnits: tableMaxUnits,
+  });
+  // The played chain, visible hand and concealed racks are one physical set.
+  // Keep all three on the renderer's actual fitted size, especially when a
+  // four-arm French board is denser than its opening-size ceiling.
+  if (fittedUnit) {
+    felt.style.setProperty('--table-bone-short', `${fittedUnit * 2}px`);
+    feltShell.style.setProperty('--table-bone-short', `${fittedUnit * 2}px`);
+    feltSlot.style.setProperty('--table-bone-short', `${fittedUnit * 2}px`);
+  }
   tagWinningTile(line, felt, game);
   boardStage.appendChild(line);
   if (handOnFelt) felt.appendChild(boardStage);
@@ -929,28 +984,61 @@ export function liveTableView(
   // felt. They are siblings of the scrolling felt so they cannot be clipped
   // or crossed by a long line of played bones.
   const tableIdentities = new Map<SeatSlot, HTMLElement>();
+  const tableStations = new Map<SeatSlot, HTMLElement>();
   for (const s of game.seats) {
     const slot = seatPosition(s.seatIndex, game.mySeat, game.table.seatCount);
     if (!slot) continue;
     const rack = tableRack(s, game, slot);
-    if (rack) feltShell.appendChild(rack);
     // Identity stays at the physical table edge even for the local player,
     // whose playable hand deliberately has no duplicate rack.
     const identity = tableSeatIdentity(s, slot, social);
     // The local player's hand occupies the lower felt rail. Put that one
     // portrait in the rail header once it exists, never on top of a playable
     // bone. The other three remain beside their physical racks.
-    if (handOnFelt && slot === 'bottom') tableIdentities.set(slot, identity);
-    else feltShell.appendChild(identity);
+    if (handOnFelt && slot === 'bottom') {
+      tableIdentities.set(slot, identity);
+    } else if (rack) {
+      const count = game.hand?.hand_sizes[s.seatIndex] ?? 0;
+      const scoreIndex = isPartnered(game.table.mode)
+        ? sideOf(s.seatIndex, game.table.mode) : s.seatIndex;
+      const score = game.scores[scoreIndex] ?? 0;
+      const copy = el('span', 'table-seat-copy');
+      copy.append(
+        el('strong', undefined, seatName(s)),
+        el('small', undefined, `${count} bone${count === 1 ? '' : 's'} · ${score} pt${score === 1 ? '' : 's'}`),
+      );
+      identity.appendChild(copy);
+      const station = el('div', `table-player-station table-player-station-${slot}`);
+      station.classList.toggle('turn', game.hand?.status === 'active' && game.hand.turn === s.seatIndex);
+      station.append(identity, rack);
+      feltShell.appendChild(station);
+      tableStations.set(slot, station);
+    } else {
+      feltShell.appendChild(identity);
+    }
   }
+  const lastMove = game.hand?.move_log.at(-1);
+  const lastMoveSlot = lastMove
+    ? seatPosition(lastMove.seat, game.mySeat, game.table.seatCount)
+    : null;
+  const calloutHost = lastMoveSlot
+    ? tableStations.get(lastMoveSlot)?.querySelector<HTMLElement>('.table-seat-copy')
+    : null;
   const lastPass = passCallout(game);
-  if (lastPass) feltShell.appendChild(lastPass);
+  if (lastPass) (calloutHost ?? feltShell).appendChild(lastPass);
   const lastPlay = playCallout(game);
-  if (lastPlay) feltShell.appendChild(lastPlay);
+  if (lastPlay) (calloutHost ?? feltShell).appendChild(lastPlay);
   // An undealt table is still a game surface, not a form page. Keep the
   // only action needed to begin the game directly on the felt so nobody has
   // to scroll away from the board to find it.
   if (!game.hand) felt.appendChild(startHandPanel(game));
+  // The live clock owns the top edge of the table. It must never trail the
+  // felt or disappear below a long board/hand on a short viewport.
+  if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
+    const clock = countdown(game, game.hand.turn_expires_at);
+    clock.classList.add('turn-clock-top');
+    feltSlot.appendChild(clock);
+  }
   feltSlot.appendChild(feltShell);
   // The felt isn't attached to the document yet at this point in the build,
   // so getBoundingClientRect() would read all zeros here — wait a frame for
@@ -958,23 +1046,63 @@ export function liveTableView(
   // has actually moved (a resize) — not on every render. A Realtime update
   // fires this on every opponent move, and re-measuring plus fully
   // rebuilding the board on each one is the flash this guards against.
-  requestAnimationFrame(() => {
-    // -32 matches CHROME_X/CHROME_Y's existing padding-subtraction
-    // convention (felt padding + line padding), not a new magic number.
+  const refitMeasuredBoard = () => {
+    if (!boardStage.isConnected) return;
+    // The stage box removes the line's 14px padding plus 4px for grid/border
+    // rounding. Without that allowance a dense row could cross the invisible
+    // guard by one pixel and be clipped.
     const fitHost = handOnFelt ? boardStage : felt;
+    if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
+      boardStage.style.inset = lastFrenchGuardInset;
+      boardStage.dataset.boardGuard = 'pinned-hand-square';
+    } else {
+      reserveBoardStage(felt, boardStage, tableStations.values(), felt.querySelector<HTMLElement>('.in-felt-hand'));
+      if (frenchGuardKey && boardStage.style.inset) {
+        lastFrenchGuardKey = frenchGuardKey;
+        lastFrenchGuardInset = boardStage.style.inset;
+      }
+    }
     const box = handOnFelt
-      ? { width: fitHost.clientWidth - 20, height: fitHost.clientHeight - 20 }
+      ? { width: fitHost.clientWidth - 18, height: fitHost.clientHeight - 18 }
       : { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
     if (box.width <= 0 || box.height <= 0) return;
     const changed = lastFeltHasHandRail !== handOnFelt
       || !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
+    // A move can add a cross-board row while the table rectangle stays
+    // unchanged. Refit that newly overflowed grid against the measured guard
+    // in Lounge exactly as Practice does.
+    const boardOverflowedGuard = line.scrollWidth > fitHost.clientWidth
+      || line.scrollHeight > fitHost.clientHeight;
     lastFeltBox = box;
     lastFeltHasHandRail = handOnFelt;
-    if (changed) {
-      renderBoard(line, displayBoard, { box });
+    // French uses the same fixed route and opening guard for every move. A
+    // second render here caused Lounge to visibly jump after Realtime updates.
+    if (frenchTable) return;
+    if (changed || boardOverflowedGuard) {
+      const measuredUnit = renderBoard(line, displayBoard, {
+        box,
+        maxUnit: tableUnit,
+        ...(frenchTable ? { unit: tableUnit } : {}),
+        minUnit: tableMinUnit,
+        maxUnits: tableMaxUnits,
+      });
+      if (measuredUnit) {
+        felt.style.setProperty('--table-bone-short', `${measuredUnit * 2}px`);
+        feltShell.style.setProperty('--table-bone-short', `${measuredUnit * 2}px`);
+        feltSlot.style.setProperty('--table-bone-short', `${measuredUnit * 2}px`);
+      }
       tagWinningTile(line, felt, game);
     }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(refitMeasuredBoard));
+  // Realtime updates can replace the pre-measurement node just as Practice
+  // Duppy turns do. Fit synchronously when this exact fragment is attached.
+  const stageMeasure = new MutationObserver(() => {
+    if (!boardStage.isConnected) return;
+    stageMeasure.disconnect();
+    refitMeasuredBoard();
   });
+  stageMeasure.observe(document.body, { childList: true, subtree: true });
   // Docked directly under the felt so the board and the player's own hand
   // are always visible together — this used to be a separate panel
   // appended after .table-room closed, which pushed it below the fold.
@@ -1011,12 +1139,10 @@ export function liveTableView(
       }
     }
   }
-  if (handActions) feltSlot.appendChild(handActions);
-  // The two-end choice belongs immediately under the felt. Putting the
-  // countdown before it made the arrows look disconnected from the tile a
-  // player had just selected, especially on a phone.
-  if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
-    feltSlot.appendChild(countdown(game, game.hand.turn_expires_at));
+  handActions = placeBoardChoices(boardStage, handActions);
+  if (handActions) {
+    handActions.classList.add('in-felt-actions');
+    felt.appendChild(handActions);
   }
   cross.appendChild(feltSlot);
 
@@ -1051,6 +1177,14 @@ export function liveTableView(
   room.appendChild(cross);
 
   const rail = el('div', 'table-rail');
+
+  // Voice/video controls remain available, but below the playing surface.
+  // Keeping these two bars above a live hand cost almost 100px of every
+  // laptop viewport—the exact space the board needs to stay readable.
+  const liveExtras = el('div', 'table-live-extras');
+  if (social?.voicePanel) liveExtras.appendChild(social.voicePanel);
+  if (social?.videoPanel) liveExtras.appendChild(social.videoPanel);
+  if (liveExtras.childElementCount) rail.appendChild(liveExtras);
 
   const tabs = el('div', 'rail-tabs');
   const tabDefs: { id: typeof activeRailTab; label: string }[] = [
@@ -1302,6 +1436,9 @@ function myOtherHandPanel(tiles: string[]): HTMLElement {
   const panel = el('div', 'panel partner-hand');
   panel.append(el('div', 'eyebrow', 'Your other hand'));
   const row = el('div', 'hand');
+  // This component exists only for Across. That two-player deal begins with
+  // fourteen bones, so its physical rack stays two rows even after it shrinks.
+  row.classList.add('double-row');
   for (const tile of tiles) {
     const node = tileEl(tile);
     node.classList.add('sm', 'dead');
@@ -1363,7 +1500,12 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const hand = el('div', 'hand');
   // The in-felt rail shares its width across exactly this many bones. A
   // two-hander deals fourteen, not seven — see the .in-felt-hand rule.
-  hand.style.setProperty('--hand-count', String(Math.max(tiles.length, 1)));
+  // Keep rack bones at their dealt size as the hand empties. Otherwise every
+  // play made the survivors grow, so the same domino visibly changed scale
+  // between the hand and the table.
+  const dealCount = dealPlan(game.table.seatCount, false).perPlayer;
+  hand.style.setProperty('--hand-count', String(Math.max(dealCount, 1)));
+  hand.classList.toggle('double-row', dealCount >= 10);
 
   for (const tile of tiles) {
     const node = tileEl(tile);
@@ -1399,6 +1541,7 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     const cross = board?.kind === 'cross' ? board : null;
     const options = legal.filter((m) => 'tile' in m && m.tile === pendingTile);
     const choice = el('div', 'row');
+    choice.dataset.boardChoice = 'true';
     if (options.length === 0) {
       const reason = cross ? crossRejectReason(cross, pendingTile) : null;
       choice.append(el('span', 'muted', reason ?? "That tile doesn't fit the board right now."));
@@ -1421,6 +1564,8 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
             const dir = ARM_DIRECTION_ARROW[arm.direction];
             b.textContent = `${dir.glyph} (${arm.openEnd})`;
             b.setAttribute('aria-label', `${dir.label} arm, opens on ${arm.openEnd}`);
+            b.dataset.crossArm = String(move.arm);
+            b.dataset.openPip = String(arm.openEnd);
           } else {
             b.textContent = 'New arm';
           }
@@ -1431,6 +1576,8 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
           const isLeft = (move as any).end === 'left';
           const arrow = isLeft ? '←' : '→';
           const pip = linear ? (isLeft ? linear.leftEnd : linear.rightEnd) : null;
+          b.dataset.linearEnd = isLeft ? 'left' : 'right';
+          if (pip !== null) b.dataset.openPip = String(pip);
           b.textContent = pip !== null
             ? `${arrow} ${isLeft ? 'Left' : 'Right'} end (${pip})`
             : `${arrow} ${isLeft ? 'Left end' : 'Right end'}`;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { predictMyMove } from './predict.ts';
+import { predictMyMove, withoutBoardTiles } from './predict.ts';
 import type { PredictInput } from './predict.ts';
 
 function baseInput(overrides: Partial<PredictInput> = {}): PredictInput {
@@ -54,4 +54,9 @@ test('an illegal move returns null instead of throwing', () => {
   // offer this, but predictMyMove must fail closed if it ever happens.
   const result = predictMyMove(baseInput(), { kind: 'play', seat: 0, tile: '5-5', end: 'left' });
   assert.equal(result, null);
+});
+
+test('a newer public board removes its tile from a stale private hand snapshot', () => {
+  const opened = predictMyMove(baseInput(), { kind: 'pose', seat: 0, tile: '6-6' })!;
+  assert.deepEqual(withoutBoardTiles(['6-6', '2-3', '0-0'], opened.board), ['2-3', '0-0']);
 });

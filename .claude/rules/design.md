@@ -78,11 +78,35 @@ design:
 1. **The felt has texture.** A woven diagonal pattern at very low opacity, plus
    a vignette so the centre sits brightest — direct midday sun, not a bulb —
    and the edges fall away slightly.
-2. **Tiles have thickness.** A 3–4px `--bone-shade` bottom edge and a tight
-   dark shadow. They must read as objects lying on a surface, not as divs.
-3. **The sound-system frame holds the felt.** A deep signal-blue rim with
-   speaker/pip geometry makes the green read as YaadDominoes rather than casino
-   baize. Brown wood remains an optional table theme, not the brand default.
+2. **Tiles use the confirmed flat JamDom treatment.** No raised bottom edge,
+   bevel, heavy dark perimeter, or dramatic shadow. The player's hand is the
+   master bone design: hand, board, and face-down racks share one renderer and
+   material system. Hand and played board share one physical size token;
+   concealed racks may use one smaller uniform perimeter-counter size to keep
+   the centre clear. Played bones never
+   fade, tint, soften their black pips, or scale independently to fit a line.
+   Normal placement renders at final size from the first frame—no fade or scale
+   animation that can overlap a neighbour or clip a face.
+   Scale all bones together at deliberate whole-pixel viewport tiers; route a
+   long line around the felt instead of miniaturising it.
+   **Immutable pip-map rule:** blank through six each own one pip-coordinate
+   map. Playing a bone preserves its pip diameter, inset, spacing, colour and
+   coordinates exactly. Horizontal orientation may only rotate the entire
+   square face grid 90 degrees; never recalculate or replace its dot pattern.
+   The requested target is the flatter JamDom treatment: clean white face,
+   restrained medium pips, firm centre bar, thin light-grey perimeter, and no
+   bevel, raised bottom edge, dark outline, or dramatic shadow. Use it for all
+   face-up and face-down bones and preserve it on the board. A played chain
+   shows a narrow reveal of the table between adjacent bones: legal joins are
+   edge-to-edge in the renderer, but the faces must never visually merge into
+   one white strip.
+3. **The sound-system frame holds the table.** A deep signal-blue rim with
+   speaker/pip geometry keeps the experience recognisably YaadDominoes. The
+   default live surface is the player-confirmed authentic wood-grain board,
+   not green felt. Opponent racks are
+   anchored on the top/left/right edges, and the local seven-bone hand on a
+   bright bottom tray with status and controls below. Keep Yaad identity, but
+   do not replace that mobile spatial model with floating profile cards.
 4. **Light comes from above.** One bright, warm, direct source — noon sun, not
    a bulb. Gradients run top-light to bottom-dark, consistently, everywhere,
    including on the signal-blue room itself (a slight vignette keeps the
@@ -206,5 +230,22 @@ easiest to see.
   restore vertically stacked full-size seat cards on mobile.
 - The social rail collapses below the board at widths up to 1100px. A permanent
   side rail is allowed only when the board still has genuinely generous space.
-- The player's hand stays in one horizontal, scrollable row so larger hands do
-  not wrap into a tall block or shrink the bones below comfortable tap size.
+- Standard 7- and 9-bone hands stay in one complete horizontal row. The
+  14-bone two-player deal is the deliberate exception: on portrait phones it
+  wraps into two ordered rows of seven so no bone hangs off-screen or shrinks
+  below a comfortable tap size.
+- Treat the opponent racks and local hand as protected edge lanes. At every
+  board length, the played chain stays wholly inside the remaining clear
+  rectangle; racks, identities, callouts, and the hand never cover it.
+- The wood-table responsive acceptance suite includes 7×4, 9×3 (without the
+  double-blank), 14×2 (no boneyard), and a normal dense French cross. On
+  portrait phones, fourteen uses two ordered rows of seven and nine remains a
+  complete compact rack; neither may hang horizontally off-screen. French
+  fits its ordinary four-arm cross as one centred overview before allowing an
+  exceptional board-only pan. Every review state must include played bones;
+  an initial deal by itself does not prove board appearance or uniformity.
+- Responsive QA must also change examples through the actual state controls.
+  Fresh-loading each state is insufficient: after any grid-size change,
+  synchronize both explicit grid axes and confirm played bones, the local hand,
+  and visible backs retain one measured physical short side after switching
+  away and back.

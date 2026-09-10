@@ -28,7 +28,7 @@ See @README.md for setup and architecture.
 ## Commands
 
 ```bash
-npm test              # 401 tests — run after ANY engine change
+npm test              # 420 tests — run after ANY engine change
 npm run bench         # set-length distributions
 npm run dev           # client on :5173
 npm run typecheck     # client types — run before declaring done
@@ -49,6 +49,101 @@ Node 22+ runs TypeScript directly. The engine has no build step.
 - `apps/web/` — Vite client, PWA
 
 Detailed rules live in `.claude/rules/` and load when you touch matching files.
+
+## Live-table visual correctness gate
+
+- **Practice and Lounge are one visual contract with two implementations.**
+  Any request to change the live table, board, dominoes, hands, racks, player
+  stations, spacing, or responsive behaviour in either Practice or Lounge
+  automatically requires consulting and correcting both. Inspect both DOM
+  builders (`main.ts` and `onlinetableview.ts`) and their shared and
+  surface-specific CSS. Never infer that changing the shared renderer fixed
+  both. Browser-test a fresh deal and a played-out hand in both surfaces before
+  declaring the request complete, even when the user named only one surface.
+- The board renderer reads only the engine's `Board`/`CrossBoard`. Never hand-place
+  a decorative live chain or carry a prototype tile array into production.
+- One flat domino primitive serves hand, board and rack: same 1:2 ratio, thin
+  light-grey edge, firm centre divider, black pips and immutable 3×3 pip map.
+  Rotation rotates the completed face grid; it never changes a pip layout.
+  Face-down opponent and duppy racks are plain ivory backs—never blue cards,
+  patterned backs, or a separate visual language. Every back remains fully
+  visible with table showing between bones: never fan, stack, or use negative
+  margins to overlap a hand. A 14-bone opponent hand uses two rows of seven.
+- Size a player's rack layout from the engine's original 7-, 9-, or 14-bone
+  deal, never from the shrinking number still held. A bone may not recolour,
+  change pips, or gain an animation when it moves from hand to board. The
+  renderer chooses one physical short-side measurement before the deal for the
+  visible hand and played board; those two always use it together for the full
+  hand. Gameplay and board density may never recalculate it. Concealed opponent
+  racks may use one smaller, stable perimeter-counter size so they do not take
+  the playing surface, but every back remains separate and all opponents use
+  the same rack size. Never give the played chain an independent smaller tier.
+  Preserve the same domino design and 1:2 ratio at every fitted size. This
+  includes Across: hands may sit outside the felt in that mode, but every
+  controlled face-up hand must still inherit the board's fitted short side.
+  After the pre-deal measurement, the computed short sides of a played face-up bone
+  and every controlled hand bone must differ by no more than 1 CSS pixel.
+  French desktop uses the measured JamDom proportions as its baseline: a
+  1000×800 game surface, a 450×390 routed board and 30×60 bones. Scale those
+  measurements together on larger desktop tables (3% of table width, capped at
+  a 60px short side), lock that value before the deal, and route inside the
+  corresponding 15×13-short-side board. Older players must not receive
+  counter-sized face-up tiles merely because the board has four ends.
+- `docs/prototypes/authentic-table.html` is the live-table composition authority:
+  on desktop the local hand sits in a compact, content-width tray at the
+  player's table edge; on phone it becomes the prototype's transparent,
+  full-width bottom tray without card border, fill or shadow. Never divide the
+  felt with a fixed-height hand panel. The
+  played board and hand remain visually separate. Practice and Lounge must use
+  the same table composition and fitting rules: perimeter stations hug or
+  straddle the rim, leaving a broad, clear central square for play. A crowded
+  line must fit completely inside its protected board zone with no scrolling.
+  That zone is an invisible measured guard square: its four edges sit beyond
+  the actual top/side stations and above the actual local hand/action trays,
+  with a safety gap. Played dominoes may never leave that square.
+  An ordinary line must use the full measured safe width before turning. A
+  phone may turn within a 20-half-tile lane. A live French arm chooses its
+  first lane from the measured guard: run straight while the protected square
+  allows it, turn once near that boundary, then continue without curling back
+  into the original line.
+  Empty space comes from keeping stations on the perimeter—not miniaturising
+  the played dominoes in the middle.
+  Treat separation as measurable: adjacent hand bones have a positive gap,
+  played bones retain at least a 1px table reveal, and the board and hand
+  bounding boxes never touch or overlap (keep at least the 12px phone guard).
+- `docs/prototypes/french-reference/` is the French board geometry authority.
+  Its 450×390 logical coordinate route is based on the public JamDom desktop
+  client's measured board and 30×60 bone constants. A French cross follows
+  those fixed lanes and boundary turns; it never invents a density-based scale,
+  shrinks during play, overlaps another arm, or reaches a protected player lane.
+- Each opponent's portrait, name, bone count, score and concealed rack form one
+  edge-mounted player station inside a translucent gold-bordered enclosure.
+  Never position an identity independently from its hand. Top, left and right
+  stations use the same component and spacing, oriented for their table edge,
+  and the board stage is inset far enough that no station can cover the chain.
+- The Lounge is the premium real-table presentation and gets the largest
+  playing surface. Do not keep chat, stickers, standings, logs, profile tools,
+  or duplicate outer seat cards beside the felt. The scoreboard and compact
+  edge stations carry live player information; social tools use a tabbed dock
+  below the table. The protected board rectangle must begin after every edge
+  station's incursion onto the wood.
+- Validate table geometry against a completed hand, not only a fresh deal. At
+  every required viewport every played domino must be visible simultaneously,
+  with no board scrollbar and nothing beneath the local hand tray.
+- Keep a thin table reveal between every played bone. It is a visual separation
+  only: never alter Board/CrossBoard geometry, joins, pip placement, or tile
+  dimensions to create that gap.
+- Before rendering, reject duplicate tiles, broken line joins, broken French-arm
+  joins, wrong arm order, a non-double French centre, or a declared open end
+  that does not match the rendered arm.
+- Keep racks and the local hand in protected edge lanes. No played bone, pip,
+  hand tile, rack or open end may be clipped or covered at 390×844 mobile or
+  1368×1200 desktop. Also test the wide 2056×1170 paid-play presentation.
+  Test 7-each, 9-each, 14-each and a dense French cross
+  in both Practice and a real Lounge table; sharing a renderer is not a
+  substitute for exercising both DOM compositions.
+- A table visual change is not done until `npm test`, `npm run typecheck`,
+  `npm run build`, and the exact-viewport browser visibility checks pass.
 
 ## Production deployment truth
 

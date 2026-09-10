@@ -1,4 +1,4 @@
-import { applyMove } from '@yard/engine';
+import { allBoardTiles, applyMove } from '@yard/engine';
 import type { AnyBoard, GameMode, HandResult, HandStatus, Move, SetFormat, TileId, HandState } from '@yard/engine';
 
 export interface PredictInput {
@@ -20,6 +20,17 @@ export interface PredictInput {
 export interface Prediction {
   board: AnyBoard | null;
   myTiles: TileId[];
+}
+
+/**
+ * Realtime publishes the public board and private seat hand as separate rows.
+ * If the board arrives first, briefly remove its unique dominoes from the
+ * last-known private hand so a confirmed play can never flash in both places.
+ */
+export function withoutBoardTiles(tiles: readonly TileId[], board: AnyBoard | null): TileId[] {
+  if (!board) return [...tiles];
+  const played = new Set(allBoardTiles(board));
+  return tiles.filter((tile) => !played.has(tile));
 }
 
 /**
