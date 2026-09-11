@@ -1059,9 +1059,16 @@ export function liveTableView(
       // Square the guard for French only. A linear chain snakes in rows and
       // keeps the full rectangle — squaring it cost ~155px of height on a
       // phone and made every board past 20 bones overflow.
+      // ...and squaring is itself landscape-only. It buys a French cross equal
+      // clearance every way, which a wide desktop felt can afford. A phone
+      // cannot: the flank stations cap the width, so squaring then discards
+      // all the height above that cap and hands the cross the SMALLER
+      // dimension twice. Measured on real French hands at a pinned 28px bone,
+      // 360x780 was the worst of it -- 135px of height thrown away, holding
+      // the cross to six bones on a felt with room for nine.
       reserveBoardStage(felt, boardStage, tableStations.values(),
         felt.querySelector<HTMLElement>('.in-felt-hand'),
-        frenchTable || displayBoard?.kind === 'cross');
+        window.innerWidth > 700 && (frenchTable || displayBoard?.kind === 'cross'));
       if (frenchGuardKey && boardStage.style.inset) {
         lastFrenchGuardKey = frenchGuardKey;
         lastFrenchGuardInset = boardStage.style.inset;

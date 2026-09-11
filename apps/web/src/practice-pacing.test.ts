@@ -222,3 +222,28 @@ test('the phone board stage floor never out-votes the measured guard', () => {
     'the 50px side floor is the bug: it pinned the board regardless of measurement');
   assert.match(rule.slice(0, rule.indexOf('}')), /\b24px\b/);
 });
+
+test('a phone does not square the French guard, because a phone is portrait', () => {
+  // Squaring exists so a French cross gets equal clearance in all four
+  // directions -- a real requirement on a landscape desktop table, where the
+  // felt is much wider than it is tall and the spare width would otherwise let
+  // an arm drift into a player's lane.
+  //
+  // A phone is the other way round. The flank stations cap the width, squaring
+  // then throws away every pixel of height above that cap, and the cross gets
+  // the SMALLER of two dimensions in both directions. Measured on real French
+  // hands, with the bone pinned at its readable 28px:
+  //
+  //   430x745   squared 332x321 -> unsquared 332x392   11 bones -> 14 visible
+  //   390x700   squared 292x282 -> unsquared 292x357    9 bones -> 11 visible
+  //   360x780   squared 262x196 -> unsquared 262x331    6 bones ->  9 visible
+  //
+  // The 360px case is the clearest: squaring was costing 135px of height and
+  // holding the cross to six bones on a felt with room for nine.
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.match(source, /window\.innerWidth > 700 && \(frenchTable \|\| displayBoard\?\.kind === 'cross'\)/,
+      `${surface} must square the French guard only where the table is landscape`);
+    assert.doesNotMatch(source, /\n\s*frenchTable \|\| displayBoard\?\.kind === 'cross'\);/,
+      `${surface} must not square a phone's French guard`);
+  }
+});
