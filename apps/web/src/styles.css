@@ -3091,7 +3091,12 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
      390x844, the chain began hiding under the local hand from the 18th bone.
      The played bone and the local hand are untouched at 28px -- only these
      face-down counters shrink, uniformly for every opponent. */
-  .table-felt { --table-counter-short: 14px; }
+  /* Both hosts: Practice hangs its stations inside .table-felt, the Lounge
+     appends them to .felt-shell, which is .table-felt's PARENT. Declaring this
+     on the felt alone reaches Practice and silently misses every Lounge rack,
+     which then falls back to the full playing bone. */
+  .table-felt,
+  .felt-shell { --table-counter-short: 14px; }
   /* The guard in reserveBoardStage() only ever grows these values, so whatever
      is written here is a floor the real measurement can never go below. They
      are now a conservative first-paint fallback rather than a guess at how big

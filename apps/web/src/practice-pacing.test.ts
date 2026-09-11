@@ -187,8 +187,18 @@ test('a phone gives concealed racks a counter size, so the board keeps the felt 
   // played bone and the local hand are deliberately NOT touched -- they stay on
   // --table-bone-short, which is what keeps them within 1px of each other.
   const phone = styles.slice(styles.indexOf('@media (max-width: 700px)'));
-  assert.match(phone, /\.table-felt \{ --table-counter-short: 14px; \}/,
-    'phones need a counter size distinct from the playing bone');
+  // BOTH hosts, and this is not belt-and-braces -- the two surfaces hang their
+  // stations off different elements. Practice puts them inside .table-felt
+  // (main.ts), while the Lounge appends them to .felt-shell, which is the
+  // PARENT of .table-felt (onlinetableview.ts:1014 vs :981). A custom property
+  // declared only on .table-felt therefore never inherits to a Lounge rack, and
+  // it silently falls back: the top rack to the full playing bone, the flanks to
+  // 22px. Shipped exactly that way and caught on a real phone -- Practice
+  // correct, Lounge still carrying full-size counters. There is an older comment
+  // at onlinetableview.ts:954 describing this same footgun for
+  // --table-bone-short, which is the tell that this DOM split will keep biting.
+  assert.match(phone, /\.table-felt,\s*\.felt-shell \{ --table-counter-short: 14px; \}/,
+    'the counter size must reach the Lounge felt-shell as well as the practice felt');
   assert.doesNotMatch(phone.slice(0, phone.indexOf('.table-win-left')),
     /\.table-player-station-right \.backs i \{\s*width: 44px;/,
     'flank counters must not be hardcoded past the token again');
