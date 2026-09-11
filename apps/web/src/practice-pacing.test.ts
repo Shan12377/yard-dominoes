@@ -168,3 +168,47 @@ test('Lounge social utility bars follow the table instead of stealing board heig
   assert.ok(!onlineTableSource.slice(0, room).includes('frag.appendChild(social.voicePanel)'));
   assert.ok(onlineTableSource.slice(extras, extras + 500).includes('liveExtras.appendChild(social.voicePanel)'));
 });
+
+test('a phone gives concealed racks a counter size, so the board keeps the felt width', () => {
+  // Reported live, twice: "the space to play is still too short, the domino is
+  // still hiding when almost played out". Measured on a real played-out hand at
+  // 390x844 -- the chain started hiding under the local hand from the EIGHTEENTH
+  // bone, which is an ordinary hand, not a freak one.
+  //
+  // The cause was not the board renderer. Three face-down opponent racks were
+  // rendering at the full 28px PLAYING bone size on a phone, and the flank ones
+  // were pinned at a hardcoded 44x22 that no token could reach. Each flank
+  // station came out 54px wide, so the measured guard held the board 61px off
+  // both felt edges and left the chain a 222px lane inside a 338px felt -- seven
+  // tiles per row, and then it ran out of height.
+  //
+  // CLAUDE.md allows exactly this fix: concealed racks may take one smaller,
+  // stable perimeter-counter size so they do not take the playing surface. The
+  // played bone and the local hand are deliberately NOT touched -- they stay on
+  // --table-bone-short, which is what keeps them within 1px of each other.
+  const phone = styles.slice(styles.indexOf('@media (max-width: 700px)'));
+  assert.match(phone, /\.table-felt \{ --table-counter-short: 14px; \}/,
+    'phones need a counter size distinct from the playing bone');
+  assert.doesNotMatch(phone.slice(0, phone.indexOf('.table-win-left')),
+    /\.table-player-station-right \.backs i \{\s*width: 44px;/,
+    'flank counters must not be hardcoded past the token again');
+  // The rack rules read the counter token but fall back to the bone size, so
+  // every surface that has not opted in is untouched.
+  assert.match(styles,
+    /\.table-rack \.backs i \{\s*width: var\(--table-counter-short, var\(--table-bone-short\)\);/);
+});
+
+test('the phone board stage floor never out-votes the measured guard', () => {
+  // boardGuardInsets() seeds itself from the stage's CURRENT stylesheet box and
+  // then only ever Math.max()es it larger, so whatever CSS puts here is a floor
+  // the real measurement can never go below. It read 50px per side, which was a
+  // guess at how far the old 54px stations reached. That guess silently beat the
+  // measurement: shrinking the racks changed the stations but not the board,
+  // because the floor was still 50px. Keep this a conservative first-paint
+  // fallback, well under what the stations actually measure.
+  const phone = styles.slice(styles.indexOf('@media (max-width: 700px)'));
+  const rule = phone.slice(phone.indexOf('.board-stage {'));
+  assert.doesNotMatch(rule.slice(0, rule.indexOf('}')), /\b50px\b/,
+    'the 50px side floor is the bug: it pinned the board regardless of measurement');
+  assert.match(rule.slice(0, rule.indexOf('}')), /\b24px\b/);
+});
