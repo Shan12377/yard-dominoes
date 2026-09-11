@@ -120,6 +120,38 @@ test('the invisible board guard excludes every hand and opponent lane', () => {
     'the measured board guard must be square');
 });
 
+test('a LINEAR guard keeps the full height instead of squaring away', () => {
+  // Same felt and obstacles as above. Squaring is a French requirement — its
+  // four arms need equal clearance every way. A linear chain snakes in rows,
+  // so squaring just throws height away: measured on a real 430x932 phone it
+  // cut the playable board to 247x246, and from 20 bones down every single
+  // board overflowed and had to be scrolled mid-hand.
+  const felt = { top: 0, right: 1000, bottom: 800, left: 0 };
+  const stage = { top: 60, right: 950, bottom: 720, left: 50 };
+  const obstacles = [
+    { edge: 'top' as const, rect: { top: 10, right: 620, bottom: 150, left: 380 } },
+    { edge: 'left' as const, rect: { top: 220, right: 140, bottom: 610, left: 10 } },
+    { edge: 'right' as const, rect: { top: 220, right: 990, bottom: 610, left: 860 } },
+    { edge: 'bottom' as const, rect: { top: 620, right: 650, bottom: 790, left: 350 } },
+  ];
+  const square = boardGuardInsets(felt, stage, obstacles, 24, true);
+  const rect = boardGuardInsets(felt, stage, obstacles, 24, false);
+
+  // The obstacles still hold the board off every station and the hand...
+  assert.equal(rect.top, 174, 'still clear of the top station');
+  assert.equal(rect.bottom, 204, 'still clear of the hand');
+  assert.equal(rect.left, 164, 'still clear of the left lane');
+  assert.equal(rect.right, 164, 'still clear of the right lane');
+
+  // ...but the spare width is no longer spent making it a square.
+  const squareH = 800 - square.top - square.bottom;
+  const rectH = 800 - rect.top - rect.bottom;
+  const rectW = 1000 - rect.left - rect.right;
+  assert.equal(squareH, rectH, 'height was never the binding side here');
+  assert.ok(rectW > 1000 - square.left - square.right,
+    'a linear board keeps the width the square gave away');
+});
+
 test('a short line uses the biggest tiles the box allows', () => {
   const short = orientLine(boardOf(3, mulberry32(1)));
   const big = chooseUnit(short, DESKTOP).u;

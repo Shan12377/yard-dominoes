@@ -2149,7 +2149,12 @@ function tableView(g: LocalGame): DocumentFragment {
       boardStage.style.inset = lastFrenchGuardInset;
       boardStage.dataset.boardGuard = 'pinned-hand-square';
     } else {
-      reserveBoardStage(felt, boardStage, tableStations.values(), felt.querySelector<HTMLElement>('.in-felt-hand'));
+      // Square the guard for French only. A linear chain snakes in rows and
+      // keeps the full rectangle — squaring it cost ~155px of height on a
+      // phone and made every board past 20 bones overflow.
+      reserveBoardStage(felt, boardStage, tableStations.values(),
+        felt.querySelector<HTMLElement>('.in-felt-hand'),
+        frenchTable || displayBoard?.kind === 'cross');
       if (frenchGuardKey && boardStage.style.inset) {
         lastFrenchGuardKey = frenchGuardKey;
         lastFrenchGuardInset = boardStage.style.inset;

@@ -2862,9 +2862,15 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
        opponent's tile count below the fold — the same complaint practice had,
        reported again against a live lounge table. The hand still docks in the
        felt's own lower rail, so board-first is untouched. */
+    /* Felt first. Seats sat above it from 2026-09-05 (they had been below the
+       fold), but with the scoreboard above them too that pushed the wood to a
+       quarter of the way down a 430px phone while repeating the same tile
+       counts the scoreboard already showed. The approved prototype puts one
+       thin bar above the table and the roster below it. Measured: the felt
+       moves 232px -> 164px, and the roster is still on screen unscrolled. */
     grid-template-areas:
-      "seats seats seats seats"
       "felt felt felt felt"
+      "seats seats seats seats"
       "result result result result";
   }
   /* One real row instead of four fixed columns. The columns stranded a
@@ -2982,6 +2988,19 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
      name/score/tile-count, one dense line per seat instead of a decorative
      pip track plus three stacked lines — the number alone (scoreTrack()
      now always renders it, not just above 6 points) carries the score. */
+  /* The wood gets the top of the screen, the way the approved prototype has
+     it (docs/prototypes/authentic-table.html: one thin scorebar, then the
+     table; the roster sits BELOW). Measured at 430x932 before this: the
+     scoreboard (96px) plus a seat strip (58px) pushed the felt to 232px —
+     a quarter of the phone gone, and saying the same tile counts twice. The
+     prototype spends 61px and starts its table at 151px.
+
+     `order`, not `display:none`: these cards carry the duppies' table talk
+     (main.ts's seats()), so they move rather than disappear. They were put
+     above the felt on 2026-09-05 because they sat below the fold — with the
+     felt no longer pushed down, below the table is reachable again. */
+  .practice-seats { order: 1; }
+  .practice-room > .sound-bar { order: 2; }
   .sticky-scores { padding: 8px 12px; }
   .sticky-scores .spread { margin-bottom: 4px; }
   .sticky-scores .eyebrow { font-size: 10px; }

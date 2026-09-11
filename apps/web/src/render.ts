@@ -859,6 +859,17 @@ export function boardGuardInsets(
   stage: GuardRect,
   obstacles: ReadonlyArray<{ edge: GuardEdge; rect: GuardRect }>,
   gap: number,
+  /**
+   * Square the playable rectangle. TRUE only for a French cross, whose four
+   * arms need equal clearance in every direction.
+   *
+   * A linear chain does not: it snakes in rows and wants every pixel of height
+   * it can get. Squaring it was measured on a real 430x932 phone as the single
+   * biggest loss on the table — the felt offered ~400px of clear height and the
+   * square cut the board to 247x246, so from 20 bones down EVERY board
+   * overflowed and the player scrolled the back half of each hand.
+   */
+  square = true,
 ): { top: number; right: number; bottom: number; left: number } {
   const inset = {
     top: stage.top - felt.top,
@@ -872,11 +883,13 @@ export function boardGuardInsets(
     if (edge === 'bottom') inset.bottom = Math.max(inset.bottom, felt.bottom - rect.top + gap);
     if (edge === 'left') inset.left = Math.max(inset.left, rect.right - felt.left + gap);
   }
-  // Obstacles first define the largest safe rectangle. Centre the largest
-  // square inside it so French routing has equal, guaranteed clearance in
-  // every direction and can never drift toward the hand on a wide table.
+  // Obstacles define the largest safe rectangle. For French, centre the largest
+  // SQUARE inside it so its four arms have equal, guaranteed clearance and can
+  // never drift toward the hand on a wide table. A linear board keeps the whole
+  // rectangle — the obstacles already hold it off every station and the hand.
   const availableWidth = (felt.right - felt.left) - inset.left - inset.right;
   const availableHeight = (felt.bottom - felt.top) - inset.top - inset.bottom;
+  if (!square) return inset;
   const side = Math.max(0, Math.min(availableWidth, availableHeight));
   const horizontalSpare = Math.max(0, availableWidth - side);
   const verticalSpare = Math.max(0, availableHeight - side);
@@ -899,6 +912,8 @@ export function reserveBoardStage(
   boardStage: HTMLElement,
   stations: Iterable<HTMLElement>,
   hand: HTMLElement | null,
+  /** Square the guard — French only. See boardGuardInsets. */
+  square = true,
 ): void {
   if (felt === boardStage) return;
   // Every measurement starts from the stylesheet's broad board area. Keeping
@@ -944,8 +959,8 @@ export function reserveBoardStage(
   }
   if (hand) obstacles.push({ edge: 'bottom', rect: hand.getBoundingClientRect() });
   if (actionDock) obstacles.push({ edge: 'bottom', rect: actionDock.getBoundingClientRect() });
-  const guard = boardGuardInsets(feltRect, stageRect, obstacles, gutter);
-  boardStage.dataset.boardGuard = 'measured-square';
+  const guard = boardGuardInsets(feltRect, stageRect, obstacles, gutter, square);
+  boardStage.dataset.boardGuard = square ? 'measured-square' : 'measured-rect';
   boardStage.style.inset = `${Math.ceil(guard.top)}px ${Math.ceil(guard.right)}px ${Math.ceil(guard.bottom)}px ${Math.ceil(guard.left)}px`;
 }
 
