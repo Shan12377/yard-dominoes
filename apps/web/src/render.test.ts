@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
 import type { Board, CrossBoard, Pip, PlacedTile, TileId } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { assertRenderableBoard, assertVisibleTilesDisjoint, boardGuardInsets, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveTableUnit, rowsOf } from './render.ts';
+import { assertRenderableBoard, assertVisibleTilesDisjoint, boardGuardInsets, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveTableUnit, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -719,4 +719,37 @@ test('during the fill phase, names the centre value the next arm has to touch', 
   const board: CrossBoard = { kind: 'cross', center: '3-3', arms: [], doublesPlayed: [3] };
   const reason = crossRejectReason(board, '6-5');
   assert.match(reason ?? '', /\b3\b/, 'must name the centre value (3), not the tile\'s own numbers');
+});
+
+test('the board guard measures the box a CSS inset actually resolves against', () => {
+  // Found against a real 430x932 phone, on video: the flank stations had been
+  // shrunk to 38px and still the chain sat ~55px in from each felt edge, and a
+  // bone was clipped off the bottom of a nearly played-out hand.
+  //
+  // reserveBoardStage() measured every obstacle against the felt's BORDER box,
+  // because that is what getBoundingClientRect() returns. But it then writes
+  // the result to boardStage.style.inset, and `inset` on an absolutely
+  // positioned child resolves against its containing block's PADDING box. The
+  // phone felt has a 7px border, so every edge was over-inset by exactly that
+  // border width -- 14px of width and 14px of height given away on each phone,
+  // silently, on all four sides at once.
+  const border = { top: 7, right: 7, bottom: 7, left: 7 };
+  const feltBorderBox = { top: 100, right: 414, bottom: 845, left: 16 };
+  const inner = paddingBoxOf(feltBorderBox, border);
+  assert.deepEqual(inner, { top: 107, right: 407, bottom: 838, left: 23 });
+
+  // A left station reaching x=49 needs the board held 38px off the padding box
+  // (49 - 23 + 12), not the 45px the border box implied (49 - 16 + 12).
+  //
+  // The stage here sits where the STYLESHEET puts it -- reserveBoardStage()
+  // clears the previous inline inset before measuring, precisely so an earlier
+  // (larger) guard cannot ratchet the board smaller forever. The phone floor is
+  // 24px off the padding box, so x = 23 + 24.
+  const stage = { top: 180, right: 383, bottom: 700, left: 47 };
+  const obstacles = [{ edge: 'left' as const, rect: { top: 200, right: 49, bottom: 400, left: 11 } }];
+  const fixed = boardGuardInsets(inner, stage, obstacles, 12, false);
+  const old = boardGuardInsets(feltBorderBox, stage, obstacles, 12, false);
+  assert.equal(fixed.left, 38, 'measured from the box the inset resolves against');
+  assert.equal(old.left, 45, 'the border box double-counts the border');
+  assert.equal(old.left - fixed.left, border.left, 'the error is exactly the border width');
 });

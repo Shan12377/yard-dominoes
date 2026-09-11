@@ -853,6 +853,27 @@ export function placeBoardChoices(boardStage: HTMLElement, dock: HTMLElement | n
 type GuardRect = Pick<DOMRect, 'top' | 'right' | 'bottom' | 'left'>;
 type GuardEdge = 'top' | 'right' | 'bottom' | 'left';
 
+/**
+ * The box a child's CSS `inset` actually resolves against.
+ *
+ * getBoundingClientRect() returns the BORDER box, but `inset` on an absolutely
+ * positioned child is measured from its containing block's PADDING box. The
+ * live felt carries a 7-10px border, so measuring obstacles in one box and
+ * writing the answer in the other over-insets the board by the border width on
+ * every edge at once.
+ */
+export function paddingBoxOf(
+  rect: GuardRect,
+  border: { top: number; right: number; bottom: number; left: number },
+): GuardRect {
+  return {
+    top: rect.top + border.top,
+    right: rect.right - border.right,
+    bottom: rect.bottom - border.bottom,
+    left: rect.left + border.left,
+  };
+}
+
 /** Pure geometry behind the invisible square central-table guard. */
 export function boardGuardInsets(
   felt: GuardRect,
@@ -921,11 +942,21 @@ export function reserveBoardStage(
   // after a viewport or felt grows, that old square becomes the new baseline
   // and can never expand again.
   boardStage.style.removeProperty('inset');
-  const feltRect = felt.getBoundingClientRect();
-  if (!feltRect.width || !feltRect.height) return;
+  const feltBorderBox = felt.getBoundingClientRect();
+  if (!feltBorderBox.width || !feltBorderBox.height) return;
+  // Everything below is written back as boardStage.style.inset, so every
+  // measurement has to happen in the box that inset resolves against.
+  const edge = window.getComputedStyle(felt);
+  const feltRect = paddingBoxOf(feltBorderBox, {
+    top: parseFloat(edge.borderTopWidth) || 0,
+    right: parseFloat(edge.borderRightWidth) || 0,
+    bottom: parseFloat(edge.borderBottomWidth) || 0,
+    left: parseFloat(edge.borderLeftWidth) || 0,
+  });
+  if (!(feltRect.right > feltRect.left) || !(feltRect.bottom > feltRect.top)) return;
   // Roomy tables get a full bone-edge breathing gap; phones retain 12px so
   // the guard protects the hand without making the board unreadably narrow.
-  const gutter = Math.max(12, Math.min(24, feltRect.width * 0.015));
+  const gutter = Math.max(12, Math.min(24, (feltRect.right - feltRect.left) * 0.015));
   const actionDock = felt.querySelector<HTMLElement>('.in-felt-actions');
 
   // The hand owns the lower centre of the table. Keep Pass/reshuffle in view
