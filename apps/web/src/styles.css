@@ -2898,9 +2898,17 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .felt-slot { min-height: 0; }
   .table-room .live-felt,
   .practice-room .live-felt {
-    height: clamp(500px, 68svh, 620px);
-    min-height: clamp(500px, 68svh, 620px);
-    max-height: 620px;
+    /* Was 68svh capped at 620px. svh is the viewport WITH the browser chrome
+       showing, so on the reported device (430x932 hardware, ~745 of usable
+       page) that resolved to a 507px felt and a 309px playing area -- not the
+       620px a desktop simulation suggests. Measured at that real height, the
+       roster strip below the felt ended at y=617 with 128px of empty page
+       under it before the fold, while the chain above was clipping from the
+       20th bone. Spend most of that gap on the board and keep the roster on
+       screen unscrolled, which is what it was moved below the felt for. */
+    height: clamp(500px, 76svh, 680px);
+    min-height: clamp(500px, 76svh, 680px);
+    max-height: 680px;
     border-width: 7px;
     padding: 10px 8px;
   }
@@ -3118,9 +3126,9 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
      same shape as every other phone, one tier tighter. */
   .table-room .live-felt,
   .practice-room .live-felt {
-    height: clamp(460px, 64svh, 560px);
-    min-height: clamp(460px, 64svh, 560px);
-    max-height: 560px;
+    height: clamp(460px, 72svh, 620px);
+    min-height: clamp(460px, 72svh, 620px);
+    max-height: 620px;
   }
   .my-hand-panel .hand .tile { --w: 40px; --h: 80px; }
   .table-room .live-felt.french-cross-live,
