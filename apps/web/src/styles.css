@@ -123,7 +123,14 @@ body.walkthrough-open { overflow: hidden; }
    purely "does #app currently contain a live table." */
 #app:has(.table-room),
 #app:has(.practice-room) {
-  max-width: 1800px;
+  /* A live table takes the monitor it is given. This was a flat 1800px, which
+     meant a 2560px screen rendered exactly the same felt as a 1920px one —
+     measured: 1478px of felt at 2000, at 1920 AND at 2560, with the rest of
+     the desk simply unused. A domino table is the one screen in this app that
+     genuinely wants the width: more width is fewer rows, and fewer rows is a
+     board you can read in one look. Capped at all only so an ultrawide does
+     not stretch the felt into a letterbox. */
+  max-width: min(2400px, 100vw);
 }
 
 /* A live match is one screen, like a physical table, rather than a long
