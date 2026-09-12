@@ -28,7 +28,10 @@ test('online Duppies take one visible, server-authoritative turn at a time', () 
   assert.match(create, /duppy_pace: duppyPaceByName\(body\.duppyPace\)/);
   assert.match(start, /duppyThinkSeconds\(table\.duppy_pace\)/);
   assert.match(play, /duppyThinkSeconds\(table!\.duppy_pace\)/);
-  assert.match(advance, /duppyThinkSeconds\(table!\.duppy_pace\)/);
+  // `table!` or `table` — advance-duppy now takes the table embedded on its
+  // set and null-checks it once, so the assertion is about the CALL, not
+  // about how the row happened to be fetched.
+  assert.match(advance, /duppyThinkSeconds\(table!?\.duppy_pace\)/);
   assert.doesNotMatch(start, /while \(state\.status === 'active' && seats!\[state\.turn\]\.duppy_level/);
   assert.doesNotMatch(play, /while \(state\.status === 'active' && seats!\[state\.turn\]\.duppy_level/);
   assert.match(advance, /requireUser\(req\)/);

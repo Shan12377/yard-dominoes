@@ -182,7 +182,7 @@ let startFormatChosen = false;
 let startSeatCount = '4';
 let startDuppy: DuppyLevel = 'ranker';
 let startClock: ClockName = 'yard';
-let startPace: DuppyPace = 'yard';
+let startPace: DuppyPace = 'brisk';
 
 function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HTMLElement {
   const form = el('div', 'row');

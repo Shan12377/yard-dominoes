@@ -929,7 +929,7 @@ let lobbyFormat = 'sixlove';
  */
 let lobbyFormatChosen = false;
 let lobbyDuppy: DuppyLevel = 'ranker';
-let lobbyPace: DuppyPace = 'yard';
+let lobbyPace: DuppyPace = 'brisk';
 
 function lobby(): HTMLElement {
   const panel = el('div', 'panel door');

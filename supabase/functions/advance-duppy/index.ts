@@ -13,18 +13,29 @@ import { allowance, duppyThinkSeconds, type Clock } from '../_shared/engine/cloc
 import { applyRatingUpdates } from '../_shared/apply-rating.ts';
 
 Deno.serve(handled(async (req) => {
-  const user = await requireUser(req);
+  // Five sequential round trips (auth, hands, sets, tables, seats) put this
+  // function at a ~1.1s median with a 4.7s p99 and an 11.5s worst case,
+  // measured in production — and every millisecond of it is a still board
+  // AFTER the turn clock has already run out, which is what players read as
+  // the game freezing. The auth check does not depend on the hand, and the
+  // table travels with its set, so this is three steps instead of five.
   const { handId } = await req.json() as { handId: string };
   const db = serviceClient();
+  const [user, handRes] = await Promise.all([
+    requireUser(req),
+    db.from('hands').select('*').eq('id', handId).single(),
+  ]);
 
-  const { data: hand } = await db.from('hands').select('*').eq('id', handId).single();
+  const hand = handRes.data;
   if (!hand) throw new HttpError(404, 'no such hand');
   const row = hand as HandRow;
   if (row.status !== 'active') throw new HttpError(409, 'that hand is already over');
 
-  const { data: set } = await db.from('sets').select('*').eq('id', row.set_id).single();
-  const { data: table } = await db.from('tables').select('*').eq('id', set!.table_id).single();
-  const { data: seats } = await db.from('seats').select('*').eq('table_id', table!.id).order('seat_index');
+  // The table comes back embedded on its set rather than as its own trip.
+  const { data: set } = await db.from('sets').select('*, tables(*)').eq('id', row.set_id).single();
+  const table = (set as any)?.tables;
+  if (!table) throw new HttpError(404, 'no such table');
+  const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
   const seatUsers: (string | null)[] = seats!.map((seat: any) => seat.user_id);
   if (!seatUsers.includes(user.id)) throw new HttpError(403, 'you are not seated at this table');
 
@@ -33,7 +44,7 @@ Deno.serve(handled(async (req) => {
   // A tournament is real people only. A seat without a user there is a
   // placeholder waiting on the substitutes line, never a bot to be driven —
   // and a set containing one cannot be rated at all (apply-rating.ts).
-  if (table!.tournament_id) {
+  if (table.tournament_id) {
     throw new HttpError(409, 'a tournament seat is played by a real person — waiting on a substitute');
   }
   const expiresAt = (row as any).turn_expires_at;
@@ -41,17 +52,17 @@ Deno.serve(handled(async (req) => {
     throw new HttpError(409, 'the duppy is still thinking');
   }
 
-  let state = toState(row, table!.seat_count, table!.mode, table!.format);
+  let state = toState(row, table.seat_count, table.mode, table.format);
   state = applyMove(state, duppyMove(state, actor.duppy_level));
 
-  const clock: Clock = { base: table!.turn_seconds, cap: table!.turn_cap_seconds };
+  const clock: Clock = { base: table.turn_seconds, cap: table.turn_cap_seconds };
   const banks: number[] = seats!.map((seat: any) => seat.time_bank ?? 0);
   const nextSeconds = state.status === 'active' && seats![state.turn].duppy_level
-    ? duppyThinkSeconds(table!.duppy_pace)
+    ? duppyThinkSeconds(table.duppy_pace)
     : allowance(clock, banks[state.turn] ?? 0);
 
   try {
-    await persist(db, row.id, table!.id, row.set_id, state, seatUsers, nextSeconds, row.version);
+    await persist(db, row.id, table.id, row.set_id, state, seatUsers, nextSeconds, row.version);
   } catch (err) {
     if (err instanceof Conflict) throw new HttpError(409, 'someone else moved first');
     throw err;
@@ -60,9 +71,9 @@ Deno.serve(handled(async (req) => {
   if (state.status !== 'active') {
     const current = {
       options: {
-        mode: table!.mode, format: table!.format, seatCount: table!.seat_count,
-        oneAllPlayTwo: table!.one_all_play_two,
-        useBoneyard: table!.use_boneyard, target: table!.format === 'french' ? 100 : 6,
+        mode: table.mode, format: table.format, seatCount: table.seat_count,
+        oneAllPlayTwo: table.one_all_play_two,
+        useBoneyard: table.use_boneyard, target: table.format === 'french' ? 100 : 6,
       },
       scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,
       poseMustBeDoubleSix: set!.pose_must_be_double_six, playoff: set!.playoff,
@@ -77,8 +88,8 @@ Deno.serve(handled(async (req) => {
       french_tie_break: next.frenchTieBreak,
     }).eq('id', row.set_id);
     if (next.winnerSide !== null) {
-      await db.from('tables').update({ status: 'finished' }).eq('id', table!.id);
-      await applyRatingUpdates(db, table!.mode, seatUsers, next.winnerSide);
+      await db.from('tables').update({ status: 'finished' }).eq('id', table.id);
+      await applyRatingUpdates(db, table.mode, seatUsers, next.winnerSide);
     }
     return json({ ok: true, handOver: true, set: next });
   }

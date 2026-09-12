@@ -53,6 +53,21 @@ export const DUPPY_PACE_MS: Record<DuppyPace, number> = {
   relaxed: DUPPY_PACE_SECONDS.relaxed * 1_000,
 };
 export const DUPPY_LAST_BONE_PAUSE_MS = DUPPY_PACE_SECONDS.quick * 1_000;
+/**
+ * A pass gets the quick beat, never the table's full pace.
+ *
+ * A pass puts nothing on the board, so at the 7.5s default it reads as the
+ * game having frozen rather than a Duppy thinking — reported on a live French
+ * table, where the filling phase passes heavily because you need a tile
+ * carrying the spinner's own value. Measured there: three consecutive ~7.5s
+ * gaps with an unchanged board and a worst main-thread block of 92ms. Nothing
+ * was stuck; it was waiting, with nothing to show for it.
+ *
+ * Still a real beat, not none: at the original 420ms a pass and the answering
+ * tile could both land before a newcomer knew whose turn it was. Never slower
+ * than the table's own pace, so picking Quick still speeds passes up too.
+ */
+export const DUPPY_PASS_PAUSE_MS = DUPPY_PACE_SECONDS.quick * 1_000;
 
 export type LocalEvent =
   | { type: 'state' }
@@ -181,8 +196,15 @@ export class LocalGame {
       // One clear, human-sized beat between Duppy actions. At the old 420ms
       // pace a pass and the answering tile could happen before a newcomer
       // knew whose turn it was.
-      await new Promise((r) => setTimeout(r, DUPPY_PACE_MS[this.options.duppyPace]));
+      //
+      // The move is decided BEFORE the beat so a pass can be paced separately:
+      // it changes nothing on the board, so a full 7.5s of it reads as a
+      // frozen game. Deciding first costs nothing — the state it reads is the
+      // same either way, and nothing is shown until after the wait.
       const move = duppyMove(this.hand, this.options.duppy);
+      const pace = DUPPY_PACE_MS[this.options.duppyPace];
+      await new Promise((r) => setTimeout(
+        r, move.kind === 'pass' ? Math.min(DUPPY_PASS_PAUSE_MS, pace) : pace));
       this.hand = applyMove(this.hand, move);
       if (move.kind === 'pass') this.emit({ type: 'passed', seat: move.seat });
       else if ('tile' in move) this.emit({ type: 'played', seat: move.seat, tile: move.tile });

@@ -84,6 +84,13 @@ function db() {
 // travel with a player's chosen avatar to every table and device.
 const SHARE_AVATAR_ACCESSORIES = true;
 
+/**
+ * Backoff for a duppy turn whose advance call failed for any reason other than
+ * a 409. Short, so a real player barely notices; finite, so a permanently
+ * broken call still ends in a visible error rather than an endless loop.
+ */
+const DUPPY_RETRY_DELAYS_MS = [700, 1_500, 3_000];
+
 export class OnlineGame {
   table: TableInfo;
   seats: SeatInfo[] = [];
@@ -714,7 +721,7 @@ export class OnlineGame {
     }, delay);
   }
 
-  private async advanceDuppyTurn(handId: string) {
+  private async advanceDuppyTurn(handId: string, attempt = 0) {
     const hand = this.hand;
     if (!hand || hand.hand_id !== handId || hand.status !== 'active'
       || !this.seats[hand.turn]?.duppyLevel) return;
@@ -726,6 +733,25 @@ export class OnlineGame {
         // edge of the server clock first. The fresh public state decides if a
         // timer remains necessary; do not spin on a permanent failure.
         await this.refetchHand();
+        return;
+      }
+      // Everything else is a MAYBE, not a no: a 401 while the access token is
+      // refreshing, a timeout, a dropped connection, a cold Edge Function.
+      // None of them settle the turn, and giving up here left the table frozen
+      // until the server's expire-turns cron noticed — which is exactly the
+      // "counting finished, then it just paused, then it continued" that was
+      // reported. Measured in production the same night: advance-duppy at a
+      // 1.1s median but an 11.5s worst case, followed straight away by a 401
+      // that itself took 5.2s.
+      //
+      // Bounded, because the warning above still stands — this must not spin
+      // on a permanent failure. A short ladder, then tell the player.
+      if (attempt < DUPPY_RETRY_DELAYS_MS.length) {
+        this.clearDuppyTimer();
+        this.duppyTimer = window.setTimeout(() => {
+          this.duppyTimer = null;
+          void this.advanceDuppyTurn(handId, attempt + 1);
+        }, DUPPY_RETRY_DELAYS_MS[attempt]);
         return;
       }
       this.emit({ type: 'error', message: 'could not advance the duppy turn' });

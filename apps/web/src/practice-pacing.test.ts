@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 const localSource = readFileSync(new URL('./local.ts', import.meta.url), 'utf8');
 const practiceSource = readFileSync(new URL('./main.ts', import.meta.url), 'utf8');
 const onlineTableSource = readFileSync(new URL('./onlinetableview.ts', import.meta.url), 'utf8');
+// The VIEW is onlinetableview.ts above; this is the CONTROLLER that drives
+// turns and talks to the Edge Functions. Two different files, easy to confuse.
+const onlineControllerSource = readFileSync(new URL('./onlinetable.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('practice Duppies never move faster than 3.5 seconds and pause for the final bone', () => {
@@ -12,6 +15,26 @@ test('practice Duppies never move faster than 3.5 seconds and pause for the fina
   assert.match(localSource, /yard: DUPPY_PACE_SECONDS\.yard \* 1_000/);
   assert.match(localSource, /relaxed: DUPPY_PACE_SECONDS\.relaxed \* 1_000/);
   assert.match(localSource, /DUPPY_PACE_MS\[this\.options\.duppyPace\]/);
+  // A PASS puts nothing on the board, so it must not cost a full move's beat.
+  // Reported on a live French table 2026-09-12 as the game "freezing": French
+  // passes heavily during the filling phase (you need a tile carrying the
+  // spinner's own value), and at the 7.5s default that was 7.5 seconds of an
+  // unchanged board, several turns running. Measured before the fix: 7.5s,
+  // 7.3s and 7.5s gaps between board changes, with the worst main-thread block
+  // only 92ms -- nothing was stuck, it was waiting.
+  //
+  // The move is therefore decided BEFORE the beat is chosen, so a pass can be
+  // given the quick beat. It keeps a visible beat rather than none: the
+  // original 420ms pace let a pass and the answering tile land before a
+  // newcomer knew whose turn it was, which is the bug this delay exists for.
+  assert.match(localSource, /DUPPY_PASS_PAUSE_MS/);
+  assert.match(localSource,
+    /const move = duppyMove\(this\.hand, this\.options\.duppy\);[\s\S]{0,300}?setTimeout\([\s\S]{0,160}?move\.kind === 'pass' \? Math\.min\(DUPPY_PASS_PAUSE_MS, pace\) : pace/,
+    'the move must be decided before the beat, or a pass cannot be paced differently');
+  // ...and the beat must still come before the move is applied, or the board
+  // would change and only then wait, which is the 420ms bug inverted.
+  assert.match(localSource,
+    /setTimeout\([\s\S]{0,160}?\)\);\s*this\.hand = applyMove\(this\.hand, move\);/);
   assert.match(localSource, /DUPPY_LAST_BONE_PAUSE_MS = DUPPY_PACE_SECONDS\.quick \* 1_000/);
   assert.match(localSource,
     /setTimeout\(r, DUPPY_LAST_BONE_PAUSE_MS\)[\s\S]*?this\.finishHand\(\);/);
@@ -33,9 +56,18 @@ test('practice exposes the same Duppy paces as a live table, from the same sourc
   // The default is still 'yard' in both, but it now lives in the module-scope
   // value the form is restored from rather than being assigned to the element
   // inline — see the form-memory test below for why that moved.
-  assert.match(practiceSource, /let lobbyPace: DuppyPace = 'yard'/);
+  // Default cut 'yard' (7.5s) -> 'brisk' (5s), 2026-09-12. The owner reported a
+  // live table as having "just froze... then continued"; measured, the gaps
+  // between board changes were 7.5s, 7.3s and 7.5s with a worst main-thread
+  // block of 92ms, i.e. exactly the configured pace and nothing stuck. Practice
+  // shows no thinking indicator either -- only a highlighted seat card -- so
+  // three duppies at 7.5s is 22 seconds of a still board between your own
+  // turns. This is the same axis the pace was already cut down once before
+  // (10s -> 7.5s, see DUPPY_PACE_SECONDS); all four options remain on the
+  // picker, so anyone wanting the slower beat still has it.
+  assert.match(practiceSource, /let lobbyPace: DuppyPace = 'brisk'/);
   assert.match(practiceSource, /duppyPace\.value = lobbyPace/);
-  assert.match(onlineTableSource, /let startPace: DuppyPace = 'yard'/);
+  assert.match(onlineTableSource, /let startPace: DuppyPace = 'brisk'/);
   assert.match(onlineTableSource, /duppyPace\.value = startPace/);
 });
 
@@ -263,4 +295,34 @@ test('a phone does not square the French guard, because a phone is portrait', ()
     assert.doesNotMatch(source, /\n\s*frenchTable \|\| displayBoard\?\.kind === 'cross'\);/,
       `${surface} must not square a phone's French guard`);
   }
+});
+
+test('a failed duppy turn is retried, not abandoned to the cron', () => {
+  // Reported live 2026-09-12: "the indicator showed that the counting was
+  // finished, but the game just paused", then resumed by itself a while later.
+  //
+  // Found in the production logs rather than guessed. advance-duppy runs
+  // ~1.1s at the median, but the tail is bad: p99 4.7s, and at 06:30:13 a call
+  // took 11.5 SECONDS, immediately followed at 06:30:20 by a 401 that itself
+  // took 5.2s. advanceDuppyTurn() handled DuppyTurnConflictError (409) by
+  // refetching and treated EVERY other failure -- a 401 during a token
+  // refresh, a timeout, a dropped connection -- as final: emit an error and
+  // stop. Nothing rescheduled the turn, so the table sat still until the
+  // server-side expire-turns cron picked it up. That is the pause, and the
+  // cron is why it "continued" on its own.
+  //
+  // Retries are bounded on purpose. The original comment here warned against
+  // spinning on a permanent failure, and that warning still holds: a short
+  // backoff ladder, then give up and tell the player.
+  assert.match(onlineControllerSource, /const DUPPY_RETRY_DELAYS_MS/,
+    'a failed duppy advance needs a bounded retry ladder');
+  assert.match(onlineControllerSource,
+    /private async advanceDuppyTurn\(handId: string, attempt = 0\)/,
+    'the retry count must be carried, so the ladder can terminate');
+  assert.match(onlineControllerSource,
+    /attempt < DUPPY_RETRY_DELAYS_MS\.length/,
+    'and must stop at the end of the ladder rather than spinning');
+  // A 409 still means somebody else moved: refetch, never retry.
+  assert.match(onlineControllerSource,
+    /if \(err instanceof DuppyTurnConflictError\) \{[\s\S]{0,400}?await this\.refetchHand\(\);\s*return;/);
 });

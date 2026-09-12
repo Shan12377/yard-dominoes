@@ -29,7 +29,8 @@ test('a tournament hand is never dealt while a placeholder seat is unfilled', ()
 
 test('no bot ever takes a turn on a tournament table', () => {
   // Client-driven duppy turns are refused outright there...
-  assert.match(advance, /if \(table!\.tournament_id\) \{[\s\S]{0,200}?throw new HttpError\(409/);
+  // `table!` or `table`: the guard is the invariant, not the punctuation.
+  assert.match(advance, /if \(table!?\.tournament_id\) \{[\s\S]{0,200}?throw new HttpError\(409/);
   // ...and the cron steps over an unfilled seat rather than playing it. A
   // timed-out HUMAN seat still gets a legal move: that is the standing rule,
   // and without it one absent player could stall a whole event.
