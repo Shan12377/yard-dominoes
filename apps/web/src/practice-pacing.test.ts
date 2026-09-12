@@ -491,3 +491,28 @@ test('a move that fails in flight is retried, not silently dropped', () => {
   assert.match(onlineControllerSource,
     /return this\.play\(move, attempt \+ 1\);/);
 });
+
+test('the pose is passed AFTER the deal, with the tiles in hand', () => {
+  // Owner, 2026-09-12: "for partner game, generally must deal before asking if
+  // partner wantes to keep pose or pass it... they need to see which hand is
+  // better first".
+  //
+  // It was the other way round: the result panel asked "Who should pose?" and
+  // both buttons called dealNext(pass), which passed the pose and THEN dealt.
+  // The winner decided blind, without holding a single bone — which is the one
+  // thing the choice is supposed to be based on.
+  //
+  // Nothing about the deal changes when the pose is passed; the tiles are
+  // already out. Only who opens changes.
+  assert.doesNotMatch(onlineControllerSource, /async dealNext\(pass: boolean\)/,
+    'dealing must no longer carry a pose decision');
+  assert.doesNotMatch(onlineTableSource, /dealNext\(true\)/,
+    'no surface may pass the pose by dealing');
+  assert.match(onlineControllerSource, /async passPose\(\)/,
+    'passing the pose is its own action, taken on a hand already dealt');
+  // The offer belongs where the tiles are, not on the result screen.
+  assert.match(onlineControllerSource, /canPassPoseNow\(\)/);
+  assert.match(onlineControllerSource,
+    /this\.hand\?\.status === 'active'[\s\S]{0,400}?move_log[\s\S]{0,120}?length \?\? 0\) === 0/,
+    'only while the hand is live and nothing has been played yet');
+});

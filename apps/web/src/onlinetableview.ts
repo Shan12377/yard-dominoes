@@ -384,6 +384,10 @@ export function joinByCodeField(onJoin: (tableId: string) => void): HTMLElement 
 }
 
 let pendingTile: string | null = null;
+/** Hand id whose pose-choice row the player has already answered with "Keep
+ *  it". Module scope, not DOM state, because render() rebuilds the panel —
+ *  see client.md on anything a player is mid-way through. */
+let poseChoiceDismissed: string | null = null;
 /** Which seat pendingTile was chosen from — only meaningful in across, where
  *  the interactive hand can switch (my seat one turn, my partner seat the
  *  next). A tile mid-chooser in one hand must not survive into the other
@@ -1454,7 +1458,7 @@ function startHandPanel(game: OnlineGame): HTMLElement {
   go.onclick = () => void (async () => {
     go.disabled = true;
     try {
-      await game.dealNext(false);
+      await game.dealNext();
     } catch (err) {
       showInlineError(panel, err);
     } finally {
@@ -1641,6 +1645,27 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     hand.appendChild(node);
   }
   panel.appendChild(hand);
+
+  // The pose decision, made with the tiles in front of you rather than on a
+  // result screen before the deal. It goes into the panel body, so
+  // takeHandActions() lifts it onto the felt with every other hand decision.
+  if (game.canPassPoseNow() && poseChoiceDismissed !== game.hand?.hand_id) {
+    const row = el('div', 'row');
+    row.append(el('span', 'muted', 'Yours to pose — or hand it across?'));
+    const keep = document.createElement('button');
+    keep.className = 'act';
+    keep.textContent = 'Keep it';
+    // Keeping needs no server call: the pose is already sitting with me. The
+    // button exists so the choice reads as a choice and the row can be
+    // dismissed rather than hovering over the whole opening.
+    keep.onclick = () => { poseChoiceDismissed = game.hand?.hand_id ?? null; rerender(); };
+    const pass = document.createElement('button');
+    pass.className = 'act ghost';
+    pass.textContent = 'Pass to partner';
+    pass.onclick = () => void game.passPose();
+    row.append(keep, pass);
+    panel.appendChild(row);
+  }
 
   if (pendingTile && game.hand?.status === 'active') {
     // The pip value on each end, not just the bare direction — "I thought
@@ -1992,27 +2017,15 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   panel.appendChild(settleSection(game));
   if (!game.isSpectator) panel.appendChild(coachSection(game));
 
-  if (game.canChoosePose()) {
-    const row = el('div', 'row');
-    row.append(el('span', 'muted', 'Who should pose?'));
-    const pass = document.createElement('button');
-    pass.className = 'act ghost';
-    pass.textContent = 'Pass pose';
-    pass.onclick = () => void game.dealNext(true);
-    const keep = document.createElement('button');
-    keep.className = 'act';
-    keep.textContent = 'Keep pose';
-    keep.onclick = () => void game.dealNext(false);
-    row.append(pass, keep);
-    panel.appendChild(row);
-    return panel;
-  }
+  // The pose choice used to live here, BEFORE the deal — so the winner picked
+  // blind. It now sits on the table with the tiles in hand; see
+  // canPassPoseNow() and the row in myHandPanel().
 
   if (game.winnerSide === null && !game.isSpectator) {
     const next = document.createElement('button');
     next.className = 'act';
     next.textContent = 'Deal next hand';
-    next.onclick = () => void game.dealNext(false);
+    next.onclick = () => void game.dealNext();
     panel.appendChild(next);
   } else if (game.winnerSide !== null) {
     // Cutthroat's "side" is just the seat itself, so describeSeat resolves

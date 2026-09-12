@@ -3193,16 +3193,25 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
      same shape as every other phone, one tier tighter. */
   .table-room .live-felt,
   .practice-room .live-felt {
-    height: clamp(460px, 72svh, 620px);
-    min-height: clamp(460px, 72svh, 620px);
-    max-height: 620px;
+    /* Same 86svh every other phone takes. This was left on 72svh when the
+       rest moved up, so the narrowest phones — the ones with the least room
+       to start with — were also given the smallest share of it. */
+    height: clamp(460px, 86svh, 700px);
+    min-height: clamp(460px, 86svh, 700px);
+    max-height: 700px;
   }
   .my-hand-panel .hand .tile { --w: 40px; --h: 80px; }
   .table-room .live-felt.french-cross-live,
   .practice-room .live-felt.french-cross-live { height: 520px; min-height: 520px; max-height: 520px; }
 }
 
-@media (max-height: 620px) and (max-width: 900px) {
+/* LANDSCAPE only. This rule squashes the felt to 310px for a phone lying on
+   its side, where height really is the scarce axis — but it was keyed on
+   height alone, so it also caught SHORT PORTRAIT phones. Measured at 375x600
+   (an SE with browser chrome showing): felt 310px and a board of 253x112,
+   which is not a playable table. Portrait phones are handled by the svh rule
+   above, whatever their height. */
+@media (max-height: 620px) and (max-width: 900px) and (orientation: landscape) {
   .table-room .live-felt,
   .practice-room .live-felt { height: 310px; min-height: 310px; max-height: 310px; }
   /* Landscape phones have precious board height. Keep the identity personal,

@@ -327,10 +327,19 @@ Jamaican players notice these immediately. All are covered by tests.
   is on exactly 1 (that being when the last one comes off love). Left as it
   was rather than invent a four-handed reading of a Partner rule — no source
   found either way.
-- **Pass the pose:** in Partner the winner may hand the pose across the table,
-  but never when the double-six is forced. The engine rule is tested; the
-  online build's server path (`pass-pose`) and client UI for it are in
-  progress — see `docs/superpowers/plans/2026-07-27-online-play.md`.
+- **Pass the pose, and pass it AFTER the deal.** In Partner the winner may hand
+  the pose across the table, but never when the double-six is forced. **The
+  choice is offered with the tiles already in hand** — "generally must deal
+  before asking if partner wantes to keep pose or pass it… they need to see
+  which hand is better first" (owner, 2026-09-12). Until then the client
+  called `pass-pose` and only THEN `start-hand`, so the winner decided blind,
+  which is the one thing the decision cannot be made without.
+  Nothing about the deal changes when the pose is passed — the tiles are
+  already out, only who opens changes. So `pass-pose` moves the LIVE hand's
+  turn to the partner, through the same optimistic version check every move
+  uses, and refuses once any bone is down (`move_log` non-empty) because by
+  then the pose has been played. It also writes `hands.poser` and `sets.poser`
+  so both records name whoever actually opened.
 - **The key tile scores a flat 2, not 1 — and never stacks with handValue.**
   When the board's two open ends need two DIFFERENT pip values, the bone
   bearing both of them (ends need a 5 and a 1 — the "5-1" bone) closes the

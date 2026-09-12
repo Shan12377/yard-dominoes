@@ -302,13 +302,27 @@ export class OnlineGame {
   }
 
   /** Whichever side just won and may choose to pass or keep the pose. */
-  canChoosePose(): boolean {
-    return isPartnered(this.table.mode)
-      && this.hand?.status !== 'active'
+  /**
+   * May I hand this pose across the table RIGHT NOW?
+   *
+   * Asked of a hand already dealt, with the tiles in front of me — "generally
+   * must deal before asking if partner wantes to keep pose or pass it… they
+   * need to see which hand is better first" (owner, 2026-09-12). The old
+   * canChoosePose() asked between hands, so the winner decided blind.
+   *
+   * Only while the board is still empty: once a bone is down the pose has
+   * been played and there is nothing left to pass. Partner and Across only,
+   * matching the server — openhand's exclusion predates this and is not
+   * this change's to revisit.
+   */
+  canPassPoseNow(): boolean {
+    if (this.table.mode !== 'partner' && this.table.mode !== 'across') return false;
+    return this.hand?.status === 'active'
+      && (this.hand?.move_log?.length ?? 0) === 0
       && this.winnerSide === null
       && !this.poseMustBeDoubleSix
       && this.handsPlayed > 0
-      && this.mySide === sideOf(this.poser, this.table.mode);
+      && this.activeSeat() === this.poser;
   }
 
   /**
@@ -965,11 +979,25 @@ export class OnlineGame {
     }
   }
 
-  async dealNext(pass: boolean): Promise<void> {
+  /**
+   * Hand the pose to my partner, on a hand that is ALREADY DEALT. The deal
+   * does not change — only who opens — so this is a move-shaped action on the
+   * live hand, not a re-deal.
+   */
+  async passPose(): Promise<void> {
+    if (!this.canPassPoseNow()) return;
+    try {
+      await apiPassPose(this.table.id);
+      await this.refetchHand();
+    } catch (err) {
+      this.emit({ type: 'error', message: err instanceof Error ? err.message : 'could not pass the pose' });
+    }
+  }
+
+  async dealNext(): Promise<void> {
     // Set before the FIRST await, not after — see dealPending's own comment.
     this.dealPending = true;
     try {
-      if (pass) await apiPassPose(this.table.id);
       const { handId } = await apiStartHand(this.table.id);
       // See justDealtHandId's own comment: this covers the one case the
       // realtime handler can't tell apart on its own.
