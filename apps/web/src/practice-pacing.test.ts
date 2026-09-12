@@ -425,8 +425,11 @@ test('Across hands its end choice to the board, like every other mode', () => {
   // straight back out. "Which end? Left end (6) / Right end (6)" names the two
   // OPEN ENDS, so it belongs beside them on the felt, not at the bottom of a
   // hand panel below the table.
-  const across = onlineTableSource.indexOf("if (game.table.mode === 'across')");
-  assert.ok(across >= 0, 'the across branch must still exist');
+  // Anchored on the HAND branch, not on the first `mode === 'across'` in the
+  // file — the felt-slot marker above it matches that too, and an anchor that
+  // drifts silently scans the wrong block and passes for the wrong reason.
+  const across = onlineTableSource.indexOf('Both of my hands dock under the felt');
+  assert.ok(across >= 0, 'the across hand branch must still exist');
   const branch = onlineTableSource.slice(across, across + 2200);
   assert.match(branch, /handActions = takeHandActions\(live\);/,
     'across must take its hand actions so the board can claim the end choice');
