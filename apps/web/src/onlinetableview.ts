@@ -1624,9 +1624,16 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     if (!pending) {
       node.tabIndex = 0;
       const choose = () => {
-        const options = legal.filter((m) => 'tile' in m && m.tile === tile);
-        if (options.length === 1) { pendingTile = null; void game.play(options[0]); }
-        else { pendingTile = pendingTile === tile ? null : tile; rerender(); }
+        // SELECT, never play. A single-ended bone used to go down on one tap,
+        // instantly and with no way back — so a thumb landing a few pixels off
+        // played the wrong domino, which is exactly what was reported on a
+        // phone. Every tap now lifts the bone and the commit happens on the
+        // board, a far bigger target well away from the rack, naming the end
+        // it is going to. "No auto-play" gets stronger, not weaker: the system
+        // still never picks an end for you, and now it never lays a bone
+        // without a second deliberate tap either.
+        pendingTile = pendingTile === tile ? null : tile;
+        rerender();
       };
       node.onclick = choose;
       node.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
@@ -1649,7 +1656,7 @@ function myHandPanel(game: OnlineGame, rerender: () => void): HTMLElement {
       const reason = cross ? crossRejectReason(cross, pendingTile) : null;
       choice.append(el('span', 'muted', reason ?? "That tile doesn't fit the board right now."));
     } else {
-      choice.append(el('span', 'muted', 'Which end?'));
+      choice.append(el('span', 'muted', options.length === 1 ? 'Play it?' : 'Which end?'));
       for (const move of options) {
         const b = document.createElement('button');
         b.className = 'act ghost';

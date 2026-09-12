@@ -2962,9 +2962,15 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
        under it before the fold, while the chain above was clipping from the
        20th bone. Spend most of that gap on the board and keep the roster on
        screen unscrolled, which is what it was moved below the felt for. */
-    height: clamp(500px, 76svh, 680px);
-    min-height: clamp(500px, 76svh, 680px);
-    max-height: 680px;
+    /* 86svh, up from 76. Measured at 430x745 with the roster strip below the
+       felt ending at y=617 — 128px of page still unused before the fold. The
+       owner reported bones hiding in partner "when the hands are almost played
+       out", which is exactly the tail this buys out: the worst real chains need
+       about 438px of board and had 368. The roster stays on screen unscrolled,
+       which is the whole reason it sits below the felt. */
+    height: clamp(500px, 86svh, 760px);
+    min-height: clamp(500px, 86svh, 760px);
+    max-height: 760px;
     border-width: 7px;
     padding: 10px 8px;
   }

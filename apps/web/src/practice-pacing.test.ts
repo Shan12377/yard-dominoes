@@ -436,3 +436,26 @@ test('Across hands its end choice to the board, like every other mode', () => {
   assert.match(branch, /feltSlot\.appendChild\(live\)/,
     'and the live hand still docks under the felt beside the other one');
 });
+
+test('tapping a bone never plays it outright — the board confirms every move', () => {
+  // Reported on a live phone: "because they are so tiny and so close,
+  // sometimes my hand touch the wrong domino that goes out". A tile with
+  // exactly ONE legal end used to play on a single tap, instantly and
+  // irreversibly, so a fat-finger on the neighbouring bone lost it. Only a
+  // tile that fitted BOTH ends ever asked first.
+  //
+  // Every tap now selects, and the commit happens on the board — a big target,
+  // far from the hand, showing which end the bone is going to. That is the
+  // same flow two-ended tiles already used, so there is one interaction
+  // instead of two, and no move is one stray thumb away any more.
+  //
+  // This does not weaken "no auto-play" (CLAUDE.md): the system still never
+  // chooses an end for you. It strengthens it — now it never places a bone
+  // without a second, deliberate confirmation either.
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.doesNotMatch(source, /if \(options\.length === 1\) \{\s*pendingTile = null;/,
+      `${surface} must not play a single-ended bone straight off the tap`);
+    assert.doesNotMatch(source, /options\.length === 1[\s\S]{0,80}?void (g|game)\.play\(options\[0\]\)/,
+      `${surface} must not auto-commit from the hand at all`);
+  }
+});

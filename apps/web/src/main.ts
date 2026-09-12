@@ -1547,16 +1547,14 @@ function myHand(g: LocalGame): HTMLElement {
     // be played instead of doing nothing.
     node.tabIndex = 0;
     const choose = () => {
-      const options = legal.filter((m) => 'tile' in m && m.tile === tile);
-      if (options.length === 1) {
-        pendingTile = null;
-        void g.play(options[0]);
-      } else {
-        // Fits both ends — make the player say which. Auto-placing here is a
-        // top complaint against every rival app.
-        pendingTile = pendingTile === tile ? null : tile;
-        render();
-      }
+      // SELECT, never play — see the matching note in onlinetableview.ts. A
+      // single-ended bone used to go down on one tap with no way back, so a
+      // thumb landing a few pixels off played the wrong domino. Making the
+      // player say which end was already the rule for a bone fitting both;
+      // now the board confirms every bone, which is the same guard applied
+      // to the case that could actually lose you one.
+      pendingTile = pendingTile === tile ? null : tile;
+      render();
     };
     node.onclick = choose;
     node.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
@@ -1575,7 +1573,7 @@ function myHand(g: LocalGame): HTMLElement {
       const reason = cross ? crossRejectReason(cross, pendingTile) : null;
       choice.append(el('span', 'muted', reason ?? "That tile doesn't fit the board right now."));
     } else {
-      choice.append(el('span', 'muted', 'Which end?'));
+      choice.append(el('span', 'muted', options.length === 1 ? 'Play it?' : 'Which end?'));
       for (const move of options) {
         const b = document.createElement('button');
         b.className = 'act ghost';
