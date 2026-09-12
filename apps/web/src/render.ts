@@ -1107,7 +1107,11 @@ export function reserveBoardStage(
   if (!(feltRect.right > feltRect.left) || !(feltRect.bottom > feltRect.top)) return;
   // Roomy tables get a full bone-edge breathing gap; phones retain 12px so
   // the guard protects the hand without making the board unreadably narrow.
-  const gutter = Math.max(12, Math.min(24, (feltRect.right - feltRect.left) * 0.015));
+  // 16px, not 24. This gap is applied on all four edges, so on a wide desktop
+  // felt the old cap spent 48px of HEIGHT keeping bones off stations that are
+  // nowhere near them vertically — and height is the scarce axis there. 16px is
+  // still a clear reveal, and comfortably above the 12px phone floor.
+  const gutter = Math.max(12, Math.min(16, (feltRect.right - feltRect.left) * 0.015));
   const actionDock = felt.querySelector<HTMLElement>('.in-felt-actions');
 
   // The hand owns the lower centre of the table. Keep Pass/reshuffle in view

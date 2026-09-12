@@ -602,8 +602,16 @@ label.field > span {
 }
 .board-stage {
   position: absolute;
-  inset: calc(var(--table-bone-cap-short, var(--table-bone-short)) * 2 + 16px)
-    24px calc(var(--table-bone-cap-short, var(--table-bone-short)) * 2 + 42px);
+  /* Conservative FIRST-PAINT fallbacks, not a guess at how big the furniture
+     is. These used to be bone-scaled (`cap * 2 + 16`), which on a 64px desktop
+     bone came out at a 144px top inset — and boardGuardInsets() only ever
+     grows what it is given, so that floor silently beat the real measurement
+     of a station just 76px tall. Measured in a 1920x1080 Lounge it was holding
+     the board to 367px of a 760px felt, and 12% of real chains overflowed it.
+     The measured stations and hand decide the true inset; these only cover the
+     frame before the felt has been measured. Same fault, and same fix, as the
+     50px side floor the phone rule used to carry. */
+  inset: 72px 24px 120px;
   z-index: 2;
   min-width: 0;
   min-height: 0;
@@ -652,13 +660,16 @@ label.field > span {
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand {
   position: absolute;
   left: 50%;
-  bottom: 12px;
+  /* Sits closer to the rim: every pixel between the tray and the felt edge is
+     a pixel taken off the board's own height, which is what runs out first on
+     a wide, short desktop table. */
+  bottom: 6px;
   transform: translateX(-50%);
   z-index: 4;
   width: max-content;
   max-width: calc(100% - 24px);
   margin: 0;
-  padding: 7px 9px 8px;
+  padding: 4px 9px 5px;
   border-radius: 12px;
   border-color: rgba(255, 201, 40, .62);
   background: linear-gradient(145deg, rgba(4, 35, 52, .96), rgba(9, 73, 104, .94));
@@ -1610,7 +1621,9 @@ label.field > span {
   flex-direction: column;
   transform: translateY(-50%);
 }
-.felt-shell > .table-player-station-top { top: 28px; }
+/* 10px, not 28. The top station hangs from the felt's own rim; the extra 18px
+   was pure inset on the scarcest axis a desktop table has. */
+.felt-shell > .table-player-station-top { top: 10px; }
 /* The Lounge already has public seat summaries in the outer cross. Let the
    coordinated in-table stations straddle the sound-system rim between those
    summaries and the wood. This leaves the whole routed-board rectangle clear
@@ -1792,10 +1805,7 @@ label.field > span {
     margin: 0;
     padding: 8px 0 0;
   }
-  .practice-room .board-stage {
-    inset: calc(var(--table-bone-cap-short, var(--table-bone-short)) * 2 + 16px)
-      24px calc(var(--table-bone-cap-short, var(--table-bone-short)) * 2 + 42px);
-  }
+  .practice-room .board-stage { inset: 72px 24px 120px; }
   .practice-table-identity {
     width: auto;
     min-width: 132px;
