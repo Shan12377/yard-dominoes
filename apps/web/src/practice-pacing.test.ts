@@ -416,3 +416,20 @@ test('a board that can be panned says so, and the pinned strip drops its pip dot
     /#app:has\(\.table-room\) \.sticky-scores \.pips,\s*#app:has\(\.practice-room\) \.sticky-scores \.pips \{ display: none; \}/,
     'the pinned scoreboard must not repeat the score as dots');
 });
+
+test('Across hands its end choice to the board, like every other mode', () => {
+  // Reported on a live across table: "you still keep the arrow at the hand, i
+  // thought it should be on the table". Across was the one mode that never
+  // did -- takeHandActions() was called only in the non-across branch, so
+  // handActions was still null when placeBoardChoices() ran and it returned
+  // straight back out. "Which end? Left end (6) / Right end (6)" names the two
+  // OPEN ENDS, so it belongs beside them on the felt, not at the bottom of a
+  // hand panel below the table.
+  const across = onlineTableSource.indexOf("if (game.table.mode === 'across')");
+  assert.ok(across >= 0, 'the across branch must still exist');
+  const branch = onlineTableSource.slice(across, across + 2200);
+  assert.match(branch, /handActions = takeHandActions\(live\);/,
+    'across must take its hand actions so the board can claim the end choice');
+  assert.match(branch, /feltSlot\.appendChild\(live\)/,
+    'and the live hand still docks under the felt beside the other one');
+});

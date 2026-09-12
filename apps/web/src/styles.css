@@ -3830,6 +3830,26 @@ button.dismiss.small { font-size: 12px; }
    is not a second table screen. */
 .eyebrow.tourney-round { color: var(--gold-deep); margin-top: 2px; }
 
+/* Across keeps BOTH of a player's hands under the felt, which no other mode
+   does, so the felt cannot also take the full height every other mode gives
+   it. Measured at 2000x1220 before this: felt 820px, page 2264px against a
+   1220px viewport — the hands you are meant to read against the board were a
+   full screen's scroll away, which is what "things are tooo far" meant.
+   The board is a line here and wraps, so height is the cheapest thing to give
+   back. */
+@media (min-width: 701px) {
+  /* Descendant, not child: the felt sits inside .felt-shell inside the slot. */
+  .table-room .across-hands-below .live-felt,
+  .practice-room .across-hands-below .live-felt {
+    height: clamp(320px, 40svh, 470px);
+    min-height: clamp(320px, 40svh, 470px);
+    max-height: 470px;
+  }
+  /* Two panels stacked need their own chrome trimmed, not just the felt. */
+  .across-hands-below > .my-hand-panel { padding: 6px 10px 8px; }
+  .across-hands-below > .my-hand-panel > .eyebrow { margin-bottom: 2px; }
+}
+
 /* ----------------------------------------------- phone playing-area recovery
    The board's width on a phone is set by how far the flank stations reach onto
    the wood: reserveBoardStage() insets the stage past the deepest one, so every

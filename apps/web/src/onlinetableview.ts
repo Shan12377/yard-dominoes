@@ -931,6 +931,13 @@ export function liveTableView(
   // have no hand, and Across deliberately keeps its two controlled hands
   // below the board where both remain readable.
   const handOnFelt = !game.isSpectator && !!game.hand && game.table.mode !== 'across';
+  // Across is the one mode whose hands live OUTSIDE the felt — two of them,
+  // stacked under it. Measured on a 2000x1220 desktop: an 820px felt plus
+  // those panels made the page 2264px, so a player had to scroll most of a
+  // screen to see the hands they are supposed to be reading against the board.
+  // The felt is marked so it can take a shorter, hand-aware height instead of
+  // the full-height one every other mode wants.
+  if (game.table.mode === 'across') feltSlot.classList.add('across-hands-below');
   const boardStage = handOnFelt ? el('div', 'board-stage') : felt;
   if (handOnFelt) felt.classList.add('hand-on-felt');
   if (handOnFelt && game.myTiles.length >= 10) felt.classList.add('hand-many');
@@ -1206,13 +1213,22 @@ export function liveTableView(
       // other renders alongside it as a plain, unselectable display.
       const activeSeat = game.activeSeat();
       const partnerIsActive = activeSeat !== null && activeSeat === game.partnerSeat();
+      const live = myHandPanel(game, rerender);
+      // Across was the one mode that never handed its decisions to the board.
+      // takeHandActions() was called only in the branch below, so handActions
+      // stayed null here and placeBoardChoices() returned immediately —
+      // leaving "Which end? Left end (6) / Right end (6)" stranded at the
+      // bottom of the hand panel, far from the ends it is naming. Reported on
+      // a live across table: "you still keep the arrow at the hand, i thought
+      // it should be on the table". The choice names the two OPEN ENDS, so it
+      // has to be read beside them.
+      handActions = takeHandActions(live);
       if (partnerIsActive) {
         if (game.myTiles.length) feltSlot.appendChild(myOtherHandPanel(game.myTiles));
-        feltSlot.appendChild(myHandPanel(game, rerender));
       } else {
         if (game.partnerTiles) feltSlot.appendChild(myOtherHandPanel(game.partnerTiles));
-        feltSlot.appendChild(myHandPanel(game, rerender));
       }
+      feltSlot.appendChild(live);
     } else {
       const hand = myHandPanel(game, rerender);
       if (handOnFelt) {
