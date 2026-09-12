@@ -34,8 +34,11 @@ test('no bot ever takes a turn on a tournament table', () => {
   // ...and the cron steps over an unfilled seat rather than playing it. A
   // timed-out HUMAN seat still gets a legal move: that is the standing rule,
   // and without it one absent player could stall a whole event.
-  assert.match(expire, /if \(table!\.tournament_id && !seats!\[timedOut\]\.user_id\) continue;/);
-  assert.match(expire, /duppyMove\(state, seats!\[timedOut\]\.duppy_level \?\? 'yard'\)/);
+  // `table!`/`seats!` or plain: the assertions were dropped when these reads
+  // were made to fail cleanly instead of throwing a TypeError. The guard is
+  // the invariant, not the punctuation.
+  assert.match(expire, /if \(table!?\.tournament_id && !seats!?\[timedOut\]\.user_id\) continue;/);
+  assert.match(expire, /duppyMove\(state, seats!?\[timedOut\]\.duppy_level \?\? 'yard'\)/);
 });
 
 test('rating still refuses any set holding a duppy seat — the reason the guards matter', () => {

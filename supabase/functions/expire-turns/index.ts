@@ -19,15 +19,24 @@ Deno.serve(handled(async () => {
 
   let moved = 0;
   for (const row of stale ?? []) {
+    // Checked, and a failure SKIPS this hand rather than throwing. These were
+    // `set!`/`table!`/`seats` assertions: a transient read failure made one
+    // null and the TypeError took down the whole sweep, so every other stale
+    // hand in the batch stayed stuck too. Seen in production 2026-09-12 —
+    // "Cannot read properties of null (reading 'table_id')". This is a
+    // scheduled sweep; the next run picks up anything skipped here.
     const { data: set } = await db.from('sets').select('*').eq('id', row.set_id).single();
-    const { data: table } = await db.from('tables').select('*').eq('id', set!.table_id).single();
-    const { data: seats } = await db.from('seats').select('*').eq('table_id', table!.id).order('seat_index');
+    if (!set) continue;
+    const { data: table } = await db.from('tables').select('*').eq('id', set.table_id).single();
+    if (!table) continue;
+    const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
+    if (!seats) continue;
 
-    let state = toState(row as any, table!.seat_count, table!.mode, table!.format);
+    let state = toState(row as any, table.seat_count, table.mode, table.format);
     if (legalMoves(state).length === 0) continue;
 
-    const clock = { base: table!.turn_seconds, cap: table!.turn_cap_seconds };
-    const banks: number[] = seats!.map((s: any) => s.time_bank ?? 0);
+    const clock = { base: table.turn_seconds, cap: table.turn_cap_seconds };
+    const banks: number[] = seats.map((s: any) => s.time_bank ?? 0);
     // The seat that ran out has spent everything it had — base and bank both.
     // It is emptied rather than left alone, or a player could bank time all
     // game and then sit out every turn on the same hoard.
@@ -39,20 +48,20 @@ Deno.serve(handled(async () => {
     // gets a legal move played for it here, tournament or not: that is the
     // standing rule (timed-out seats play, they do not forfeit) and without it
     // one absent player could stall a whole event indefinitely.
-    if (table!.tournament_id && !seats![timedOut].user_id) continue;
+    if (table.tournament_id && !seats[timedOut].user_id) continue;
 
     banks[timedOut] = 0;
 
     // A true Duppy keeps its configured strength even if every browser is
     // asleep. 'yard' remains only the fair fallback for a real player who
     // ran their own clock out.
-    state = applyMove(state, duppyMove(state, seats![timedOut].duppy_level ?? 'yard'));
+    state = applyMove(state, duppyMove(state, seats[timedOut].duppy_level ?? 'yard'));
 
     try {
-      await persist(db, row.id, table!.id, row.set_id, state,
-        seats!.map((s: any) => s.user_id),
-        seats![state.turn].duppy_level
-          ? duppyThinkSeconds(table!.duppy_pace)
+      await persist(db, row.id, table.id, row.set_id, state,
+        seats.map((s: any) => s.user_id),
+        seats[state.turn].duppy_level
+          ? duppyThinkSeconds(table.duppy_pace)
           : allowance(clock, banks[state.turn] ?? 0), (row as any).version);
     } catch (err) {
       // A visible client may have resolved this exact Duppy turn between the
@@ -61,7 +70,7 @@ Deno.serve(handled(async () => {
       throw err;
     }
     await db.from('seats').update({ time_bank: 0 })
-      .eq('table_id', table!.id).eq('seat_index', timedOut);
+      .eq('table_id', table.id).eq('seat_index', timedOut);
     moved++;
 
     // Mirror play-move's post-persist block: a forced timeout move can end a
@@ -71,14 +80,14 @@ Deno.serve(handled(async () => {
     if (state.status !== 'active') {
       const current = {
         options: {
-          mode: table!.mode, format: table!.format, seatCount: table!.seat_count,
-          oneAllPlayTwo: table!.one_all_play_two,
-          useBoneyard: table!.use_boneyard, target: table!.format === 'french' ? 100 : 6,
+          mode: table.mode, format: table.format, seatCount: table.seat_count,
+          oneAllPlayTwo: table.one_all_play_two,
+          useBoneyard: table.use_boneyard, target: table.format === 'french' ? 100 : 6,
         },
-        scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,
-        poseMustBeDoubleSix: set!.pose_must_be_double_six, playoff: set!.playoff,
-        handsPlayed: set!.hands_played, winnerSide: set!.winner_side, sixLove: set!.six_love,
-        frenchTieBreak: set!.french_tie_break ?? false,
+        scores: set.scores, handValue: set.hand_value, poser: set.poser,
+        poseMustBeDoubleSix: set.pose_must_be_double_six, playoff: set.playoff,
+        handsPlayed: set.hands_played, winnerSide: set.winner_side, sixLove: set.six_love,
+        frenchTieBreak: set.french_tie_break ?? false,
       };
       const next = applyHandResult(current as any, state.result!);
       await db.from('sets').update({
@@ -89,8 +98,8 @@ Deno.serve(handled(async () => {
       }).eq('id', row.set_id);
 
       if (next.winnerSide !== null) {
-        await db.from('tables').update({ status: 'finished' }).eq('id', table!.id);
-        await applyRatingUpdates(db, table!.mode, seats!.map((s: any) => s.user_id), next.winnerSide);
+        await db.from('tables').update({ status: 'finished' }).eq('id', table.id);
+        await applyRatingUpdates(db, table.mode, seats.map((s: any) => s.user_id), next.winnerSide);
       }
     }
   }

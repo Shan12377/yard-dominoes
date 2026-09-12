@@ -47,6 +47,6 @@ test('online Duppies take one visible, server-authoritative turn at a time', () 
 });
 
 test('cron preserves Duppy difficulty and skips normal client races', () => {
-  assert.match(expire, /duppyMove\(state, seats!\[timedOut\]\.duppy_level \?\? 'yard'\)/);
+  assert.match(expire, /duppyMove\(state, seats!?\[timedOut\]\.duppy_level \?\? 'yard'\)/);
   assert.match(expire, /if \(err instanceof Conflict\) continue/);
 });

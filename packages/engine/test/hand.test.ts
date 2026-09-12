@@ -370,11 +370,17 @@ describe('the key tile', () => {
     assert.equal(after.result?.keyWin, true);
   });
 
-  test('not a key if a tile bearing one of the ends is still unaccounted for', () => {
+  test('still a key when another bone of that suit is unaccounted for', () => {
+    // This asserted the OPPOSITE until 2026-09-12, requiring that no other
+    // tile bearing either open value remained anywhere off the board. The
+    // owner won a key in partner and was paid 1. Measured over 3,000 simulated
+    // partner hands, that reading fired on 2.9% of wins against 13.1% for the
+    // real one — it was rejecting about four key wins in five.
+    //
+    // The key is the bone that shuts both ends when they want different
+    // numbers. What is still in someone else's hand cannot be part of the
+    // test, because nobody at the table can see it.
     const h = keyBoardHand();
-    // Swap one already-played 5-bearing tile for something that plays no
-    // part in either open suit — leaves a real 5 (2-5) unaccounted for,
-    // sitting where it was just removed from.
     h.board = {
       ...(h.board as Board),
       line: (h.board as Board).line.filter((pt) => pt.tile !== '2-5'),
@@ -382,7 +388,7 @@ describe('the key tile', () => {
     h.boneyard = [...h.boneyard, '2-5'];
     const after = applyMove(h, { kind: 'play', seat: 0, tile: '1-5', end: 'left' });
     assert.equal(after.status, 'domino');
-    assert.equal(after.result?.keyWin, false, 'a real 5 still exists off-board — this was never provably the last one');
+    assert.equal(after.result?.keyWin, true, 'it closed a 1 and a 5 with the 1-5 — that is the key');
   });
 
   test('both ends needing the SAME value is never a key, even as the sole playable tile', () => {

@@ -33,13 +33,20 @@ Deno.serve(handled(async (req) => {
 
   // The table comes back embedded on its set rather than as its own trip.
   const { data: set } = await db.from('sets').select('*, tables(*)').eq('id', row.set_id).single();
-  const table = (set as any)?.tables;
+  if (!set) throw new HttpError(404, 'no such set');
+  const table = (set as any).tables;
   if (!table) throw new HttpError(404, 'no such table');
-  const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
-  const seatUsers: (string | null)[] = seats!.map((seat: any) => seat.user_id);
+  const { data: seats, error: seatsErr } = await db.from('seats')
+    .select('*').eq('table_id', table.id).order('seat_index');
+  // `seats!` used to be asserted. A transient read failure makes `data` null,
+  // and the assertion turned that into "Cannot read properties of null
+  // (reading 'map')" — a 500 with no clue in it. Seen in production
+  // 2026-09-12. Say which read failed instead.
+  if (seatsErr || !seats) throw new HttpError(503, 'could not read the seats — try again');
+  const seatUsers: (string | null)[] = seats.map((seat: any) => seat.user_id);
   if (!seatUsers.includes(user.id)) throw new HttpError(403, 'you are not seated at this table');
 
-  const actor = seats![row.turn];
+  const actor = seats[row.turn];
   if (!actor?.duppy_level) throw new HttpError(409, 'it is not a duppy turn');
   // A tournament is real people only. A seat without a user there is a
   // placeholder waiting on the substitutes line, never a bot to be driven —
@@ -56,8 +63,8 @@ Deno.serve(handled(async (req) => {
   state = applyMove(state, duppyMove(state, actor.duppy_level));
 
   const clock: Clock = { base: table.turn_seconds, cap: table.turn_cap_seconds };
-  const banks: number[] = seats!.map((seat: any) => seat.time_bank ?? 0);
-  const nextSeconds = state.status === 'active' && seats![state.turn].duppy_level
+  const banks: number[] = seats.map((seat: any) => seat.time_bank ?? 0);
+  const nextSeconds = state.status === 'active' && seats[state.turn].duppy_level
     ? duppyThinkSeconds(table.duppy_pace)
     : allowance(clock, banks[state.turn] ?? 0);
 
@@ -75,10 +82,10 @@ Deno.serve(handled(async (req) => {
         oneAllPlayTwo: table.one_all_play_two,
         useBoneyard: table.use_boneyard, target: table.format === 'french' ? 100 : 6,
       },
-      scores: set!.scores, handValue: set!.hand_value, poser: set!.poser,
-      poseMustBeDoubleSix: set!.pose_must_be_double_six, playoff: set!.playoff,
-      handsPlayed: set!.hands_played, winnerSide: set!.winner_side, sixLove: set!.six_love,
-      frenchTieBreak: set!.french_tie_break ?? false,
+      scores: set.scores, handValue: set.hand_value, poser: set.poser,
+      poseMustBeDoubleSix: set.pose_must_be_double_six, playoff: set.playoff,
+      handsPlayed: set.hands_played, winnerSide: set.winner_side, sixLove: set.six_love,
+      frenchTieBreak: set.french_tie_break ?? false,
     };
     const next = applyHandResult(current as any, state.result!);
     await db.from('sets').update({

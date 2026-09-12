@@ -459,3 +459,35 @@ test('tapping a bone never plays it outright — the board confirms every move',
       `${surface} must not auto-commit from the hand at all`);
   }
 });
+
+test('a move that fails in flight is retried, not silently dropped', () => {
+  // Reported on a live phone: "sometimes when i select a domino, sometimes it
+  // pauses before its sent and i have to redo it".
+  //
+  // Both halves were real. play() had NO retry: one failed request and the
+  // move was gone, the prediction was torn down, and the only recovery was
+  // noticing and tapping again. And the hand freezes for the whole round trip
+  // (pending = predictedTilesFor(seat) !== null), which measured a 1372ms
+  // median and a 5658ms p99 on play-move — so a slow one looks like a pause
+  // and invites exactly the second tap the freeze exists to prevent.
+  //
+  // Retrying is safe here specifically because the server applies moves under
+  // an optimistic version check: if the first request actually landed and only
+  // its RESPONSE was lost, the retry is rejected as a conflict and refetches
+  // rather than playing the bone twice.
+  assert.match(onlineControllerSource, /const PLAY_RETRY_DELAYS_MS/,
+    'a failed play needs a bounded retry ladder');
+  assert.match(onlineControllerSource,
+    /async play\(move: Move, attempt = 0\)/,
+    'the attempt must be carried so the ladder can terminate');
+  assert.match(onlineControllerSource, /attempt < PLAY_RETRY_DELAYS_MS\.length/,
+    'and must stop at the end of the ladder rather than spinning');
+  // A conflict means the board already moved: refetch, never retry.
+  assert.match(onlineControllerSource,
+    /if \(err instanceof ConflictError\) \{[\s\S]{0,300}?await this\.refetchHand\(\);\s*return;\s*\}/,
+    'a conflict must refetch and never retry — the board really did move');
+  // And the prediction must OUTLIVE a retry, or the bone flickers back into
+  // the hand between attempts and invites the second tap all over again.
+  assert.match(onlineControllerSource,
+    /return this\.play\(move, attempt \+ 1\);/);
+});

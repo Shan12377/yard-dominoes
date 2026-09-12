@@ -208,17 +208,27 @@ export async function persist(
   if (newVersion === null) throw new Conflict();
 
   // Reveal the seed only once the hand can no longer be influenced by it.
-  let revealed: string | null = null;
-  if (finished) {
-    const { data } = await db.from('hands').select('server_seed').eq('id', handId).single();
-    revealed = data?.server_seed ?? null;
+  //
+  // One round trip, not two, and CHECKED. The commitment used to be fetched
+  // inline below as `.data!.commitment` with no error handling, on every move
+  // — and it runs AFTER commit_move has already succeeded, so a transient
+  // failure there threw a TypeError and 500'd a move that had in fact landed.
+  // The player got "something went wrong" for a bone that was already down.
+  // Seen in production 2026-09-12 alongside a play-move gateway timeout.
+  const { data: seedRow, error: seedErr } = await db.from('hands')
+    .select('commitment, server_seed').eq('id', handId).single();
+  if (seedErr || !seedRow) {
+    // The move is committed either way; say so plainly rather than crashing.
+    // The caller's retry will come back as a conflict and refetch the truth.
+    throw new Error(`hand ${handId} committed but its receipt could not be read: ${seedErr?.message ?? 'no row'}`);
   }
+  const revealed: string | null = finished ? (seedRow.server_seed ?? null) : null;
 
   await db.from('hand_public').upsert({
     hand_id: handId,
     table_id: tableId,
     set_id: setId,
-    commitment: (await db.from('hands').select('commitment').eq('id', handId).single()).data!.commitment,
+    commitment: seedRow.commitment,
     server_seed: revealed,
     board: state.board,
     turn: state.turn,

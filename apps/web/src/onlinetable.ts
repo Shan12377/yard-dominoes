@@ -91,6 +91,14 @@ const SHARE_AVATAR_ACCESSORIES = true;
  */
 const DUPPY_RETRY_DELAYS_MS = [700, 1_500, 3_000];
 
+/**
+ * Backoff for a move whose request failed for any reason other than a
+ * conflict. Short, because the player is sitting there watching the bone; and
+ * finite, because a permanently broken call must end in a visible error rather
+ * than a bone that never lands and never says why.
+ */
+const PLAY_RETRY_DELAYS_MS = [600, 1_400, 2_800];
+
 export class OnlineGame {
   table: TableInfo;
   seats: SeatInfo[] = [];
@@ -792,7 +800,7 @@ export class OnlineGame {
     });
   }
 
-  async play(move: Move): Promise<void> {
+  async play(move: Move, attempt = 0): Promise<void> {
     const seat = this.activeSeat();
     if (!this.hand || seat === null) return;
     // Show the tile landing immediately, for WHICHEVER of my seats this
@@ -828,15 +836,43 @@ export class OnlineGame {
       else if (seat === this.partnerSeat()) this.predictedPartnerTiles = prediction.myTiles;
       this.emit({ type: 'state' });
     }
+    const handId = this.hand.hand_id;
     try {
-      await apiPlayMove(this.hand.hand_id, move);
+      await apiPlayMove(handId, move);
     } catch (err) {
-      // The real state never changed, so the prediction must not linger —
-      // clear it and let the last-known-true board/hand show through again.
+      // A conflict is the one answer that settles it: the board really did
+      // move, so nothing of mine is owed a retry.
+      if (err instanceof ConflictError) {
+        this.predictedBoard = null;
+        this.predictedMyTiles = null;
+        this.predictedPartnerTiles = null;
+        await this.refetchHand();
+        return;
+      }
+      // Everything else is a MAYBE. There was no retry here at all, so one
+      // dropped connection or slow function lost the move outright and the
+      // only recovery was the player noticing and tapping again — reported
+      // as "it pauses before its sent and i have to redo it".
+      //
+      // Safe to retry precisely because the server applies moves under an
+      // optimistic version check: if the first request DID land and only its
+      // response was lost, the retry comes back as a conflict and refetches
+      // instead of laying the bone twice.
+      //
+      // The prediction deliberately stays up while retrying — the bone keeps
+      // looking played, which is both true-so-far and the thing that stops a
+      // second tap.
+      if (attempt < PLAY_RETRY_DELAYS_MS.length
+        && this.hand?.hand_id === handId && this.hand?.status === 'active') {
+        await new Promise((r) => setTimeout(r, PLAY_RETRY_DELAYS_MS[attempt]));
+        if (this.hand?.hand_id !== handId || this.hand?.status !== 'active') return;
+        return this.play(move, attempt + 1);
+      }
+      // Out of attempts: only now does the prediction come down, so the board
+      // and hand fall back to the last state actually confirmed by the server.
       this.predictedBoard = null;
       this.predictedMyTiles = null;
       this.predictedPartnerTiles = null;
-      if (err instanceof ConflictError) { await this.refetchHand(); return; }
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'move failed' });
       this.emit({ type: 'state' });
     }
