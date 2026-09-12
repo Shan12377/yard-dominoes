@@ -84,11 +84,23 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   After the pre-deal measurement, the computed short sides of a played face-up bone
   and every controlled hand bone must differ by no more than 1 CSS pixel.
   French desktop uses the measured JamDom proportions as its baseline: a
-  1000×800 game surface, a 450×390 routed board and 30×60 bones. Scale those
-  measurements together on larger desktop tables (3% of table width, capped at
-  a 60px short side), lock that value before the deal, and route inside the
-  corresponding 15×13-short-side board. Older players must not receive
-  counter-sized face-up tiles merely because the board has four ends.
+  1000×800 game surface, a 450×390 routed board and 30×60 bones. **The French
+  bone is capped by the board it must fit, and is never derived from viewport
+  width alone.** The canvas is rigid — 30u wide by 26u tall — so a bone that
+  does not fit does not overflow gracefully, it CLIPS. Sizing it from viewport
+  width (an earlier "3% of table width, capped at 60px" rule) ignored height,
+  which is what actually constrains the stage: measured 2026-09-11, 1368×900
+  drew a 510×442 canvas into a 464×439 stage, and simulating 800 real French
+  hands against that geometry cut a bone off in 786 of them, starting at the
+  SEVENTH. The tell was 1368×1200 — same width, same bone, no clipping,
+  because it is tall. Use `frenchCanvasUnit(box)` against the MEASURED stage,
+  lock it for the hand, and route inside the corresponding board.
+  Older players must not receive counter-sized face-up tiles merely because
+  the board has four ends — which is why a PHONE is the deliberate exception:
+  fitting a late cross there demands a 14-16px bone, half the linear game's,
+  so a phone keeps its readable 28px and pans the late cross instead
+  (`fitCrossToBox: false`). Confirmed with the owner 2026-09-11, on the
+  grounds that older people are who plays this game.
 - `docs/prototypes/authentic-table.html` is the live-table composition authority:
   on desktop the local hand sits in a compact, content-width tray at the
   player's table edge; on phone it becomes the prototype's transparent,
@@ -98,9 +110,15 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   the same table composition and fitting rules: perimeter stations hug or
   straddle the rim, leaving a broad, clear central square for play. A crowded
   line must fit completely inside its protected board zone with no scrolling.
-  That zone is an invisible measured guard square: its four edges sit beyond
+  That zone is an invisible measured guard: its four edges sit beyond
   the actual top/side stations and above the actual local hand/action trays,
-  with a safety gap. Played dominoes may never leave that square.
+  with a safety gap. Played dominoes may never leave it. It is SQUARED only on
+  a landscape table, and only for French — a cross needs equal clearance every
+  way, which a wide felt can afford. A phone is portrait: the flank stations
+  cap the width, so squaring there discards every pixel of height above that
+  cap and hands the cross the smaller dimension twice (measured: 360×780 lost
+  135px of height, holding the cross to six bones on a felt with room for
+  nine). A linear board is never squared at any size.
   An ordinary line must use the full measured safe width before turning. A
   phone may turn within a 20-half-tile lane. A live French arm chooses its
   first lane from the measured guard: run straight while the protected square
@@ -116,6 +134,11 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   client's measured board and 30×60 bone constants. A French cross follows
   those fixed lanes and boundary turns; it never invents a density-based scale,
   shrinks during play, overlaps another arm, or reaches a protected player lane.
+  The route is a fixed list of slots per arm and `renderCross` throws if an arm
+  outgrows it. Measured over 800 simulated French hands, the longest arm ever
+  seen is 14 tiles against a 16-slot minimum, so the margin is real but only
+  two slots wide — extend the routes before changing the deal size or seat
+  count, not after a player hits the crash.
 - Each opponent's portrait, name, bone count, score and concealed rack form one
   edge-mounted player station inside a translucent gold-bordered enclosure.
   Never position an identity independently from its hand. Top, left and right

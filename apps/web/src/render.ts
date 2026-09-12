@@ -212,6 +212,18 @@ export interface BoardFit {
    *  window-based guess when omitted (main.ts's local play, the hero demo,
    *  and the very first render before the felt has been measured). */
   box?: BoardBox;
+  /**
+   * French only. Shrink the rigid 450x390 canvas until it fits `box` rather
+   * than letting it overflow and clip. Defaults to on, which is what every
+   * landscape table wants -- it cannot make a desktop bone small (1368x900
+   * lands on 30px, JamDom's own measured size).
+   *
+   * A phone passes false deliberately. Fitting there demands a 14-16px bone,
+   * half the linear game's, which is unreadable for the older players this is
+   * built for. That table keeps its readable bone and pans the late cross
+   * instead -- the "exceptional board-only pan" the French rules allow.
+   */
+  fitCrossToBox?: boolean;
 }
 
 /** The box the grid has to live inside, in CSS pixels. */
@@ -695,6 +707,18 @@ export function chooseCrossUnit(board: CrossBoard, box: BoardBox, opts: BoardFit
   return chooseCrossFit(board, box, opts).u;
 }
 
+/**
+ * The largest unit whose French canvas still fits `box`.
+ *
+ * The French board is a fixed 450x390 logical canvas scaled from the bone, so
+ * it measures 30u by 26u. That is the whole reason a French bone cannot be
+ * chosen from the viewport the way a linear one can: the canvas is rigid, and
+ * whatever does not fit is simply cut off.
+ */
+export function frenchCanvasUnit(box: BoardBox): number {
+  return Math.floor(Math.min(box.width / 30, box.height / 26));
+}
+
 type ReferenceRoutePoint = readonly [x: number, y: number, orientation: 'h' | 'v'];
 
 /** Measured from JamDom's public 450×390 French board (30×60 bones). */
@@ -709,7 +733,14 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
   const box = opts.box ?? feltBox();
   // One half-short-side unit is 15px in the 30×60 reference. Live callers
   // pin this before the deal; Watch Back may choose one smaller receipt size.
-  const requested = opts.unit ?? Math.floor(Math.min(box.width / 30, box.height / 26));
+  // The canvas is rigid, so a pin that does not fit does not overflow
+  // gracefully -- it clips. Cap the pin at what the measured board can hold.
+  // A phone opts out (fitCrossToBox: false) because the honest cap there is a
+  // 14-16px bone, half the linear game's, and unreadable for the players this
+  // is built for; that table keeps its readable bone and pans instead.
+  const fitCap = frenchCanvasUnit(box);
+  const pinned = opts.unit ?? fitCap;
+  const requested = opts.fitCrossToBox === false ? pinned : Math.min(pinned, fitCap);
   const u = Math.max(opts.minUnit ?? CROSS_MIN_UNIT, Math.min(opts.maxUnit ?? MAX_UNIT, requested));
   const short = u * 2;
   const scale = short / 30;

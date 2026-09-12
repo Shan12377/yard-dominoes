@@ -28,7 +28,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, keepTileInView } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, keepTileInView } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -1253,6 +1253,17 @@ let lastFeltHasHandRail: boolean | null = null;
 // French keeps one invisible guard for the whole hand. Recomputing it from
 // opponents' shrinking racks made the board drift after every play.
 let lastFrenchGuardKey: string | null = null;
+/**
+ * The last MEASURED board stage a French cross was fitted against, keyed by
+ * viewport width. French is deliberately kept out of the after-paint refit
+ * (rebuilding its route every move was the old movement bug), and `cachedBox`
+ * below refuses to serve a cross -- so without this the French bone was chosen
+ * from feltBox()'s window GUESS and never once compared against the board it
+ * actually had to fit. That is what let a 510x442 canvas be drawn into a
+ * 464x439 stage and clip 98% of hands from the seventh bone.
+ */
+let lastFrenchFitWidth = 0;
+let lastFrenchFitBox: { width: number; height: number } | null = null;
 let lastFrenchGuardInset: string | null = null;
 
 /**
@@ -2018,6 +2029,12 @@ function tableView(g: LocalGame): DocumentFragment {
   // Its safe first pass is the conservative square in renderCross().
   const cachedBox = lastFeltHasHandRail === handOnFelt && displayBoard?.kind !== 'cross'
     ? lastFeltBox : null;
+  // A cross still may not use lastFeltBox (that is a LINE's box), but it may
+  // use the French stage measured at this exact viewport. With it, the very
+  // first pass already fits; without it the first hand at a new size renders
+  // once from the guess and is corrected below.
+  const crossBox = displayBoard?.kind === 'cross' && lastFrenchFitWidth === window.innerWidth
+    ? lastFrenchFitBox : null;
   const frenchTable = g.options.format === 'french';
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}`
@@ -2044,7 +2061,7 @@ function tableView(g: LocalGame): DocumentFragment {
   felt.style.setProperty('--table-bone-short', `${tableCapUnit * 2}px`);
   room.style.setProperty('--table-bone-short', `${tableCapUnit * 2}px`);
   const fittedUnit = renderBoard(line, displayBoard, {
-    ...(cachedBox ? { box: cachedBox } : {}),
+    ...(crossBox ? { box: crossBox } : cachedBox ? { box: cachedBox } : {}),
     maxUnit: tableUnit,
     // Pinned for every mode, matching the lounge — see the note there. The
     // practice table and a live table are the same physical table; they must
@@ -2052,6 +2069,9 @@ function tableView(g: LocalGame): DocumentFragment {
     unit: tableUnit,
     minUnit: tableMinUnit,
     maxUnits: tableMaxUnits,
+    // A landscape table shrinks the rigid French canvas until it fits; a phone
+    // keeps its readable bone and pans the late cross. See BoardFit.
+    fitCrossToBox: window.innerWidth > 700,
   });
   // One physical set, one physical bone size. A French cross may need a
   // smaller fitted unit than its opening cap; the hand and perimeter racks
@@ -2186,7 +2206,33 @@ function tableView(g: LocalGame): DocumentFragment {
     // French owns a fixed measured route and a fixed guard for the complete
     // hand. Rebuilding here was the old movement bug: every move recreated
     // the line after paint and recalculated its centre from shrinking racks.
-    if (frenchTable) return;
+    if (frenchTable) {
+      // Record the real stage so every later French render at this viewport
+      // starts already fitted, then correct THIS render if the guess was wrong.
+      // Guarded on a genuine difference, so the steady state is no rebuild at
+      // all -- render() fires every ~420ms during duppy turns and an
+      // unconditional rebuild here is exactly the flash this whole block
+      // exists to prevent.
+      lastFrenchFitWidth = window.innerWidth;
+      lastFrenchFitBox = box;
+      const fitsBox = window.innerWidth > 700;
+      const want = fitsBox ? Math.min(tableUnit, frenchCanvasUnit(box)) : tableUnit;
+      if (fittedUnit && want !== fittedUnit) {
+        const corrected = renderBoard(line, displayBoard, {
+          box,
+          maxUnit: tableUnit,
+          unit: tableUnit,
+          minUnit: tableMinUnit,
+          maxUnits: tableMaxUnits,
+          fitCrossToBox: fitsBox,
+        });
+        if (corrected) {
+          felt.style.setProperty('--table-bone-short', `${corrected * 2}px`);
+          room.style.setProperty('--table-bone-short', `${corrected * 2}px`);
+        }
+      }
+      return;
+    }
     if (changed || boardOverflowedGuard) {
       const measuredUnit = renderBoard(line, displayBoard, {
         box,

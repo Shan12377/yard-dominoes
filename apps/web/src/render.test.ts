@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
 import type { Board, CrossBoard, Pip, PlacedTile, TileId } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { assertRenderableBoard, assertVisibleTilesDisjoint, boardGuardInsets, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveTableUnit, rowsOf } from './render.ts';
+import { assertRenderableBoard, assertVisibleTilesDisjoint, boardGuardInsets, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveTableUnit, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -752,4 +752,36 @@ test('the board guard measures the box a CSS inset actually resolves against', (
   assert.equal(fixed.left, 38, 'measured from the box the inset resolves against');
   assert.equal(old.left, 45, 'the border box double-counts the border');
   assert.equal(old.left - fixed.left, border.left, 'the error is exactly the border width');
+});
+
+test('a French canvas is capped to the board it must fit, so desktop stops clipping', () => {
+  // The French board is a FIXED 450x390 logical canvas scaled from the bone:
+  // canvas = 30u wide by 26u tall. Nothing ever checked it against the stage it
+  // is drawn into, and liveTableUnit() sized the bone from viewport WIDTH while
+  // the stage is driven by HEIGHT. Every short-but-wide monitor therefore drew
+  // a canvas bigger than its stage and clipped the overflow:
+  //
+  //   1368x900   bone 34px  canvas 510x442  stage 464x439
+  //   1440x900   bone 36px  canvas 540x468  stage 454x429
+  //   1920x1080  bone 48px  canvas 720x624  stage 574x551
+  //
+  // Simulating 800 real French hands against that 1368x900 geometry: 786 of
+  // them (98%) cut a bone off, starting from the SEVENTH. The tell is
+  // 1368x1200 -- same width, same bone, fits fine, because it is tall.
+  assert.equal(frenchCanvasUnit({ width: 464, height: 439 }), 15, '1368x900 -> 30px bone');
+  assert.equal(frenchCanvasUnit({ width: 454, height: 429 }), 15, '1440x900 -> 30px bone');
+  assert.equal(frenchCanvasUnit({ width: 574, height: 551 }), 19, '1920x1080 -> 38px bone');
+  assert.equal(frenchCanvasUnit({ width: 734, height: 733 }), 24, 'a tall desktop earns a BIGGER bone');
+
+  // 30px is not a number I chose: it is JamDom's own measured bone, the
+  // reference this board was built from. Capping to fit makes desktop French
+  // more authentic, not smaller.
+  const canvas = (u: number) => ({ width: 30 * u, height: 26 * u });
+  for (const box of [{ width: 464, height: 439 }, { width: 574, height: 551 }]) {
+    const u = frenchCanvasUnit(box);
+    const c = canvas(u);
+    assert.ok(c.width <= box.width && c.height <= box.height, 'the capped canvas must fit');
+    const bigger = canvas(u + 1);
+    assert.ok(bigger.width > box.width || bigger.height > box.height, 'and must be the largest that does');
+  }
 });

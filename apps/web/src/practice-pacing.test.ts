@@ -145,8 +145,25 @@ test('Practice and Lounge pin the French route and invisible guard for the whole
     assert.match(source, /line\.scrollWidth > fitHost\.clientWidth/);
     assert.match(source, /line\.scrollHeight > fitHost\.clientHeight/);
     assert.match(source, /boardStage\.dataset\.boardGuard = 'pinned-hand-square'/);
-    assert.match(source, /if \(frenchTable\) return;/,
-      'French must never enter the after-paint board rebuild path');
+    // Was: /if \(frenchTable\) return;/ -- "French must never enter the
+    // after-paint board rebuild path". The hazard that guarded against was a
+    // rebuild on EVERY move, recreating the route after paint and recomputing
+    // its centre from racks that were still shrinking. Both halves of that are
+    // gone: the racks are pinned, and the rebuild below is guarded on a real
+    // change of fitted unit, which can only happen the first time a French
+    // hand is drawn at a given viewport.
+    //
+    // It had to change, because that early return was the reason French never
+    // fitted. It returned BEFORE anything measured could reach the cross, so
+    // the French bone came from feltBox()'s window guess and was never once
+    // compared against the stage it had to fit -- a 510x442 canvas drawn into
+    // a 464x439 stage, clipping 98% of desktop hands from the seventh bone.
+    assert.match(source, /lastFrenchFitBox = box;/,
+      'French must record the stage it was actually measured against');
+    assert.match(source, /if \(fittedUnit && want !== fittedUnit\)/,
+      'and may only rebuild when the fitted bone genuinely changes');
+    assert.doesNotMatch(source, /if \(frenchTable\) \{\s*const corrected = renderBoard/,
+      'never an unconditional French rebuild after paint');
     assert.doesNotMatch(source,
       /if \(changed \|\| boardOverflowedGuard \|\| displayBoard\?\.kind === 'cross'\)/);
     // Was: /\.\.\.\(frenchTable \? \{ unit: tableUnit \} : \{\}\)/ — the pin used
