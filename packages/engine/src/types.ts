@@ -72,9 +72,26 @@ export interface Board {
  * openEnd is the pip currently exposed at the far end of the arm.
  */
 export interface CrossArm {
+  /**
+   * Fill-order fallback only. An arm's real direction is relative to whoever
+   * is LOOKING at it -- my right is the opposite seat's left -- and the same
+   * board goes to all four players, so a compass direction cannot be decided
+   * here. `seat` below is the fact; the renderer turns it into a direction.
+   * Kept so an in-flight hand dealt before `seat` existed still renders.
+   */
   direction: 'right' | 'left' | 'up' | 'down';
   tiles: PlacedTile[];
   openEnd: Pip;
+  /**
+   * The seat that laid this arm's opening bone. On a real table you push your
+   * bone out in front of you, so the arm runs towards the player who started
+   * it -- confirmed by the owner 2026-09-12 against a live board. It belongs
+   * to whoever OPENED it, not whoever later extends it.
+   *
+   * Optional because a hand dealt before this field existed has arms without
+   * it; those fall back to `direction`.
+   */
+  seat?: number;
 }
 
 /**

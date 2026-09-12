@@ -182,7 +182,12 @@ export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
         const centerValue = halves(cross.center)[0];
         if (a !== centerValue && b !== centerValue) return null;
         const exposed = (a === centerValue ? b : a) as Pip;
-        const newArm: CrossArm = { direction: ARM_DIRECTIONS[step.arm], tiles: [placed], openEnd: exposed };
+        // `seat` too, or this reconstruction stops matching the engine's own
+        // board — which is precisely what the round-trip test checks. An arm
+        // belongs to the seat that opened it; see CrossArm.seat.
+        const newArm: CrossArm = {
+          direction: ARM_DIRECTIONS[step.arm], tiles: [placed], openEnd: exposed, seat: step.seat,
+        };
         board = { ...cross, arms: [...cross.arms, newArm] };
         continue;
       }

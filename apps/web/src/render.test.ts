@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
 import type { Board, CrossBoard, Pip, PlacedTile, TileId } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { assertRenderableBoard, assertVisibleTilesDisjoint, boardGuardInsets, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveTableUnit, rowsOf } from './render.ts';
+import { assertRenderableBoard, assertVisibleTilesDisjoint, armDirectionFor, boardGuardInsets, crossArmDirections, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveTableUnit, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -784,4 +784,55 @@ test('a French canvas is capped to the board it must fit, so desktop stops clipp
     const bigger = canvas(u + 1);
     assert.ok(bigger.width > box.width || bigger.height > box.height, 'and must be the largest that does');
   }
+});
+
+test('a French arm points at the player who opened it, from the viewer\'s own seat', () => {
+  // The owner's rule, 2026-09-12: the opening bones run TOWARDS whoever laid
+  // them, the way they do on a real table. Direction is therefore relative to
+  // the VIEWER -- my right is the opposite seat's left -- and the same board
+  // is sent to all four seats, which is why the engine records the seat and
+  // this maps it. Play is anti-clockwise, so seat+1 is the player on my
+  // physical right (CLAUDE.md, "Rules competitors get wrong").
+  assert.equal(armDirectionFor(2, 2), 'down', 'my own arm comes towards me');
+  assert.equal(armDirectionFor(3, 2), 'right', 'the seat after mine is on my right');
+  assert.equal(armDirectionFor(0, 2), 'up', 'the seat opposite is across the table');
+  assert.equal(armDirectionFor(1, 2), 'left', 'the seat before mine is on my left');
+  // Same board, different chair: every arm rotates with the viewer.
+  assert.equal(armDirectionFor(2, 0), 'up', 'seat 2 is opposite seat 0');
+  assert.equal(armDirectionFor(2, 3), 'left');
+});
+
+test('two arms opened by one player still get separate directions', () => {
+  // A seat that holds two of the four opening bones can open two arms -- the
+  // others pass, the turn comes round. Naively both would claim the same
+  // direction and be drawn on top of each other, so the second takes the
+  // nearest free lane instead of colliding.
+  const dirs = crossArmDirections([{ seat: 1 }, { seat: 1 }, { seat: 2 }, { seat: 3 }], 0);
+  assert.equal(new Set(dirs).size, 4, 'four arms, four distinct directions');
+  assert.equal(dirs[0], 'right', 'the first claim wins the seat\'s own lane');
+  assert.ok(dirs.includes('down') && dirs.includes('up') && dirs.includes('left'));
+});
+
+test('a cross dealt before arms recorded a seat still renders', () => {
+  // CrossArm.seat is optional: a hand already in flight when this shipped has
+  // arms without it. Those must keep their stored fill-order direction rather
+  // than collapsing to one lane.
+  const dirs = crossArmDirections(
+    [{ seat: undefined, direction: 'right' }, { seat: undefined, direction: 'left' },
+     { seat: undefined, direction: 'up' }, { seat: undefined, direction: 'down' }], 0);
+  assert.deepEqual(dirs, ['right', 'left', 'up', 'down']);
+});
+
+test('the French fit cap outranks the readable-minimum floor', () => {
+  // These two can disagree, and for a RIGID canvas the floor must not win.
+  // Measured on a 390x700 phone: the stage is 292px, the phone's readable
+  // floor is unit 10, and a unit-10 French canvas is 300px -- so the floor was
+  // pushing the board 8px past its own guard and clipping it again, which is
+  // exactly what the cap exists to stop. A capped cross bottoms out around a
+  // 16px bone on the narrowest phone; a cross with an arm cut off is not
+  // readable at any size.
+  const box = { width: 274, height: 330 };   // the real 390x700 measurement
+  assert.equal(frenchCanvasUnit(box), 9, 'only unit 9 fits that stage');
+  assert.ok(30 * 9 <= box.width, 'and a unit-9 canvas really does fit');
+  assert.ok(30 * 10 > box.width, 'while the unit-10 floor would overflow it');
 });

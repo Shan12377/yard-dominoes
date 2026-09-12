@@ -95,12 +95,18 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   SEVENTH. The tell was 1368×1200 — same width, same bone, no clipping,
   because it is tall. Use `frenchCanvasUnit(box)` against the MEASURED stage,
   lock it for the hand, and route inside the corresponding board.
-  Older players must not receive counter-sized face-up tiles merely because
-  the board has four ends — which is why a PHONE is the deliberate exception:
-  fitting a late cross there demands a 14-16px bone, half the linear game's,
-  so a phone keeps its readable 28px and pans the late cross instead
-  (`fitCrossToBox: false`). Confirmed with the owner 2026-09-11, on the
-  grounds that older people are who plays this game.
+  **Every French board fits, at every size, including phones — none pans.**
+  Because the canvas is rigid it does not grow with the hand, so fitting it
+  once fits it for the whole hand: 28px on a 1368 desktop, 20px on a 430
+  phone, 18px at 390, 16px at 360. An earlier note here claimed a phone needed
+  a 14-16px bone and should therefore pan at 28px instead; that figure came
+  from `chooseCrossFit`, the flexible lane generator, which is NOT the code
+  that renders French. Corrected 2026-09-12 after the owner reported the cross
+  still clipping.
+  The fit cap is applied AFTER the readable-minimum floor, deliberately: on a
+  390px phone the floor (unit 10, a 300px canvas) exceeds the stage (292px), so
+  a floor that won would push the board past its own guard. A cross with an arm
+  cut off is not readable at any size.
 - `docs/prototypes/authentic-table.html` is the live-table composition authority:
   on desktop the local hand sits in a compact, content-width tray at the
   player's table edge; on phone it becomes the prototype's transparent,
@@ -139,6 +145,19 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   seen is 14 tiles against a 16-slot minimum, so the margin is real but only
   two slots wide — extend the routes before changing the deal size or seat
   count, not after a player hits the crash.
+- **A French arm runs towards the player who opened it.** On a real table you
+  push your bone out in front of you, so the four opening bones lay out towards
+  their own players — the owner's rule, 2026-09-12, against a live board. The
+  arm belongs to whoever OPENED it, never to whoever later extends it.
+  Direction cannot live in the engine: it is relative to the viewer (my right
+  is the opposite seat's left) and one board is sent to all four seats. So
+  `CrossArm.seat` records the fact and `armDirectionFor()` turns it into a
+  compass direction per viewer. Play is anti-clockwise, so seat+1 is on my
+  physical right. One seat can legally open two arms (the others pass and the
+  turn comes round), so `crossArmDirections()` gives the first claim that
+  seat's own lane and sends the second to the nearest free one — without that
+  they draw on top of each other. `seat` is optional: a hand already in flight
+  when this shipped keeps its stored fill-order direction.
 - Each opponent's portrait, name, bone count, score and concealed rack form one
   edge-mounted player station inside a translucent gold-bordered enclosure.
   Never position an identity independently from its hand. Top, left and right

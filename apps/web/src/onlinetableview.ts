@@ -983,9 +983,9 @@ export function liveTableView(
     unit: tableUnit,
     minUnit: tableMinUnit,
     maxUnits: tableMaxUnits,
-    // A landscape table shrinks the rigid French canvas until it fits; a phone
-    // keeps its readable bone and pans the late cross. See BoardFit.
-    fitCrossToBox: window.innerWidth > 700,
+    // A French arm runs towards the seat that opened it -- relative to me. A
+    // spectator has no seat, so their arms keep the stored fill order.
+    ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
   });
   // The played chain, visible hand and concealed racks are one physical set.
   // Keep all three on the renderer's actual fitted size, especially when a
@@ -1118,8 +1118,7 @@ export function liveTableView(
       // exists to prevent.
       lastFrenchFitWidth = window.innerWidth;
       lastFrenchFitBox = box;
-      const fitsBox = window.innerWidth > 700;
-      const want = fitsBox ? Math.min(tableUnit, frenchCanvasUnit(box)) : tableUnit;
+      const want = Math.min(tableUnit, frenchCanvasUnit(box));
       if (fittedUnit && want !== fittedUnit) {
         const corrected = renderBoard(line, displayBoard, {
           box,
@@ -1127,7 +1126,7 @@ export function liveTableView(
           unit: tableUnit,
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
-          fitCrossToBox: fitsBox,
+          ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
         });
         if (corrected) {
           felt.style.setProperty('--table-bone-short', `${corrected * 2}px`);
@@ -1146,6 +1145,7 @@ export function liveTableView(
         unit: tableUnit,
         minUnit: tableMinUnit,
         maxUnits: tableMaxUnits,
+        ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
       });
       if (measuredUnit) {
         felt.style.setProperty('--table-bone-short', `${measuredUnit * 2}px`);

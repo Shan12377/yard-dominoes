@@ -2069,9 +2069,8 @@ function tableView(g: LocalGame): DocumentFragment {
     unit: tableUnit,
     minUnit: tableMinUnit,
     maxUnits: tableMaxUnits,
-    // A landscape table shrinks the rigid French canvas until it fits; a phone
-    // keeps its readable bone and pans the late cross. See BoardFit.
-    fitCrossToBox: window.innerWidth > 700,
+    // A French arm runs towards the seat that opened it -- relative to me.
+    viewerSeat: g.mySeat,
   });
   // One physical set, one physical bone size. A French cross may need a
   // smaller fitted unit than its opening cap; the hand and perimeter racks
@@ -2215,8 +2214,7 @@ function tableView(g: LocalGame): DocumentFragment {
       // exists to prevent.
       lastFrenchFitWidth = window.innerWidth;
       lastFrenchFitBox = box;
-      const fitsBox = window.innerWidth > 700;
-      const want = fitsBox ? Math.min(tableUnit, frenchCanvasUnit(box)) : tableUnit;
+      const want = Math.min(tableUnit, frenchCanvasUnit(box));
       if (fittedUnit && want !== fittedUnit) {
         const corrected = renderBoard(line, displayBoard, {
           box,
@@ -2224,7 +2222,7 @@ function tableView(g: LocalGame): DocumentFragment {
           unit: tableUnit,
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
-          fitCrossToBox: fitsBox,
+          viewerSeat: g.mySeat,
         });
         if (corrected) {
           felt.style.setProperty('--table-bone-short', `${corrected * 2}px`);
@@ -2245,6 +2243,7 @@ function tableView(g: LocalGame): DocumentFragment {
         unit: tableUnit,
         minUnit: tableMinUnit,
         maxUnits: tableMaxUnits,
+        viewerSeat: g.mySeat,
       });
       if (measuredUnit) {
         felt.style.setProperty('--table-bone-short', `${measuredUnit * 2}px`);

@@ -565,3 +565,64 @@ describe('French: pass penalties', () => {
     assert.equal(next.penalties[1], 0);
   });
 });
+
+// Reported by the owner, 2026-09-12, against a live board: the four opening
+// tiles must run TOWARDS the player who laid them, the way they do on a real
+// table — you push your bone out in front of you. The engine was assigning
+// arms from a fixed ARM_DIRECTIONS list purely in fill order, so which way an
+// arm pointed depended on nothing but who happened to move first.
+//
+// Direction itself cannot live in the engine, because it is relative to the
+// VIEWER: my right is the seat opposite's left, and the same board is sent to
+// all four. So the engine records WHO opened each arm and the renderer turns
+// that into a compass direction for whoever is looking.
+describe('French: an arm belongs to the seat that opened it', () => {
+  const order = [
+    '0-0', '0-1', '1-1', '1-2', '1-3', '1-4', '1-5', // seat 0 — poses the chucha
+    '0-2', '2-2', '2-3', '2-4', '2-5', '2-6', '3-4', // seat 1
+    '0-3', '3-3', '3-5', '3-6', '4-5', '4-6', '5-6', // seat 2
+    '0-4', '4-4', '5-5', '6-6', '0-5', '0-6', '1-6', // seat 3
+  ];
+  it('records the seat that laid each opening bone, in play order', () => {
+    const hand = deal({
+      order, seatCount: 4, mode: 'cutthroat', useBoneyard: false,
+      poser: 0, poseMustBeDoubleSix: true, openingTile: '0-0', format: 'french',
+    });
+    let s = applyMove(hand, { kind: 'pose', seat: 0, tile: '0-0' });
+    assert.equal((s.board as any).kind, 'cross');
+
+    // Seats fill in play order: 0 opened the cross, so 1, 2, 3 then 0 fill it.
+    const opened: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const move = legalMoves(s).find((m) => m.kind === 'playcross');
+      assert.ok(move, `somebody must be able to fill arm ${i}`);
+      opened.push((move as any).seat);
+      s = applyMove(s, move!);
+    }
+    const arms = (s.board as any).arms;
+    assert.equal(arms.length, 4, 'all four arms are open');
+    for (let i = 0; i < 4; i++) {
+      assert.equal(arms[i].seat, opened[i],
+        `arm ${i} must remember the seat that opened it`);
+    }
+  });
+
+  it('keeps that seat as the arm grows', () => {
+    const hand = deal({
+      order, seatCount: 4, mode: 'cutthroat', useBoneyard: false,
+      poser: 0, poseMustBeDoubleSix: true, openingTile: '0-0', format: 'french',
+    });
+    let s = applyMove(hand, { kind: 'pose', seat: 0, tile: '0-0' });
+    for (let i = 0; i < 4; i++) {
+      const move = legalMoves(s).find((m) => m.kind === 'playcross');
+      if (!move) break;
+      s = applyMove(s, move);
+    }
+    const before = (s.board as any).arms.map((a: any) => a.seat);
+    // Extend whichever arm will take a tile; the owner must not change hands.
+    const next = legalMoves(s).find((m) => m.kind === 'playcross');
+    if (next) s = applyMove(s, next);
+    const after = (s.board as any).arms.map((a: any) => a.seat);
+    assert.deepEqual(after, before, 'an arm belongs to whoever opened it, not whoever extends it');
+  });
+});

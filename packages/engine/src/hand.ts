@@ -361,7 +361,7 @@ function isKeyTile(postBoard: Board, preBoard: Board, tile: TileId): boolean {
  * scoped to this arm; see CrossBoard.doublesPlayed. There is only one copy
  * of any double, so this can only ever add a value once per hand.
  */
-function placeCross(board: CrossBoard, tile: TileId, armIdx: number): CrossBoard {
+function placeCross(board: CrossBoard, tile: TileId, armIdx: number, seat: number): CrossBoard {
   const placed = { tile, crosswise: isDouble(tile) };
   const [a, b] = halves(tile);
   if (armIdx === board.arms.length) {
@@ -373,6 +373,8 @@ function placeCross(board: CrossBoard, tile: TileId, armIdx: number): CrossBoard
       direction: ARM_DIRECTIONS[armIdx],
       tiles: [placed],
       openEnd: exposed,
+      // Whoever laid the opening bone owns this arm's direction from here on.
+      seat,
     };
     return { ...board, arms: [...board.arms, newArm] };
   }
@@ -520,7 +522,7 @@ export function applyMove(prev: HandState, move: Move): HandState {
     case 'playcross': {
       if (!s.board || s.board.kind !== 'cross') throw new Error('playcross requires cross board');
       s.hands[move.seat] = s.hands[move.seat].filter((t) => t !== move.tile);
-      s.board = placeCross(s.board, move.tile, move.arm);
+      s.board = placeCross(s.board, move.tile, move.arm, move.seat);
       s.consecutivePasses = 0;
       break;
     }

@@ -213,17 +213,12 @@ export interface BoardFit {
    *  and the very first render before the felt has been measured). */
   box?: BoardBox;
   /**
-   * French only. Shrink the rigid 450x390 canvas until it fits `box` rather
-   * than letting it overflow and clip. Defaults to on, which is what every
-   * landscape table wants -- it cannot make a desktop bone small (1368x900
-   * lands on 30px, JamDom's own measured size).
-   *
-   * A phone passes false deliberately. Fitting there demands a 14-16px bone,
-   * half the linear game's, which is unreadable for the older players this is
-   * built for. That table keeps its readable bone and pans the late cross
-   * instead -- the "exceptional board-only pan" the French rules allow.
+   * Where the person looking at this board is sitting. A French arm runs
+   * towards whoever opened it, which is only meaningful relative to the
+   * viewer -- see armDirectionFor(). Omit it (a replay, the hero demo, a
+   * spectator with no seat) and arms keep their stored fill-order direction.
    */
-  fitCrossToBox?: boolean;
+  viewerSeat?: number;
 }
 
 /** The box the grid has to live inside, in CSS pixels. */
@@ -719,6 +714,62 @@ export function frenchCanvasUnit(box: BoardBox): number {
   return Math.floor(Math.min(box.width / 30, box.height / 26));
 }
 
+/**
+ * Which way an arm opened by `seat` runs, for a player sitting at `viewerSeat`.
+ *
+ * On a real table you push your bone out in front of you, so an arm runs
+ * towards whoever opened it. That is relative to the person LOOKING at the
+ * board -- my right is the opposite seat's left -- which is exactly why the
+ * engine records the seat and leaves the compass to the client.
+ *
+ * Play is anti-clockwise and seats are numbered in play order, so seat+1 is
+ * the player on my physical right. See CLAUDE.md, "Rules competitors get
+ * wrong".
+ */
+export function armDirectionFor(seat: number, viewerSeat: number): CrossBoard['arms'][number]['direction'] {
+  const around = ['down', 'right', 'up', 'left'] as const;
+  const step = ((seat - viewerSeat) % 4 + 4) % 4;
+  return around[step];
+}
+
+/**
+ * Directions for a whole cross, resolving the one collision the rule allows:
+ * a seat holding two of the four opening bones opens two arms, and both would
+ * otherwise claim the same lane and draw on top of each other. First claim
+ * wins; the next takes the nearest free lane, going round the table.
+ *
+ * An arm with no recorded seat predates CrossArm.seat and keeps its stored
+ * fill-order direction.
+ */
+export function crossArmDirections(
+  arms: ReadonlyArray<{ seat?: number; direction?: CrossBoard['arms'][number]['direction'] }>,
+  viewerSeat: number,
+): Array<CrossBoard['arms'][number]['direction']> {
+  const order = ['down', 'right', 'up', 'left'] as const;
+  const taken = new Set<string>();
+  const out: Array<CrossBoard['arms'][number]['direction']> = [];
+  for (const arm of arms) {
+    if (arm.seat === undefined) {
+      const fallback = arm.direction ?? order[out.length % 4];
+      taken.add(fallback);
+      out.push(fallback);
+      continue;
+    }
+    const want = armDirectionFor(arm.seat, viewerSeat);
+    let chosen = want;
+    if (taken.has(chosen)) {
+      const from = order.indexOf(want);
+      for (let i = 1; i < 4; i++) {
+        const next = order[(from + i) % 4];
+        if (!taken.has(next)) { chosen = next; break; }
+      }
+    }
+    taken.add(chosen);
+    out.push(chosen);
+  }
+  return out;
+}
+
 type ReferenceRoutePoint = readonly [x: number, y: number, orientation: 'h' | 'v'];
 
 /** Measured from JamDom's public 450×390 French board (30×60 bones). */
@@ -733,15 +784,22 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
   const box = opts.box ?? feltBox();
   // One half-short-side unit is 15px in the 30×60 reference. Live callers
   // pin this before the deal; Watch Back may choose one smaller receipt size.
-  // The canvas is rigid, so a pin that does not fit does not overflow
-  // gracefully -- it clips. Cap the pin at what the measured board can hold.
-  // A phone opts out (fitCrossToBox: false) because the honest cap there is a
-  // 14-16px bone, half the linear game's, and unreadable for the players this
-  // is built for; that table keeps its readable bone and pans instead.
+  // The canvas is RIGID -- 30u by 26u for any number of bones -- so a pin that
+  // does not fit does not overflow gracefully, it clips, and it clips for the
+  // whole hand. Cap the pin at what the measured board can hold. Because the
+  // canvas never grows, fitting it once fits it forever: no French board pans,
+  // at any size, at any point in a hand.
   const fitCap = frenchCanvasUnit(box);
-  const pinned = opts.unit ?? fitCap;
-  const requested = opts.fitCrossToBox === false ? pinned : Math.min(pinned, fitCap);
-  const u = Math.max(opts.minUnit ?? CROSS_MIN_UNIT, Math.min(opts.maxUnit ?? MAX_UNIT, requested));
+  const requested = Math.min(opts.unit ?? fitCap, fitCap);
+  // The fit cap is applied LAST, after the readable-minimum floor, because for
+  // a rigid canvas those two can disagree and the floor must not win: a 390px
+  // phone floors at unit 10 (a 300px canvas) inside a 292px stage, so the
+  // floor was pushing the board 8px past its own guard and re-introducing the
+  // clipping this whole cap exists to remove. A capped cross bottoms out at a
+  // 16px bone on the narrowest supported phone, which is still a readable
+  // counter; a cross with an arm cut off is not readable at any size.
+  const floored = Math.max(opts.minUnit ?? CROSS_MIN_UNIT, Math.min(opts.maxUnit ?? MAX_UNIT, requested));
+  const u = Math.min(floored, Math.max(1, fitCap));
   const short = u * 2;
   const scale = short / 30;
   host.classList.add('french-reference-route');
@@ -759,13 +817,18 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
   host.appendChild(pose);
 
   const centerValue = halves(board.center)[0];
+  // An arm belongs to the seat that opened it and runs towards them, so the
+  // compass is resolved here, per viewer, rather than read off the board.
+  const armDirections = opts.viewerSeat === undefined
+    ? board.arms.map((arm) => arm.direction)
+    : crossArmDirections(board.arms, opts.viewerSeat);
   board.arms.forEach((arm, armIndex) => {
     let anchor = centerValue;
     let previous: readonly [number, number] = [225, 195];
-    const route = FRENCH_REFERENCE_ROUTES[arm.direction];
+    const route = FRENCH_REFERENCE_ROUTES[armDirections[armIndex]];
     arm.tiles.forEach((placed, step) => {
       const point = route[step];
-      if (!point) throw new Error(`French ${arm.direction} arm exceeds the measured route`);
+      if (!point) throw new Error(`French ${armDirections[armIndex]} arm exceeds the measured route`);
       const [x, y, orient] = point;
       const [a, b] = halves(placed.tile);
       const inward = (a === anchor ? a : b) as Pip;
