@@ -7,6 +7,7 @@ const onlineTableSource = readFileSync(new URL('./onlinetableview.ts', import.me
 // The VIEW is onlinetableview.ts above; this is the CONTROLLER that drives
 // turns and talks to the Edge Functions. Two different files, easy to confuse.
 const onlineControllerSource = readFileSync(new URL('./onlinetable.ts', import.meta.url), 'utf8');
+const renderSource = readFileSync(new URL('./render.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('practice Duppies never move faster than 3.5 seconds and pause for the final bone', () => {
@@ -290,10 +291,16 @@ test('a phone does not square the French guard, because a phone is portrait', ()
   // The 360px case is the clearest: squaring was costing 135px of height and
   // holding the cross to six bones on a felt with room for nine.
   for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
-    assert.match(source, /window\.innerWidth > 700 && \(frenchTable \|\| displayBoard\?\.kind === 'cross'\)/,
-      `${surface} must square the French guard only where the table is landscape`);
-    assert.doesNotMatch(source, /\n\s*frenchTable \|\| displayBoard\?\.kind === 'cross'\);/,
-      `${surface} must not square a phone's French guard`);
+    // Nothing is squared any more, French included. The French board is a FIXED
+    // 450x390 canvas -- a rectangle -- so its own shape already gives the four
+    // arms equal clearance, and squaring the stage around it only discards
+    // whichever dimension is not binding. Measured in a real 1920x1080 Lounge:
+    // a 1728px felt inset 609px on EACH side to make a square, leaving the
+    // board 490px of 1708 and a 30px bone on a table with room for 48px.
+    assert.match(source, /felt\.querySelector<HTMLElement>\('\.in-felt-hand'\), false\);/,
+      `${surface} must never square the board guard`);
+    assert.doesNotMatch(source, /frenchTable \|\| displayBoard\?\.kind === 'cross'\)\);/,
+      `${surface} must not bring squaring back`);
   }
 });
 
@@ -325,4 +332,62 @@ test('a failed duppy turn is retried, not abandoned to the cron', () => {
   // A 409 still means somebody else moved: refetch, never retry.
   assert.match(onlineControllerSource,
     /if \(err instanceof DuppyTurnConflictError\) \{[\s\S]{0,400}?await this\.refetchHand\(\);\s*return;/);
+});
+
+test('a French cross too big for the phone still keeps its pose centred', () => {
+  // The owner, twice: older people play this game and cannot make out small
+  // dominoes. Fitting a late French cross on a phone works out at a 20px bone,
+  // 16px on a 360px screen, against the linear game's 28px -- so the bone stays
+  // readable and the board pans instead. That decision is only livable if the
+  // POSE stays put: `align-items: safe center` start-aligns anything bigger
+  // than its box, which measured 44px of drift on a 430px phone and left the
+  // whole right arm off-screen with nothing to indicate it.
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.match(source, /centreCrossOnPose\(boardStage, line\)/,
+      `${surface} must hold the cross centred on its pose`);
+  }
+});
+
+test('French has no "under love", because zero is the best score there', () => {
+  // Spotted by the owner on a live French table: "Duppy 4 under love". Love is
+  // a six-love idea — you are on nothing while the other side scores, and the
+  // side under love bruks the board by winning. French has none of that. It is
+  // a race to 100 where the LOWEST score wins, so 0 is not a hole to climb out
+  // of, it is the best position at the table.
+  //
+  // Pre-existing, from da4d19f (2026-08-06), not a rule change: scoreTrack()
+  // printed 'under love' for any zero regardless of format.
+  //
+  // The pip track had the same fault more subtly. Six pips scaled by `max`
+  // means they LIGHT UP as a score climbs — progress toward winning at
+  // six-love or first-to-six, but in French climbing is losing, so a full
+  // track read as "doing well" when it meant the opposite.
+  assert.match(renderSource, /score === 0 && !opts\.french \? 'under love' : String\(score\)/,
+    'zero must only read as love where love exists');
+  assert.match(renderSource, /french\?: boolean/, 'scoreTrack needs to know the format');
+  assert.match(renderSource, /opts\.french/, 'and the pip track must use it too');
+  // Both surfaces have to pass it, or the Lounge keeps the bug Practice loses.
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.match(source, /french: [^,\n]*=== 'french'/,
+      `${surface} must tell the scoreboard when the table is French`);
+  }
+});
+
+test('a phone never shrinks the French bone, however well the cross would fit', () => {
+  // Got wrong twice, so it is pinned. Fitting a late French cross on a phone
+  // costs a 20px bone, 16px on a 360px screen, against the linear game's 28px.
+  // Older people play this game; the owner has ruled on it twice. A board that
+  // is fully visible but unreadable is worse than one that is readable and
+  // pans, and no routing scheme changes the arithmetic -- measured over 500
+  // real French hands, even the flexible lane generator holds only ~13 bones
+  // at 28px on a 430px phone.
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.match(source, /fitCrossToBox: window\.innerWidth > 700/,
+      `${surface} must fit the cross only on a landscape table`);
+  }
+  // And the cap must never outrank the readable floor in the renderer.
+  assert.match(renderSource,
+    /const requested = opts\.fitCrossToBox === false \? pinned : Math\.min\(pinned, fitCap\)/);
+  assert.match(renderSource, /const u = Math\.max\(readableFloor,/,
+    'the readable minimum is the last word on bone size');
 });

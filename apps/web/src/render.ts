@@ -213,6 +213,27 @@ export interface BoardFit {
    *  and the very first render before the felt has been measured). */
   box?: BoardBox;
   /**
+   * French only. Shrink the rigid 450x390 canvas until it fits `box` instead
+   * of letting it overflow.
+   *
+   * TRUE on a landscape table, where it costs nothing: 1368x900 lands on a
+   * 28px bone, the same size the linear game uses.
+   *
+   * FALSE on a phone, deliberately and after getting this wrong twice.
+   * Fitting a late cross there works out at a 20px bone, and 16px on a 360px
+   * screen, against 28px for the linear game. Dominoes is played by older
+   * people and the owner has ruled on this twice: a board that is fully
+   * visible but unreadable is worse than one that is readable and pans. No
+   * routing scheme changes the arithmetic either — measured over 500 real
+   * French hands, even the flexible lane generator holds only ~13 bones at
+   * 28px on a 430px phone. Four arms radiating from a centre simply need more
+   * room than a line that snakes.
+   *
+   * So the phone keeps its readable bone and pans, with centreCrossOnPose()
+   * holding the chucha in the middle so no arm hides without warning.
+   */
+  fitCrossToBox?: boolean;
+  /**
    * Where the person looking at this board is sitting. A French arm runs
    * towards whoever opened it, which is only meaningful relative to the
    * viewer -- see armDirectionFor(). Omit it (a replay, the hero demo, a
@@ -789,17 +810,23 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
   // whole hand. Cap the pin at what the measured board can hold. Because the
   // canvas never grows, fitting it once fits it forever: no French board pans,
   // at any size, at any point in a hand.
+  // Fitting the canvas is capped BY THE READABLE MINIMUM, never the other way
+  // round. A landscape table has room to shrink into (1368x900 lands on 28px),
+  // so there it costs nothing. A phone does not: fitting a late cross there
+  // works out at 20px, and 16px on a 360px screen, against the linear game's
+  // 28px.
+  //
+  // That is not a trade this game can make. Dominoes is played by older
+  // people, and the owner has now said so twice — a board that is fully
+  // visible and unreadable is worse than one that is readable and pans. So a
+  // phone keeps its readable bone and the stage pans, with the pose held in
+  // the centre (see centreCrossOnPose) so both sides are equally reachable
+  // and the chucha never drifts off to one edge.
   const fitCap = frenchCanvasUnit(box);
-  const requested = Math.min(opts.unit ?? fitCap, fitCap);
-  // The fit cap is applied LAST, after the readable-minimum floor, because for
-  // a rigid canvas those two can disagree and the floor must not win: a 390px
-  // phone floors at unit 10 (a 300px canvas) inside a 292px stage, so the
-  // floor was pushing the board 8px past its own guard and re-introducing the
-  // clipping this whole cap exists to remove. A capped cross bottoms out at a
-  // 16px bone on the narrowest supported phone, which is still a readable
-  // counter; a cross with an arm cut off is not readable at any size.
-  const floored = Math.max(opts.minUnit ?? CROSS_MIN_UNIT, Math.min(opts.maxUnit ?? MAX_UNIT, requested));
-  const u = Math.min(floored, Math.max(1, fitCap));
+  const readableFloor = opts.minUnit ?? CROSS_MIN_UNIT;
+  const pinned = opts.unit ?? fitCap;
+  const requested = opts.fitCrossToBox === false ? pinned : Math.min(pinned, fitCap);
+  const u = Math.max(readableFloor, Math.min(opts.maxUnit ?? MAX_UNIT, requested));
   const short = u * 2;
   const scale = short / 30;
   host.classList.add('french-reference-route');
@@ -1022,6 +1049,36 @@ export function boardGuardInsets(
  * The line renderer then fits only inside the remaining rectangle, making a
  * collision structurally impossible in both Practice and Lounge.
  */
+/**
+ * Hold a French cross centred on its own pose inside a stage it overflows.
+ *
+ * `align-items: safe center` falls back to START alignment once content is
+ * bigger than its box — correct for a snaking line, wrong for a cross, whose
+ * whole shape is read outward from the centre. Measured on a 430px phone: a
+ * 420px canvas in a 332px stage put the chucha 44px right of centre and left
+ * the entire right arm off-screen with nothing to say so.
+ *
+ * Centring the SCROLL instead keeps the pose where the eye expects it and
+ * makes both sides equally reachable. Only runs while the viewer has not
+ * panned themselves.
+ */
+export function centreCrossOnPose(stage: HTMLElement | null, line: HTMLElement | null): void {
+  if (!stage || !line) return;
+  const pose = line.querySelector<HTMLElement>('.tile.hub');
+  if (!pose) return;
+  const panX = stage.scrollWidth - stage.clientWidth;
+  const panY = stage.scrollHeight - stage.clientHeight;
+  if (panX <= 1 && panY <= 1) return;
+  if (stage.scrollLeft > 1 || stage.scrollTop > 1) return;
+  const view = stage.getBoundingClientRect();
+  const bone = pose.getBoundingClientRect();
+  if (!view.width || !bone.width) return;
+  const dx = (bone.left + bone.width / 2) - (view.left + view.width / 2);
+  const dy = (bone.top + bone.height / 2) - (view.top + view.height / 2);
+  if (panX > 1) stage.scrollLeft = Math.max(0, Math.min(panX, Math.round(dx)));
+  if (panY > 1) stage.scrollTop = Math.max(0, Math.min(panY, Math.round(dy)));
+}
+
 export function reserveBoardStage(
   felt: HTMLElement,
   boardStage: HTMLElement,
@@ -1100,7 +1157,12 @@ export function backsEl(count: number): HTMLElement {
 export function scoreTrack(
   label: string,
   score: number,
-  opts: { us?: boolean; bruk?: boolean; max?: number; tiles?: number } = {},
+  /**
+   * `french` matters because French inverts the whole readout: it is a race to
+   * 100 where the LOWEST score wins, so zero is the best seat at the table
+   * rather than a hole to climb out of, and a rising score is bad news.
+   */
+  opts: { us?: boolean; bruk?: boolean; max?: number; tiles?: number; french?: boolean } = {},
 ) {
   const max = opts.max ?? 6;
   const wrap = document.createElement('div');
@@ -1111,14 +1173,20 @@ export function scoreTrack(
   name.textContent = label;
   wrap.appendChild(name);
 
-  const pips = document.createElement('div');
-  pips.className = 'pips' + (opts.bruk ? ' bruk' : '');
-  for (let i = 0; i < 6; i++) {
-    const pip = document.createElement('i');
-    if (Math.round(i / 6 * max) < score) pip.classList.add('lit');
-    pips.appendChild(pip);
+  // No pip track for French. Six pips scaled by `max` LIGHT UP as the score
+  // climbs, which reads as progress — true at six-love and first-to-six, and
+  // exactly backwards in French, where climbing toward 100 is losing. A full
+  // track would have meant "nearly beaten".
+  if (!opts.french) {
+    const pips = document.createElement('div');
+    pips.className = 'pips' + (opts.bruk ? ' bruk' : '');
+    for (let i = 0; i < 6; i++) {
+      const pip = document.createElement('i');
+      if (Math.round(i / 6 * max) < score) pip.classList.add('lit');
+      pips.appendChild(pip);
+    }
+    wrap.appendChild(pips);
   }
-  wrap.appendChild(pips);
 
   // Always render the number, not just above 6 points — mobile hides the
   // pip track to keep the pinned scoreboard from crowding out the felt (see
@@ -1126,7 +1194,11 @@ export function scoreTrack(
   // there for sixlove/first-to-six too, not just French.
   const note = document.createElement('div');
   note.className = 'under-love';
-  note.textContent = score === 0 ? 'under love' : String(score);
+  // Love is a six-love idea: on nothing while the other side scores, and the
+  // side under love bruks the board by winning it. French has no such thing —
+  // reported live as "Duppy 4 under love" on a French table, which is not a
+  // rule this game has.
+  note.textContent = score === 0 && !opts.french ? 'under love' : String(score);
   wrap.appendChild(note);
 
   // Reading the board is reading who's close to going out — this is the

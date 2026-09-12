@@ -95,18 +95,25 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   SEVENTH. The tell was 1368×1200 — same width, same bone, no clipping,
   because it is tall. Use `frenchCanvasUnit(box)` against the MEASURED stage,
   lock it for the hand, and route inside the corresponding board.
-  **Every French board fits, at every size, including phones — none pans.**
-  Because the canvas is rigid it does not grow with the hand, so fitting it
-  once fits it for the whole hand: 28px on a 1368 desktop, 20px on a 430
-  phone, 18px at 390, 16px at 360. An earlier note here claimed a phone needed
-  a 14-16px bone and should therefore pan at 28px instead; that figure came
-  from `chooseCrossFit`, the flexible lane generator, which is NOT the code
-  that renders French. Corrected 2026-09-12 after the owner reported the cross
-  still clipping.
-  The fit cap is applied AFTER the readable-minimum floor, deliberately: on a
-  390px phone the floor (unit 10, a 300px canvas) exceeds the stage (292px), so
-  a floor that won would push the board past its own guard. A cross with an arm
-  cut off is not readable at any size.
+  **A landscape table fits the canvas to the board; a phone keeps the readable
+  bone and pans.** Because the canvas is rigid it does not grow with the hand,
+  so on desktop fitting it once fits it for the whole hand — 1368×900 lands on
+  28px, the same bone the linear game uses, so it costs nothing there.
+  **A phone is the deliberate exception and this has now been got wrong twice,
+  so it is written down plainly: never shrink the French bone on a phone.**
+  Fitting a late cross there works out at 20px, and 16px on a 360px screen,
+  against 28px for the linear game. Dominoes is played by older people and the
+  owner has ruled on it twice — the second time after a build shipped with 20px
+  phone bones. A board that is fully visible but unreadable is worse than one
+  that is readable and pans.
+  No routing scheme escapes this, so do not go looking for one: measured over
+  500 real French hands, even `chooseCrossFit`'s flexible lane generator holds
+  only about 13 bones at 28px on a 430px phone. Four arms radiating from a
+  centre need more room than a line that snakes. The phone therefore pans, and
+  `centreCrossOnPose()` holds the chucha in the middle of the stage so the
+  cross is read outward from its centre and no arm hides without warning —
+  `align-items: safe center` start-aligns anything larger than its box, which
+  measured 44px of drift and hid a whole arm.
 - `docs/prototypes/authentic-table.html` is the live-table composition authority:
   on desktop the local hand sits in a compact, content-width tray at the
   player's table edge; on phone it becomes the prototype's transparent,
@@ -118,13 +125,18 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   line must fit completely inside its protected board zone with no scrolling.
   That zone is an invisible measured guard: its four edges sit beyond
   the actual top/side stations and above the actual local hand/action trays,
-  with a safety gap. Played dominoes may never leave it. It is SQUARED only on
-  a landscape table, and only for French — a cross needs equal clearance every
-  way, which a wide felt can afford. A phone is portrait: the flank stations
-  cap the width, so squaring there discards every pixel of height above that
-  cap and hands the cross the smaller dimension twice (measured: 360×780 lost
-  135px of height, holding the cross to six bones on a felt with room for
-  nine). A linear board is never squared at any size.
+  with a safety gap. Played dominoes may never leave it. **It is never
+  squared — not for a line, not for a cross, at any size.** Squaring was meant
+  to give a four-arm cross equal clearance every way, but the French board is a
+  FIXED 450×390 canvas: a rectangle, 1.15:1, whose own shape already guarantees
+  that. Squaring the stage around it only discards whichever dimension is not
+  binding. On a phone that cost height (360×780 lost 135px, holding the cross
+  to six bones on a felt with room for nine). On desktop it cost width, badly:
+  measured in a real 1920×1080 Lounge, a 1728px felt was inset **609px on each
+  side** to make a square, leaving the board 490px of 1708 and forcing a 30px
+  bone on a table with room for 46px — and the concealed racks, capped at 32px,
+  then rendered LARGER than the played dominoes. Removing it: stage 490×636 →
+  1516×636, bone 30px → 46px.
   An ordinary line must use the full measured safe width before turning. A
   phone may turn within a 20-half-tile lane. A live French arm chooses its
   first lane from the measured guard: run straight while the protected square

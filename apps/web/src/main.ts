@@ -28,7 +28,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, keepTileInView } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, centreCrossOnPose, keepTileInView } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -1076,7 +1076,10 @@ function scoreboard(g: LocalGame): HTMLElement {
 
   const board = el('div', 'scoreboard');
 
-  const trackOpts = { bruk: g.lastResultBruk, max: g.set.options.target };
+  const trackOpts = {
+    bruk: g.lastResultBruk, max: g.set.options.target,
+    french: g.options.format === 'french',
+  };
   // How many tiles each side/seat has left — the pinned scoreboard is the
   // one place that stays on screen through the whole hand, so this is
   // where a player can actually track it without hunting the board.
@@ -2069,6 +2072,9 @@ function tableView(g: LocalGame): DocumentFragment {
     unit: tableUnit,
     minUnit: tableMinUnit,
     maxUnits: tableMaxUnits,
+    // Landscape shrinks the rigid French canvas to fit; a phone keeps its
+    // readable bone and pans instead. See BoardFit.fitCrossToBox.
+    fitCrossToBox: window.innerWidth > 700,
     // A French arm runs towards the seat that opened it -- relative to me.
     viewerSeat: g.mySeat,
   });
@@ -2171,16 +2177,20 @@ function tableView(g: LocalGame): DocumentFragment {
       // Square the guard for French only. A linear chain snakes in rows and
       // keeps the full rectangle — squaring it cost ~155px of height on a
       // phone and made every board past 20 bones overflow.
-      // ...and squaring is itself landscape-only. It buys a French cross equal
-      // clearance every way, which a wide desktop felt can afford. A phone
-      // cannot: the flank stations cap the width, so squaring then discards
-      // all the height above that cap and hands the cross the SMALLER
-      // dimension twice. Measured on real French hands at a pinned 28px bone,
-      // 360x780 was the worst of it -- 135px of height thrown away, holding
-      // the cross to six bones on a felt with room for nine.
+      // NOTHING is squared any more, French included.
+      //
+      // Squaring was meant to give a four-arm cross equal clearance every way.
+      // But the French board is a FIXED 450x390 canvas -- a rectangle, 1.15:1
+      // -- so its own shape already guarantees that, and squaring the stage to
+      // hold it just discards whichever dimension is not binding. On a phone
+      // that cost height (360x780 lost 135px, holding the cross to six bones
+      // on a felt with room for nine). On desktop it cost width, catastrophi-
+      // cally: measured in a real 1920x1080 Lounge, a 1728px felt was inset
+      // 609px on EACH side to make a square, leaving the board 490px of 1708
+      // and forcing a 30px bone on a table with room for 48px. That is the
+      // "where is the space on desktop" the owner reported.
       reserveBoardStage(felt, boardStage, tableStations.values(),
-        felt.querySelector<HTMLElement>('.in-felt-hand'),
-        window.innerWidth > 700 && (frenchTable || displayBoard?.kind === 'cross'));
+        felt.querySelector<HTMLElement>('.in-felt-hand'), false);
       if (frenchGuardKey && boardStage.style.inset) {
         lastFrenchGuardKey = frenchGuardKey;
         lastFrenchGuardInset = boardStage.style.inset;
@@ -2214,7 +2224,13 @@ function tableView(g: LocalGame): DocumentFragment {
       // exists to prevent.
       lastFrenchFitWidth = window.innerWidth;
       lastFrenchFitBox = box;
-      const want = Math.min(tableUnit, frenchCanvasUnit(box));
+      // A cross reads outward from its centre, so when it is bigger than the
+      // stage the pose must stay in the middle rather than being start-aligned
+      // into a corner with an arm off-screen.
+      centreCrossOnPose(boardStage, line);
+      const want = window.innerWidth > 700
+        ? Math.min(tableUnit, frenchCanvasUnit(box))
+        : tableUnit;
       if (fittedUnit && want !== fittedUnit) {
         const corrected = renderBoard(line, displayBoard, {
           box,
@@ -2222,6 +2238,7 @@ function tableView(g: LocalGame): DocumentFragment {
           unit: tableUnit,
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
+          fitCrossToBox: window.innerWidth > 700,
           viewerSeat: g.mySeat,
         });
         if (corrected) {
