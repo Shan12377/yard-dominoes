@@ -391,3 +391,28 @@ test('a phone never shrinks the French bone, however well the cross would fit', 
   assert.match(renderSource, /const u = Math\.max\(readableFloor,/,
     'the readable minimum is the last word on bone size');
 });
+
+test('a board that can be panned says so, and the pinned strip drops its pip dots', () => {
+  // Two things reported on a live table, both about reading the screen rather
+  // than playing the game.
+  //
+  // "how will people know how to scroll up or down, not everyone will know" --
+  // a scrollbar is no answer for this audience, and on a touch screen it does
+  // not appear until you are already scrolling. The renderer marks which way a
+  // board can move and the stylesheet fades that edge, which is the one
+  // affordance people read without being taught.
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.match(source, /markPannable\(boardStage\);/,
+      `${surface} must mark a pannable board, for a line as well as a cross`);
+  }
+  assert.match(renderSource, /export function markPannable/);
+  assert.match(styles, /\.board-stage\[data-pans~="y"\]/);
+
+  // "very frustrating at the top seeing too much numbers". The pinned strip
+  // showed a six-pip track AND the same score as a number AND the tile count,
+  // for every seat -- twenty-four dots of pure duplication across four players.
+  // Mobile already hid the pips; it was never the phone that needed it most.
+  assert.match(styles,
+    /#app:has\(\.table-room\) \.sticky-scores \.pips,\s*#app:has\(\.practice-room\) \.sticky-scores \.pips \{ display: none; \}/,
+    'the pinned scoreboard must not repeat the score as dots');
+});

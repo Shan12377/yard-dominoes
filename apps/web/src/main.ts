@@ -28,7 +28,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, centreCrossOnPose, keepTileInView } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, centreCrossOnPose, markPannable, keepTileInView } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -2271,6 +2271,8 @@ function tableView(g: LocalGame): DocumentFragment {
     // Now the board pans instead of shrinking, the bone that just landed can
     // be below the fold on a phone. Never make a player hunt for their own
     // play. No-ops on a desktop board, which always fits.
+    // Any board that pans must show it, not only a French cross.
+    markPannable(boardStage);
     keepTileInView(boardStage,
       recentPlayedTile ? line.querySelector(`[data-tile="${recentPlayedTile}"]`) : null);
   };

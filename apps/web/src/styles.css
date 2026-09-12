@@ -518,8 +518,22 @@ label.field > span {
   max-width: 100%;
   font-size: 11px;
 }
-#app:has(.table-room) .sticky-scores .pips i,
-#app:has(.practice-room) .sticky-scores .pips i { width: 11px; height: 11px; }
+/* No pip track in the pinned scoreboard, at any width. It is a second reading
+   of a score that is already printed as a number right beside it, and six dots
+   per seat across four seats is twenty-four marks of pure duplication. The
+   owner's words on the live strip: "very frustrating at the top seeing too
+   much numbers". The pips still belong on a full scoreboard; they do not
+   belong in the one strip that never leaves the screen. */
+#app:has(.table-room) .sticky-scores .pips,
+#app:has(.practice-room) .sticky-scores .pips { display: none; }
+/* Separate the remaining fields so "under love 2 tiles" reads as two facts
+   rather than one run-on number. Mobile already did this; it was never the
+   phone that needed it most. */
+#app:has(.table-room) .sticky-scores .under-love::after,
+#app:has(.practice-room) .sticky-scores .under-love::after {
+  content: ' · ';
+  color: var(--muted);
+}
 #app:has(.table-room) .sticky-scores .under-love,
 #app:has(.table-room) .sticky-scores .tile-count,
 #app:has(.practice-room) .sticky-scores .under-love,
@@ -633,6 +647,31 @@ label.field > span {
      underneath it mid-hand. */
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+/* A board that pans must look like one. Reported by the owner: "how will
+   people know how to scroll up or down, not everyone will know" — and a
+   scrollbar alone is not an answer for this audience, nor does it appear at
+   all on a touch screen until you already scroll. Fading the edge that has
+   more behind it is the one affordance people read without being taught.
+   Set on the element, not the content, so it stays put while the board moves.
+   `data-pans` is written by the renderer from the real scroll extents. */
+.board-stage[data-pans~="y"] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
+.board-stage[data-pans~="x"] {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
+.board-stage[data-pans~="x"][data-pans~="y"] {
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%),
+    linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-composite: intersect;
 }
 .board-stage > .line { padding: 7px; }
 .board-choice-overlay {

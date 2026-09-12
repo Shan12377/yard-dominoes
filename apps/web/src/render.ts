@@ -1062,12 +1062,31 @@ export function boardGuardInsets(
  * makes both sides equally reachable. Only runs while the viewer has not
  * panned themselves.
  */
+/**
+ * Tell the stylesheet which way this board can be moved, so the edge with more
+ * behind it can be faded.
+ *
+ * A scrollbar is not an answer here: it never appears on a touch screen until
+ * you are already scrolling, and this game's players should not have to know
+ * what one is. The faded edge is the affordance people read without being
+ * taught.
+ */
+export function markPannable(stage: HTMLElement | null): void {
+  if (!stage) return;
+  const ways: string[] = [];
+  if (stage.scrollWidth > stage.clientWidth + 1) ways.push('x');
+  if (stage.scrollHeight > stage.clientHeight + 1) ways.push('y');
+  if (ways.length) stage.dataset.pans = ways.join(' ');
+  else delete stage.dataset.pans;
+}
+
 export function centreCrossOnPose(stage: HTMLElement | null, line: HTMLElement | null): void {
   if (!stage || !line) return;
   const pose = line.querySelector<HTMLElement>('.tile.hub');
   if (!pose) return;
   const panX = stage.scrollWidth - stage.clientWidth;
   const panY = stage.scrollHeight - stage.clientHeight;
+  markPannable(stage);
   if (panX <= 1 && panY <= 1) return;
   if (stage.scrollLeft > 1 || stage.scrollTop > 1) return;
   const view = stage.getBoundingClientRect();

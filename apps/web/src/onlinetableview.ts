@@ -14,7 +14,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, centreCrossOnPose, keepTileInView } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, centreCrossOnPose, markPannable, keepTileInView } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition, type SeatSlot } from './seatlayout.ts';
@@ -1176,6 +1176,8 @@ export function liveTableView(
     // just landed must be scrolled to rather than left below the fold.
     const lastMove = game.hand?.move_log[game.hand.move_log.length - 1];
     const lastTile = lastMove && 'tile' in lastMove ? lastMove.tile : null;
+    // Any board that pans must show it, not only a French cross.
+    markPannable(boardStage);
     keepTileInView(boardStage,
       lastTile ? line.querySelector(`[data-tile="${lastTile}"]`) : null);
   };

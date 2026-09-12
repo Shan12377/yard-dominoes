@@ -39,9 +39,18 @@ Deno.serve(handled(async (req) => {
     }
   }
 
-  const { data: code } = await db.rpc('generate_join_code');
-
-  const { data: table, error } = await db.from('tables').insert({
+  // Join codes are now the shortest free number (0061), and uniqueness is
+  // scoped to tables that have not finished so the short ones recycle. Two
+  // people creating at the same instant can therefore be handed the SAME code:
+  // neither insert has landed yet, so both see it free. The partial unique
+  // index is what actually decides, and 23505 means the other request won —
+  // so ask for another code and try again rather than failing a table
+  // creation over a race. Six characters of randomness never needed this.
+  let table: any = null;
+  let error: any = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: code } = await db.rpc('generate_join_code');
+    const inserted = await db.from('tables').insert({
     join_code: code,
     mode,
     // Cut throat six love runs to a median of ~196 hands. Never default to it.
@@ -61,8 +70,14 @@ Deno.serve(handled(async (req) => {
     is_private: !!body.isPrivate,
     lounge_id: body.loungeId ?? null,
     created_by: user.id,
-  }).select().single();
-  if (error) throw new HttpError(500, error.message);
+    }).select().single();
+    table = inserted.data;
+    error = inserted.error;
+    if (!error) break;
+    // 23505 = unique_violation. Anything else is a real failure.
+    if ((inserted.error as any)?.code !== '23505') break;
+  }
+  if (error || !table) throw new HttpError(500, error?.message ?? 'could not start a table');
 
   const duppies: string[] = body.duppies ?? [];
   const now = new Date().toISOString();
