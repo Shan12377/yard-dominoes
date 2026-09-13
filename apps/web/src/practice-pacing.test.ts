@@ -8,6 +8,7 @@ const onlineTableSource = readFileSync(new URL('./onlinetableview.ts', import.me
 // turns and talks to the Edge Functions. Two different files, easy to confuse.
 const onlineControllerSource = readFileSync(new URL('./onlinetable.ts', import.meta.url), 'utf8');
 const renderSource = readFileSync(new URL('./render.ts', import.meta.url), 'utf8');
+const loungeViewSource = readFileSync(new URL('./loungeview.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 
 test('practice Duppies never move faster than 3.5 seconds and pause for the final bone', () => {
@@ -148,7 +149,7 @@ test('online keeps the last played tile beside its player until the next move', 
 test('the turn clock stays above the felt and end choices are anchored on the board', () => {
   const clock = onlineTableSource.indexOf("if (game.hand?.status === 'active' && game.hand.turn_expires_at)");
   const felt = onlineTableSource.indexOf('feltSlot.appendChild(feltShell);', clock);
-  const choices = onlineTableSource.indexOf('placeBoardChoices(boardStage, handActions)', felt);
+  const choices = onlineTableSource.indexOf('placeBoardChoices(boardStage, handActions, choiceHandHost)', felt);
   assert.ok(clock >= 0);
   assert.ok(felt > clock, 'clock must be appended before the felt');
   assert.ok(choices > felt, 'choice controls must be moved onto the rendered board stage');
@@ -156,7 +157,7 @@ test('the turn clock stays above the felt and end choices are anchored on the bo
 
 test('Practice and Lounge keep Pass and other hand decisions on the felt', () => {
   for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
-    const choices = source.indexOf('placeBoardChoices(boardStage, handActions)');
+    const choices = source.indexOf('placeBoardChoices(boardStage, handActions, choiceHandHost)');
     assert.ok(choices >= 0, `${surface} must process end choices`);
     const decisionDock = source.slice(choices, choices + 300);
     assert.ok(decisionDock.includes("handActions.classList.add('in-felt-actions')"),
@@ -166,10 +167,82 @@ test('Practice and Lounge keep Pass and other hand decisions on the felt', () =>
   }
 });
 
+test('Practice and Lounge show Pass beside the hand before any tile is selected', () => {
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.match(source, /const onlyPass = legal\.length === 1 && legal\[0\]\.kind === 'pass'/,
+      `${surface} must derive Pass directly from legal moves`);
+    assert.match(source, /className = 'act pass-action'/,
+      `${surface} needs the same prominent Pass action`);
+    assert.match(source, /b\.dataset\.passAction = 'true'/,
+      `${surface} Pass needs a stable interactive marker`);
+    assert.match(source, /!child\.classList\.contains\('pass-action-row'\)/,
+      `${surface} Pass must remain attached to the hand instead of the portrait corner`);
+  }
+  assert.match(styles, /\.pass-action-row[\s\S]{0,320}?min-height: 48px/);
+  assert.match(styles, /\.pass-action-row \.pass-action \{ min-width: 92px; min-height: 44px; \}/);
+});
+
+test('board destination actions use a defined high-contrast palette', () => {
+  assert.match(styles, /button\.board-end-choice[\s\S]{0,300}?background: transparent;[\s\S]{0,100}?color: #ffc928;/);
+  assert.match(styles, /board-end-choice\[data-opening-choice='true'\][\s\S]{0,120}?width: 48px/);
+  assert.doesNotMatch(styles, /board-end-choice[\s\S]{0,300}?var\(--mango\)/);
+});
+
+test('table settings reads and behaves as an obvious control', () => {
+  assert.match(onlineTableSource, /collapsible table-start-options/);
+  assert.ok(onlineTableSource.includes("'Table settings'"));
+  assert.ok(onlineTableSource.includes("'Seats · turn clock · Duppies'"));
+  assert.match(styles, /\.table-start-options summary[\s\S]{0,300}?min-height: 52px/);
+});
+
+test('Across puts both fixed-slot hands on the felt at the shared bone scale', () => {
+  assert.match(practiceSource, /felt\.classList\.add\('across-hands-on-felt'\)/);
+  for (const source of [practiceSource, onlineTableSource]) {
+    assert.match(source, /el\('div', 'across-hand-dock in-felt-across-hands shared-table-hand-scale'\)/);
+    assert.match(source, /felt\.appendChild\(acrossHands\)/);
+  }
+  assert.match(styles, /\.in-felt-across-hands > \.across-hand-own[\s\S]{0,300}?position: absolute/);
+  assert.match(styles, /\.in-felt-across-hands > \.across-hand-own \{ bottom: 8px; \}/);
+  assert.match(styles, /\.in-felt-across-hands > \.across-hand-partner \{ top: 8px; \}/);
+  assert.doesNotMatch(styles, /\.table-room \.across-hands-below \.live-felt/);
+  assert.match(onlineTableSource, /game\.table\.mode === 'across' \? 22 : 11/);
+  assert.match(onlineTableSource, /acrossHands\.append\(mine, partner\)/,
+    'the primary and partner hands keep fixed left/right slots');
+  assert.doesNotMatch(onlineTableSource, /acrossHands\.appendChild\(live\)/,
+    'the active hand must not jump into the first slot');
+  assert.match(styles, /\.across-hand-dock \.hand \.tile\.chosen[\s\S]{0,80}?transform: none/,
+    'Across selection changes colour/outline without moving the hand');
+  assert.match(onlineTableSource, /identity\.classList\.add\('across-controlled-identity'\)/,
+    'both controlled seats remain visible as full table identities');
+  assert.match(onlineTableSource, /img\.src = '\/avatars\/plain\.webp'/,
+    'a player without a chosen avatar must not leave an empty corner');
+});
+
+test('lounge chat rejects stale history and messages from every other lounge', () => {
+  assert.match(loungeViewSource, /let loungeSessionGeneration = 0/);
+  assert.match(loungeViewSource, /session !== loungeSessionGeneration/g);
+  assert.match(loungeViewSource, /messages\.filter\(\(message\) => message\.lounge_id === lounge\.id\)/);
+  assert.match(loungeViewSource, /msg\.lounge_id !== lounge\.id/);
+  assert.ok(loungeViewSource.includes('`Table talk · ${lounge.name}`'));
+  assert.doesNotMatch(loungeViewSource, /recentMessages\(lounge\.id\)/,
+    'a new visit must not reload old table talk from a previous room session');
+});
+
 test('Practice and Lounge reserve rounding room inside the measured board guard', () => {
   for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
     assert.ok(source.includes('fitHost.clientWidth - 18'), `${surface} must inset the fitted width`);
     assert.ok(source.includes('fitHost.clientHeight - 18'), `${surface} must inset the fitted height`);
+  }
+});
+
+test('Across and spectators keep the same protected board stage as every seated mode', () => {
+  for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
+    assert.ok(source.includes("const boardStage = el('div', 'board-stage');"),
+      `${surface} must always create the invisible board guard`);
+    assert.ok(source.includes('felt.appendChild(boardStage);'),
+      `${surface} must attach the guard even when the hand lives below the felt`);
+    assert.ok(source.includes('const fitHost = boardStage;'),
+      `${surface} must fit every mode to the protected stage`);
   }
 });
 
@@ -392,29 +465,37 @@ test('a phone never shrinks the French bone, however well the cross would fit', 
     'the readable minimum is the last word on bone size');
 });
 
-test('a board that can be panned says so, and the pinned strip drops its pip dots', () => {
+test('a board that can be panned says so, and the pinned strip keeps compact score lamps', () => {
   // Two things reported on a live table, both about reading the screen rather
   // than playing the game.
   //
   // "how will people know how to scroll up or down, not everyone will know" --
-  // a scrollbar is no answer for this audience, and on a touch screen it does
-  // not appear until you are already scrolling. The renderer marks which way a
-  // board can move and the stylesheet fades that edge, which is the one
-  // affordance people read without being taught.
+  // Phone panning still needs a visible affordance. Desktop is independently
+  // required to fit its complete-hand route without exposing a scrollbar.
   for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
     assert.match(source, /markPannable\(boardStage\);/,
       `${surface} must mark a pannable board, for a line as well as a cross`);
   }
   assert.match(renderSource, /export function markPannable/);
+  assert.match(renderSource, /classList\.toggle\('board-stage-fitted', ways\.length === 0\)/,
+    'desktop may hide a board scrollbar only after the measured route fits');
   assert.match(styles, /\.board-stage\[data-pans~="y"\]/);
-
-  // "very frustrating at the top seeing too much numbers". The pinned strip
-  // showed a six-pip track AND the same score as a number AND the tile count,
-  // for every seat -- twenty-four dots of pure duplication across four players.
-  // Mobile already hid the pips; it was never the phone that needed it most.
   assert.match(styles,
-    /#app:has\(\.table-room\) \.sticky-scores \.pips,\s*#app:has\(\.practice-room\) \.sticky-scores \.pips \{ display: none; \}/,
-    'the pinned scoreboard must not repeat the score as dots');
+    /@media \(min-width: 701px\)[\s\S]*?\.board-stage\.board-stage-fitted[\s\S]*?overflow: hidden;/,
+    'a proven-fit desktop board must not expose a scrollbar');
+
+  // Owner restored the fast visual score: grey lamps at love, yellow lamps for
+  // won points. They remain deliberately compact so the board keeps its room.
+  assert.match(styles,
+    /\.sticky-scores \.pips i[\s\S]{0,180}?background: #6f7b82/,
+    'unearned score lamps must be visible in muted grey');
+  assert.match(styles,
+    /\.sticky-scores \.pips i\.lit[\s\S]{0,180}?background: #ffc928/,
+    'earned score lamps must light yellow');
+  assert.doesNotMatch(styles, /\.sticky-scores \.pips \{ display: none; \}/,
+    'the compact score lamps must remain visible on phones too');
+  assert.match(renderSource, /if \(!opts\.french\) \{[\s\S]{0,180}?pips/,
+    'French must omit the six-lamp progress treatment');
 });
 
 test('Across hands its end choice to the board, like every other mode', () => {
@@ -428,13 +509,28 @@ test('Across hands its end choice to the board, like every other mode', () => {
   // Anchored on the HAND branch, not on the first `mode === 'across'` in the
   // file — the felt-slot marker above it matches that too, and an anchor that
   // drifts silently scans the wrong block and passes for the wrong reason.
-  const across = onlineTableSource.indexOf('Both of my hands dock under the felt');
+  const across = onlineTableSource.indexOf('Across is one physical four-sided table');
   assert.ok(across >= 0, 'the across hand branch must still exist');
-  const branch = onlineTableSource.slice(across, across + 2200);
-  assert.match(branch, /handActions = takeHandActions\(live\);/,
-    'across must take its hand actions so the board can claim the end choice');
-  assert.match(branch, /feltSlot\.appendChild\(live\)/,
-    'and the live hand still docks under the felt beside the other one');
+  const branch = onlineTableSource.slice(across, across + 3000);
+  assert.match(branch, /handActions = live \? takeHandActions\(live\) : null;/,
+    'across must take the active fixed-slot hand actions so the board can claim the end choice');
+  assert.match(branch, /acrossHands\.append\(mine, partner\)[\s\S]*?felt\.appendChild\(acrossHands\)/,
+    'both controlled hands must keep their fixed physical slots on the felt');
+});
+
+test('board choices have a hand-adjacent fallback when an endpoint is out of view', () => {
+  assert.match(renderSource, /handHost: HTMLElement \| null = null/);
+  assert.match(renderSource, /handChoices\.className = 'hand-end-choice-bar'/);
+  assert.match(renderSource, /choice\.onclick = \(\) => button\.click\(\)/);
+  assert.match(styles, /\.hand-end-choice-bar[\s\S]{0,260}?position: absolute/);
+  assert.match(styles, /button\.hand-end-choice[\s\S]{0,220}?min-height: 44px/);
+});
+
+test('Lounge coordinates waiting and Across partner-hand selection like Practice', () => {
+  assert.ok(onlineTableSource.includes('if (!pending && game.isMyTurn())'),
+    'a waiting Lounge player must not select a misleading tile');
+  assert.ok(onlineTableSource.includes("pendingTile ? 'Choose where it goes' : 'Your partner hand — your turn'"),
+    'Across must show the same selected-bone instruction while controlling the partner hand');
 });
 
 test('tapping a bone never plays it outright — the board confirms every move', () => {
@@ -515,4 +611,24 @@ test('the pose is passed AFTER the deal, with the tiles in hand', () => {
   assert.match(onlineControllerSource,
     /this\.hand\?\.status === 'active'[\s\S]{0,400}?move_log[\s\S]{0,120}?length \?\? 0\) === 0/,
     'only while the hand is live and nothing has been played yet');
+});
+
+test('the Lounge asks for an email; Practice never does', () => {
+  // Owner's partner, 2026-09-12: "for people to use lounge, they must have an
+  // email." The Lounge is where you meet strangers, chat and talk on voice, so
+  // it needs somebody reachable behind each seat — a ban a cleared browser
+  // undoes is not a ban.
+  //
+  // This does NOT disturb the decisions it sits beside. Practice stays
+  // anonymous and instant, so there is still no wall in front of a first game.
+  // No SOCIAL login is required — an email and password is not Facebook. And
+  // the game stays free: a guest WITH an email reaches every lounge a guest
+  // could reach before, so this is an identity floor, not a paywall.
+  const lounges = readFileSync(new URL('./lounges.ts', import.meta.url), 'utf8');
+  assert.match(lounges, /export function canEnter\([\s\S]{0,1000}?hasEmail: boolean/,
+    'the entry gate must know whether the account has an email');
+  assert.match(lounges, /if \(!hasEmail\)/);
+  // Practice must never grow one. It is the funnel.
+  assert.doesNotMatch(practiceSource, /requireLoungeEmail|hasLoungeEmail/,
+    'Practice must stay anonymous and instant');
 });

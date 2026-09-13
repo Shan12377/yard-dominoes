@@ -274,6 +274,64 @@ export function liveTableUnit(
   return 32;
 }
 
+/**
+ * Lock a complete linear hand to one measured desktop route before density can
+ * influence it. A double-six line has at most seven doubles; exhaustive
+ * placement across their possible positions needs no more than 32 columns by
+ * 22 rows with layoutLine(). Phones keep their readable tier and deliberate
+ * board pan, while desktop fits that complete route and never exposes a
+ * mystery scrollbar midway through the hand.
+ */
+export function liveLinearGeometry(
+  viewportWidth: number,
+  box?: BoardBox | null,
+  minUnit = MIN_UNIT,
+  maxUnits = 32,
+): { unit: number; maxUnits: number } {
+  const base = liveTableUnit(viewportWidth, null, false);
+  if (viewportWidth <= 700 || !box || box.width <= 0 || box.height <= 0) {
+    return { unit: Math.max(base, minUnit), maxUnits: viewportWidth <= 700 ? 20 : maxUnits };
+  }
+  return {
+    unit: Math.max(minUnit, Math.min(base,
+      Math.floor(box.width / 32),
+      Math.floor(box.height / 22))),
+    maxUnits,
+  };
+}
+
+/**
+ * Across keeps a large, fixed bone while using two controlled hands below the
+ * felt. Its route therefore has to be derived from the width that remains
+ * inside the measured player-station guard, using the ACTUAL locked unit.
+ *
+ * The previous calculation divided by the 22px readability floor and then
+ * forced at least 64 units. On a tall desktop the locked unit can be 26–32px,
+ * so that described a 1,664–2,048px line inside a much narrower stage. The
+ * browser could only clip or pan it, which is why the far end and its arrow
+ * appeared and disappeared as the hand grew.
+ *
+ * Before the stage is measured, use the proven complete-hand lane. Once it is
+ * measured, clamp the straight run to the visible width and cap it so a wide
+ * felt wraps predictably. The destination target is transparent and clamped
+ * to that same camera; a wider route only reduces rows, never bone size.
+ */
+export function liveAcrossRouteUnits(
+  box: Pick<BoardBox, 'width'> | null | undefined,
+  unit: number,
+): number {
+  if (!box || box.width <= 0 || unit <= 0) return 32;
+  // The destination target is transparent and lives inside the same visible
+  // camera as the line, so taking route cells away for it would create an
+  // unnecessary extra row. Cap an ultra-wide felt instead: it should add
+  // breathing room, not turn a complete hand into one hard-to-read strip.
+  const MAX_ACROSS_RUN_UNITS = 40;
+  return Math.max(MIN_WIDTH_UNITS, Math.min(
+    MAX_ACROSS_RUN_UNITS,
+    Math.floor(box.width / unit),
+  ));
+}
+
 /** What the felt actually offers: app column capped at 940, felt at 64vh. */
 function feltBox(): BoardBox {
   return {
@@ -384,16 +442,22 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
 
   const { u, placements } = chooseUnit(orientLine(board), opts.box ?? feltBox(), opts);
 
+  // layoutLine currently starts at column zero, but a turn/elbow algorithm is
+  // allowed to produce negative logical coordinates.  Size and place from the
+  // complete bounds, not merely the farthest positive column.  Ignoring the
+  // left bound made an end bone collapse into a clipped sliver whenever a
+  // reverse run crossed column zero.
+  const minCol = Math.min(...placements.map((p) => p.col));
   const maxCol = Math.max(...placements.map((p) => p.col + p.colSpan));
   const minRow = Math.min(...placements.map((p) => p.row));
   const maxRow = Math.max(...placements.map((p) => p.row + p.rowSpan));
 
-  host.style.gridTemplateColumns = `repeat(${maxCol}, ${u}px)`;
+  host.style.gridTemplateColumns = `repeat(${maxCol - minCol}, ${u}px)`;
   host.style.gridTemplateRows = `repeat(${maxRow - minRow}, ${u}px)`;
 
   placements.forEach((p, i) => {
     const node = boardTile(p);
-    node.style.gridColumn = `${p.col + 1} / span ${p.colSpan}`;
+    node.style.gridColumn = `${p.col - minCol + 1} / span ${p.colSpan}`;
     node.style.gridRow = `${p.row - minRow + 1} / span ${p.rowSpan}`;
     node.style.setProperty('--i', String(i));
     host.appendChild(node);
@@ -890,7 +954,11 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
  * elbow. The marker follows the final two DOM placements and therefore stays
  * attached to the real open end at every fitted size in Practice and Lounge.
  */
-export function placeBoardChoices(boardStage: HTMLElement, dock: HTMLElement | null): HTMLElement | null {
+export function placeBoardChoices(
+  boardStage: HTMLElement,
+  dock: HTMLElement | null,
+  handHost: HTMLElement | null = null,
+): HTMLElement | null {
   if (!dock) return null;
   const row = dock.querySelector<HTMLElement>('[data-board-choice]');
   if (!row) return dock;
@@ -899,11 +967,39 @@ export function placeBoardChoices(boardStage: HTMLElement, dock: HTMLElement | n
   overlay.className = 'board-choice-overlay';
   overlay.setAttribute('aria-label', 'Choose where to play');
   const prompt = row.querySelector<HTMLElement>('.muted');
+  const buttons = [...row.querySelectorAll<HTMLButtonElement>('button')];
+  // An invalid-tile explanation belongs beside the hand. Only a real board
+  // destination choice is lifted onto the open end.
+  if (!buttons.length) return dock;
+  // The endpoint markers are a spatial aid, but they must never be the only
+  // way to finish a move: a long pannable board can put an endpoint outside
+  // the current camera. Mirror the same real controls beside the active hand,
+  // where they remain visible and keep their original click handlers.
+  if (handHost) {
+    const handChoices = document.createElement('div');
+    handChoices.className = 'hand-end-choice-bar';
+    handChoices.setAttribute('role', 'group');
+    handChoices.setAttribute('aria-label', 'Choose where to play the selected bone');
+    buttons.forEach((button) => {
+      const choice = button.cloneNode(true) as HTMLButtonElement;
+      choice.classList.add('hand-end-choice');
+      const side = button.dataset.linearEnd;
+      const pip = button.dataset.openPip;
+      if (side === 'left') choice.textContent = `← Left${pip ? ` · ${pip}` : ''}`;
+      else if (side === 'right') choice.textContent = `Right${pip ? ` · ${pip}` : ''} →`;
+      else if (buttons.length === 1) choice.textContent = 'Play selected bone';
+      choice.onclick = () => button.click();
+      handChoices.appendChild(choice);
+    });
+    handHost.appendChild(handChoices);
+  }
   if (prompt) {
-    prompt.classList.add('sr-only');
+    // The destination buttons carry the visible instruction beside the open
+    // bone. Keep this sentence for the overlay's accessible name only.
+    prompt.hidden = true;
     overlay.appendChild(prompt);
   }
-  [...row.querySelectorAll<HTMLButtonElement>('button')].forEach((button) => {
+  buttons.forEach((button) => {
     button.classList.add('board-end-choice');
     overlay.appendChild(button);
   });
@@ -914,12 +1010,25 @@ export function placeBoardChoices(boardStage: HTMLElement, dock: HTMLElement | n
   // The table's own first-frame measurement can resize the protected board
   // stage and rerender the line. Position one frame after that settles.
   requestAnimationFrame(() => requestAnimationFrame(() => {
+    // When a long Across line overflows its stage, the browser normally keeps
+    // the scroll position at the left edge. A two-end choice would then leave
+    // the opposite arrow outside the viewport (the exact failure reported in
+    // the live capture). Centre the board camera before measuring endpoints so
+    // both legal destinations have the best possible chance of being visible;
+    // the stage remains independently pannable for exceptionally long lines.
+    if (buttons.length > 1 && boardStage.scrollWidth > boardStage.clientWidth + 1) {
+      boardStage.scrollLeft = Math.max(0, (boardStage.scrollWidth - boardStage.clientWidth) / 2);
+    }
+    if (buttons.length > 1 && boardStage.scrollHeight > boardStage.clientHeight + 1) {
+      boardStage.scrollTop = Math.max(0, (boardStage.scrollHeight - boardStage.clientHeight) / 2);
+    }
     const stageRect = boardStage.getBoundingClientRect();
     const line = boardStage.querySelector<HTMLElement>('.line');
     if (!line || !stageRect.width || !stageRect.height) return;
     const hub = line.querySelector<HTMLElement>('.tile.hub');
 
-    overlay.querySelectorAll<HTMLButtonElement>('.board-end-choice').forEach((button) => {
+    const placedChoices: Array<{ x: number; y: number }> = [];
+    overlay.querySelectorAll<HTMLButtonElement>('.board-end-choice').forEach((button, choiceIndex) => {
       let end: HTMLElement | null = null;
       let previous: HTMLElement | null = null;
       const arm = button.dataset.crossArm;
@@ -939,7 +1048,19 @@ export function placeBoardChoices(boardStage: HTMLElement, dock: HTMLElement | n
         previous = tiles.at(-2) ?? null;
         if (tiles.length === 1) previous = null;
       }
-      if (!end) return;
+      if (!end) {
+        // Opening pose: there is no rendered end yet. Keep one transparent
+        // arrow in the centre as the confirmation target; the accessible name
+        // carries the full instruction without covering the domino beneath it.
+        if (buttons.length === 1) {
+          button.textContent = '→';
+          button.dataset.openingChoice = 'true';
+          button.setAttribute('aria-label', 'Play the selected bone here');
+          button.style.left = '50%';
+          button.style.top = '50%';
+        }
+        return;
+      }
 
       const e = centre(end.getBoundingClientRect());
       const p = previous ? centre(previous.getBoundingClientRect()) : centre(stageRect);
@@ -958,11 +1079,44 @@ export function placeBoardChoices(boardStage: HTMLElement, dock: HTMLElement | n
       const uy = horizontal ? 0 : Math.sign(dy);
       const endRect = end.getBoundingClientRect();
       const distance = (horizontal ? endRect.width : endRect.height) / 2 + 22;
-      const x = Math.max(24, Math.min(stageRect.width - 24, e.x - stageRect.left + ux * distance));
-      const y = Math.max(24, Math.min(stageRect.height - 24, e.y - stageRect.top + uy * distance));
+      // `overlay` is positioned in the board-stage's scroll-content
+      // coordinate system, while DOMRects are viewport coordinates. Include
+      // the current scroll offset or a panned Across board sends the arrow
+      // behind the wrong tile (or entirely outside the visible stage).
+      const contentX = e.x - stageRect.left + boardStage.scrollLeft + ux * distance;
+      const contentY = e.y - stageRect.top + boardStage.scrollTop + uy * distance;
+      // Clamp to the VISIBLE camera, not the full scrollable canvas.  Using
+      // scrollWidth/scrollHeight as the upper bound let the marker be legally
+      // positioned hundreds of pixels off-screen on an overflowing late hand.
+      // The button is the move's commit target, so it must never hide even when
+      // its endpoint is just beyond the current camera.
+      const visibleLeft = 24 + boardStage.scrollLeft;
+      const visibleRight = boardStage.scrollLeft + boardStage.clientWidth - 24;
+      const visibleTop = 24 + boardStage.scrollTop;
+      const visibleBottom = boardStage.scrollTop + boardStage.clientHeight - 24;
+      let x = Math.max(visibleLeft, Math.min(visibleRight, contentX));
+      let y = Math.max(visibleTop, Math.min(visibleBottom, contentY));
+      // Two legal destinations must remain two distinct, tappable targets.
+      // A turned line can put both endpoint vectors on the same pixel (the
+      // old overlay then painted one arrow directly over the other). Nudge a
+      // collision along the perpendicular axis while staying inside the
+      // protected stage.
+      if (placedChoices.some((p) => Math.abs(p.x - x) < 8 && Math.abs(p.y - y) < 8)) {
+        const nudge = 34 + choiceIndex * 8;
+        if (horizontal) y = Math.max(visibleTop,
+          Math.min(visibleBottom, y + (choiceIndex % 2 ? nudge : -nudge)));
+        else x = Math.max(visibleLeft,
+          Math.min(visibleRight, x + (choiceIndex % 2 ? nudge : -nudge)));
+      }
+      placedChoices.push({ x, y });
       const arrow = horizontal ? (ux < 0 ? '←' : '→') : (uy < 0 ? '↑' : '↓');
+      const direction = horizontal ? (ux < 0 ? 'left' : 'right') : (uy < 0 ? 'up' : 'down');
       const pip = button.dataset.openPip;
-      button.textContent = pip ? `${arrow} ${pip}` : arrow;
+      button.textContent = arrow;
+      button.dataset.direction = direction;
+      button.setAttribute('aria-label', buttons.length === 1
+        ? `Play the selected bone here, ${direction}${pip ? `, open ${pip}` : ''}`
+        : `Play on the ${direction} end${pip ? `, open ${pip}` : ''}`);
       button.style.left = `${x}px`;
       button.style.top = `${y}px`;
     });
@@ -1076,6 +1230,10 @@ export function markPannable(stage: HTMLElement | null): void {
   const ways: string[] = [];
   if (stage.scrollWidth > stage.clientWidth + 1) ways.push('x');
   if (stage.scrollHeight > stage.clientHeight + 1) ways.push('y');
+  // Desktop hides overflow only after this measured proof. A short landscape
+  // or Across table that cannot hold the complete fixed-size route keeps its
+  // controlled board pan instead of silently clipping late bones.
+  stage.classList.toggle('board-stage-fitted', ways.length === 0);
   if (ways.length) stage.dataset.pans = ways.join(' ');
   else delete stage.dataset.pans;
 }
@@ -1132,14 +1290,17 @@ export function reserveBoardStage(
   // still a clear reveal, and comfortably above the 12px phone floor.
   const gutter = Math.max(12, Math.min(16, (feltRect.right - feltRect.left) * 0.015));
   const actionDock = felt.querySelector<HTMLElement>('.in-felt-actions');
+  const acrossOwn = felt.querySelector<HTMLElement>('.in-felt-across-hands > .across-hand-own');
+  const acrossPartner = felt.querySelector<HTMLElement>('.in-felt-across-hands > .across-hand-partner');
+  const lowerHand = hand ?? acrossOwn;
 
   // The hand owns the lower centre of the table. Keep Pass/reshuffle in view
   // on the felt, but lift that small dock above the hand if the viewport makes
   // their rectangles meet. This is based on the rendered boxes, not a desktop
   // breakpoint guess, so Practice and Lounge behave the same way.
-  if (actionDock && hand) {
+  if (actionDock && lowerHand) {
     const actionRect = actionDock.getBoundingClientRect();
-    const handRect = hand.getBoundingClientRect();
+    const handRect = lowerHand.getBoundingClientRect();
     const overlapsHand = actionRect.left < handRect.right
       && actionRect.right > handRect.left
       && actionRect.top < handRect.bottom
@@ -1153,6 +1314,21 @@ export function reserveBoardStage(
   if (!stageRect.width || !stageRect.height) return;
   const obstacles: Array<{ edge: GuardEdge; rect: DOMRect }> = [];
   for (const station of stations) {
+    // Desktop corners and edge racks share ownership but not one enclosure.
+    // Measure the visible children, since display:contents has no own box.
+    // Match the CSS desktop composition exactly (min-width: 901px). Between
+    // 901 and 1100 the station wrapper is already display:contents, so its own
+    // rectangle is zero; measuring that wrapper collapsed the guarded board
+    // to zero width on a 1024px laptop.
+    if (window.innerWidth > 900) {
+      const isTop = station.classList.contains('table-player-station-top');
+      const isLeft = station.classList.contains('table-player-station-left');
+      const identity = station.querySelector<HTMLElement>('.table-seat-identity');
+      const rack = station.querySelector<HTMLElement>('.table-rack');
+      if (identity) obstacles.push({ edge: isLeft ? 'left' : 'right', rect: identity.getBoundingClientRect() });
+      if (rack) obstacles.push({ edge: isTop ? 'top' : isLeft ? 'left' : 'right', rect: rack.getBoundingClientRect() });
+      continue;
+    }
     const rect = station.getBoundingClientRect();
     if (station.classList.contains('table-player-station-left')) {
       obstacles.push({ edge: 'left', rect });
@@ -1162,7 +1338,21 @@ export function reserveBoardStage(
       obstacles.push({ edge: 'top', rect });
     }
   }
+  if (window.innerWidth > 900) {
+    const self = felt.parentElement?.querySelector<HTMLElement>('.desktop-self-identity')
+      ?? felt.querySelector<HTMLElement>('.desktop-self-identity');
+    if (self) obstacles.push({ edge: 'left', rect: self.getBoundingClientRect() });
+    const acrossBottom = felt.parentElement?.querySelector<HTMLElement>('.across-controlled-identity.table-seat-identity-bottom');
+    const acrossTop = felt.parentElement?.querySelector<HTMLElement>('.across-controlled-identity.table-seat-identity-top');
+    if (acrossBottom) obstacles.push({ edge: 'left', rect: acrossBottom.getBoundingClientRect() });
+    if (acrossTop) obstacles.push({ edge: 'right', rect: acrossTop.getBoundingClientRect() });
+  }
   if (hand) obstacles.push({ edge: 'bottom', rect: hand.getBoundingClientRect() });
+  // Across exposes the two hands controlled by this player at the two seats
+  // they physically occupy. They are part of the table, but never part of the
+  // playable board rectangle.
+  if (acrossOwn) obstacles.push({ edge: 'bottom', rect: acrossOwn.getBoundingClientRect() });
+  if (acrossPartner) obstacles.push({ edge: 'top', rect: acrossPartner.getBoundingClientRect() });
   if (actionDock) obstacles.push({ edge: 'bottom', rect: actionDock.getBoundingClientRect() });
   const guard = boardGuardInsets(feltRect, stageRect, obstacles, gutter, square);
   boardStage.dataset.boardGuard = square ? 'measured-square' : 'measured-rect';

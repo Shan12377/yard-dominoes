@@ -1,5 +1,17 @@
 # YaadDominoes — Jamaican Dominoes
 
+## Current owner-approved plan — 2026-09-12
+
+Read `docs/table-experience-plan.md` before table/UX work. It records the owner's
+authorization, corner photographs, desktop right sidebar, illuminated hand,
+retained timer, precise selection/preview/confirmation, clear exit and error
+states, implementation tracker and next action. Update it after each session.
+It supersedes conflicting older local layout preferences; scoped local work
+needs no repeated permission. Preserve working code, phone readability, server
+authority and privacy. Older rule descriptions below must not reverse newer
+owner-confirmed rules in `CLAUDE.md` and engine tests. Record conflicts before
+resolving them; do not invent gameplay rules.
+
 Web-first PWA. Two halves: online play, and an academy that takes a total
 beginner to tournament level. Not in any app store, by choice.
 

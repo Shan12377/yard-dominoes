@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
 import type { Board, CrossBoard, Pip, PlacedTile, TileId } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { assertRenderableBoard, assertVisibleTilesDisjoint, armDirectionFor, boardGuardInsets, crossArmDirections, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveTableUnit, rowsOf } from './render.ts';
+import { assertRenderableBoard, assertVisibleTilesDisjoint, armDirectionFor, boardGuardInsets, crossArmDirections, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveAcrossRouteUnits, liveLinearGeometry, liveTableUnit, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -235,6 +235,85 @@ test('live tables start with a deliberate readable hand and rack tier', () => {
     'French board and hand honour the same readable ceiling');
 });
 
+test('desktop linear geometry fits a complete hand before locking its bone size', () => {
+  const cases = [
+    { viewport: 1368, box: { width: 852, height: 500 } },
+    { viewport: 2056, box: { width: 1200, height: 704 } },
+  ];
+  for (const { viewport, box } of cases) {
+    const geometry = liveLinearGeometry(viewport, box);
+    for (let seed = 1; seed <= 100; seed += 1) {
+      const placements = chooseUnit(orientLine(boardOf(28, mulberry32(seed))), box, {
+        unit: geometry.unit,
+        maxUnits: geometry.maxUnits,
+      }).placements;
+      const width = Math.max(...placements.map((p) => p.col + p.colSpan)) * geometry.unit;
+      const height = rowsOf(placements) * geometry.unit;
+      assert.ok(width <= box.width, `${viewport}px seed ${seed}: ${width}px > ${box.width}px wide`);
+      assert.ok(height <= box.height, `${viewport}px seed ${seed}: ${height}px > ${box.height}px tall`);
+    }
+  }
+  assert.deepEqual(liveLinearGeometry(390, { width: 213, height: 352 }), { unit: 14, maxUnits: 20 },
+    'phones keep their readable fixed tier and deliberate pan route');
+});
+
+test('Across keeps its readable floor when the board stage is short', () => {
+  const geometry = liveLinearGeometry(1440, { width: 1200, height: 400 }, 22);
+  assert.equal(geometry.unit, 22,
+    'stage height must not silently turn the 44px Across bone back into a tiny counter');
+});
+
+test('Across derives its route from the locked bone and never exceeds the measured stage', () => {
+  assert.equal(liveAcrossRouteUnits(null, 22), 32,
+    'first paint uses the stable complete-hand route instead of guessing a wide felt');
+  assert.equal(liveAcrossRouteUnits({ width: 1200, height: 500 }, 22), 40,
+    'a wide felt caps the run instead of stretching a hand into one long strip');
+  assert.equal(liveAcrossRouteUnits({ width: 1200, height: 700 }, 32), 37,
+    'a larger locked bone uses the measured route while its arrow clamps inside');
+
+  for (const { box, unit } of [
+    { box: { width: 980, height: 480 }, unit: 22 },
+    { box: { width: 1200, height: 700 }, unit: 32 },
+    { box: { width: 520, height: 420 }, unit: 22 },
+  ]) {
+    const maxUnits = liveAcrossRouteUnits(box, unit);
+    assert.ok(maxUnits * unit <= box.width,
+      `${maxUnits} route units at ${unit}px must stay inside ${box.width}px`);
+    for (let seed = 1; seed <= 100; seed += 1) {
+      const placements = chooseUnit(orientLine(boardOf(28, mulberry32(seed))), box, {
+        unit,
+        maxUnits,
+      }).placements;
+      const minCol = Math.min(...placements.map((p) => p.col));
+      const maxCol = Math.max(...placements.map((p) => p.col + p.colSpan));
+      const width = (maxCol - minCol) * unit;
+      assert.ok(width <= box.width,
+        `Across seed ${seed} needed ${width}px of ${box.width}px wide`);
+    }
+  }
+});
+
+test('Across complete-hand route fits the measured 1440px desktop table without hiding', () => {
+  // Across now moves its rail below the felt at ordinary desktop widths and
+  // gives the board a stable 560px floor. Keep that measured floor here: the
+  // old 677x488 side-rail lane was the geometry that repeatedly clipped.
+  const box = { width: 1200, height: 560 };
+  const unit = 22;
+  const maxUnits = liveAcrossRouteUnits(box, unit);
+  for (let seed = 1; seed <= 200; seed += 1) {
+    const placements = chooseUnit(orientLine(boardOf(28, mulberry32(seed))), box, {
+      unit,
+      maxUnits,
+    }).placements;
+    const minCol = Math.min(...placements.map((p) => p.col));
+    const maxCol = Math.max(...placements.map((p) => p.col + p.colSpan));
+    assert.ok((maxCol - minCol) * unit <= box.width,
+      `seed ${seed} crossed the protected horizontal edge`);
+    assert.ok(rowsOf(placements) * unit <= box.height,
+      `seed ${seed} crossed the protected vertical edge`);
+  }
+});
+
 test('a phone linear board never changes tier as the hand fills', () => {
   // Was 'phone board tiers only step down as a linear hand fills', asserting
   // [14, 12, 10]. That is the behaviour being removed: the bone must not move
@@ -289,17 +368,11 @@ test('French bone size is fixed from opening pose through the late hand', () => 
     [24, 24, 24, 24]);
 });
 
-test('a played-out live hand never overruns sideways, and pans when it is too tall', () => {
-  // Rewritten. This used to pass `maxUnit` — a ceiling — and assert that a
-  // full board always fits without a scrollbar. Both live tables now PIN their
-  // unit, so it was green while guarding a path the app no longer takes, which
-  // is worse than no test. It now measures what actually ships.
-  //
-  // Width is the hard invariant on both: the chain must never run off
-  // sideways. Height is allowed to exceed the stage — that is the whole point
-  // of pinning the bone — and the stage pans vertically instead, with
-  // keepTileInView following the play. `tall` records how often that happens
-  // so the number is measured rather than assumed.
+test('a played-out live hand fits desktop without scrolling while phone keeps deliberate pan', () => {
+  // Desktop chooses one physical bone size from the measured, complete-hand
+  // route before the pose is dealt. It must therefore fit every later state
+  // without changing size or exposing a mystery scrollbar. A phone preserves
+  // its larger readable tier and may pan the protected board stage instead.
   const tall: Record<string, number> = { phone: 0, desktop: 0 };
   for (let seed = 1; seed <= 100; seed++) {
     for (const [label, box, viewportWidth, minUnit] of [
@@ -308,12 +381,13 @@ test('a played-out live hand never overruns sideways, and pans when it is too ta
     ] as const) {
       const board = boardOf(28, mulberry32(seed));
       const line = orientLine(board);
-      const unit = liveTableUnit(viewportWidth, board);
+      const geometry = liveLinearGeometry(viewportWidth, box);
+      const unit = geometry.unit;
       const { u, placements } = chooseUnit(line, box, {
         unit,
         maxUnit: unit,
         minUnit,
-        maxUnits: label === 'phone' ? 20 : 36,
+        maxUnits: geometry.maxUnits,
       });
       assert.equal(u, unit, `${label} seed ${seed}: the pinned bone must be honoured`);
       const across = Math.max(...placements.map((p) => p.col + p.colSpan));
@@ -328,8 +402,23 @@ test('a played-out live hand never overruns sideways, and pans when it is too ta
   // often the pan actually engages on a full board.
   assert.ok(tall.phone >= 90,
     `a phone board is expected to be taller than its stage nearly always, got ${tall.phone}/100`);
-  assert.ok(tall.desktop > 0 && tall.desktop < 50,
-    `desktop should overflow sometimes but not usually, got ${tall.desktop}/100`);
+  assert.equal(tall.desktop, 0,
+    `desktop must show the complete hand without a board scrollbar, got ${tall.desktop}/100 tall`);
+});
+
+test('a short landscape or Across stage keeps a controlled pan instead of clipping', () => {
+  const box = { width: 520, height: 146 };
+  const geometry = liveLinearGeometry(1368, box);
+  let needsPan = 0;
+  for (let seed = 1; seed <= 100; seed += 1) {
+    const placements = chooseUnit(orientLine(boardOf(28, mulberry32(seed))), box, {
+      unit: geometry.unit,
+      maxUnits: geometry.maxUnits,
+    }).placements;
+    if (rowsOf(placements) * geometry.unit > box.height) needsPan += 1;
+  }
+  assert.ok(needsPan > 0,
+    'the short-stage fixture must exercise the measured overflow fallback');
 });
 
 test('the width cap is respected even when there is room to be bigger', () => {
@@ -339,15 +428,18 @@ test('the width cap is respected even when there is room to be bigger', () => {
   assert.ok(across <= 16, `capped at 16 units, laid out ${across}`);
 });
 
-test('a wide ordinary table uses its safe width before turning', () => {
+test('a live desktop line uses its complete-hand lane even when more width is available', () => {
   const line = orientLine(boardOf(20, mulberry32(404)));
-  const roomy = chooseUnit(line, { width: 1600, height: 500 }, { maxUnit: 32 });
-  const capped = chooseUnit(line, { width: 1600, height: 500 }, { maxUnit: 32, maxUnits: 36 });
+  const box = { width: 1600, height: 704 };
+  const geometry = liveLinearGeometry(2056, box);
+  const roomy = chooseUnit(line, box, { unit: geometry.unit });
+  const routed = chooseUnit(line, box, { unit: geometry.unit, maxUnits: geometry.maxUnits });
   const firstVertical = (placements: typeof roomy.placements) =>
     placements.findIndex((placement) => placement.orient === 'v'
       && placement.faces[0] !== placement.faces[1]);
-  assert.ok(firstVertical(roomy.placements) > firstVertical(capped.placements),
-    'the wide line should travel farther horizontally than the retired 36-unit lane');
+  assert.equal(geometry.maxUnits, 32);
+  assert.ok(firstVertical(roomy.placements) > firstVertical(routed.placements),
+    'the live route should turn inside its precomputed complete-hand lane');
 });
 
 test('Watch Back may use compact tiles to fit a completed hand without a horizontal pan', () => {

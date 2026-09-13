@@ -1,5 +1,24 @@
 # Project memory
 
+## Current table experience plan and authorization — 2026-09-12
+
+The owner requested one living document another AI can resume and explicitly
+authorized updates and overriding conflicting CLAUDE.md preferences where
+applicable. Read [the table experience plan](table-experience-plan.md), the
+current source of truth for this work; update its tracker after each session.
+It covers substantial corner photos, desktop right sidebar, fixed readable
+hand/played bones, illuminated hand instead of a redundant play panel, retained
+timer, precise previews and move feedback, clear exit/reconnect states,
+contrast, authenticity and group retention. Preserve Claude's working fixes.
+The owner cancelled the mockup and requested direct implementation shown before
+commit. Work is uncommitted and acceptance checks are still in progress. Every
+table-facing change must be checked as one parity matrix: Practice and Lounge;
+Partner, Cut Throat, French, and Across where applicable; narrow/wide desktop
+and mobile. A deliberate mode or form-factor exception must be documented, not
+introduced accidentally. Older status entries below are historical; verify
+before treating a feature as missing or a rule as current. No deployment is
+claimed.
+
 Running record of what's done, what's approved-but-not-built, and what's
 still coming. Update this file whenever a doc lands, a phase finishes, or a
 decision gets made — this is the single place to check status instead of
@@ -865,6 +884,10 @@ Everything below is live and verified, not just written:
   talk surface. On phone and tablet, a persistent `Chat & stickers` button
   scrolls directly to that surface without reducing the board. Never render
   quick words or stickers as loose controls below the full table again.
+- Table talk is lounge-wide and must never cross lounge boundaries. Guard
+  delayed history and Realtime callbacks when changing rooms, filter every
+  rendered message by the current `lounge_id`, and name the lounge in the
+  panel heading so the scope is never ambiguous.
 - Unplayed hands belong on the felt edge at their physical seats in both
   Practice and online play. Other players render as compact plain-ivory
   face-down racks made only from the public hand count, and the rack loses one bone
@@ -886,6 +909,37 @@ Everything below is live and verified, not just written:
 - A pass is a visible table event: show a compact gold `PASS` callout at the
   passing player's physical felt edge in Practice and online play. It may
   never obscure the played line or become a substitute for the move log.
+- A player's required Pass action is different from the public PASS event: as
+  soon as the engine returns pass as the only legal move, show a high-contrast
+  `No matching bone · Pass` control directly in the active hand tray. It must
+  not require selecting a dead bone and must never be docked under a corner
+  portrait.
+- A collapsed live-table settings section must look and read like a control,
+  not a muted heading: label it `Table settings`, state that it contains seats,
+  turn clock and Duppies, expose Open/Close, and retain a 44px+ target.
+- Board placement prompts use a solid high-contrast fill because they can sit
+  on both dark wood and an ivory domino. Never reference an undefined color
+  token or let the generic ghost-button color override them.
+- Board-end choice targets are transparent inside: a 48px yellow outline and a
+  directional arrow identify the destination without obscuring the domino.
+  Keep the full spoken instruction in `aria-label` for screen readers.
+- The desktop turn clock is a compact status pill, not a full-width banner;
+  preserve its numeric countdown, bank text and urgent color bar while keeping
+  vertical board space available.
+- Non-French tables keep six compact score lamps in the pinned top strip:
+  unearned points are muted grey and earned points are yellow. French omits
+  them because a rising score is losing progress, not progress toward a win.
+- Across's readable desktop floor is 22 renderer units (44px short side), and
+  the same shared value must drive the played line and both controlled hands.
+  Its route must be calculated from the protected stage width divided by the
+  actual locked unit, with one half-bone of clearance at each edge. Never
+  restore the forced 64-unit minimum: it exceeded the real guarded width and
+  clipped the far endpoint. Use a 32-unit first-paint fallback, then turn into
+  the available lower felt after measurement; never shrink the dominoes.
+- Across's two controlled hand panels have permanent positions for the whole
+  hand: the primary hand stays left and the partner hand stays right. A turn
+  change may alter colour, label and interactivity only. Never reorder either
+  panel or use hover/selection transforms that lift or move its dominoes.
 - Watch Back is a reading view, not active play: measure its actual felt box
   after it mounts and fit the full completed chain into a compact snake before
   asking the viewer to pan. It may use smaller replay-only tiles; live-table

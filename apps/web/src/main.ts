@@ -17,6 +17,7 @@ import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { DUPPY_PACE_LABELS, DUPPY_PACE_NAMES } from '@yard/engine';
 import { LocalGame } from './local.ts';
+import { confirmTableExit, handTurnCue } from './table-experience.ts';
 import type { DuppyPace } from './local.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import { captureReferralCode } from './referral.ts';
@@ -28,7 +29,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, centreCrossOnPose, markPannable, keepTileInView } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, centreCrossOnPose, markPannable, keepTileInView } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -1069,8 +1070,8 @@ function scoreboard(g: LocalGame): HTMLElement {
   }
   const leave = document.createElement('button');
   leave.className = 'act ghost small';
-  leave.textContent = 'Leave';
-  leave.onclick = () => leaveLocalGame();
+  leave.textContent = 'Leave table';
+  leave.onclick = () => confirmTableExit('This ends your current practice game and returns you to game setup.', () => leaveLocalGame());
   top.appendChild(leave);
   panel.appendChild(top);
 
@@ -1521,7 +1522,11 @@ function drawbacksOf(a: MoveAdvice, g: LocalGame): string[] {
 
 function myHand(g: LocalGame): HTMLElement {
   const panel = el('div', 'panel my-hand-panel');
-  panel.append(el('div', 'eyebrow', g.isMyTurn() ? 'Your play' : 'Your hand'));
+  handTurnCue(panel, g.isMyTurn());
+  if (!g.isMyTurn()) pendingTile = null;
+  panel.append(el('div', 'eyebrow', g.isMyTurn()
+    ? (pendingTile ? 'Choose where it goes' : 'Your turn')
+    : 'Your hand'));
 
   const playable = g.playableTiles();
   const legal = g.legal();
@@ -1547,6 +1552,7 @@ function myHand(g: LocalGame): HTMLElement {
     // be played instead of doing nothing.
     node.tabIndex = 0;
     const choose = () => {
+      if (!g.isMyTurn()) return;
       // SELECT, never play — see the matching note in onlinetableview.ts. A
       // single-ended bone used to go down on one tap with no way back, so a
       // thumb landing a few pixels off played the wrong domino. Making the
@@ -1615,12 +1621,16 @@ function myHand(g: LocalGame): HTMLElement {
 
   const onlyPass = legal.length === 1 && legal[0].kind === 'pass';
   if (g.isMyTurn() && onlyPass) {
+    const passRow = el('div', 'pass-action-row');
+    passRow.setAttribute('role', 'status');
+    passRow.append(el('strong', undefined, 'No matching bone'));
     const b = document.createElement('button');
-    b.className = 'act';
+    b.className = 'act pass-action';
     b.textContent = 'Pass';
+    b.dataset.passAction = 'true';
     b.onclick = () => void g.play(legal[0]);
-    panel.appendChild(b);
-    panel.append(el('p', 'muted', 'Nothing fits either end. Passing tells the table you are void in both.'));
+    passRow.appendChild(b);
+    panel.appendChild(passRow);
   }
   return panel;
 }
@@ -1633,7 +1643,9 @@ function myHand(g: LocalGame): HTMLElement {
  */
 function takeHandActions(panel: HTMLElement): HTMLElement | null {
   const actions = [...panel.children].filter((child) =>
-    !child.classList.contains('eyebrow') && !child.classList.contains('hand'),
+    !child.classList.contains('eyebrow')
+      && !child.classList.contains('hand')
+      && !child.classList.contains('pass-action-row'),
   );
   if (!actions.length) return null;
   const dock = el('div', 'hand-actions-dock');
@@ -1997,9 +2009,8 @@ function tableView(g: LocalGame): DocumentFragment {
   if (penaltyEvents) frag.appendChild(penaltyBanner(penaltyEvents, (seat) => g.seatLabel(seat)));
 
   const room = el('div', 'practice-room');
-  // Across keeps its controlled hand below the felt, so the shared physical
-  // bone token must live on the room as well as the felt. Otherwise that one
-  // mode falls back to the generic 38/44px hand size while the board refits.
+  // Across has two readable controlled hands on the felt. Keep their physical
+  // bone token on the room too so a measured board refit updates all three.
   room.classList.toggle('shared-table-hand-scale', g.options.mode === 'across');
   // Seats ride ABOVE the felt now. They used to sit under the hand, which put
   // the duppies' tile counts and their table talk below the fold on a phone —
@@ -2009,11 +2020,14 @@ function tableView(g: LocalGame): DocumentFragment {
   room.appendChild(seats(g));
   const felt = el('div', 'table-felt live-felt');
   felt.classList.add(`seat-count-${g.options.seatCount}`);
-  // A real player's hand belongs at their edge of the table. Across is the
-  // intentional exception: one person controls two hands there, and forcing
-  // both into the felt would steal the very board space that mode depends on.
+  // A real player's hand belongs at their physical edge of the table. Across
+  // has a second controlled hand at the opposite edge, protected by the same
+  // measured board guard.
   const handOnFelt = !!g.hand && g.options.mode !== 'across';
-  const boardStage = handOnFelt ? el('div', 'board-stage') : felt;
+  if (g.options.mode === 'across') felt.classList.add('across-hands-on-felt');
+  // Every mode gets the same protected board stage. Across's two hands become
+  // top and bottom obstacles instead of external panels competing with it.
+  const boardStage = el('div', 'board-stage');
   if (handOnFelt) felt.classList.add('hand-on-felt');
   if (handOnFelt && (g.hand?.hands[g.mySeat]?.length ?? 0) >= 10) felt.classList.add('hand-many');
   const line = el('div', 'line');
@@ -2045,13 +2059,18 @@ function tableView(g: LocalGame): DocumentFragment {
     boardStage.dataset.boardGuard = 'pinned-hand-square';
   }
   const tableCapUnit = liveTableUnit(window.innerWidth, null, frenchTable);
-  const tableUnit = liveTableUnit(window.innerWidth, displayBoard, frenchTable);
-  const tableMinUnit = window.innerWidth <= 700 ? 10 : 11;
-  // Phones need an early turn around their narrow centre lane. A French cross
-  // also needs bounded quadrants. A wide ordinary line must use the full
-  // measured stage before turning—capping it at 36 caused a fake early elbow
-  // on the paid Lounge-sized table even with hundreds of pixels still free.
-  const tableMaxUnits = window.innerWidth <= 700 ? 20 : undefined;
+  const tableMinUnit = window.innerWidth <= 700 ? 10 : g.options.mode === 'across' ? 22 : 11;
+  const acrossLaneUnitsFor = (box?: { width: number } | null) => g.options.mode === 'across'
+    ? Math.max(64, Math.floor((box?.width ?? 1400) / Math.max(tableMinUnit, 1)) - 4)
+    : 32;
+  const openingLinearGeometry = frenchTable ? null : liveLinearGeometry(
+    window.innerWidth, cachedBox, tableMinUnit, acrossLaneUnitsFor(cachedBox));
+  const tableUnit = openingLinearGeometry?.unit
+    ?? liveTableUnit(window.innerWidth, displayBoard, frenchTable);
+  // Phones keep their readable tier and pan a narrow lane. Desktop locks one
+  // complete-hand route from the measured stage so it never changes bone size
+  // or sprouts a scrollbar halfway through the hand.
+  const tableMaxUnits = frenchTable ? undefined : (openingLinearGeometry?.maxUnits ?? (window.innerWidth <= 700 ? 20 : 32));
   // The cap owns the protected-stage insets and never changes during a hand;
   // the physical bone size below may step down as the chain fills the stage.
   // Keeping those as separate tokens avoids a resize feedback loop.
@@ -2108,7 +2127,7 @@ function tableView(g: LocalGame): DocumentFragment {
   // separate panel below, so the same holds.
   const overlay = readerOverlay(g);
   if (overlay) boardStage.appendChild(overlay);
-  if (handOnFelt) felt.appendChild(boardStage);
+  felt.appendChild(boardStage);
   const tableStations = new Map<string, HTMLElement>();
   for (let seat = 0; seat < g.options.seatCount; seat += 1) {
     const rack = practiceTableRack(g, seat);
@@ -2144,14 +2163,36 @@ function tableView(g: LocalGame): DocumentFragment {
   const winCallout = practiceWinCallout(g);
   if (winCallout) felt.appendChild(winCallout);
   let handActions: HTMLElement | null = null;
+  let choiceHandHost: HTMLElement | null = null;
   if (handOnFelt) {
     const hand = myHand(g);
+    choiceHandHost = hand;
     hand.classList.add('in-felt-hand');
     handActions = takeHandActions(hand);
     felt.appendChild(hand);
+    const self = el('div', 'table-seat-identity table-seat-identity-bottom desktop-self-identity');
+    self.classList.toggle('turn', g.isMyTurn());
+    const portrait = document.createElement('img');
+    portrait.className = 'avatar'; portrait.src = '/avatars/plain.webp'; portrait.alt = '';
+    const copy = el('span', 'table-seat-copy');
+    copy.append(el('strong', undefined, 'You'), el('small', undefined, 'Practice player'));
+    self.append(portrait, copy);
+    felt.appendChild(self);
+  }
+  if (g.options.mode === 'across' && g.hand) {
+    const partnerSeat = g.mySeat ^ 2;
+    const mine = myHand(g);
+    const partner = partnerHandPanel(g.hand.hands[partnerSeat]);
+    mine.classList.add('across-hand-own');
+    partner.classList.add('across-hand-partner');
+    choiceHandHost = mine;
+    handActions = takeHandActions(mine);
+    const acrossHands = el('div', 'across-hand-dock in-felt-across-hands shared-table-hand-scale');
+    acrossHands.append(mine, partner);
+    felt.appendChild(acrossHands);
   }
   room.appendChild(felt);
-  handActions = placeBoardChoices(boardStage, handActions);
+  handActions = placeBoardChoices(boardStage, handActions, choiceHandHost);
   if (handActions) {
     handActions.classList.add('in-felt-actions');
     felt.appendChild(handActions);
@@ -2167,7 +2208,7 @@ function tableView(g: LocalGame): DocumentFragment {
     // The stage is the true playable part of an in-felt table: the hand sits
     // in its own protected lower rail, so the line must never fit into that
     // rail and later overlap it. A normal table keeps the existing felt box.
-    const fitHost = handOnFelt ? boardStage : felt;
+    const fitHost = boardStage;
     if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
       boardStage.style.inset = lastFrenchGuardInset;
       boardStage.dataset.boardGuard = 'pinned-hand-square';
@@ -2194,11 +2235,9 @@ function tableView(g: LocalGame): DocumentFragment {
         lastFrenchGuardInset = boardStage.style.inset;
       }
     }
-    const box = handOnFelt
-      // 14px is the line padding; the extra 4px absorbs grid/border rounding
-      // so a fitted bone cannot protrude a pixel past the invisible guard.
-      ? { width: fitHost.clientWidth - 18, height: fitHost.clientHeight - 18 }
-      : { width: felt.clientWidth - 32, height: felt.clientHeight - 32 };
+    // 14px is the line padding; the extra 4px absorbs grid/border rounding so
+    // a fitted bone cannot protrude a pixel past the invisible guard.
+    const box = { width: fitHost.clientWidth - 18, height: fitHost.clientHeight - 18 };
     if (box.width <= 0 || box.height <= 0) return;
     const changed = lastFeltHasHandRail !== handOnFelt
       || !lastFeltBox || lastFeltBox.width !== box.width || lastFeltBox.height !== box.height;
@@ -2247,17 +2286,19 @@ function tableView(g: LocalGame): DocumentFragment {
       return;
     }
     if (changed || boardOverflowedGuard) {
+      const measuredGeometry = liveLinearGeometry(
+        window.innerWidth, box, tableMinUnit, acrossLaneUnitsFor(box));
       const measuredUnit = renderBoard(line, displayBoard, {
         box,
-        maxUnit: tableUnit,
+        maxUnit: g.options.mode === 'across' ? tableUnit : measuredGeometry.unit,
         // Pinned here too. This refit runs after paint with the real measured
         // box, so leaving it as a ceiling let the board shrink straight back
         // on the very next resize — the first render would hold its size and
         // then quietly lose it. (The French branch above returns before this,
         // so the old conditional was dead code as well as wrong.)
-        unit: tableUnit,
+        unit: g.options.mode === 'across' ? tableUnit : measuredGeometry.unit,
         minUnit: tableMinUnit,
-        maxUnits: tableMaxUnits,
+        maxUnits: measuredGeometry.maxUnits,
         viewerSeat: g.mySeat,
       });
       if (measuredUnit) {
@@ -2298,7 +2339,7 @@ function tableView(g: LocalGame): DocumentFragment {
     const partnerSeat = g.mySeat ^ 2;
     room.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
   }
-  if (!handOnFelt) room.appendChild(myHand(g));
+  if (!handOnFelt && g.options.mode !== 'across') room.appendChild(myHand(g));
 
   room.appendChild(soundToggle());
   frag.appendChild(room);

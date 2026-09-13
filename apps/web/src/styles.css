@@ -142,6 +142,37 @@ body.walkthrough-open { overflow: hidden; }
   padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
 
+/* A seated game is a dedicated room, not another page beneath the site
+   navigation. Removing the global bar gives the felt and its side stations
+   the full viewport and keeps attention on play. The table's own header still
+   provides the table name, sound control, and Leave table action. */
+#app:has(.table-room) > .topbar,
+#app:has(.practice-room) > .topbar {
+  display: none;
+}
+
+/* With the global navigation out of the way, give the dedicated room back to
+   the felt. Side player stations and the Lounge rail stay in their JamDom
+   positions; only the vertical wood area grows so the dominoes can remain
+   readable through a long hand. */
+@media (min-width: 901px) {
+  #app:has(.table-room) .table-room .live-felt,
+  #app:has(.practice-room) .practice-room > .live-felt {
+    height: max(680px, calc(100svh - 120px));
+    min-height: 680px;
+  }
+  #app:has(.table-room) .table-room .live-felt.across-hands-on-felt,
+  #app:has(.practice-room) .practice-room > .live-felt.across-hands-on-felt {
+    /* The dedicated room begins about 168px below the viewport top at the
+       1440px desktop gate. Subtracting 190px keeps the whole lower hand and
+       corner identity visible while still giving Across 240px more wood than
+       its old 470px cap. The complete 44px-bone route needs 388px inside the
+       measured guard, so the 560px short-laptop floor remains safe. */
+    height: max(560px, calc(100svh - 210px));
+    min-height: 560px;
+  }
+}
+
 /* Defer below-the-fold panels on menu screens. Live tables stay fully laid
    out so tile placement and turn feedback are always immediate. */
 #app:not(:has(.practice-room, .table-room)) > .panel {
@@ -509,6 +540,25 @@ label.field > span {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px 16px;
 }
+/* A clock belongs in the status strip, never over the felt. Reserve its slot
+   beside the tracks so portraits, racks, the played line and both hands stay
+   completely unobstructed while the countdown ticks. */
+.table-status-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.table-status-strip > .scoreboard { flex: 1 1 auto; min-width: 0; }
+.table-status-strip > .turn-clock-top {
+  flex: 0 0 220px;
+  width: 220px;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(67,199,244,.45);
+  border-radius: 10px;
+  background: rgba(5,43,67,.9);
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+}
 #app:has(.table-room) .sticky-scores .side-score,
 #app:has(.practice-room) .sticky-scores .side-score {
   display: flex;
@@ -525,14 +575,24 @@ label.field > span {
   max-width: 100%;
   font-size: 11px;
 }
-/* No pip track in the pinned scoreboard, at any width. It is a second reading
-   of a score that is already printed as a number right beside it, and six dots
-   per seat across four seats is twenty-four marks of pure duplication. The
-   owner's words on the live strip: "very frustrating at the top seeing too
-   much numbers". The pips still belong on a full scoreboard; they do not
-   belong in the one strip that never leaves the screen. */
+/* Six-love/first-to-six score is read fastest as six small lamps. Keep them
+   compact in the pinned strip: grey is still love, yellow is a won point.
+   scoreTrack omits the track entirely for French, whose rising total means
+   the opposite thing. */
 #app:has(.table-room) .sticky-scores .pips,
-#app:has(.practice-room) .sticky-scores .pips { display: none; }
+#app:has(.practice-room) .sticky-scores .pips { gap: 3px; flex: 0 0 auto; }
+#app:has(.table-room) .sticky-scores .pips i,
+#app:has(.practice-room) .sticky-scores .pips i {
+  width: 11px;
+  height: 11px;
+  background: #6f7b82;
+  border-color: rgba(255, 255, 255, .22);
+}
+#app:has(.table-room) .sticky-scores .pips i.lit,
+#app:has(.practice-room) .sticky-scores .pips i.lit {
+  background: #ffc928;
+  box-shadow: 0 0 8px rgba(255, 201, 40, .6);
+}
 /* Separate the remaining fields so "under love 2 tiles" reads as two facts
    rather than one run-on number. Mobile already did this; it was never the
    phone that needed it most. */
@@ -687,22 +747,29 @@ label.field > span {
   z-index: 7;
   pointer-events: none;
 }
-.board-end-choice {
+button.board-end-choice {
   position: absolute;
   transform: translate(-50%, -50%);
   min-width: 42px;
-  min-height: 42px;
-  padding: 6px 9px;
-  border: 2px solid var(--mango);
+  min-height: 48px;
+  padding: 2px;
+  border: 3px solid var(--gold);
   border-radius: 999px;
-  background: rgba(3, 31, 51, .96);
-  color: var(--mango);
-  font: 900 17px/1 var(--mono);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .42), 0 0 0 3px rgba(255, 201, 40, .15);
+  background: transparent;
+  color: #ffc928;
+  font: 900 25px/1 var(--body);
+  box-shadow: 0 0 0 3px rgba(255, 201, 40, .18);
   pointer-events: auto;
 }
-.board-end-choice:hover,
-.board-end-choice:focus-visible { background: var(--mango); color: var(--pip); }
+button.board-end-choice:hover,
+button.board-end-choice:focus-visible {
+  background: rgba(5, 43, 67, .22);
+  color: #ffe38a;
+  border-color: #7dd3fc;
+  outline: 3px solid #7dd3fc;
+  outline-offset: 2px;
+}
+.board-end-choice[data-opening-choice='true'] { width: 48px; min-width: 48px; height: 48px; }
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand {
   position: absolute;
   left: 50%;
@@ -767,8 +834,8 @@ label.field > span {
 /* Across is the only live mode whose controlled hands sit immediately below
    the felt. They still belong to the same physical set: use the board's fitted
    short side instead of the generic hand component's fixed 38/44px fallback. */
-.shared-table-hand-scale > .my-hand-panel .hand,
-.shared-table-hand-scale > .partner-hand .hand {
+.shared-table-hand-scale .my-hand-panel .hand,
+.shared-table-hand-scale .partner-hand .hand {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: var(--table-bone-short);
@@ -776,15 +843,15 @@ label.field > span {
   justify-content: center;
   overflow-x: auto;
 }
-.shared-table-hand-scale > .my-hand-panel .hand .tile,
-.shared-table-hand-scale > .partner-hand .hand .tile.sm {
+.shared-table-hand-scale .my-hand-panel .hand .tile,
+.shared-table-hand-scale .partner-hand .hand .tile.sm {
   width: 100%;
   height: auto;
   min-width: 0;
   aspect-ratio: 1 / 2;
 }
-.shared-table-hand-scale > .my-hand-panel .hand.double-row,
-.shared-table-hand-scale > .partner-hand .hand.double-row {
+.shared-table-hand-scale .my-hand-panel .hand.double-row,
+.shared-table-hand-scale .partner-hand .hand.double-row {
   grid-auto-flow: row;
   grid-template-columns: repeat(7, var(--table-bone-short));
   grid-template-rows: repeat(2, calc(var(--table-bone-short) * 2));
@@ -820,6 +887,20 @@ label.field > span {
   box-shadow: 0 8px 22px rgba(0, 0, 0, .3);
 }
 .hand-actions-dock.in-felt-actions > .muted { max-width: min(360px, 55vw); }
+.pass-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 48px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 2px solid #ffc928;
+  border-radius: 10px;
+  background: #052b43;
+  color: #fff9ea;
+}
+.pass-action-row .pass-action { min-width: 92px; min-height: 44px; }
 
 /* ------------------------------------------------------- the live coach --
    Practice only. The trigger sits in the sticky score bar so it is reachable
@@ -1888,6 +1969,7 @@ label.field > span {
   }
 }
 
+
 @media (max-width: 900px) {
   /* A live hand is not the seven-destination menu. The approved phone
      prototype uses one compact brand row, with Leave already available in
@@ -2836,6 +2918,43 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 
 :focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
 
+/* Accessible-only text must never acquire a visible position inside an
+   absolutely-positioned board overlay. */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Owner-approved coordinated hand cues: steady light, never a flashing prompt. */
+.my-hand-panel.hand-turn-active,
+.table-felt.hand-on-felt > .my-hand-panel.in-felt-hand.hand-turn-active {
+  border: 2px solid #ffc928;
+  background: #104d43;
+  box-shadow: 0 0 0 3px #ffc92833, 0 0 20px #ffc92825;
+}
+.my-hand-panel.hand-turn-active > .eyebrow { color: #ffe38a; font-size: 13px; font-weight: 800; }
+.my-hand-panel .hand .tile.dead { opacity: 1; filter: none; }
+.my-hand-panel.hand-turn-active .hand .tile.playable { outline: 2px solid #ffc928; outline-offset: 1px; }
+.my-hand-panel .hand .tile.chosen { outline: 3px solid #43c7f4; outline-offset: 2px; }
+.my-hand-panel.hand-move-pending { border-color: #43c7f4; }
+.table-player-station.turn > .table-seat-identity {
+  outline: 3px solid #ffc928;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #ffc92824, 0 0 22px #ffc92866;
+}
+.table-exit-dialog { max-width: min(460px, calc(100vw - 32px)); padding: 24px; border: 1px solid #75b2ce; border-radius: 12px; background: #052b43; color: #fff9ea; }
+.table-exit-dialog::backdrop { background: #001724bf; }
+.table-exit-dialog p { margin: 14px 0; line-height: 1.5; }
+.table-exit-dialog .row { justify-content: flex-end; }
+.desktop-self-identity { display: none; }
+
 /* ---------------------------------------------------------------- lounges */
 .lounge-card {
   display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
@@ -2906,6 +3025,10 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
     font-weight: 800;
   }
   .table-talk-jump:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; }
+  /* A floating social shortcut must never cover Pass, a selected bone or its
+     destination controls. It returns automatically as soon as the turn moves
+     away; the lounge-scoped chat itself remains in the rail below. */
+  #app:has(.table-room .hand-turn-active) .table-talk-jump { display: none; }
 }
 
 @media (max-width: 700px) {
@@ -3093,7 +3216,8 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
     max-width: 100%; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; font-size: 10px;
   }
-  .sticky-scores .pips { display: none; }
+  .sticky-scores .pips { gap: 2px; }
+  .sticky-scores .pips i { width: 9px; height: 9px; }
   .sticky-scores .under-love, .sticky-scores .tile-count { margin: 0; }
   .sticky-scores .under-love::after { content: ' · '; color: var(--muted); }
 
@@ -3354,6 +3478,42 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 .collapsible summary:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 .collapsible[open] summary { margin-bottom: 10px; color: var(--gold); }
 .collapsible > *:last-child { margin-bottom: 0; }
+.table-start-options {
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid #43c7f4;
+  background: #052b43;
+  box-shadow: 0 0 0 3px rgba(67, 199, 244, .12);
+}
+.table-start-options summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 14px;
+  color: #fff9ea;
+  list-style: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.table-start-options summary::-webkit-details-marker { display: none; }
+.table-start-options-copy { display: grid; gap: 2px; min-width: 0; }
+.table-start-options-title { display: block; font: 800 16px/1.2 var(--body); }
+.table-start-options-hint { color: #cce3ed; font: 700 13px/1.3 var(--body); }
+.table-start-options-action {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #ffc928;
+  color: #2a1b00;
+  font: 900 12px/1 var(--body);
+}
+.table-start-options-action::after { content: ' ›'; font-size: 16px; }
+.table-start-options[open] summary { margin: 0; color: #fff9ea; border-bottom: 1px solid rgba(67,199,244,.35); }
+.table-start-options[open] .table-start-options-action::after { content: ' ↑'; font-size: 12px; }
+.table-start-options > .row { padding: 14px; }
+.table-start-options summary:hover { border-color: #ffc928; box-shadow: inset 0 0 0 2px rgba(255,201,40,.4); }
+.table-start-options summary:focus-visible { outline: 3px solid #ffc928; outline-offset: -4px; }
 
 /* The circular portrait worn on a seat — docs/avatar-set.md. */
 .avatar {
@@ -3756,6 +3916,18 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 .clock-fill.urgent { background: var(--blood); }
 @media (prefers-reduced-motion: reduce) { .clock-fill { transition: none; } }
 
+/* The timer remains compact and legible in its reserved status-strip slot. */
+.table-status-strip > .turn-clock-top .clock-head { gap: 6px; }
+.table-status-strip > .turn-clock-top .clock-left { font-size: 18px; color: #fff9ea; }
+.table-status-strip > .turn-clock-top .clock-head > .muted { font-size: 12px; color: #d7edf5; }
+.table-status-strip > .turn-clock-top .clock-bank { font-size: 10px; }
+.table-status-strip > .turn-clock-top .clock-track { height: 4px; margin-top: 4px; }
+@media (max-width: 700px) {
+  .table-status-strip { align-items: stretch; flex-wrap: wrap; }
+  .table-status-strip > .scoreboard { flex-basis: 100%; }
+  .table-status-strip > .turn-clock-top { flex: 1 1 180px; width: auto; }
+}
+
 /* ------------------------------------------------------------ tournaments
    The banner has to be impossible to miss without being a hazard.
 
@@ -3845,24 +4017,98 @@ button.dismiss.small { font-size: 12px; }
    is not a second table screen. */
 .eyebrow.tourney-round { color: var(--gold-deep); margin-top: 2px; }
 
-/* Across keeps BOTH of a player's hands under the felt, which no other mode
-   does, so the felt cannot also take the full height every other mode gives
-   it. Measured at 2000x1220 before this: felt 820px, page 2264px against a
-   1220px viewport — the hands you are meant to read against the board were a
-   full screen's scroll away, which is what "things are tooo far" meant.
-   The board is a line here and wraps, so height is the cheapest thing to give
-   back. */
+/* Across keeps both controlled hands on the physical wood: mine at the bottom
+   edge and my partner's opposite at the top. The board guard measures them as
+   obstacles, so turn state cannot resize or reorder the table. */
 @media (min-width: 701px) {
-  /* Descendant, not child: the felt sits inside .felt-shell inside the slot. */
-  .table-room .across-hands-below .live-felt,
-  .practice-room .across-hands-below .live-felt {
-    height: clamp(320px, 40svh, 470px);
-    min-height: clamp(320px, 40svh, 470px);
-    max-height: 470px;
+  .across-hand-dock {
+    margin: 0;
   }
-  /* Two panels stacked need their own chrome trimmed, not just the felt. */
-  .across-hands-below > .my-hand-panel { padding: 6px 10px 8px; }
-  .across-hands-below > .my-hand-panel > .eyebrow { margin-bottom: 2px; }
+  .across-hand-dock > .my-hand-panel,
+  .across-hand-dock > .partner-hand {
+    margin: 0;
+    padding: 6px 10px 8px;
+    min-width: 0;
+  }
+  .across-hand-dock > .my-hand-panel > .eyebrow,
+  .across-hand-dock > .partner-hand > .eyebrow { margin-bottom: 2px; }
+  /* Across hands never trade places or lift when the turn changes. The gold
+     active treatment and blue selection outline carry the entire cue, so the
+     player's eye can keep each hand in one dependable physical location. */
+  .across-hand-dock .hand .tile,
+  .across-hand-dock .hand .tile:hover,
+  .across-hand-dock .hand .tile.playable:hover,
+  .across-hand-dock .hand .tile.dead:hover,
+  .across-hand-dock .hand .tile.chosen {
+    transform: none;
+    transition: none;
+  }
+}
+
+.in-felt-across-hands { display: contents; }
+.in-felt-across-hands > .across-hand-own,
+.in-felt-across-hands > .across-hand-partner {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  width: max-content;
+  max-width: calc(100% - 300px);
+  transform: translateX(-50%);
+  background: rgba(5, 43, 67, .94);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+}
+.in-felt-across-hands > .across-hand-own { bottom: 8px; }
+.in-felt-across-hands > .across-hand-partner { top: 8px; }
+/* The top controlled hand replaces the concealed top rack; showing both is a
+   duplicate hand and wastes the exact vertical space Across needs. */
+.felt-shell.across-hands-on-felt > .table-player-station-top .table-rack,
+.table-felt.across-hands-on-felt > .table-player-station-top .table-rack {
+  display: none;
+}
+
+.hand-end-choice-bar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  z-index: 9;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  max-width: min(520px, calc(100vw - 40px));
+  transform: translateX(-50%);
+}
+.across-hand-partner .hand-end-choice-bar {
+  top: calc(100% + 6px);
+  bottom: auto;
+}
+button.hand-end-choice {
+  min-width: 92px;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 2px solid #ffc928;
+  border-radius: 999px;
+  background: #052b43;
+  color: #fff9ea;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
+}
+
+@media (max-width: 700px) {
+  .table-room .live-felt.across-hands-on-felt,
+  .practice-room > .live-felt.across-hands-on-felt {
+    height: max(520px, 70svh);
+    min-height: 520px;
+    max-height: none;
+  }
+  .in-felt-across-hands > .across-hand-own,
+  .in-felt-across-hands > .across-hand-partner {
+    max-width: calc(100% - 48px);
+    padding: 5px 7px 7px;
+  }
+  .in-felt-across-hands > .across-hand-own { bottom: 5px; }
+  .in-felt-across-hands > .across-hand-partner { top: 5px; }
+  button.hand-end-choice { min-width: 76px; padding-inline: 9px; }
 }
 
 /* A 280px side rail is only affordable when the table has width to spare.
@@ -3922,5 +4168,179 @@ button.dismiss.small { font-size: 12px; }
   .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand {
     margin-top: 4px;
     padding-block: 3px 2px;
+  }
+}
+
+/* Desktop table composition, shared by Practice and Lounge. The station is
+   an ownership group; its portrait and rack reserve their own measured boxes. */
+@media (min-width: 901px) {
+  .practice-room,
+  .practice-room:has(> .live-felt.french-cross-live) {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "table rail" "table controls";
+    height: max(460px, calc(100svh - 150px));
+    min-height: 0; max-height: none;
+  }
+  .practice-room > .live-felt,
+  .practice-room:has(> .live-felt.french-cross-live) > .live-felt {
+    height: 100%; min-height: 0; max-height: none;
+  }
+  .table-room { grid-template-columns: minmax(0, 1fr) 280px; }
+  .table-room .felt-shell { padding: 8px; }
+  .table-room .live-felt,
+  .table-room .live-felt.french-cross-live {
+    height: max(420px, calc(100svh - 238px)); min-height: 0; max-height: none;
+  }
+  .table-room .table-rail { max-height: calc(100svh - 170px); overflow-y: auto; }
+  .table-room .rail-tabs { display: none; }
+  .table-room .rail-section-chat, .table-room .rail-section-log,
+  .table-room .rail-section-standings, .table-room .rail-section-watchers,
+  .table-room .rail-section-you { display: block; }
+  .table-room .rail-section { margin: 0; padding: 12px; }
+  .table-room .rail-section-standings { order: -3; }
+  .table-room .rail-section-log { order: -2; max-height: 170px; overflow-y: auto; }
+  .table-room .rail-section-chat { order: -1; }
+  .practice-seats { overflow-y: auto; }
+  .practice-room .sound-bar { gap: 6px; }
+  .practice-room .felt-pick button { width: 36px; height: 36px; }
+  .practice-room .table-player-station,
+  .table-room .table-player-station { display: contents; }
+  .practice-room .table-player-station > .table-seat-identity,
+  .table-room .table-player-station > .table-seat-identity,
+  .desktop-self-identity {
+    position: absolute; display: flex; flex-direction: column; gap: 5px;
+    --seat-identity-size: 88px;
+    width: 112px; min-width: 0; height: auto; min-height: 0;
+    padding: 0; border: 0; border-radius: 6px;
+    background: #052b43ef; box-shadow: none; transform: none;
+    text-align: center; z-index: 4;
+  }
+  .table-player-station .table-seat-identity .table-seat-duppy { --seat-identity-size: 88px; }
+  .table-player-station .avatar, .desktop-self-identity .avatar,
+  .table-player-station .avatar-shell, .desktop-self-identity .avatar-shell {
+    width: 88px; height: 88px; border-radius: 6px; object-fit: cover;
+  }
+  .table-player-station .table-seat-copy, .desktop-self-identity .table-seat-copy { padding: 3px 5px 7px; display: grid; gap: 3px; }
+  .table-player-station .table-seat-copy strong, .desktop-self-identity .table-seat-copy strong { font-size: 15px; line-height: 1.2; white-space: normal; }
+  .table-player-station .table-seat-copy small, .desktop-self-identity .table-seat-copy small { font: 12px/1.3 var(--body); color: #e0edf4; white-space: normal; }
+  .table-player-station .table-seat-copy > .table-play-callout,
+  .table-player-station .table-seat-copy > .table-pass-callout { font: 11px/1.2 var(--body); text-align: center; }
+  .table-player-station.turn > .table-seat-identity .avatar,
+  .table-player-station.turn > .table-seat-identity .avatar-shell,
+  .desktop-self-identity.turn .avatar,
+  .desktop-self-identity.turn .avatar-shell {
+    outline: 3px solid #ffc928;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px #ffc9282e, 0 0 24px #ffc92880;
+  }
+  .table-player-station > .table-seat-identity-left { top: 10px; left: 10px; right: auto; bottom: auto; }
+  .table-player-station > .table-seat-identity-top { top: 10px; right: 10px; left: auto; bottom: auto; }
+  .table-player-station > .table-seat-identity-right { bottom: 10px; right: 10px; left: auto; top: auto; }
+  .desktop-self-identity { bottom: 10px; left: 10px; top: auto; right: auto; }
+
+  .felt-shell > .across-controlled-identity {
+    position: absolute;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 112px;
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: #052b43ef;
+    text-align: center;
+  }
+  .felt-shell > .across-controlled-identity.table-seat-identity-top {
+    top: 10px;
+    right: 10px;
+    bottom: auto;
+    left: auto;
+  }
+  .felt-shell > .across-controlled-identity.table-seat-identity-bottom {
+    right: auto;
+    bottom: 10px;
+    left: 10px;
+    top: auto;
+  }
+  .felt-shell > .across-controlled-identity .avatar,
+  .felt-shell > .across-controlled-identity .avatar-shell {
+    width: 88px;
+    height: 88px;
+    border-radius: 6px;
+    object-fit: cover;
+  }
+  .felt-shell > .across-controlled-identity .table-seat-copy {
+    display: grid;
+    gap: 3px;
+    padding: 3px 5px 7px;
+  }
+  .felt-shell > .across-controlled-identity .table-seat-copy strong {
+    font-size: 15px;
+    line-height: 1.2;
+  }
+  .felt-shell > .across-controlled-identity .table-seat-copy small {
+    color: #e0edf4;
+    font: 12px/1.3 var(--body);
+  }
+  .table-player-station > .table-rack { position: absolute; }
+  .table-player-station > .table-rack-top { top: 14px; left: 50%; transform: translateX(-50%); }
+  .table-player-station > .table-rack-left { left: 132px; top: 52%; transform: translateY(-50%); }
+  .table-player-station > .table-rack-right { right: 132px; top: 52%; transform: translateY(-50%); }
+  .my-hand-panel.hand-turn-active .hand .tile.chosen,
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand.hand-turn-active .hand .tile.chosen {
+    outline: 3px solid #7dd3fc;
+    outline-offset: 3px;
+  }
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand { margin-top: 2px; }
+  .clock-bank { color: #ccebdc; }
+}
+
+/* Desktop uses a fitted, locked route; scrollbars here signal a geometry bug
+   and also trap the wheel before it reaches the page or side rail. Phone
+   boards retain deliberate panning and its edge affordances. */
+@media (min-width: 701px) {
+  .table-felt:not(.hero) {
+    overflow: hidden;
+    overscroll-behavior: auto;
+    scrollbar-width: none;
+  }
+  .board-stage.board-stage-fitted {
+    overflow: hidden;
+    overscroll-behavior: auto;
+    scrollbar-width: none;
+  }
+}
+
+/* The compact desktop header wraps one line taller than the wide header.
+   Account for that measured 18px so a 1024×768 table remains a single
+   screen instead of acquiring a nearly invisible page scrollbar. */
+@media (min-width: 901px) and (max-width: 1100px) {
+  .practice-room,
+  .practice-room:has(> .live-felt.french-cross-live) {
+    height: max(460px, calc(100svh - 168px));
+  }
+}
+
+/* At laptop width a permanent 280px social rail costs more playing room than
+   it adds utility. Keep the four physical player stations at the table sides,
+   but let the social rail follow the table until the brand's 1100px desktop
+   threshold. This is also what keeps a complete 44px Across route viable at
+   1024px without shrinking a single bone. */
+@media (min-width: 901px) and (max-width: 1100px) {
+  .table-room { grid-template-columns: minmax(0, 1fr); }
+  .practice-room,
+  .practice-room:has(> .live-felt.french-cross-live) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "table" "rail" "controls";
+    height: auto;
+  }
+  .table-room .table-rail,
+  .practice-room > .practice-seats {
+    max-height: none;
   }
 }

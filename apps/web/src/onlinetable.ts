@@ -1014,9 +1014,10 @@ export class OnlineGame {
   }
 
   async leaveSeat(): Promise<void> {
-    if (!this.isSpectator) {
-      try { await apiLeaveSeat(this.table.id); } catch { /* seat may already be gone; proceed to teardown regardless */ }
-    }
+    // Keep the live subscription intact when the server cannot confirm the
+    // leave. The exit dialog can then explain the failure and offer a retry;
+    // silently tearing down here can strand a still-occupied server seat.
+    if (!this.isSpectator) await apiLeaveSeat(this.table.id);
     this.leave();
   }
 }

@@ -1,5 +1,16 @@
 # YaadDominoes — Jamaican Dominoes
 
+## Current owner-approved plan — 2026-09-12
+
+Read `docs/table-experience-plan.md` before table/UX work and update its tracker,
+evidence, decisions and exact resume point after each session. The owner has
+authorized scoped local implementation and correction of conflicting project
+preferences; do not ask again merely because an older instruction opposes the
+approved corner photographs, desktop right sidebar or illuminated-hand cues.
+That plan governs these changes. Preserve newer French routing, readable-phone
+behavior, rules fixes, server authority and privacy. Approval to improve UX is
+not a claim that a prototype is implemented or that production is verified.
+
 Web-first PWA. Two halves: online play, and an academy that takes a total
 beginner to tournament level. Not in any app store, by choice.
 
@@ -60,6 +71,10 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   surface-specific CSS. Never infer that changing the shared renderer fixed
   both. Browser-test a fresh deal and a played-out hand in both surfaces before
   declaring the request complete, even when the user named only one surface.
+  Apply this as a required parity matrix: Practice/Lounge × Partner/Cut Throat/
+  French/Across where supported × narrow desktop/wide desktop/mobile. A change
+  is incomplete until every applicable cell is inspected; any intentional
+  exception must be named and justified in `docs/table-experience-plan.md`.
 - The board renderer reads only the engine's `Board`/`CrossBoard`. Never hand-place
   a decorative live chain or carry a prototype tile array into production.
 - One flat domino primitive serves hand, board and rack: same 1:2 ratio, thin
@@ -83,6 +98,15 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   controlled face-up hand must still inherit the board's fitted short side.
   After the pre-deal measurement, the computed short sides of a played face-up bone
   and every controlled hand bone must differ by no more than 1 CSS pixel.
+  A player's required Pass control appears immediately beside the active hand
+  when pass is the only legal move. It says `No matching bone` and never waits
+  for a tile tap or shares the bottom-left corner with the player's portrait.
+  `Play here` and other board-end actions must remain readable over either
+  ivory bones or dark felt. Use a defined high-contrast palette, a transparent
+  48px yellow-ring arrow target that does not cover the bone, and keep the full
+  action instruction in its accessible label. Generic ghost-button styling
+  must never win that cascade. Across uses a 22-unit (44px) desktop floor for
+  the played line and both controlled hands, through the shared physical token.
   French desktop uses the measured JamDom proportions as its baseline: a
   1000×800 game surface, a 450×390 routed board and 30×60 bones. **The French
   bone is capped by the board it must fit, and is never derived from viewport
@@ -137,8 +161,12 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   bone on a table with room for 46px — and the concealed racks, capped at 32px,
   then rendered LARGER than the played dominoes. Removing it: stage 490×636 →
   1516×636, bone 30px → 46px.
-  An ordinary line must use the full measured safe width before turning. A
-  phone may turn within a 20-half-tile lane. A live French arm chooses its
+  An ordinary desktop line must choose one complete-hand route from the
+  measured safe rectangle before the pose is dealt, then retain that route and
+  physical bone size for the whole hand. The double-six route is bounded at
+  32 half-tile columns by 22 rows; it may turn before consuming every spare
+  pixel so a later bone never forces a resize or scrollbar. A phone may turn
+  within a 20-half-tile lane and deliberately pan rather than shrink. A live French arm chooses its
   first lane from the measured guard: run straight while the protected square
   allows it, turn once near that boundary, then continue without curling back
   into the original line.
@@ -170,17 +198,21 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   seat's own lane and sends the second to the nearest free one — without that
   they draw on top of each other. `seat` is optional: a hand already in flight
   when this shipped keeps its stored fill-order direction.
-- Each opponent's portrait, name, bone count, score and concealed rack form one
-  edge-mounted player station inside a translucent gold-bordered enclosure.
-  Never position an identity independently from its hand. Top, left and right
-  stations use the same component and spacing, oriented for their table edge,
-  and the board stage is inset far enough that no station can cover the chain.
-- The Lounge is the premium real-table presentation and gets the largest
-  playing surface. Do not keep chat, stickers, standings, logs, profile tools,
-  or duplicate outer seat cards beside the felt. The scoreboard and compact
-  edge stations carry live player information; social tools use a tabbed dock
-  below the table. The protected board rectangle must begin after every edge
-  station's incursion onto the wood.
+- Owner update 2026-09-12: substantial corner photographs identify each player,
+  with names, statistics and edge racks clearly associated by seat. A common
+  logical station does not require one enclosing card. Measure the complete
+  photo/rack/hand footprint so no station can cover the chain. Implement and
+  verify against `docs/table-experience-plan.md` before marking this delivered.
+- Owner update 2026-09-12: desktop Practice and Lounge reserve a permanent right
+  sidebar for score, log, chat, spectators/queue and compact controls. Remove
+  redundant player cards. Fit the active desktop table and sidebar together;
+  retain a deliberate phone adaptation and the readable French pan exception.
+  This supersedes the former below-table-only desktop social dock requirement.
+- Coordinate turn state through an illuminated hand with an embedded Your turn
+  label; preserve the timer and remove the redundant floating play panel.
+  Selection, legal destination preview, pending/confirmed move, reconnect and
+  exit states follow the living plan. An explicit Leave table confirmation is
+  allowed during a live hand; unsolicited live-hand modals remain prohibited.
 - Validate table geometry against a completed hand, not only a fresh deal. At
   every required viewport every played domino must be visible simultaneously,
   with no board scrollbar and nothing beneath the local hand tray.
@@ -377,6 +409,16 @@ Do not relitigate these without asking.
 - **No social login is ever required.** Anonymous sign-in is on.
 - **No modal during a live hand.** Not a gift, not a rate prompt, not an ad,
   not a service worker update.
+- The desktop turn clock is a compact top-edge status pill with its numeric
+  countdown, bank text and urgent bar intact. It must not consume a full-width
+  board row or push the hand away from the table.
+- **Lounge chat is scoped to exactly one lounge.** Ignore stale history,
+  presence, reaction and message callbacks after changing rooms, filter every
+  displayed message by the current `lounge_id`, and include the lounge name in
+  the Table talk heading.
+- Live table creation keeps optional controls collapsed, but the disclosure is
+  an obvious `Table settings` control with seats/clock/Duppies scope, visible
+  Open/Close state, strong contrast and a 44px+ target.
 - **The live coach tells you what to play, and it is practice-only.** Built
   2026-09-04 on the owner's explicit call, reversing an earlier "teach, don't
   tell" position: the goal is players who walk into the lounge as champions.
