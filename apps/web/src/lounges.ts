@@ -518,7 +518,25 @@ export async function listLoungeTables(loungeId: string): Promise<OpenTable[]> {
   });
 }
 
-export function canEnter(lounge: Lounge, tier: Tier, occupancy: number): { ok: boolean; why?: string } {
+export function canEnter(
+  lounge: Lounge,
+  tier: Tier,
+  occupancy: number,
+  /**
+   * Whether this account has a CONFIRMED email. The Lounge needs somebody
+   * reachable behind each seat — a ban a cleared browser undoes is not a ban.
+   * Checked first, ahead of tier and capacity, because it is the one reason
+   * the player can fix right now and the others are not.
+   *
+   * The real gate is RLS (0062's has_lounge_email) plus requireLoungeEmail()
+   * in create-table and join-table; this only decides what the card says, so
+   * nobody is bounced by a raw policy error with no way forward.
+   */
+  hasEmail: boolean,
+): { ok: boolean; why?: string } {
+  if (!hasEmail) {
+    return { ok: false, why: 'Add an email to play here' };
+  }
   if (TIER_RANK[tier] < TIER_RANK[lounge.min_tier]) {
     return { ok: false, why: `${TIER_LABEL[lounge.min_tier]} lounge` };
   }

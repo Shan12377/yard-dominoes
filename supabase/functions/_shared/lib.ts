@@ -32,7 +32,7 @@ export function serviceClient(): SupabaseClient {
 }
 
 /** Resolve the caller from their bearer token. */
-export async function requireUser(req: Request): Promise<{ id: string }> {
+export async function requireUser(req: Request): Promise<{ id: string; email: string | null; emailConfirmed: boolean }> {
   const auth = req.headers.get('Authorization');
   if (!auth) throw new HttpError(401, 'sign in first');
   const anon = createClient(
@@ -42,7 +42,31 @@ export async function requireUser(req: Request): Promise<{ id: string }> {
   );
   const { data, error } = await anon.auth.getUser();
   if (error || !data.user) throw new HttpError(401, 'sign in first');
-  return { id: data.user.id };
+  return {
+    id: data.user.id,
+    email: data.user.email ?? null,
+    // Supabase keeps is_anonymous true until the confirmation link is clicked,
+    // so this is "reachable at a real address", not merely "typed one in".
+    emailConfirmed: !!data.user.email && data.user.is_anonymous !== true,
+  };
+}
+
+/**
+ * The Lounge needs somebody reachable behind each seat — a ban a cleared
+ * browser undoes is not a ban, and a table dispute with an anonymous account
+ * has nobody to answer it. Owner's partner, 2026-09-12: "for people to use
+ * lounge, they must have an email."
+ *
+ * RLS carries this for the lounge tables (0062's has_lounge_email), but these
+ * functions run as the SERVICE ROLE, which RLS does not apply to — so anything
+ * that seats a player online has to ask for itself. Practice is untouched and
+ * stays anonymous: this is an identity floor on the social room, not a wall in
+ * front of a first game.
+ */
+export function requireLoungeEmail(user: { emailConfirmed: boolean }): void {
+  if (!user.emailConfirmed) {
+    throw new HttpError(403, 'add an email to your account to play in the Lounge');
+  }
 }
 
 export class HttpError extends Error {

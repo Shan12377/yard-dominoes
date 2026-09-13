@@ -7,7 +7,7 @@
  */
 
 import {
-  listLounges, myProfile, canEnter, recentMessages, sendMessage, enterLounge,
+  listLounges, myProfile, canEnter, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
   REACTIONS, REACTION_EVENT, reactionLabel, QUICK_CHAT, knownSignal,
   ORIGIN_LABEL,
@@ -101,6 +101,8 @@ const PENALTY_BANNER_MS = 6000;
 
 /** Timers clearing each reaction, so one person spamming cannot pile them up. */
 const reactionTimers = new Map<string, number>();
+/** Invalidates delayed history/subscription callbacks whenever rooms change. */
+let loungeSessionGeneration = 0;
 
 function showReaction(userId: string, id: string, rerender: () => void) {
   if (!knownSignal(id)) return; // never render what a peer invents
@@ -205,6 +207,7 @@ export async function loadLounges(rerender: () => void) {
 }
 
 export function leaveCurrentLounge() {
+  loungeSessionGeneration += 1;
   draft = '';
   draftCaret = 0;
   // The countdown only lives on the lounge LIST, and this is called both on the
@@ -233,23 +236,27 @@ export function leaveCurrentLounge() {
 
 async function openLounge(lounge: Lounge, rerender: () => void) {
   leaveCurrentLounge();
+  const session = loungeSessionGeneration;
   const me = loungeState.me;
   if (!me) { loungeState.error = 'Sign in to enter a lounge'; rerender(); return; }
 
   loungeState.current = lounge;
+  // Table talk begins empty every time somebody enters. It is conversation
+  // among the people presently in this lounge, not a permanent message board;
+  // old visits (including test chatter) must never reappear in a new room
+  // session. Realtime below supplies only messages sent while this session is
+  // alive, and leaveCurrentLounge() clears them immediately on exit.
+  loungeState.messages = [];
   rerender();
 
-  try {
-    loungeState.messages = await recentMessages(lounge.id);
-  } catch (err) {
-    loungeState.error = err instanceof Error ? err.message : 'chat unavailable';
-  }
+  if (session !== loungeSessionGeneration || loungeState.current?.id !== lounge.id) return;
 
   loungeState.room = enterLounge(
     lounge,
     { user_id: me.id, username: me.username, tier: me.tier },
     {
       onPresence: (roster) => {
+        if (session !== loungeSessionGeneration || loungeState.current?.id !== lounge.id) return;
         loungeState.roster = roster;
         // The mesh follows the mic, not the room: only people who actually
         // joined voice get dialled. Safe on every sync — it diffs.
@@ -262,13 +269,20 @@ async function openLounge(lounge: Lounge, rerender: () => void) {
         if (loungeState.video) loungeState.video.syncPeers(videoPeersFrom(roster));
         rerender();
       },
-      onMessage: (msg) => { loungeState.messages = [...loungeState.messages, msg]; rerender(); },
+      onMessage: (msg) => {
+        if (session !== loungeSessionGeneration
+          || loungeState.current?.id !== lounge.id
+          || msg.lounge_id !== lounge.id) return;
+        loungeState.messages = [...loungeState.messages, msg];
+        rerender();
+      },
     },
   );
 
   loungeState.room.channel.on(
     'broadcast', { event: REACTION_EVENT },
     ({ payload }) => {
+      if (session !== loungeSessionGeneration || loungeState.current?.id !== lounge.id) return;
       const { from, id } = (payload ?? {}) as { from?: string; id?: string };
       if (typeof from === 'string' && typeof id === 'string') showReaction(from, id, rerender);
     });
@@ -1278,7 +1292,7 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
   for (const lounge of loungeState.lounges) {
     // Live occupancy needs presence per room; the list shows the gate and the
     // cap, and the true head-count appears once you are inside.
-    const gate = canEnter(lounge, myTier, 0);
+    const gate = canEnter(lounge, myTier, 0, !loungeState.isAnonymous);
     const card = el('div', 'lounge-card' + (gate.ok ? '' : ' locked'));
 
     const left = el('div');
@@ -1331,13 +1345,14 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
  */
 export function chatPanel(lounge: Lounge, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
-  panel.append(el('div', 'eyebrow', 'Table talk'));
+  panel.append(el('div', 'eyebrow', `Table talk · ${lounge.name}`));
 
   const log = el('div', 'chat-log');
-  if (loungeState.messages.length === 0) {
+  const messages = loungeState.messages.filter((message) => message.lounge_id === lounge.id);
+  if (messages.length === 0) {
     log.append(el('div', 'muted', 'Quiet in here. Say something.'));
   }
-  for (const msg of loungeState.messages) {
+  for (const msg of messages) {
     const line = el('div', 'chat-msg');
     line.append(el('span', 'who', msg.username ?? 'player'));
     line.append(document.createTextNode(msg.body));
@@ -1349,8 +1364,8 @@ export function chatPanel(lounge: Lounge, rerender: () => void): HTMLElement {
   panel.appendChild(log);
   requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
   // Cap the rendered history; an all-day lounge otherwise grows without bound.
-  if (loungeState.messages.length > 200) {
-    loungeState.messages = loungeState.messages.slice(-200);
+  if (messages.length > 200) {
+    loungeState.messages = messages.slice(-200);
   }
 
   const form = el('div', 'chat-form');

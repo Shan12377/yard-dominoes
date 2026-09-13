@@ -1,9 +1,13 @@
 // POST /create-table
-import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
+import { handled, json, requireUser, requireLoungeEmail, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
 import { clockByName, duppyPaceByName } from '../_shared/engine/clock.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
+  // Sitting down online needs a reachable account. RLS covers the lounge
+  // tables, but this function runs as the service role, which RLS does not
+  // apply to — so the gate has to be asked for here explicitly.
+  requireLoungeEmail(user);
   const body = await req.json();
   const db = serviceClient();
 

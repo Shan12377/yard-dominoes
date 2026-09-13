@@ -1,5 +1,5 @@
 // POST /join-table  { joinCode }  or  { tableId, seatIndex }
-import { handled, json, requireUser, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
+import { handled, json, requireUser, requireLoungeEmail, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
 
 // A player who leaves mid-hand drops to a duppy fill-in (leave-seat), not a
 // truly open seat. This is how long they get to come back and reclaim it
@@ -8,6 +8,10 @@ const REJOIN_WINDOW_MS = 5 * 60 * 1000;
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
+  // Sitting down online needs a reachable account. RLS covers the lounge
+  // tables, but this function runs as the service role, which RLS does not
+  // apply to — so the gate has to be asked for here explicitly.
+  requireLoungeEmail(user);
   const { joinCode, tableId, seatIndex } = await req.json();
   const db = serviceClient();
 
