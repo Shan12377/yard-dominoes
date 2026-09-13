@@ -1672,7 +1672,7 @@ export function frenchPenaltyLog(
  * view would otherwise leave unexplained.
  */
 export function frenchScoreBreakdown(
-  result: Pick<HandResult, 'counts' | 'doublesRemaining' | 'winnerPlayedDouble' | 'winnerSeat'>,
+  result: Pick<HandResult, 'counts' | 'doublePips' | 'winnerPlayedDouble' | 'winnerSeat'>,
   scoresBefore: number[],
   scoresAfter: number[],
   seatLabel: (seat: number) => string,
@@ -1681,7 +1681,9 @@ export function frenchScoreBreakdown(
   wrap.append(el('div', 'eyebrow', 'Count this hand'));
   result.counts.forEach((pips, seat) => {
     const tags: string[] = [];
-    if (result.doublesRemaining?.[seat]) tags.push('held a double ×2');
+    // Only a held double counts twice, never the whole hand (owner, 2026-09-13).
+    const doublePips = result.doublePips?.[seat] ?? 0;
+    if (doublePips > 0) tags.push(`double left in hand counts twice, +${doublePips}`);
     if (result.winnerPlayedDouble && seat !== result.winnerSeat) tags.push('winner played a double ×2');
     const tagText = tags.length ? ` (${tags.join(', ')})` : '';
     const added = (scoresAfter[seat] ?? 0) - (scoresBefore[seat] ?? 0);

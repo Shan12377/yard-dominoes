@@ -387,6 +387,14 @@ Jamaican players notice these immediately. All are covered by tests.
   uses, and refuses once any bone is down (`move_log` non-empty) because by
   then the pose has been played. It also writes `hands.poser` and `sets.poser`
   so both records name whoever actually opened.
+- **French: only a double left in hand counts twice — never the whole hand.**
+  Holding 5-0 and 6-6 at hand end scores 5 + 12 + 12 = 29, not (5 + 12) × 2
+  (owner, 2026-09-13). An earlier build doubled a seat's entire pip count if it
+  held any double, which overcharged every hand with a double in it.
+  `HandResult.doublePips` carries the pips on held doubles and `set.ts` adds
+  them a second time. When the domino winner's own final tile was a double,
+  every OTHER seat's hand score (held doubles already counted twice) then
+  doubles; that part was not changed and has not been re-confirmed.
 - **The key tile scores a flat 2, not 1 — and never stacks with handValue.**
   When the board's two open ends need two DIFFERENT pip values, the bone
   bearing both of them (ends need a 5 and a 1 — the "5-1" bone) closes the
@@ -687,9 +695,8 @@ legal opinion and processor.
 - When a test fails, work out whether the test or the code is wrong before
   changing either. Several tests encode rules that look wrong and are not.
 - Do not add a dependency to `packages/engine`. Ask first.
-- French is built: cross board, chucha opening, doubling (own double ×2,
-  doubled again when the winner's own final tile was a double, stacking to
-  ×4), the +10 pass penalties, the blocked-tie chucha reshuffle — the set
+- French is built: cross board, chucha opening, doubling, the +10 pass
+  penalties, the blocked-tie chucha reshuffle — the set
   ends the instant ANY seat's score reaches or crosses 100, lowest score at
   that moment wins outright (confirmed against real play; an earlier
   "last-one-under-target-survives" design was wrong) — and the coin-tied

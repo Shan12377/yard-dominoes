@@ -151,17 +151,22 @@ export interface HandResult {
   /** Pip count remaining per seat at the moment the hand ended. */
   counts: number[];
   /**
-   * True at each seat that still held any double when the hand ended. French
-   * doubles the pip count of a seat left with any double, so this is the
-   * per-seat flag scoring needs; other formats ignore the field. Made optional
-   * so old fixtures still typecheck.
+   * Per seat: did it end the hand still holding any double? Kept for display
+   * and replay; French scoring reads `doublePips` below.
    */
   doublesRemaining?: boolean[];
   /**
-   * True when the DOMINO winner's final tile was itself a double. French
-   * doubles every OTHER seat's pip score for the hand when this fires,
-   * stacking with that seat's own doublesRemaining flag (×2 × ×2 = ×4).
-   * Never set on a blocked hand — nobody "plays" a winning tile there.
+   * Pips on the doubles each seat still held when the hand ended. French adds
+   * them a second time, so a double left in hand counts twice and nothing
+   * else in that hand is doubled: 5-0 and 6-6 is 5 + 12 + 12 = 29, never
+   * (5 + 12) x 2. Owner's rule, 2026-09-13; an earlier build doubled the
+   * whole hand.
+   */
+  doublePips?: number[];
+  /**
+   * True when the DOMINO winner's final tile was itself a double. French then
+   * doubles every OTHER seat's score for the hand, applied after that seat's
+   * held doubles have been counted twice.
    */
   winnerPlayedDouble?: boolean;
   /**

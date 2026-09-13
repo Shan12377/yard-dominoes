@@ -7,9 +7,9 @@ import type { HandResult, HandState, SetState } from '../src/index.ts';
 
 /*
  * French — race to 100, lower is better. Losers add their remaining pip count
- * to their running total; if they hold any double, that hand's score doubles
- * — and doubles again (stacking to ×4) if the winner's own final tile was
- * itself a double. A blocked tie forces the chucha and replays flat for a
+ * to their running total, with any double still in hand counted twice (only
+ * the double, never the whole hand) — and that hand score doubles again if
+ * the winner's own final tile was itself a double. A blocked tie forces the chucha and replays flat for a
  * ±2 bonus rather than the sixlove-style escalating replay. Crossing 100
  * puts a seat OUT, not the set — play continues among survivors until one
  * remains. See docs/superpowers/plans/2026-07-30-french-debrief.md and
@@ -21,6 +21,7 @@ function scoringResult(opts: {
   winnerSeat: number | null;
   counts: number[];
   doubles?: boolean[];
+  doublePips?: number[];
   tie?: boolean;
   winnerPlayedDouble?: boolean;
   penalties?: number[];
@@ -33,6 +34,7 @@ function scoringResult(opts: {
     tie,
     counts: opts.counts,
     doublesRemaining: opts.doubles ?? opts.counts.map(() => false),
+    doublePips: opts.doublePips ?? opts.counts.map(() => 0),
     winnerPlayedDouble: opts.winnerPlayedDouble,
     penalties: opts.penalties,
   };
@@ -49,12 +51,15 @@ describe('French scoring', () => {
     assert.deepEqual(next.scores, [0, 12, 8, 15]);
   });
 
-  it('a seat holding any double has that hand\'s pips doubled', () => {
+  it('a double left in hand counts twice, and nothing else in that hand is doubled', () => {
+    // Owner, 2026-09-13: holding 5-0 and 6-6 scores 5 + 12 + 12 = 29. An
+    // earlier build doubled the whole hand, (5 + 12) x 2 = 34.
     const s = createSet({ format: 'french', mode: 'cutthroat', seatCount: 4 });
     const next = applyHandResult(s, scoringResult({
-      status: 'domino', winnerSeat: 0, counts: [0, 12, 8, 15], doubles: [false, true, false, false],
+      status: 'domino', winnerSeat: 0, counts: [0, 17, 8, 15],
+      doubles: [false, true, false, false], doublePips: [0, 12, 0, 0],
     }));
-    assert.deepEqual(next.scores, [0, 24, 8, 15]);
+    assert.deepEqual(next.scores, [0, 29, 8, 15]);
   });
 
   it('the winner ending on a double doubles every OTHER seat\'s score, whatever they held', () => {
@@ -65,13 +70,14 @@ describe('French scoring', () => {
     assert.deepEqual(next.scores, [0, 24, 16, 30]);
   });
 
-  it('the two doublings stack to ×4 when a seat holds its own double AND the winner ended on one', () => {
+  it('a winner ending on a double doubles the hand score after held doubles are counted twice', () => {
+    // Seat 1 holds 12 pips including a 3-3: 12 + 6 = 18, then doubled = 36.
     const s = createSet({ format: 'french', mode: 'cutthroat', seatCount: 4 });
     const next = applyHandResult(s, scoringResult({
       status: 'domino', winnerSeat: 0, counts: [0, 12, 8, 15],
-      doubles: [false, true, false, false], winnerPlayedDouble: true,
+      doubles: [false, true, false, false], doublePips: [0, 6, 0, 0], winnerPlayedDouble: true,
     }));
-    assert.deepEqual(next.scores, [0, 48, 16, 30]);
+    assert.deepEqual(next.scores, [0, 36, 16, 30]);
   });
 
   it('penalties (board-pass, three-in-a-row) fold into the score alongside the pip total', () => {
@@ -527,6 +533,22 @@ describe('French: pass penalties', () => {
     const next = applyMove(state, { kind: 'play', seat: 0, tile: '0-6', end: 'left' });
     assert.equal(next.status, 'domino');
     assert.deepEqual(next.result!.penaltyLog, [{ seat: 2, amount: 10, reason: 'board-pass' }]);
+  });
+
+  it('a real hand end records the pips on held doubles, and only those count twice', () => {
+    const state = frenchHand({
+      board: { kind: 'linear', line: [{ tile: '4-4', crosswise: true }], leftEnd: 4, rightEnd: 4 },
+      // Seat 1 is the owner's example: 5-0 and 6-6. Seat 3 can answer the new
+      // end, so going out costs nobody a board-pass.
+      hands: [['4-1'], ['5-0', '6-6'], ['2-2'], ['3-1']],
+      turn: 0,
+    });
+    const next = applyMove(state, { kind: 'play', seat: 0, tile: '4-1', end: 'left' });
+    assert.equal(next.status, 'domino');
+    assert.deepEqual(next.result!.counts, [0, 17, 4, 4]);
+    assert.deepEqual(next.result!.doublePips, [0, 12, 4, 0]);
+    const scored = applyHandResult(createSet({ format: 'french', mode: 'cutthroat', seatCount: 4 }), next.result!);
+    assert.deepEqual(scored.scores, [0, 29, 8, 4], '5 + 12 + 12 = 29, not 34');
   });
 
   it('a play that leaves even one other seat with an answer costs nobody', () => {

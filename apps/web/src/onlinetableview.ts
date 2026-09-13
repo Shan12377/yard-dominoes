@@ -160,7 +160,7 @@ export async function openTablesPanel(
 const FORMAT_HINTS: Record<string, string> = {
   sixlove: 'Six wins in a row while the other side stays at zero — a bruk resets it.',
   firstToSix: 'Best of six. Straight race, no reset.',
-  french: 'Race to 100 — lowest score wins. Doubles cost you double.',
+  french: 'Race to 100 — lowest score wins. A double left in your hand counts twice.',
 };
 
 let startTableAdvancedOpen = false;

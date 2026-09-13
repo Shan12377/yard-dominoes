@@ -110,7 +110,7 @@ export const GAME_GUIDES = [
     id: 'french',
     title: 'French',
     eyebrow: 'Four-way cross',
-    body: 'The opening double sits in the middle and the board grows along four arms. After round one, the winner must pose a double. Scores are the pips left in each hand, with French penalties added. The set stops when any score reaches 100, and the lowest score wins.',
+    body: 'The opening double sits in the middle and the board grows along four arms. After round one, the winner must pose a double. Scores are the pips left in each hand, with a double still in your hand counted twice (only the double, not the whole hand) and French penalties added. The set stops when any score reaches 100, and the lowest score wins.',
     takeaway: 'Low score wins. Watch all four arms and avoid the ten-point penalties.',
   },
   {

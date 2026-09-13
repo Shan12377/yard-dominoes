@@ -393,9 +393,12 @@ function resolve(
   s: HandState, status: 'domino' | 'blocked', winnerPlayedDouble = false, keyWin = false,
 ): HandResult {
   const counts = s.hands.map(handCount);
-  // Per-seat "did this seat end the hand still holding any double?" — used
-  // by French scoring to double that seat's pips. Other formats ignore it.
+  // Per seat: does it still hold a double, and how many pips are on those
+  // doubles? French counts a held double twice and nothing else in the hand;
+  // other formats ignore both.
   const doublesRemaining = s.hands.map((h) => h.some(isDouble));
+  const doublePips = s.hands.map((h) =>
+    h.filter(isDouble).reduce((total, tile) => total + tileCount(tile), 0));
   const penalties = [...s.penalties];
   const penaltyLog = [...(s.penaltyLog ?? [])];
 
@@ -408,6 +411,7 @@ function resolve(
       tie: false,
       counts,
       doublesRemaining,
+      doublePips,
       winnerPlayedDouble,
       penalties,
       penaltyLog,
@@ -425,14 +429,14 @@ function resolve(
   const tied = counts.filter((c) => c === lowest).length > 1;
   if (tied) {
     return {
-      status, winnerSeat: null, winnerSide: null, tie: true, counts, doublesRemaining, penalties,
+      status, winnerSeat: null, winnerSide: null, tie: true, counts, doublesRemaining, doublePips, penalties,
       penaltyLog,
     };
   }
   const seat = counts.indexOf(lowest);
   return {
     status, winnerSeat: seat, winnerSide: sideOf(seat, s.mode), tie: false, counts,
-    doublesRemaining, penalties, penaltyLog,
+    doublesRemaining, doublePips, penalties, penaltyLog,
   };
 }
 

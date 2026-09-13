@@ -97,11 +97,12 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
 
   // --- French: race to 100 where LOWER wins -------------------------------
   // Every seat adds their remaining pip count to their own running total,
-  // doubled if they held any double when the hand ended, doubled AGAIN
-  // (stacking to ×4) if the winner's own final tile was itself a double —
-  // that second doubling hits every OTHER seat regardless of what they
-  // personally held. A domino winner's hand is empty so they add zero — the
-  // "winner scores zero" property falls out for free.
+  // with any DOUBLE still in hand counted twice. Only the double is doubled,
+  // never the whole hand: 5-0 and 6-6 is 5 + 12 + 12 = 29, not 34 (owner,
+  // 2026-09-13; an earlier build doubled the whole hand). If the winner's own
+  // final tile was itself a double, every OTHER seat's score for the hand
+  // then doubles again, whatever they held. A domino winner's hand is empty
+  // so they add zero — the "winner scores zero" property falls out for free.
   //
   // A blocked tie doesn't use the sixlove-style escalating replay — it
   // forces the chucha open and replays flat: the replay's winner takes +2,
@@ -116,7 +117,7 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
   // the LOWEST score at that moment wins the whole set outright, even if
   // several seats crossed target in the very same hand.
   if (format === 'french') {
-    const doubles = result.doublesRemaining ?? new Array(seatCount).fill(false);
+    const heldDoublePips = result.doublePips ?? new Array(seatCount).fill(0);
     const penalties = result.penalties ?? new Array(seatCount).fill(0);
     const winnerHadDouble = result.winnerPlayedDouble ?? false;
 
@@ -144,9 +145,9 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
       return s;
     } else {
       for (let seat = 0; seat < seatCount; seat++) {
-        let factor = doubles[seat] ? 2 : 1;
-        if (winnerHadDouble && seat !== result.winnerSeat) factor *= 2;
-        s.scores[seat] += result.counts[seat] * factor;
+        let added = result.counts[seat] + heldDoublePips[seat];
+        if (winnerHadDouble && seat !== result.winnerSeat) added *= 2;
+        s.scores[seat] += added;
       }
       if (result.winnerSeat !== null) s.poser = result.winnerSeat;
       s.poseMustBeDoubleSix = false;
