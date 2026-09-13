@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
 import type { Board, CrossBoard, Pip, PlacedTile, TileId } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { assertRenderableBoard, assertVisibleTilesDisjoint, armDirectionFor, boardGuardInsets, crossArmDirections, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveAcrossRouteUnits, liveLinearGeometry, liveTableUnit, rowsOf } from './render.ts';
+import { assertRenderableBoard, assertVisibleTilesDisjoint, armDirectionFor, boardGuardInsets, crossArmDirections, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveAcrossRouteUnits, liveLinearGeometry, liveTableUnit, phoneCrossGrid, phoneCrossRoute, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -927,4 +927,62 @@ test('the French fit cap outranks the readable-minimum floor', () => {
   assert.equal(frenchCanvasUnit(box), 9, 'only unit 9 fits that stage');
   assert.ok(30 * 9 <= box.width, 'and a unit-9 canvas really does fit');
   assert.ok(30 * 10 > box.width, 'while the unit-10 floor would overflow it');
+});
+
+test('a phone French route never leaves the board width, and no arm touches another', () => {
+  // Owner's screenshot, 2026-09-13: the desktop route is 30 units wide, so on
+  // a phone every arm turned in columns that fell off the screen and a
+  // turned-back run looked like dominoes floating on their own.
+  type R = { x: number; y: number; w: number; h: number };
+  const overlap = (a: R, b: R) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  // Touching includes edges and corners: anything closer than one unit.
+  const near = (a: R, b: R) => a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
+  const joined = (a: R, b: R) => !overlap(a, b) && (
+    ((a.x + a.w === b.x || b.x + b.w === a.x) && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) >= 2)
+    || ((a.y + a.h === b.y || b.y + b.h === a.y) && Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) >= 2));
+  const heads = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] } as const;
+  for (const cols of [12, 14, 16, 18, 20, 22, 24]) for (const rows of [16, 23, 26, 32, 39]) {
+    const hub = { x: cols / 2 - 1, y: Math.floor(rows / 2) - 2, w: 2, h: 4 };
+    const placed: { arm: string; r: R }[] = [];
+    for (const dir of ['up', 'right', 'down', 'left'] as const) {
+      const route = phoneCrossRoute(dir, cols, rows, 16);
+      assert.equal(route.length, 16);
+      assert.ok(joined(hub, route[0]), `${dir} first bone must join the chucha (${cols}x${rows})`);
+      const [hx, hy] = heads[dir];
+      const firstCentre = [route[0].x + route[0].w / 2 - cols / 2, route[0].y + route[0].h / 2 - Math.floor(rows / 2)];
+      assert.ok(firstCentre[0] * hx + firstCentre[1] * hy > 0, `${dir} first bone must head towards its player`);
+      route.forEach((s, i) => {
+        assert.ok(s.x >= 0 && s.x + s.w <= cols, `${dir}#${i} leaves the ${cols}-column board`);
+        assert.equal(s.orient, s.w === 4 ? 'h' : 'v');
+        if (i) assert.ok(joined(route[i - 1], s), `${dir}#${i} does not join the bone before it (${cols}x${rows})`);
+        assert.ok(!overlap(hub, s), `${dir}#${i} covers the chucha`);
+        for (const other of placed) {
+          assert.ok(!near(other.r, s), `${dir}#${i} touches the ${other.arm} arm (${cols}x${rows})`);
+        }
+      });
+      placed.push(...route.map((r) => ({ arm: dir, r })));
+    }
+  }
+});
+
+test('a phone French board holds an ordinary hand without panning', () => {
+  // 2,000 simulated French hands: an arm reaches 6 bones typically, 9 at the
+  // 95th percentile, 11 at the 99th and 14 at most. A longer arm grows past
+  // the top or bottom and pans vertically, still joined to the centre.
+  const inside = (cols: number, rows: number, dir: 'up' | 'right' | 'down' | 'left') => {
+    const route = phoneCrossRoute(dir, cols, rows, 16);
+    const firstOutside = route.findIndex((s) => s.y < 0 || s.y + s.h > rows);
+    return firstOutside < 0 ? route.length : firstOutside;
+  };
+  for (const dir of ['up', 'right', 'down', 'left'] as const) {
+    assert.ok(inside(20, 36, dir) >= 9, `a 430px phone must hold a 95th-percentile ${dir} arm`);
+    assert.ok(inside(22, 32, dir) >= 14, `a roomier phone must hold the longest ${dir} arm seen`);
+  }
+  // The grid follows the measured stage and never shrinks the bone.
+  assert.deepEqual(phoneCrossGrid({ width: 293, height: 558 }, 14), { cols: 20, rows: 39 });
+  assert.deepEqual(phoneCrossGrid({ width: 320, height: 440 }, 14), { cols: 22, rows: 31 });
+  // A 360px phone measured a 247x322 stage: it must route in 16 columns, not
+  // be forced wider than the screen and pan sideways.
+  assert.deepEqual(phoneCrossGrid({ width: 247, height: 322 }, 14), { cols: 16, rows: 23 });
+  assert.deepEqual(phoneCrossGrid({ width: 120, height: 120 }, 14), { cols: 12, rows: 16 });
 });

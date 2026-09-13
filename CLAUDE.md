@@ -130,14 +130,29 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   owner has ruled on it twice — the second time after a build shipped with 20px
   phone bones. A board that is fully visible but unreadable is worse than one
   that is readable and pans.
-  No routing scheme escapes this, so do not go looking for one: measured over
-  500 real French hands, even `chooseCrossFit`'s flexible lane generator holds
-  only about 13 bones at 28px on a 430px phone. Four arms radiating from a
-  centre need more room than a line that snakes. The phone therefore pans, and
-  `centreCrossOnPose()` holds the chucha in the middle of the stage so the
-  cross is read outward from its centre and no arm hides without warning —
-  `align-items: safe center` start-aligns anything larger than its box, which
-  measured 44px of drift and hid a whole arm.
+  **A phone routes French inside its own width.** It used to draw the desktop
+  450×390 reference route and pan. At the 28px phone bone that route is 420px
+  wide against a 290-320px stage, and every arm turned in the columns that fell
+  off the screen. The joining bones were hidden, so a turned-back run looked
+  like dominoes floating on their own (owner's iPhone screenshot, 2026-09-13).
+  An earlier note here said no routing scheme could fit a phone; that was
+  measured for fitting all four arms as straight L-shapes, and it was wrong
+  as a general claim. `phoneCrossRoute()` gives each arm one pinwheel quarter:
+  the first bone heads towards the player who opened it, then the arm runs
+  rows back and forth across its band, growing away from the chucha. Nothing
+  ever leaves the board's width. Neighbouring arms keep one unit of felt
+  between them, because touching bones from different arms read as a join.
+  Over 2,000 simulated French hands an arm reaches 6 bones typically, 9 at
+  the 95th percentile and 14 at most; a 430px phone (20×33 units) holds 9-10
+  per arm and a roomier one holds 14 or more. A rarer long arm grows past the
+  top or bottom and pans vertically, still joined to the centre. On a narrow
+  phone (a 360px screen measured a 247×322 stage, 16 columns) a band too
+  narrow for another row keeps going straight up or down the arm's own
+  column, so the board never pans sideways down to 12 columns. The 450×390
+  reference route remains the desktop authority. `centreCrossOnPose()` still
+  holds the chucha in the middle of any stage that pans: `align-items: safe
+  center` start-aligns anything larger than its box, which measured 44px of
+  drift and hid a whole arm.
 - `docs/prototypes/authentic-table.html` is the live-table composition authority:
   on desktop the local hand sits in a compact, content-width tray at the
   player's table edge; on phone it becomes the prototype's transparent,

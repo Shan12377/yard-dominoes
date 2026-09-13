@@ -266,8 +266,22 @@ test('Practice and Lounge pin the French route and invisible guard for the whole
     // a 464x439 stage, clipping 98% of desktop hands from the seventh bone.
     assert.match(source, /lastFrenchFitBox = box;/,
       'French must record the stage it was actually measured against');
-    assert.match(source, /if \(fittedUnit && want !== fittedUnit\)/,
-      'and may only rebuild when the fitted bone genuinely changes');
+    // A phone also rebuilds when its measured grid differs from the one it
+    // was first drawn in (2026-09-13: phones route inside their own width).
+    // Like the bone, that grid can only change the first time a French hand
+    // is drawn at a given viewport, so the steady state is still no rebuild.
+    assert.match(source, /if \(fittedUnit && \(want !== fittedUnit \|\| phoneGridStale\)\)/,
+      'and may only rebuild when the fitted bone or the phone grid genuinely changes');
+    assert.match(source,
+      /const phoneGridStale = window\.innerWidth <= 700\s*&& line\.dataset\.crossGrid !== phoneCrossGridKey\(lockedBox, tableUnit\);/,
+      'the phone grid check compares what was drawn against the measured stage');
+    // The stage is measured once per hand. Re-measuring after a long arm made
+    // the stage pan let a scrollbar narrow it, and re-routed every bone
+    // already played (360px phone, 2026-09-13).
+    assert.match(source, /lastFrenchFitKey = frenchGuardKey;/,
+      'the French stage measurement is locked to the hand it was taken for');
+    assert.match(source, /box: lockedBox,/,
+      'the French redraw uses the locked measurement, not a fresh one');
     assert.doesNotMatch(source, /if \(frenchTable\) \{\s*const corrected = renderBoard/,
       'never an unconditional French rebuild after paint');
     assert.doesNotMatch(source,

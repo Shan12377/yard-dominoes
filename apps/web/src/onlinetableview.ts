@@ -15,7 +15,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, centreCrossOnPose, markPannable, keepTileInView } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition, type SeatSlot } from './seatlayout.ts';
@@ -435,6 +435,8 @@ let lastFrenchGuardKey: string | null = null;
  */
 let lastFrenchFitWidth = 0;
 let lastFrenchFitBox: { width: number; height: number } | null = null;
+/** The hand (and viewport) `lastFrenchFitBox` was measured for. */
+let lastFrenchFitKey: string | null = null;
 let lastFrenchGuardInset: string | null = null;
 
 /**
@@ -1175,18 +1177,32 @@ export function liveTableView(
       // all -- render() fires every ~420ms during duppy turns and an
       // unconditional rebuild here is exactly the flash this whole block
       // exists to prevent.
-      lastFrenchFitWidth = window.innerWidth;
-      lastFrenchFitBox = box;
+      // Measure once per hand, then keep it. Once a long arm makes the stage
+      // pan, a scrollbar can narrow clientWidth, and re-measuring then
+      // re-routed every bone already played mid-hand (360px phone,
+      // 2026-09-13). The key already carries the viewport width, so a real
+      // resize still measures again.
+      if (!frenchGuardKey || frenchGuardKey !== lastFrenchFitKey
+        || lastFrenchFitWidth !== window.innerWidth || !lastFrenchFitBox) {
+        lastFrenchFitWidth = window.innerWidth;
+        lastFrenchFitBox = box;
+        lastFrenchFitKey = frenchGuardKey;
+      }
+      const lockedBox = lastFrenchFitBox ?? box;
       // A cross reads outward from its centre, so when it is bigger than the
       // stage the pose must stay in the middle rather than being start-aligned
       // into a corner with an arm off-screen.
       centreCrossOnPose(boardStage, line);
       const want = window.innerWidth > 700
-        ? Math.min(tableUnit, frenchCanvasUnit(box))
+        ? Math.min(tableUnit, frenchCanvasUnit(lockedBox))
         : tableUnit;
-      if (fittedUnit && want !== fittedUnit) {
+      // A phone routes inside its measured width, so a first pass drawn from
+      // the window guess must be redrawn once the real stage is known.
+      const phoneGridStale = window.innerWidth <= 700
+        && line.dataset.crossGrid !== phoneCrossGridKey(lockedBox, tableUnit);
+      if (fittedUnit && (want !== fittedUnit || phoneGridStale)) {
         const corrected = renderBoard(line, displayBoard, {
-          box,
+          box: lockedBox,
           maxUnit: tableUnit,
           unit: tableUnit,
           minUnit: tableMinUnit,

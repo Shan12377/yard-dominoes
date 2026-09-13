@@ -223,14 +223,13 @@ export interface BoardFit {
    * Fitting a late cross there works out at a 20px bone, and 16px on a 360px
    * screen, against 28px for the linear game. Dominoes is played by older
    * people and the owner has ruled on this twice: a board that is fully
-   * visible but unreadable is worse than one that is readable and pans. No
-   * routing scheme changes the arithmetic either — measured over 500 real
-   * French hands, even the flexible lane generator holds only ~13 bones at
-   * 28px on a 430px phone. Four arms radiating from a centre simply need more
-   * room than a line that snakes.
+   * visible but unreadable is worse than one that is readable and pans.
    *
-   * So the phone keeps its readable bone and pans, with centreCrossOnPose()
-   * holding the chucha in the middle so no arm hides without warning.
+   * So the phone keeps its readable bone and routes inside its own width
+   * instead (phoneCrossRoute). The desktop reference route is 30 units wide
+   * and turned every arm in columns a phone could not show, which hid the
+   * joining bones. Only a rare long arm pans, vertically, still joined to the
+   * centre; centreCrossOnPose() keeps the chucha in the middle when it does.
    */
   fitCrossToBox?: boolean;
   /**
@@ -865,6 +864,201 @@ const FRENCH_REFERENCE_ROUTES: Record<CrossBoard['arms'][number]['direction'], r
   down: [[225,255,'v'],[225,315,'v'],[210,360,'h'],[150,360,'h'],[90,360,'h'],[30,360,'h'],[15,315,'v'],[15,255,'v'],[60,230,'h'],[120,230,'h'],[165,245,'v'],[180,305,'v'],[135,325,'h'],[75,325,'h'],[50,280,'v'],[95,265,'h']],
 };
 
+type CrossDirection = CrossBoard['arms'][number]['direction'];
+
+/** One slot on a phone French board, in layout units (half a short side). */
+export interface PhoneCrossSlot { x: number; y: number; w: number; h: number; orient: 'h' | 'v' }
+
+/** One unit of felt between neighbouring arms, so touching bones never read as a join. */
+const PHONE_CROSS_GAP = 1;
+/** A band too narrow for a row keeps climbing its own column, so any phone fits. */
+const PHONE_CROSS_MIN_COLS = 12;
+const PHONE_CROSS_MIN_ROWS = 16;
+
+/**
+ * The grid a phone French board is routed in, from its measured stage.
+ *
+ * The desktop reference canvas is 30u wide, which at the readable 28px phone
+ * bone is 420px against a ~290-320px phone stage. Every arm turned in the
+ * columns that fell off the screen, so the joining bones were hidden and a
+ * turned-back run looked like dominoes floating on their own (owner's
+ * screenshot, 2026-09-13). The phone therefore routes inside its OWN width.
+ */
+export function phoneCrossGrid(box: BoardBox, unit: number): { cols: number; rows: number } {
+  // Even columns keep the chucha on a whole unit.
+  const cols = Math.max(PHONE_CROSS_MIN_COLS, Math.floor(box.width / unit / 2) * 2);
+  const rows = Math.max(PHONE_CROSS_MIN_ROWS, Math.floor(box.height / unit));
+  return { cols, rows };
+}
+
+export function phoneCrossGridKey(box: BoardBox, unit: number): string {
+  const { cols, rows } = phoneCrossGrid(box, unit);
+  return `${cols}x${rows}`;
+}
+
+/**
+ * The slots one arm of a phone French board fills, in play order.
+ *
+ * The first bone always heads towards the player who opened the arm. After
+ * that each arm owns one pinwheel quarter of the board: it runs rows back
+ * and forth across its band and grows away from the chucha. Nothing ever
+ * leaves the board's width. An unusually long arm grows past the top or
+ * bottom instead, which is a short vertical pan that stays joined to the
+ * centre, never a run that disappears off the side and comes back.
+ */
+export function phoneCrossRoute(
+  direction: CrossDirection, cols: number, rows: number, count: number,
+): PhoneCrossSlot[] {
+  const cx = cols / 2;
+  const cy = Math.floor(rows / 2);
+  // Up and down own the centre column, so their bands are the wider pair; the
+  // left and right rows stop one gap short of it.
+  const band = {
+    up: { x0: cx - 1, x1: cols, rowX0: cx - 1, rowX1: cols, grow: 'up', back: 'right' },
+    right: { x0: cx + 1, x1: cols, rowX0: cx + 1 + PHONE_CROSS_GAP, rowX1: cols, grow: 'down', back: 'left' },
+    down: { x0: 0, x1: cx + 1, rowX0: 0, rowX1: cx + 1, grow: 'down', back: 'left' },
+    left: { x0: 0, x1: cx - 1, rowX0: 0, rowX1: cx - 1 - PHONE_CROSS_GAP, grow: 'up', back: 'right' },
+  }[direction] as { x0: number; x1: number; rowX0: number; rowX1: number; grow: CrossDirection; back: CrossDirection };
+
+  type Rect = { x: number; y: number; w: number; h: number };
+  const along = (half: Rect, d: CrossDirection): Rect => ({
+    x: half.x + (d === 'right' ? 2 : d === 'left' ? -2 : 0),
+    y: half.y + (d === 'down' ? 2 : d === 'up' ? -2 : 0),
+    w: 2, h: 2,
+  });
+  // The tile whose inward half is `inward` and which travels in `d`.
+  const tileFrom = (inward: Rect, d: CrossDirection): Rect =>
+    d === 'right' ? { x: inward.x, y: inward.y, w: 4, h: 2 }
+      : d === 'left' ? { x: inward.x - 2, y: inward.y, w: 4, h: 2 }
+        : d === 'down' ? { x: inward.x, y: inward.y, w: 2, h: 4 }
+          : { x: inward.x, y: inward.y - 2, w: 2, h: 4 };
+  const outwardHalf = (r: Rect, d: CrossDirection): Rect =>
+    d === 'right' ? { x: r.x + 2, y: r.y, w: 2, h: 2 }
+      : d === 'down' ? { x: r.x, y: r.y + 2, w: 2, h: 2 }
+        : { x: r.x, y: r.y, w: 2, h: 2 };
+  const slot = (r: Rect): PhoneCrossSlot => ({ ...r, orient: r.w === 4 ? 'h' : 'v' });
+
+  const first: Rect = direction === 'right' ? { x: cx + 1, y: cy - 1, w: 4, h: 2 }
+    : direction === 'left' ? { x: cx - 5, y: cy - 1, w: 4, h: 2 }
+      : direction === 'up' ? { x: cx - 1, y: cy - 6, w: 2, h: 4 }
+        : { x: cx - 1, y: cy + 2, w: 2, h: 4 };
+  const out: PhoneCrossSlot[] = count > 0 ? [slot(first)] : [];
+  let travel: CrossDirection = direction;
+  let head = outwardHalf(first, travel);
+  let rowDir: CrossDirection = direction === 'up' || direction === 'down' ? band.back : direction;
+  // The first row (and an up/down arm's first turn out of its column) may use
+  // the whole band; every later row keeps the gap to the neighbouring arm.
+  let firstRow = true;
+  const fits = (r: Rect) => r.x >= (firstRow ? band.x0 : band.rowX0)
+    && r.x + r.w <= (firstRow ? band.x1 : band.rowX1);
+
+  while (out.length < count) {
+    let next: Rect;
+    if (travel === 'left' || travel === 'right') {
+      const straight = tileFrom(along(head, travel), travel);
+      if (fits(straight)) {
+        next = straight;
+      } else {
+        // Turn at the end of the row: beside the end face when a column is
+        // free there, otherwise on the side of the last half.
+        const beside = along(head, travel);
+        const endOn: Rect = band.grow === 'down'
+          ? { ...beside, h: 4 }
+          : { ...beside, y: beside.y - 2, h: 4 };
+        next = fits(endOn) ? endOn : tileFrom(along(head, band.grow), band.grow);
+        rowDir = travel === 'left' ? 'right' : 'left';
+        travel = band.grow;
+        firstRow = false;
+      }
+    } else {
+      const row = tileFrom(along(head, rowDir), rowDir);
+      if (fits(row)) {
+        next = row;
+        travel = rowDir;
+      } else {
+        // A band too narrow for another row (a 360px phone): keep going
+        // straight up or down the arm's own column rather than leave the width.
+        next = tileFrom(along(head, travel), travel);
+      }
+    }
+    out.push(slot(next));
+    head = outwardHalf(next, travel);
+  }
+  return out;
+}
+
+/** Which pip faces which way when `placed` joins `anchor` at (x, y) from `previous`. */
+function crossFaces(
+  placed: CrossBoard['arms'][number]['tiles'][number], anchor: Pip, orient: 'h' | 'v',
+  x: number, y: number, previous: readonly [number, number],
+): { faces: [Pip, Pip]; outward: Pip } {
+  const [a, b] = halves(placed.tile);
+  const inward = (a === anchor ? a : b) as Pip;
+  const outward = (a === anchor ? b : a) as Pip;
+  const forward = orient === 'h' ? x > previous[0] : y > previous[1];
+  return { faces: forward ? [inward, outward] : [outward, inward], outward };
+}
+
+function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, box: BoardBox, u: number) {
+  const { cols, rows } = phoneCrossGrid(box, u);
+  const armDirections = opts.viewerSeat === undefined
+    ? board.arms.map((arm) => arm.direction)
+    : crossArmDirections(board.arms, opts.viewerSeat);
+  const routes = board.arms.map((arm, index) =>
+    phoneCrossRoute(armDirections[index], cols, rows, arm.tiles.length));
+  // A rare long arm grows past the top or bottom; the board grows with it and
+  // the stage pans vertically, still joined to the centre.
+  let top = 0;
+  let bottom = rows;
+  for (const route of routes) for (const s of route) {
+    top = Math.min(top, s.y);
+    bottom = Math.max(bottom, s.y + s.h);
+  }
+  host.classList.add('french-reference-route', 'french-phone-route');
+  host.style.gridTemplateColumns = '';
+  host.style.gridTemplateRows = '';
+  host.style.width = `${cols * u}px`;
+  host.style.height = `${(bottom - top) * u}px`;
+  host.dataset.crossGrid = `${cols}x${rows}`;
+  const place = (node: HTMLElement, r: { x: number; y: number; w: number; h: number }) => {
+    node.style.width = `${r.w * u}px`;
+    node.style.height = `${r.h * u}px`;
+    node.style.left = `${r.x * u}px`;
+    node.style.top = `${(r.y - top) * u}px`;
+  };
+
+  const cx = cols / 2;
+  const cy = Math.floor(rows / 2);
+  const pose = tileEl(board.center);
+  pose.classList.add('hub');
+  place(pose, { x: cx - 1, y: cy - 2, w: 2, h: 4 });
+  host.appendChild(pose);
+
+  const centerValue = halves(board.center)[0];
+  board.arms.forEach((arm, armIndex) => {
+    let anchor = centerValue;
+    let previous: readonly [number, number] = [cx, cy];
+    arm.tiles.forEach((placed, step) => {
+      const s = routes[armIndex][step];
+      const x = s.x + s.w / 2;
+      const y = s.y + s.h / 2;
+      const { faces, outward } = crossFaces(placed, anchor, s.orient, x, y, previous);
+      const node = boardTile({
+        placed, orient: s.orient, faces,
+        col: 0, row: 0,
+        colSpan: s.orient === 'h' ? 4 : 2,
+        rowSpan: s.orient === 'h' ? 2 : 4,
+        crossArm: armIndex, crossStep: step,
+      });
+      place(node, s);
+      host.appendChild(node);
+      anchor = outward;
+      previous = [x, y];
+    });
+  });
+  return u;
+}
+
 function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
   const box = opts.box ?? feltBox();
   // One half-short-side unit is 15px in the 30×60 reference. Live callers
@@ -883,14 +1077,15 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
   // That is not a trade this game can make. Dominoes is played by older
   // people, and the owner has now said so twice — a board that is fully
   // visible and unreadable is worse than one that is readable and pans. So a
-  // phone keeps its readable bone and the stage pans, with the pose held in
-  // the centre (see centreCrossOnPose) so both sides are equally reachable
-  // and the chucha never drifts off to one edge.
+  // phone keeps its readable bone and routes inside its own width instead
+  // (renderPhoneCross below); the fixed reference canvas is desktop only.
   const fitCap = frenchCanvasUnit(box);
   const readableFloor = opts.minUnit ?? CROSS_MIN_UNIT;
   const pinned = opts.unit ?? fitCap;
   const requested = opts.fitCrossToBox === false ? pinned : Math.min(pinned, fitCap);
   const u = Math.max(readableFloor, Math.min(opts.maxUnit ?? MAX_UNIT, requested));
+  // A phone keeps the readable bone and routes inside its own width.
+  if (opts.fitCrossToBox === false) return renderPhoneCross(host, board, opts, box, u);
   const short = u * 2;
   const scale = short / 30;
   host.classList.add('french-reference-route');
@@ -921,11 +1116,7 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
       const point = route[step];
       if (!point) throw new Error(`French ${armDirections[armIndex]} arm exceeds the measured route`);
       const [x, y, orient] = point;
-      const [a, b] = halves(placed.tile);
-      const inward = (a === anchor ? a : b) as Pip;
-      const outward = (a === anchor ? b : a) as Pip;
-      const forward = orient === 'h' ? x > previous[0] : y > previous[1];
-      const faces: [Pip, Pip] = forward ? [inward, outward] : [outward, inward];
+      const { faces, outward } = crossFaces(placed, anchor, orient, x, y, previous);
       const node = boardTile({
         placed, orient, faces,
         col: 0, row: 0,
