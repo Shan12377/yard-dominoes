@@ -309,13 +309,13 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-04, `www.yaaddominoes.com` serves commit `3cebb09`
-  (`fix: cut throat six love wiped the board on every non-leader win`,
-  service worker v110), a READY production deployment from
-  `design/yaaddominoes-foundation`. For what any specific past deploy
-  contained, read `git log` rather than trusting an accumulated list here —
-  this line is a pointer to current truth, not a changelog. Update this
-  line, don't append another one, next time.
+- As of 2026-09-14, `www.yaaddominoes.com` serves commit `27ce346`
+  (`feat: big-bone phone Practice board, French pinwheel with player tabs,
+  Across like partner`, service worker v137), deployed with `vercel deploy
+  --prod` from a clean worktree of `design/yaaddominoes-foundation`. For what
+  any specific past deploy contained, read `git log` rather than trusting an
+  accumulated list here — this line is a pointer to current truth, not a
+  changelog. Update this line, don't append another one, next time.
 - **`profiles.is_owner`** (0052) is narrower than `is_admin` — it gates
   referral financials specifically (stats, cash-out requests, marking
   paid) in `referral-admin`. Only Candy has it. Granting `is_admin` to a

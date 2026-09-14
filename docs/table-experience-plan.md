@@ -896,3 +896,12 @@ start of a 390px hand, so the choice follows the viewport width. Not yet verifie
 a real Lounge French table (needs signed-in players), and the owner's phone.
 Nothing committed; production still v136; deploy waits on the other session's
 Lounge/Across changes being checked.
+
+2026-09-14 (deployed) — Owner approved going live, including the other
+session's Across change (Across laid out like partner/open hand, its own rules
+only). Committed `27ce346` on `design/yaaddominoes-foundation`, service worker
+v137, deployed with `vercel deploy --prod` from a clean worktree; live
+`www.yaaddominoes.com/sw.js` serves v137 and the production deployment
+`dpl_BcJsPh2BUqm9Jj4tfgSRnhBooqpW` is Ready. Resume point: owner's real-phone
+check of the phone Practice board and French pinwheel; a real Lounge French
+and Across table with signed-in players has still not been exercised.
