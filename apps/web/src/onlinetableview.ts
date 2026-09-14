@@ -5,7 +5,7 @@
 // reads it and calls back into it.
 
 import { OnlineGame } from './onlinetable.ts';
-import { confirmTableExit, handTurnCue } from './table-experience.ts';
+import { confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
 import { coachReviewView } from './coachview.ts';
 import type { SeatInfo } from './onlinetable.ts';
 import {
@@ -15,7 +15,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, PHONE_FRENCH_PINWHEEL_MIN_WIDTH } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition, type SeatSlot } from './seatlayout.ts';
@@ -438,6 +438,12 @@ let lastFrenchFitBox: { width: number; height: number } | null = null;
 /** The hand (and viewport) `lastFrenchFitBox` was measured for. */
 let lastFrenchFitKey: string | null = null;
 let lastFrenchGuardInset: string | null = null;
+/**
+ * Mobile French: the player tabs the pinwheel was laid round, and the hand
+ * they were measured for. Measured once per hand, never again mid-hand.
+ */
+let lastFrenchBlockedKey: string | null = null;
+let lastFrenchBlocked: Array<{ x: number; y: number; w: number; h: number }> | null = null;
 
 /**
  * The social layer, handed in by whoever owns the Realtime channel it rides on.
@@ -960,14 +966,13 @@ export function liveTableView(
   const felt = el('div', 'table-felt live-felt');
   // Keep controlled hands at their physical edges of the table. Across owns
   // the bottom and opposite seats, so both readable hands live on the felt.
-  const handOnFelt = !game.isSpectator && !!game.hand && game.table.mode !== 'across';
-  if (game.table.mode === 'across') {
-    felt.classList.add('across-hands-on-felt');
-    feltShell.classList.add('across-hands-on-felt');
-  }
-  // Across and spectators still need the same invisible protected rectangle:
-  // their lack of an in-felt hand does not permit a chain to cross the corner
-  // portraits or side racks.
+  // Across follows the Open Hand composition: one full-size playable hand
+  // docks at the player's edge, while the other hand is shown in the normal
+  // companion panel. Across changes who may play, not where the furniture
+  // moves when the turn changes.
+  const handOnFelt = !game.isSpectator && !!game.hand;
+  // Spectators still need the same invisible protected rectangle; no hand is
+  // allowed to let a chain cross the corner portraits or side racks.
   const boardStage = el('div', 'board-stage');
   if (handOnFelt) felt.classList.add('hand-on-felt');
   if (handOnFelt && game.myTiles.length >= 10) felt.classList.add('hand-many');
@@ -988,6 +993,8 @@ export function liveTableView(
   const crossBox = displayBoard?.kind === 'cross' && lastFrenchFitWidth === window.innerWidth
     ? lastFrenchFitBox : null;
   const frenchTable = game.table.format === 'french';
+  // Mobile French takes the whole felt; its players are tabs at the rim.
+  if (frenchTable && window.innerWidth <= 700) boardStage.classList.add('french-phone-stage');
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${game.hand?.hand_id ?? 'undealt'}:${window.innerWidth}`
     : null;
@@ -1033,9 +1040,15 @@ export function liveTableView(
     unit: tableUnit,
     minUnit: tableMinUnit,
     maxUnits: tableMaxUnits,
+    across: game.table.mode === 'across',
     // Landscape shrinks the rigid French canvas to fit; a phone keeps its
     // readable bone and pans instead. See BoardFit.fitCrossToBox.
     fitCrossToBox: window.innerWidth > 700,
+    // Mobile French lays its pinwheel in play order.
+    moveLog: game.hand?.move_log,
+    ...(frenchTable && window.innerWidth <= 700 && frenchGuardKey !== null
+      && frenchGuardKey === lastFrenchBlockedKey && lastFrenchBlocked
+      ? { phoneCrossBlocked: lastFrenchBlocked } : {}),
     // A French arm runs towards the seat that opened it -- relative to me. A
     // spectator has no seat, so their arms keep the stored fill order.
     ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
@@ -1082,8 +1095,10 @@ export function liveTableView(
       );
       identity.appendChild(copy);
       const station = el('div', `table-player-station table-player-station-${slot}`);
-      station.classList.toggle('turn', game.hand?.status === 'active' && game.hand.turn === s.seatIndex);
       station.append(identity, rack);
+      stationTurnCue(station, game.hand?.status === 'active' && game.hand.turn === s.seatIndex);
+      // Mobile French gives the pinwheel the felt: players become tabs.
+      if (frenchTable && window.innerWidth <= 700) frenchPhoneTab(station, slot, count);
       feltShell.appendChild(station);
       tableStations.set(slot, station);
     } else {
@@ -1150,8 +1165,17 @@ export function liveTableView(
       // 609px on EACH side to make a square, leaving the board 490px of 1708
       // and forcing a 30px bone on a table with room for 48px. That is the
       // "where is the space on desktop" the owner reported.
-      reserveBoardStage(felt, boardStage, tableStations.values(),
+      // Mobile French routes round its players' tabs instead of keeping the
+      // whole side of the table clear (phoneFrenchPinwheel's `blocked`).
+      reserveBoardStage(felt, boardStage,
+        window.innerWidth <= 700 && frenchTable ? [] : tableStations.values(),
         felt.querySelector<HTMLElement>('.in-felt-hand'), false);
+      // A French phone too narrow for the pinwheel (a 360px screen) keeps the
+      // row route, which does not know about the tabs: keep them off its width.
+      if (frenchTable && window.innerWidth <= 700 && window.innerWidth < PHONE_FRENCH_PINWHEEL_MIN_WIDTH) {
+        reserveBoardStage(felt, boardStage, tableStations.values(),
+          felt.querySelector<HTMLElement>('.in-felt-hand'), false);
+      }
       if (frenchGuardKey && boardStage.style.inset) {
         lastFrenchGuardKey = frenchGuardKey;
         lastFrenchGuardInset = boardStage.style.inset;
@@ -1208,6 +1232,8 @@ export function liveTableView(
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
           fitCrossToBox: window.innerWidth > 700,
+          // Mobile French lays its pinwheel in play order.
+          moveLog: game.hand?.move_log,
           ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
         });
         if (corrected) {
@@ -1215,6 +1241,25 @@ export function liveTableView(
           feltShell.style.setProperty('--table-bone-short', `${corrected * 2}px`);
           feltSlot.style.setProperty('--table-bone-short', `${corrected * 2}px`);
         }
+      }
+      // Mobile French routes round the players' tabs. Measure them against
+      // where the grid sits in the stage on this hand's first measured render
+      // (usually before any arm bone), lay the board round them, and keep that
+      // for the whole hand.
+      if (window.innerWidth <= 700 && frenchGuardKey && frenchGuardKey !== lastFrenchBlockedKey) {
+        lastFrenchBlockedKey = frenchGuardKey;
+        lastFrenchBlocked = frenchTabBlocks(boardStage, feltShell, lockedBox, tableUnit);
+        renderBoard(line, displayBoard, {
+          box: lockedBox,
+          maxUnit: tableUnit,
+          unit: tableUnit,
+          minUnit: tableMinUnit,
+          maxUnits: tableMaxUnits,
+          fitCrossToBox: false,
+          moveLog: game.hand?.move_log,
+          ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
+          phoneCrossBlocked: lastFrenchBlocked,
+        });
       }
       return;
     }
@@ -1229,6 +1274,7 @@ export function liveTableView(
         unit: game.table.mode === 'across' ? tableUnit : measuredGeometry.unit,
         minUnit: tableMinUnit,
         maxUnits: measuredGeometry.maxUnits,
+        across: game.table.mode === 'across',
         ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
       });
       if (measuredUnit) {
@@ -1264,64 +1310,28 @@ export function liveTableView(
   let handActions: HTMLElement | null = null;
   let choiceHandHost: HTMLElement | null = null;
   if (!game.isSpectator && game.hand) {
+    const activeSeat = game.table.mode === 'across' ? game.activeSeat() : game.mySeat;
+    const hand = myHandPanel(game, rerender, activeSeat);
+    choiceHandHost = hand;
+    hand.classList.add('in-felt-hand');
+    handActions = takeHandActions(hand);
+    const bottomIdentity = tableIdentities.get('bottom');
+    if (bottomIdentity) {
+      bottomIdentity.classList.toggle('turn', game.isMyTurn() && activeSeat === game.mySeat);
+      if (window.innerWidth > 900) {
+        bottomIdentity.classList.add('desktop-self-identity');
+        const copy = el('span', 'table-seat-copy');
+        copy.append(el('strong', undefined, activeSeat === game.partnerSeat() ? 'Your partner hand' : 'You'));
+        bottomIdentity.append(copy);
+        feltShell.appendChild(bottomIdentity);
+      } else hand.appendChild(bottomIdentity);
+    }
+    felt.appendChild(hand);
     if (game.table.mode === 'across') {
-      // Across is one physical four-sided table. My hand stays at the bottom
-      // edge and my partner hand stays opposite at the top edge, both on the
-      // wood and at the same readable scale as the played bones. Their slots
-      // never move; only colour, label and controls change with the turn.
-      const activeSeat = game.activeSeat();
       const partnerSeat = game.partnerSeat();
-      const mineIsActive = game.isMyTurn() && activeSeat === game.mySeat;
-      const partnerIsActive = game.isMyTurn() && activeSeat === partnerSeat;
-      // Across hands own permanent physical slots. Previously the active hand
-      // was always appended first, so the two panels swapped left/right every
-      // time control crossed the table. That looked like the highlighted hand
-      // had disappeared. Keep my primary hand on the left and my partner hand
-      // on the right; only their colour and interactivity may change.
-      const mine = mineIsActive
-        ? myHandPanel(game, rerender, game.mySeat)
-        : myOtherHandPanel(game.myTiles, 'Your hand');
-      const partner = partnerIsActive
-        ? myHandPanel(game, rerender, partnerSeat)
-        : myOtherHandPanel(game.partnerTiles ?? [], 'Your partner hand');
-      mine.classList.add('across-hand-own');
-      partner.classList.add('across-hand-partner');
-      // Across was the one mode that never handed its decisions to the board.
-      // takeHandActions() was called only in the branch below, so handActions
-      // stayed null here and placeBoardChoices() returned immediately —
-      // leaving "Which end? Left end (6) / Right end (6)" stranded at the
-      // bottom of the hand panel, far from the ends it is naming. Reported on
-      // a live across table: "you still keep the arrow at the hand, i thought
-      // it should be on the table". The choice names the two OPEN ENDS, so it
-      // has to be read beside them.
-      const live = mineIsActive ? mine : partnerIsActive ? partner : null;
-      handActions = live ? takeHandActions(live) : null;
-      choiceHandHost = live;
-      const acrossHands = el('div', 'across-hand-dock in-felt-across-hands shared-table-hand-scale');
-      acrossHands.append(mine, partner);
-      felt.appendChild(acrossHands);
-    } else {
-      const hand = myHandPanel(game, rerender);
-      choiceHandHost = hand;
-      if (handOnFelt) {
-        hand.classList.add('in-felt-hand');
-        handActions = takeHandActions(hand);
-        const bottomIdentity = tableIdentities.get('bottom');
-        if (bottomIdentity) {
-          bottomIdentity.classList.toggle('turn', game.isMyTurn());
-          // The large corner-photo composition starts at 901px in CSS. Keep
-          // Lounge aligned with Practice at that same breakpoint.
-          if (window.innerWidth > 900) {
-            bottomIdentity.classList.add('desktop-self-identity');
-            const copy = el('span', 'table-seat-copy');
-            copy.append(el('strong', undefined, 'You'));
-            bottomIdentity.append(copy);
-            feltShell.appendChild(bottomIdentity);
-          } else hand.appendChild(bottomIdentity);
-        }
-        felt.appendChild(hand);
-      } else {
-        feltSlot.appendChild(hand);
+      const otherSeat = activeSeat === partnerSeat ? game.mySeat : partnerSeat;
+      if (otherSeat !== null) {
+        feltSlot.appendChild(myOtherHandPanel(game.tilesForSeat(otherSeat), otherSeat === game.mySeat ? 'Your hand' : 'Your partner hand'));
       }
     }
   }
@@ -1360,6 +1370,7 @@ export function liveTableView(
   }
 
   const room = el('div', 'table-room');
+  room.classList.toggle('across-room', game.table.mode === 'across');
   room.appendChild(cross);
 
   const rail = el('div', 'table-rail');
@@ -1388,6 +1399,15 @@ export function liveTableView(
     tabs.appendChild(btn);
   }
   rail.appendChild(tabs);
+
+  const backToTable = document.createElement('button');
+  backToTable.type = 'button';
+  backToTable.className = 'table-return-jump';
+  backToTable.textContent = 'Back to table';
+  backToTable.onclick = () => {
+    document.querySelector('.table-cross, .table-felt')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  rail.appendChild(backToTable);
 
   const talk = social?.chatPanel ?? el('div', 'panel');
   if (!social?.chatPanel) {
@@ -1422,20 +1442,6 @@ export function liveTableView(
   room.appendChild(rail);
 
   frag.appendChild(room);
-
-  const openTalk = document.createElement('button');
-  openTalk.type = 'button';
-  openTalk.className = 'table-talk-jump';
-  openTalk.textContent = 'Chat & stickers';
-  openTalk.setAttribute('aria-label', 'Open table chat, quick words and stickers');
-  openTalk.onclick = () => {
-    activeRailTab = 'chat';
-    rerender();
-    requestAnimationFrame(() => {
-      document.querySelector('.table-rail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-  frag.appendChild(openTalk);
 
   return frag;
 }

@@ -35,8 +35,17 @@ test('practice Duppies never move faster than 3.5 seconds and pause for the fina
     'the move must be decided before the beat, or a pass cannot be paced differently');
   // ...and the beat must still come before the move is applied, or the board
   // would change and only then wait, which is the 420ms bug inverted.
+  // The only thing allowed between the beat and the move is the check that the
+  // hand is still the one the move was decided for (leaving or redealing
+  // during the pause must not play an old move into a new hand).
   assert.match(localSource,
-    /setTimeout\([\s\S]{0,160}?\)\);\s*this\.hand = applyMove\(this\.hand, move\);/);
+    /setTimeout\([\s\S]{0,160}?\)\);\s*(?:\/\/[^\n]*\n\s*)*if \(!this\.hand \|\| this\.hand !== decidedOn\) return;\s*this\.hand = applyMove\(this\.hand, move\);/,
+    'the beat comes before the move, guarded only by the same-hand check');
+  // One Duppy loop at a time: a pose made during the deal animation started a
+  // second loop beside startHand's, and the slower one threw "not seat N's
+  // turn" and froze the hand (390px Practice run, 2026-09-14).
+  assert.match(localSource, /this\.duppyLoop \?\?= this\.duppyTurns\(\)\.finally\(\(\) => \{ this\.duppyLoop = null; \}\);/,
+    'a second call joins the Duppy loop already running instead of starting another');
   assert.match(localSource, /DUPPY_LAST_BONE_PAUSE_MS = DUPPY_PACE_SECONDS\.quick \* 1_000/);
   assert.match(localSource,
     /setTimeout\(r, DUPPY_LAST_BONE_PAUSE_MS\)[\s\S]*?this\.finishHand\(\);/);
@@ -111,9 +120,44 @@ test('all four seat portraits stay fully inside the felt on desktop and mobile',
   assert.doesNotMatch(styles, /\.table-seat-identity-(?:top|bottom|left|right) \{[^}]*-10px/);
 });
 
-test('practice leaves a named record of the last non-winning play during the reading beat', () => {
+test('practice names an opponent play without repeating my own move under the hand', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(recentPlaySeat)} · ${recentPlayedTile}`'));
+  assert.match(practiceSource, /recentPlaySeat === g\.mySeat/);
   assert.match(practiceSource, /setTimeout\([\s\S]*?\}, 2_500\)/);
+});
+
+test('mobile Practice shuffles and deals one concealed bone to each seat in turn', () => {
+  assert.match(practiceSource, /for \(let i = 0; i < 28; i \+= 1\)/);
+  assert.match(practiceSource, /seats\[i % seats\.length\]/);
+  assert.match(practiceSource, /prefers-reduced-motion: reduce/);
+  assert.match(styles, /\.practice-deal-bone[\s\S]{0,500}?will-change: transform, opacity/);
+  assert.match(styles, /animation: practice-shuffle 3\.2s/);
+  assert.match(styles, /animation: practice-deal 620ms/);
+  assert.match(styles, /var\(--deal-index\) \* 165ms/);
+  assert.match(practiceSource,
+    /const finished = beginPracticeDealAnimation\(\);[\s\S]{0,180}?sfx\.play\('shuffle'\);\s*render\(\);\s*await finished;/,
+    'the visible shuffle and its real domino sound must start together');
+  assert.match(practiceSource, /await g\.startHand\(showPracticeDeal\)/);
+  assert.match(localSource,
+    /this\.emit\(\{ type: 'state' \}\);[\s\S]{0,300}?await onDealt\?\.\(\);\s*await this\.runDuppies\(\);/,
+    'no Duppy may pose or play until the visible deal finishes');
+});
+
+test('Voice off is the master quiet control for Practice', () => {
+  assert.match(practiceSource,
+    /const turnVoiceOff = !voiceOff;[\s\S]{0,120}?setMuted\(turnVoiceOff\);[\s\S]{0,120}?if \(turnVoiceOff\) sfx\.setMuted\(true\);/);
+});
+
+test('mobile Practice keeps its full bone size and a stationary pose camera', () => {
+  assert.match(practiceSource,
+    /const keepOpeningUnit = g\.options\.mode === 'across'[\s\S]{0,120}?window\.innerWidth <= 700[\s\S]{0,120}?const measuredRouteUnit = keepOpeningUnit \? tableUnit/,
+    'a measured mobile refit must keep the opening 36px bone tier');
+  assert.match(practiceSource,
+    /const boardFocusTile = \(g\.hand\?\.moveLog \?\? \[\]\)[\s\S]{0,20}?\.find\(\(move\) => move\.kind === 'pose'\)/,
+    'the camera anchor must be the stationary pose');
+  assert.match(practiceSource,
+    /keepTileInView\(boardStage,[\s\S]{0,120}?boardFocusTile/,
+    'the route camera must use the stationary pose anchor');
 });
 
 test('last hand\'s winning bone never lands on the next hand\'s felt', () => {
@@ -128,7 +172,7 @@ test('last hand\'s winning bone never lands on the next hand\'s felt', () => {
     /function practiceWinCallout[\s\S]{0,400}?if \(g\.hand\?\.status === 'active'\) return null;/);
   // The "Next hand" button clears the same state at the source.
   assert.match(practiceSource,
-    /next\.onclick[\s\S]{0,700}?winningTile = null;[\s\S]{0,200}?winningSeat = null;[\s\S]{0,300}?await g\.startHand\(\)/);
+    /next\.onclick[\s\S]{0,700}?winningTile = null;[\s\S]{0,200}?winningSeat = null;[\s\S]{0,300}?await g\.startHand\(showPracticeDeal\)/);
 });
 
 test('practice names the person who laid the last domino before the result screen', () => {
@@ -157,7 +201,12 @@ test('the turn clock stays above the felt and end choices are anchored on the bo
 
 test('Practice and Lounge keep Pass and other hand decisions on the felt', () => {
   for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
-    const choices = source.indexOf('placeBoardChoices(boardStage, handActions, choiceHandHost)');
+    // Practice's fixed phone board never pans, so it skips the mirrored
+    // Left/Right row under the hand (the board arrows are always on screen).
+    const call = surface === 'Practice'
+      ? 'placeBoardChoices(boardStage, handActions, phoneFixedRoute ? null : choiceHandHost)'
+      : 'placeBoardChoices(boardStage, handActions, choiceHandHost)';
+    const choices = source.indexOf(call);
     assert.ok(choices >= 0, `${surface} must process end choices`);
     const decisionDock = source.slice(choices, choices + 300);
     assert.ok(decisionDock.includes("handActions.classList.add('in-felt-actions')"),
@@ -183,7 +232,7 @@ test('Practice and Lounge show Pass beside the hand before any tile is selected'
 });
 
 test('board destination actions use a defined high-contrast palette', () => {
-  assert.match(styles, /button\.board-end-choice[\s\S]{0,300}?background: transparent;[\s\S]{0,100}?color: #ffc928;/);
+  assert.match(styles, /button\.board-end-choice[\s\S]{0,300}?background: #075d3c;[\s\S]{0,100}?color: #fff8d3;/);
   assert.match(styles, /board-end-choice\[data-opening-choice='true'\][\s\S]{0,120}?width: 48px/);
   assert.doesNotMatch(styles, /board-end-choice[\s\S]{0,300}?var\(--mango\)/);
 });
@@ -195,27 +244,12 @@ test('table settings reads and behaves as an obvious control', () => {
   assert.match(styles, /\.table-start-options summary[\s\S]{0,300}?min-height: 52px/);
 });
 
-test('Across puts both fixed-slot hands on the felt at the shared bone scale', () => {
-  assert.match(practiceSource, /felt\.classList\.add\('across-hands-on-felt'\)/);
-  for (const source of [practiceSource, onlineTableSource]) {
-    assert.match(source, /el\('div', 'across-hand-dock in-felt-across-hands shared-table-hand-scale'\)/);
-    assert.match(source, /felt\.appendChild\(acrossHands\)/);
-  }
-  assert.match(styles, /\.in-felt-across-hands > \.across-hand-own[\s\S]{0,300}?position: absolute/);
-  assert.match(styles, /\.in-felt-across-hands > \.across-hand-own \{ bottom: 8px; \}/);
-  assert.match(styles, /\.in-felt-across-hands > \.across-hand-partner \{ top: 8px; \}/);
-  assert.doesNotMatch(styles, /\.table-room \.across-hands-below \.live-felt/);
-  assert.match(onlineTableSource, /game\.table\.mode === 'across' \? 22 : 11/);
-  assert.match(onlineTableSource, /acrossHands\.append\(mine, partner\)/,
-    'the primary and partner hands keep fixed left/right slots');
-  assert.doesNotMatch(onlineTableSource, /acrossHands\.appendChild\(live\)/,
-    'the active hand must not jump into the first slot');
-  assert.match(styles, /\.across-hand-dock \.hand \.tile\.chosen[\s\S]{0,80}?transform: none/,
-    'Across selection changes colour/outline without moving the hand');
-  assert.match(onlineTableSource, /identity\.classList\.add\('across-controlled-identity'\)/,
-    'both controlled seats remain visible as full table identities');
-  assert.match(onlineTableSource, /img\.src = '\/avatars\/plain\.webp'/,
-    'a player without a chosen avatar must not leave an empty corner');
+test('Across follows Open Hand furniture while retaining both private hands', () => {
+  assert.doesNotMatch(onlineTableSource, /felt\.classList\.add\('across-hands-on-felt'\)/);
+  assert.match(onlineTableSource, /const activeSeat = game\.table\.mode === 'across' \? game\.activeSeat\(\) : game\.mySeat/);
+  assert.match(onlineTableSource, /myHandPanel\(game, rerender, activeSeat\)/);
+  assert.match(onlineTableSource, /myOtherHandPanel\(game\.tilesForSeat\(otherSeat\)/);
+  assert.match(onlineTableSource, /across: game\.table\.mode === 'across'/);
 });
 
 test('lounge chat rejects stale history and messages from every other lounge', () => {
@@ -354,7 +388,9 @@ test('the phone board stage floor never out-votes the measured guard', () => {
   // because the floor was still 50px. Keep this a conservative first-paint
   // fallback, well under what the stations actually measure.
   const phone = styles.slice(styles.indexOf('@media (max-width: 700px)'));
-  const rule = phone.slice(phone.indexOf('.board-stage {'));
+  assert.match(phone, /\.practice-room \.board-stage \{ left: 0; right: 0; \}/,
+    'owner-approved Practice uses the full rim; Lounge retains its conservative floor');
+  const rule = phone.slice(phone.indexOf('\n  .board-stage {'));
   assert.doesNotMatch(rule.slice(0, rule.indexOf('}')), /\b50px\b/,
     'the 50px side floor is the bug: it pinned the board regardless of measurement');
   assert.match(rule.slice(0, rule.indexOf('}')), /\b24px\b/);
@@ -523,13 +559,9 @@ test('Across hands its end choice to the board, like every other mode', () => {
   // Anchored on the HAND branch, not on the first `mode === 'across'` in the
   // file — the felt-slot marker above it matches that too, and an anchor that
   // drifts silently scans the wrong block and passes for the wrong reason.
-  const across = onlineTableSource.indexOf('Across is one physical four-sided table');
-  assert.ok(across >= 0, 'the across hand branch must still exist');
-  const branch = onlineTableSource.slice(across, across + 3000);
-  assert.match(branch, /handActions = live \? takeHandActions\(live\) : null;/,
-    'across must take the active fixed-slot hand actions so the board can claim the end choice');
-  assert.match(branch, /acrossHands\.append\(mine, partner\)[\s\S]*?felt\.appendChild\(acrossHands\)/,
-    'both controlled hands must keep their fixed physical slots on the felt');
+  assert.match(onlineTableSource, /handActions = takeHandActions\(hand\)/,
+    'the shared Open Hand tray supplies the board destination choice');
+  assert.match(onlineTableSource, /handActions = placeBoardChoices\(boardStage, handActions, choiceHandHost\)/);
 });
 
 test('board choices have a hand-adjacent fallback when an endpoint is out of view', () => {

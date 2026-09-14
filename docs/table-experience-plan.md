@@ -1,6 +1,6 @@
 # YaadDominoes — living table experience plan
 
-Last updated: 2026-09-12. Status: first real-app desktop implementation is in review; not committed.
+Last updated: 2026-09-14. Status: reference-led final-table revision approved; implementation and acceptance in progress.
 Owner: project owner. Execution: whichever AI/developer resumes this file.
 
 ## Read first: authorization and resume point
@@ -9,7 +9,7 @@ The owner explicitly authorized this consolidated plan, ongoing progress updates
 
 This plan supersedes older local instructions requiring tiny circular identities, enclosed mid-edge player cards, desktop social tools below the table, and redundant floating play prompts. It does not authorize unrelated changes, deployment, external messages, destructive rewrites, changes to payments, or removal of server authority and hidden-hand protections. Record any newly discovered conflict and its resolution below. New explicit owner decisions take precedence; do not interpret “perfection” as permission to invent game rules.
 
-**Resume here:** inspect the uncommitted table-experience changes and the latest session log below. The owner explicitly cancelled the separate mockup and requested direct app work, with the running result shown before any commit. Do not start over or replace the route engine merely to rearrange portraits.
+**Resume here:** physically verify the current mobile Practice correction at 360/390 width: larger edge-to-edge board bones matched to the hand; clean elbows including doubles; centre line left/right, left arm up then across, right arm down then left; compact hand tray; no white self-play label; shuffle followed by one-at-a-time dealing. Continue through a dense hand and confirm both end arrows remain reachable. Preserve the existing French phone route, Lounge layout, rules, privacy, end-hand remaining-tile reveal and expandable teaching. The owner explicitly cancelled the separate mockup and requested direct app work, with the running result shown before any commit. Do not replace the route engine merely to rearrange portraits.
 
 Update this document after each meaningful work session. Maintain task status, evidence, blockers, exact next action, and decision history. This is the current plan; `docs/memory.md` and instruction files should link here rather than copy the whole plan.
 
@@ -28,7 +28,120 @@ The business aim is to attract and retain complete groups through trustworthy pl
 - The earlier chat's reconstructed route arrays are NOT a validated placement algorithm. Do not paste them into production. Current CLAUDE.md documents newer measured geometry and phone exceptions; inspect the actual implementation and tests.
 - JamDom's site advertised a phone version when checked on 2026-09-12: https://jamdom.com/ . Its social/tournament features are described at https://jamdom.com/memberships/standard.php and https://jamdom.com/memberships/vip.php . Recheck prices and capabilities before using them in marketing.
 
-## Before → after contract
+## Revised final-table sequence — owner approved 2026-09-13
+
+The competitive objective is a familiar Jamaican table that established groups
+choose to return to. Visual polish supports that objective; occupied tables,
+completed sets and returning groups are the eventual measures of preference.
+
+Reference evidence inspected in this task: Cut Throat at approximately 7:25 and
+14:49 (https://www.youtube.com/watch?v=yDPtQzPrsYQ&t=445s), French at 2:57 and
+5:55 (https://www.youtube.com/watch?v=lWxZZryHmnU&t=355s). The sampled frames
+show a continuous wooden surface, four corner portraits, perimeter racks,
+broad active-station highlighting, connected ivory bones and an adjacent log
+and conversation rail. These are historical visual references, not evidence
+of current sound quality, animation timing, mobile capability or reliability.
+
+1. **Preserve the physical table first.** Keep recognizable corner portraits,
+   associated names and racks, visible concealed bones, a quiet wood centre,
+   and familiar opposite/anti-clockwise seat relationships. Preserve brand
+   identity and existing avatar/photo entitlements.
+2. **Clarify information and turn.** Compact high-contrast score, identified
+   sides and timer; counts with player stations, without repeated counts in
+   the sidebar. Desktop rail contains standings, recent moves, lounge-scoped
+   chat and applicable spectator/seating tools. Illuminate the active rack
+   itself as well as the portrait; reinforce with text. Never pulse, resize or
+   reposition furniture to show a turn, selection, Pass or pending action.
+3. **Lock geometry across supported modes.** Measure the full legal route and
+   protected rectangles before the deal; preserve the current readable bone
+   minimum and preview/placement parity. Preserve the newer French phone
+   routing and deliberate internal pan exceptions. Across retains the latest
+   owner-confirmed Open Hand furniture; do not revive the abandoned dock.
+4. **Deliberate phone experience.** Board, active hand, score and recognizable
+   opponents come first. Social tools must be reachable without covering legal
+   actions. Verify keyboard open/closed, rotation and background/return as well
+   as static sizes. At narrow desktop, measure the rail-versus-bone tradeoff;
+   the current below-table rail at 901–1100px is an existing exception to review,
+   not proof the simultaneous-visibility target has passed.
+5. **Real acceptance before further redesign.** Practice and real Lounge;
+   desktop 1024×768, 1280×800, 1440×900, 1920×1080; phone 360×780 and 390×844,
+   plus existing short-screen gates. Cover opening, dense legal hands, two
+   ends, pass, partner hand, pending/rejected move, timeout race, reconnect,
+   result/next hand, chat isolation and leave/cancel. Use independent clients
+   for invitations, correct partner seating, full sets, rematch and voice
+   refusal/mute/leave. No unresolved rules, privacy, duplicate/lost-move or
+   inaccessible-destination defects may pass.
+6. **Authenticity pilot and performance.** Propose 3–5 established groups,
+   including experienced JamDom and older players, for full-set observation.
+   Record what feels wrong and what prevents a group returning. Track join and
+   set completion, next-week group return, preference and support friction.
+   Participation/outreach still requires separate arrangements. Measure time
+   to playable table, dense-hand responsiveness and reconnect recovery; run
+   Lighthouse on production homepage and live-table routes as diagnostics.
+7. **Evidence then release.** Update status only after verification; record
+   unresolved cells explicitly. Show the running result before commit, and
+   retain the existing deployment authorization boundary.
+
+| Revision item | Status | Evidence / next gate |
+|---|---|---|
+| Reference analysis and revised priorities | DONE | Four sampled frames above; owner requested implementation |
+| Shared active-rack field and textual cue | IN PROGRESS | Implemented in both builders; Practice desktop/phone and 462 tests pass; real Lounge validation remains |
+| Hierarchy, fixed geometry and phone acceptance | IN PROGRESS | Existing work preserved; full matrix remains unverified |
+| Independent-client reliability and group pilot | TODO | Real Lounge access and participating groups required |
+| Performance measurements and final release | TODO | Production-route audits and reviewed release still pending |
+
+### Mobile Lounge screenshot review — 2026-09-13
+
+Owner supplied an iPhone screenshot of yaaddominoes.com and asked whether the
+phone should look like desktop, how to navigate, and that the no-cutoff work
+and plan continuity always be preserved. Inspected source image:
+`/Users/higgi/Library/Group Containers/group.com.apple.notes/Accounts/F1F4D23C-1F5F-467A-9670-F674FC992609/Media/43D03F61-9390-47E7-9E50-84051F680BDC/1_DCB33898-CC82-4B71-8354-F7C4DB780798/Image.heic`.
+
+Observed: an opening 6-6 is wholly visible; the complete seven-bone local hand
+is visible at the bottom of the wood; top opponent name/count are readable,
+but the tiny side portraits are largely obscured by AI badges and have no
+visible names. The floating “Chat & stickers” button covers the right portion
+of the social tab row. The table is tall with much open space in this opening
+state. The header is partly outside this capture; screenshot scroll position
+and Safari chrome prevent inferring full-page fit. One opening bone is not
+evidence of dense-hand containment or of which build is deployed.
+
+Recommended direction: retain deliberate phone composition with the same
+physical seat relationships/materials as desktop. Do not squeeze desktop
+corner photos and a permanent side rail onto portrait phones. Improve compact
+seat recognition without widening the protected rack lanes. Keep the current
+bone sizes, locked hand geometry, French phone route and legal-end access.
+Measure dense states before reclaiming empty opening space: never shorten
+the table merely because the first bone leaves a lot of wood unused.
+
+| Mobile follow-up | Status | Acceptance gate |
+|---|---|---|
+| Protect played-domino containment fixes | REQUIRED CONSTRAINT | No clipped bones/hidden legal destinations after any furniture change; preserve readable phone pan exceptions |
+| Remove chat launcher/tab overlap | IN PROGRESS | Floating launcher removed from mobile; in-rail tabs remain to verify at 360/390 widths and keyboard states |
+| Make side opponents recognizable | IN PROGRESS | Compact side names now render beside faces; verify lane containment and dense chains |
+| Clarify social navigation and return to play | IN PROGRESS | Added in-rail Back to table control; real Lounge navigation still unverified |
+| Review tall table/compact score and timer | TODO | Measure actual Safari viewport and dense legal chains before changing height; hand stays reachable |
+
+Current navigation verified by source (`onlinetableview.ts`): select a bone,
+then explicitly select its legal destination; tap it again to deselect.
+“Chat & stickers” selects Table talk and scrolls to the social rail. Tabs are
+Table talk, Watching, Standings, Log and You. Return to the table by scrolling
+up; no dedicated return-to-hand control was found in the inspected rail.
+The visible Table talk label currently fronts lounge-scoped chat, so the
+scope should be made clearer in the navigation polish.
+
+Implementation session 2026-09-13: removed the mobile floating Chat & stickers
+launcher that could cover the social tabs, and added an in-rail Back to table
+button that scrolls to the felt. Side stations now show a compact opponent name
+beside the face and retain the AI cue; no board route, bone unit or protected
+guard was changed. `npm run typecheck`, `npm test` (462/462), production build
+and `git diff --check` pass. The local Lounge still requires a test email
+before room entry, so real Lounge navigation and independent-client geometry
+remain open. Next action is browser QA at 360/390 in dense hands, then measured
+height/header polish. Continue updating this tracker after each session and
+keep the played-domino no-cutoff constraint attached to every layout change.
+
+## Before → after contract (existing detailed requirements)
 
 | Area | Observed baseline / concern | Required result |
 |---|---|---|
@@ -145,6 +258,30 @@ Status values: TODO, IN PROGRESS, BLOCKED, DONE. DONE requires linked evidence, 
 | Full board visible on every phone even if bones shrink | Preserve newer readable-phone exception; desktop full-visibility target remains |
 
 ## Session log and next action
+
+2026-09-13 — Reference-led revision approved and implementation started.
+Shared `stationTurnCue` now coordinates the active rack with its corner
+identity in Practice and Lounge. A steady green field and mango outline paint
+the rack itself, including desktop where the station uses display:contents.
+The desktop “Playing” label reserves a 16px line even when inactive; phones
+keep their compact layout. Existing routing, rules, privacy and working-tree
+changes were preserved.
+
+Evidence: Practice Partner at 1280×720 showed the right rack highlighted with
+the matching “Playing” portrait; labels became invisible on the local turn.
+Selected 2-4 and committed through the left-end control. At 390×844 the next
+opponent rack painted rgb(0,122,62), labels were display:none and document
+width was 375px (no horizontal overflow). The phone was scrolled during play;
+this is not a full-screen-visibility pass. Restored desktop preview afterwards.
+Tests passed 462/462; typecheck, production build and diff whitespace check
+passed. Real Lounge and the full acceptance matrix remain unverified. No
+commit or deployment performed by this pass.
+
+**Next action:** remove redundant desktop count summaries while preserving
+phone identification; verify full visible hands and station guards at the
+revised viewport matrix. Existing vertical scrolling remains to resolve.
+Validate real Lounge with independent authenticated clients before marking
+shared table parity complete.
 
 2026-09-12 — Direct implementation began after the owner cancelled the mockup. Changed `main.ts`, `onlinetable.ts`, `onlinetableview.ts`, `render.ts`, `styles.css`, and added `table-experience.ts`. Practice now shows four large corner identities, separate side-rack lanes, equal-size hand/played bones, steady active-hand cue, distinct selected bone, explicit end choice, and a descriptive leave confirmation. The side racks were moved inward after the first capture showed portrait overlap. Desktop Practice and Lounge now keep the permanent right rail beside the felt from 901px upward. A linear hand precomputes a fixed 32-column by 22-row route from the measured stage, locking one bone size for the hand and preventing ordinary desktop board/page scrollbars. The stray `Play it?` text was removed: the hand says `Choose where it goes`, and destination controls sit beside the real open ends. Active-seat portrait glow is shared across Practice and Lounge. Across and spectator tables now receive the same measured inner board guard rather than treating the entire felt as an unprotected board/scroll surface. A short landscape/Across stage retains controlled panning unless a measured fit is proven, preventing hidden clipped bones. Lounge blocks tile selection while waiting, and an active Across partner hand receives the same `Choose where it goes` cue. Online leave errors remain recoverable instead of silently tearing down the table. Browser verification at 1440×900 measured document 1440×900 with no page overflow, a 1138×750 felt plus 260px right rail, and a 638×445 board stage with no overflow. At 1024×768, the compact-header correction measured document 1024×768 with scroll position zero and no page overflow; the selected opening pose showed one 108×42px `Play here` target centred in the protected stage, while hand and played bones shared the same 32×64 physical size. Independent code re-review approved the corrected breakpoint, overflow fallback and Lounge/Across coordination. Final gates: `npm test` passed 449/449, `npm run typecheck` passed, `npm run build` passed, and `git diff --check` passed. The 390×844 phone retains deliberate board panning and ordinary page scrolling. No commit was made. Real four-client Lounge, all-mode dense endgames, failure and reconnect states remain open.
 
@@ -282,3 +419,480 @@ Live browser checks passed at 1440×900, 1024×768 and 390×844 with fixed-size
 bones, no page-level horizontal overflow, visible identities and unobstructed
 two-end controls. `npm test` passes 458/458, `npm run typecheck`, `npm run build`
 and `git diff --check` pass. Production release remains the final step.
+
+2026-09-12 — Owner clarified the Across product decision: reuse the proven
+Open Hand furniture and routing, with Across's only applicable difference being
+that the player's side may play either private hand. Removed the turn-swapping
+two-hand dock from the Lounge builder and matched Practice's Across view to the
+same companion-hand composition. The route now has an explicit Across entry
+point and the old Practice width bug (a 64-unit lane that exceeded its measured
+stage) is gone. Across rooms receive a taller felt so a fixed readable bone is
+never traded for clipping. `npm test` passes 459/459, typecheck/build pass, and
+`git diff --check` passes. Production deployment is still intentionally pending
+until the owner reviews this revised composition.
+
+2026-09-13 — French on phones routes inside the phone's own width. The owner's
+iPhone screenshot of a live French Lounge table showed pieces of the cross
+"floating": the 450×390 desktop reference route is 420px wide at the readable
+28px phone bone, against a 290-320px stage, and every arm turned in columns
+that fell off the screen. `phoneCrossRoute()` now gives each arm one pinwheel
+quarter (first bone towards its opener, then rows back and forth growing away
+from the chucha, one unit of felt between arms, a straight column when a band
+is too narrow for another row). Both builders measure the stage once per hand
+(`lastFrenchFitKey`), because re-measuring after a long arm panned let a
+scrollbar narrow the stage and re-routed every played bone mid-hand. Desktop
+keeps the reference route unchanged.
+Evidence (local production build, Practice French, played to 17-18 bones):
+430×932 grid 20×33, 0 bones off any edge, no pan; 390×844 grid 18×31, 0 off,
+no pan; 360×780 grid 14×32 locked for all 88 samples, 0 off the side, vertical
+pan only (≤2 bones out of view); 1440×900 reference route, 36px, 0 off, no pan.
+Bone short side 28px on every phone. 2,000 simulated French hands: an arm
+reaches 6 bones p50, 9 p95, 14 max. `npm test` 461/461 (also 461/461 with only
+this change applied to HEAD), typecheck and build pass.
+Not verified: a real Lounge French table (the email gate blocks the test
+accounts) and a physical phone. Pre-existing, unchanged: at 360×780 the hand
+can sit below the fold on some renders.
+
+2026-09-13 — Practice mobile refinement and Android paint-cost pass. The owner
+asked for the simpler, compact JamDom-style Practice table shown in supplied
+reference captures, while explicitly leaving Lounge composition alone. Normal
+Practice felt now uses `clamp(480px, 80svh, 710px)` on phones (Lounge remains
+at its existing height; French keeps its taller cross rule). The routed board
+stage remains internally pannable, so this reclaims empty opening space without
+restoring clipped late dominoes. The former high-frequency ruled wood layers
+were replaced with three broad, subdued colour layers that read as a quieter,
+more natural wood surface. On phone Practice only, expensive station backdrop
+blurs, rack filters and heavier rack shadows are removed; geometry, bone size,
+turn signal and Lounge styling are unchanged.
+
+Practice now offers eight locally bundled, persisted face choices before a
+deal, with the prompt “Choose any face. No account needed.” It does not ask a
+guest to select a gender. The selected face appears at the player station.
+The `Duppy speed` selector now sits inside the Practice hand tray and changes
+the Duppies' next thinking interval immediately; Practice has no player turn
+clock, so none was invented. Local preview accessibility inspection confirmed
+the eight-choice face picker. `npm test` passes 462/462, `npm run typecheck`,
+`npm run build` and `git diff --check` pass.
+
+Open acceptance: inspect normal Practice at 360×780 and 390×844 through a
+dense 18+ bone chain on a physical Android device, including vertical board
+pan and the in-tray speed select. A local preview refresh dropped the browser
+automation's original localhost tab, so no Lounge email/test-account entry was
+marked verified; the user authorized a test email, and real-Lounge navigation,
+keyboard behavior and independent-client checks remain required. Continue to
+keep the no-cutoff constraint on every table-height or station change.
+
+2026-09-13 — Physical-phone preview enabled for the owner on the current home
+network: Vite is deliberately running with `--host 0.0.0.0` and confirmed to
+respond at `http://10.0.0.176:5173/`. `localhost`/`127.0.0.1` only describe the
+phone itself when entered on a phone, so they cannot reach the developer Mac.
+The phone must use the network URL while it and the Mac are on the same Wi-Fi;
+this is a temporary local QA server, not deployment. Use it for the remaining
+360/390 and Android responsiveness acceptance cases above.
+
+2026-09-13 — Local phone QA defect corrected. Practice could load at the LAN
+HTTP address but Deal failed before tiles were created: `crypto.subtle.digest`
+is intentionally unavailable to a phone on an insecure origin, and the fair
+shuffle commitment must never fall back to weaker browser code. Vite now reads
+an ignored `.local/` certificate/key pair when present; normal developer use
+and production build configuration are unaffected. A seven-day local
+certificate with the current LAN IP as a subject alternative name was created
+outside version control, and the active QA server is `https://10.0.0.176:5173/`.
+The owner must accept the one-time browser warning for this self-signed local
+certificate. HTTPS endpoint response, typecheck, production build and
+`git diff --check` passed. Re-test Deal on physical Android before marking the
+phone acceptance cell complete.
+
+2026-09-13 — Owner clarified mobile Practice information hierarchy: do not
+leave the full “who passed / who has what” teaching strip permanently under
+the table. Desktop keeps its at-table rail. On phones, a `Table notes` button
+now reveals or hides the existing Practice seat cards, pass facts and table
+talk; starting a new game closes it again. The existing `Read` coaching control
+remains available and unchanged. This preserves teaching rather than removing
+it, while returning the default mobile view to board, score and controlled
+hand.
+
+Next Practice interaction: implement a short, skippable/reduced-motion-aware
+deal reveal on the wood — shuffled face-down bones and YaadDominoes mark,
+followed by the committed deal. At hand end, the result/review keeps the
+existing truthful remaining-hand and fair-deal information available. Do not
+use the competitor name, copy its artwork, delay a legal hand unnecessarily,
+or expose any Duppy tile before the deal. Validate that an interrupted/failed
+shuffle still produces one committed hand and that Talk/Read/Table notes remain
+reachable at 360 and 390 widths.
+
+2026-09-13 — Owner correction: leave the existing mobile Practice teaching,
+full-play replay, coaching and fair-deal features where they are for now; do
+not substitute a new “Table notes” control for them. That temporary control
+was removed before release. The requested mobile layout defect was independent
+of teaching: flank stations stacked a face above its rack near the top of the
+wood. Reviewed the owner-provided WhatsApp recording
+`/Users/higgi/Downloads/WhatsApp Video 2026-07-28 at 23.33.51.mp4`; its
+perimeter racks stay centred on their physical sides while the live chain
+forms a connected S. Practice phone stations now place a 28px face beside a
+vertical face-down rack, centred halfway down each side. Existing route logic,
+hand scale and no-cutoff pan behavior were not altered. `npm test` 462/462,
+typecheck, production build and `git diff --check` pass. Physical 360/390
+verification remains open.
+
+2026-09-13 — Mobile Practice teaching and identities were refined again from
+owner review. The default phone view now keeps the board and controlled hand
+clear. `Table reads & teaching`, directly below the felt, is a native
+expandable section containing the existing pass/player facts and the existing
+live-table read control; it is not a replacement for post-hand Watch it back,
+Coach, or fair-deal verification. Desktop keeps its direct Practice rail, and
+Lounge is unchanged. A previous generic phone density rule was making the
+side Duppy portraits 22px and applying the Practice side-station treatment to
+Lounge. Practice side faces are now protected 40px medallions beside their
+centred vertical racks, while Lounge retains its prior compact geometry. The
+chosen guest face is now visibly placed in the phone hand-tray header, beside
+the turn label and Duppy-speed control, instead of being hidden by the
+desktop-only identity rule. Guest choice remains local and account-free; a
+saved Practice choice appears consistently on that device. Account-profile
+avatar adoption in offline Practice is a separate enhancement because Practice
+does not load the social/auth bundle by design. `npm test` passes 462/462,
+`npm run typecheck`, `npm run build`, and `git diff --check` pass. Still test
+the final composition on physical 360px and 390px phones through a dense
+chain before closing acceptance.
+
+2026-09-13 — Practice hand-end clarity pass. Once a local hand completes,
+the result panel now shows every seat's actual remaining tiles and count, so
+a player can see exactly what was held on an ordinary win or blocked board.
+The pose target now has an opaque green/high-contrast treatment and a brighter
+gold opening state. Phone Practice side Duppy portraits now use a narrow,
+tall 32×58px capsule above their centred rack: the face remains readable while
+the central board pays only 32px of width per flank. The owner has specified a
+further route requirement for standard play: anchor the pose and expand the
+two ends through a full-field perimeter S, so a tile's physical field does not
+shift after a later move. Do not approximate this by merely changing the
+current compact row snake: it needs a hand-keyed, two-ended route cache and
+must be acceptance-tested through a near-played-out hand at 360/390 before it
+replaces the existing proven layout.
+
+2026-09-13 — Standard Practice route now reconstructs from `moveLog`, rather
+than recalculating from the current left-to-right board array. The pose stays
+anchored; left-end plays take two horizontal bones left, climb toward the top
+edge and cross, while right-end plays take two right, descend and cross back.
+This is the owner-confirmed perimeter-S direction from the supplied WhatsApp
+example. Bone sizing remains governed by the existing fixed live-table token.
+Typecheck and 462 tests pass; physical 360/390 dense-hand visual acceptance is
+still required before the route is considered final.
+
+2026-09-13 — Route correction after physical-phone failure. The first
+move-history implementation was rejected from the owner's capture: it used
+two fixed horizontal slots, produced disconnected vertical columns, and made
+the board read smaller. That implementation was removed. The WhatsApp video
+was reviewed again at opening, middle and late-hand frames. The confirmed
+pattern fills the centre horizontal line toward both rails first; the left
+end then climbs and crosses the top, while the right end descends and crosses
+the bottom. The replacement uses two independent endpoint cursors on one
+fixed full-table grid, advances by each bone's real footprint, keeps doubles
+crosswise, and rotates each cursor only when the next bone reaches its rail.
+The pose therefore retains the same grid cell as either end grows. Standard
+phone Practice now keeps a 32px short side (up from 28px), and side stations
+may straddle the rim instead of narrowing the chain's measured stage. Endpoint
+controls continue to attach to the actual first/last rendered bones. A new
+route regression test verifies the anchored pose and opposite top/bottom
+turns; 463 tests and typecheck pass. Automated browser capture was attempted,
+but the local headless Chromium process could not produce an artifact in this
+host session; physical 390px owner review remains the acceptance gate.
+
+2026-09-14 — Mobile Practice precision pass from the owner's latest physical
+capture and the downloaded WhatsApp reference. Every 90-degree route turn now
+offsets its exposed join by one half-bone instead of reusing the preceding
+bone's centreline. Crosswise doubles receive their full four-unit elbow
+clearance. Regression coverage checks that ordinary bones and doubles remain
+inside the fixed route without covering one another. The right arm now turns
+left after exactly two bones in its downward leg, as explicitly requested;
+the left arm still climbs toward the top before crossing. Standard mobile
+Practice bones increased from a 32px to a fixed 36px short side. Lounge and
+French geometry were not changed.
+
+The pale self-play label that appeared beneath the local hand was removed;
+opponent play labels remain associated with opponent stations. The phone hand
+header is more compact while preserving the chosen self face, turn text and
+Duppy speed. A roughly two-second, skippable Practice opening now shuffles
+face-down bones over the YaadDominoes mark and sends all 28 bones to the four
+seats one at a time. It uses transform/opacity only, has a reduced-motion path,
+removes itself after dealing, and also runs for Next hand. End-hand remaining
+tile reveal and the expandable teaching section remain intact.
+
+Verification: `npm test` passes 465/465, including new S-route elbow/double,
+self-label and sequential-deal checks; `npm run typecheck`, production build
+and `git diff --check` pass. After the owner granted browser-launch permission,
+an automated 390×844 HTTPS pass verified the live shuffle overlay, sequential
+flights, compact selected-face/turn/speed header, complete seven-bone hand and
+unobstructed opening table. Captures: `/private/tmp/yard-mobile-dealing.png`
+and `/private/tmp/yard-mobile-table.png`. Exact next action: play densely on a
+physical phone and inspect the upper-left, upper-right and lower-right elbows
+plus both destination arrows.
+
+2026-09-14 — Wi-Fi QA address changed. The Mac is now `192.168.1.221`; the
+ignored seven-day local certificate was regenerated with that IP in its SAN,
+the old server was stopped, and Vite was restarted on `0.0.0.0:5173`.
+`https://192.168.1.221:5173/` returns HTTP 200. The phone must be on the same
+Wi-Fi and accept the new self-signed certificate warning once. The former
+`10.0.0.176` address is stale on this network.
+
+2026-09-14 — Owner rejected the first shuffle timing and reported a specific
+4-4 → 4-1 route defect from physical iPhone capture
+`/private/tmp/yard-mobile-route-failure.png`. The WhatsApp reference was timed
+again frame by frame: its branded shuffle holds for roughly three seconds,
+then concealed bones visibly accumulate at the four hands. The replacement
+uses a 3.2-second circular 14-bone shuffle followed by a 28-bone round-robin
+deal at 165ms intervals. Dealt backs remain at each recipient rack until the
+real hand is revealed. Total presentation is about 8.3 seconds, aligned with
+the existing 8.53-second real-domino shuffle recording. Sound and visible
+motion now start in the same render beat. `LocalGame.startHand()` awaits the
+presentation hook before running opening Duppy moves, so no bone can be posed
+behind or before the deal. Skip and reduced-motion paths remain available.
+
+The route now remembers whether the preceding bone was a crosswise double. A
+turn after a double leaves from that double's physical centre and advances to
+its outside edge; it no longer uses the ordinary half-bone elbow offset. The
+reported 4-4 → 4-1 sequence has a dedicated regression asserting equal
+centrelines, one exact touching edge and zero overlap. On mobile Practice the
+felt now spends the app's 16px side padding, placing its outer border at the
+phone rim, and the board stage may use that full width. Lounge remains
+unchanged.
+
+Automated 390×844 HTTPS captures verified the circular shuffle, partially
+filled destination racks during dealing and the final full-width opening:
+`/private/tmp/yard-mobile-shuffling.png`,
+`/private/tmp/yard-mobile-dealing.png`, and
+`/private/tmp/yard-mobile-table.png`. `npm test` passes 466/466; typecheck,
+production build and `git diff --check` pass. Remaining acceptance: refresh
+and physically replay through the reported double-turn plus a dense S route.
+
+2026-09-14 — Owner-approved follow-up from two physical iPhone captures. Deal
+destinations moved inside the visible wood, so the round-robin animation now
+shows all four recipients: bottom, right, top and left. The 390×844 browser
+capture `/private/tmp/yard-mobile-dealing.png` shows bones accumulating at all
+four racks. Practice Voice Off is now a master quiet control: switching it off
+also switches off table effects, including Duppy calls such as “Tek dat” and
+“Yuh nuh have none”; Table sound can still be adjusted separately while voice
+is on.
+
+The standard two-ended route now reserves separate upper and lower fields.
+After the left opening reaches its rail, exactly three complete bones climb
+before it crosses; later upper bands continue away from the pose. The right
+opening drops two bones, crosses back, then turns downward again as requested,
+with later bands continuing away from the centre. All eight turn combinations
+apply half-bone or crosswise-double clearance before the next placement. The
+fixed route height is shared by layout and renderer, and a redraw focuses the
+real latest move from `moveLog` instead of a short-lived speech label. Mobile
+Practice also keeps its 36px short side during the measured refit; it pans the
+large fixed route rather than shrinking the bones.
+
+Verification added an all-27-play dense route assertion and exercised 84,000
+synthetic full-hand distributions with up to seven doubles without an overlap
+or out-of-bounds placement. A real automated 390×844 Practice hand rendered
+21–23 bones at the full size with clean joins; the stable capture is
+`/private/tmp/yard-mobile-route-final.png`. The end screen also revealed every
+remaining player's actual bones, including a tied blocked hand. Exact resume
+point: owner physical-phone acceptance of the full-size scroll/pan and both
+late turns; after that, return to the desktop/mobile acceptance matrix and
+Android performance pass.
+
+Final gate for this pass: 469/469 tests, client typecheck, production build and
+`git diff --check` pass. A separate 390px interaction check confirms one tap
+on Voice On changes both controls to Voice Off and Table sound Off. The active
+same-Wi-Fi test address remains `https://192.168.1.221:5173/`.
+
+2026-09-14 — Owner screen recording exposed a complete-table camera failure
+that isolated route assertions did not catch: after the opening bone was
+placed, a redraw could leave the tall fixed grid at its origin, showing empty
+wood while the legal bone sat outside the viewport. `keepTileInView()` now
+uses the tile's stable grid offset, centres the latest move directly, clamps
+to the stage's scroll range, and settles in one frame. This keeps the opening
+pose and every later turn visible while preserving fixed logical coordinates;
+it also survives speech-label expiry, speed changes and teaching redraws.
+
+The owner recording is now an explicit acceptance fixture for the next
+physical pass: opening pose, first arrow choice, first committed double,
+three-bone left rise, right drop/return, dense hand and post-hand reveal must
+all be inspected as one continuous table. Browser launch permission is
+currently unavailable because the host usage limit was reached, so this camera
+correction was verified through source tests, 469/469 full tests, typecheck,
+production build and diff check. Resume point: replay the same capture on the
+physical phone before launch sign-off.
+
+2026-09-14 — Follow-up recording showed that centring each newly played bone
+still made the stationary route look as if it was moving. The Practice camera
+now anchors once on the posed bone and never follows later plays. All route
+coordinates remain fixed: the centre stays centred, the left arm rises three
+bones then crosses, and the right arm drops, crosses back and drops again.
+Manual scrolling remains available for a long hand, but no redraw, Duppy turn,
+speech expiry, speed change or teaching toggle changes the viewport by itself.
+The recording’s opening pose and first committed double are now explicit
+acceptance checks alongside the dense-hand overlap checks.
+
+2026-09-14 — Mobile Practice rebuilt as the JamDom phone app (Claude, taking
+over from the ChatGPT handoff). Scope confirmed by the owner: mobile Practice
+first; Lounge and desktop untouched. Owner decisions this session: the whole
+board visible with nothing moving; a big hand about twice the board bone, like
+the JamDom app (measured on the owner's screenshot: board 58px, hand 110px on a
+945px screen); the wood filling the screen under a thin score strip.
+
+Root cause of the recording: the previous route drew a 106-row grid (real hands
+use 43-54 rows) with the pose 48 rows down, inside a board stage that scrolled
+and a camera that re-anchored; a thumb on the board scrolled it. A non-double
+pose (any later hand) was also placed so the first bones covered it.
+
+Implemented: `layoutPhoneRoute()`/`phoneRouteArm()` in layout.ts (pose centred;
+left rises exactly 3 then crosses right; right drops exactly 2, crosses back,
+then turns down; later turns one bone; exact edge-to-edge joins including 4-4
+into 4-1; placement depends only on each end's own move order). Height from
+`phoneRouteRows()`, a worst-case table from an adversarial double search.
+`phonePracticeGeometry()` picks the largest board bone that fits ANY hand;
+main.ts measures until the pose, then locks grid, stage inset and pinned
+offset per hand. Board stage `overflow: hidden; touch-action: none`, played
+bones `pointer-events: none`, no tray end-choice row on the fixed board. Hand
+columns shrink evenly to fit the tray. Duppy loop is single-flight and never
+plays a move into a replaced hand (a pose during the deal animation had thrown
+"not seat 2's turn"); taps are blocked during the deal.
+
+Evidence (local production build, automated full hands at Quick pace):
+390×844 — 18px board, 44px hand, 25 bones, zero movement or overflow while
+live, arrows 22px from their open end, table bottom 844, 4 hands revealed.
+360×780 — 18px board, 40px hand, 23 bones, same results. Tapping and dragging a
+played bone changed nothing; forced scroll stayed 0. Deal animation: 28 bones,
+bottom→right→top→left, 7 each. Voice Off silences speech and table effects.
+`npm test` 474/474, typecheck, build, `git diff --check` pass.
+
+Open: one shift of the whole board when the result screen replaces a finished
+hand (after play ends; likely the winning-bone slam). Real Safari has less
+height than the automated viewport, so the phone board bone will be smaller
+there (about 16px on a 390px iPhone); physical-phone acceptance by the owner is
+the resume point. Desktop and Lounge were not re-verified because they were out
+of scope and unchanged. Nothing committed: the tree still carries the ChatGPT
+session's uncommitted changes, which the owner has not reviewed.
+
+2026-09-14 (later) — SUPERSEDES the fixed centred-grid entry above. The owner
+said the 18px board bones were far too small and pointed at the WhatsApp video:
+the line crosses the table, then goes all the way to the top. The phone route is
+now a whole-table spiral (`phoneRouteRects`, `phoneRouteFits`,
+`layoutPhoneRoute` in layout.ts; `phonePracticeGeometry` in render.ts); the
+worst-case row table and big-hand layout are gone. The hand is about 15% bigger
+than the board bone. Measured at 390×844: board 22px (grid 24×52 on a 277×574
+stage), hand 25px, 25 bones, nothing moved or hid, 4 hands revealed. Owner
+verdict: still wastes space, bones must be bigger. Resume point: reclaim width
+from the side stations (they cost ~113px of 390) and size against the whole
+table rather than 18 bones per half; then physical-phone acceptance. Nothing is
+committed; production is still f494e28 (v136).
+
+2026-09-14 (diagnostic) — The owner reported the latest screen as unacceptable;
+the in-app browser currently shows “This site can’t be reached” at
+`http://localhost:5173/`. A stale Vite process (PID 21145) still owns that port
+but is not serving a reachable page. Static implementation checks remain green,
+but visual acceptance is blocked until the local dev server is restarted.
+Resume point: restart the server, reload Practice, then inspect the actual 360px
+and 390px screens before any further styling decision.
+
+2026-09-14 (big bones) — SUPERSEDES the whole-table spiral entry above. The
+owner, with a second AI's comparison against JamDom, asked for much bigger
+bones on the whole wood, flush joins, crisp pips, hand = board size, doubles
+always across the line (a 3-3 had been laid along the end bone at a corner),
+and the players and own tray kept where they are.
+
+Measured cause of the wasted wood: rows stop about one bone short of every
+edge (whole bone lengths), the stage was cut to the strip between the side
+stations (304 of 376px), and the spiral walled long ends in against those
+stations. Four-seat Practice hands (engine simulation, random legal play): at
+most 24 plays; longest end 12 typical, 19 at the 99.9th percentile, 21 max.
+
+Implemented: stage = whole felt above the tray (CSS inset 6px), stations passed
+as blocked rectangles; route snakes outward in rows at pitch 4; corner doubles
+stand across the incoming line; sizing by a generated corpus of the 400 hardest
+of 20,000 hands with a tolerance of 20 (≈1 hand in 1,000 overflows; checked
+against a fresh 20,000: 15), and a one-size-smaller relayout for such a hand;
+Pass moves into the tray header on phones (it had rendered below the screen and
+scrolled the table); pace label no longer clipped.
+
+Evidence (dev server, Playwright touch taps, no auto-scroll): 390×844 — 28px
+board and hand bones, grid 26×44, three hands, zero moves during play, zero
+overlaps (only the winning-bone slam and the domino "shake" animate), no bone
+under a player or the tray, Pass at y 718–767. 360×780 — 24px bones, 27×46,
+two hands, same results. Forced fallback (corpus emptied in the page): board
+stepped 40→36→34→30→26px as the hand grew and ended clean. `npm test` 476/476,
+typecheck, build, `git diff --check` pass.
+
+Open: the result screen's Next hand button sits below the fold (y≈1500) — a
+pre-existing flow, untouched. Real Safari height is smaller than the automated
+viewport, so the phone bone may be one size smaller there. Rows cluster around
+the centre in short hands (the cost of holding long ones at this size); owner
+to judge on the phone. Nothing committed; production is still f494e28 (v136);
+bump sw.js VERSION before any deploy. Resume point: owner review on the phone
+at https://192.168.1.221:5173/?practice=1.
+
+2026-09-14 (row spacing, L doubles) — Owner, with phone screenshots: rows were
+squashed by one-bone climbs, and a 5-5 on a turn was docked at its waist. Each
+climb is now at least two bones (three when the same bone still fits), and a
+double on a turn makes the JamDom L: past the end of the line, one half level
+with it, the other half out into the turn, the line continuing from that half.
+Cost, measured with the corpus: bones at 430px stay 28px; 390px drops 28→24px;
+360px 24→22px. Tests rewritten for both rules; 476/476, typecheck, build pass.
+
+2026-09-14 (size first) — Owner: the two-bone-climb build looked "smaller than
+before" (it cost a size step: 430×800 went 26→22px). Size is now chosen first;
+at that size each end's first climb is two bones where it fits, otherwise one.
+Measured: 430×800 26px with a two-bone first climb; 430×740 24px; 390×700
+22px; taller viewports (430×932 32px, 390×844 28px, 360×780 24px) keep full
+size with one-bone climbs. Played a hand at 430×800: no move during play.
+
+2026-09-14 (consistent climbs) — Owner: one game climbed two dominoes, the next
+only one. Causes, traced over 2,000 simulated hands: the first-climb-only rule
+(later climbs were one domino by design); climbs measured in height, so a
+crosswise double (half a domino tall) added a third domino and a corner double
+made the next climb look like one. Asked to choose between size and spacing,
+the owner said: two dominoes no matter what, same bone size. Now every climb is
+two full dominoes (doubles extra), bone size chosen as before. A climb turns
+early only where the partner's rack (325 of 573 blocked hands) or the top (177)
+or bottom (70) edge stops it; forbidding that raised mid-hand resizes to 15-23%
+of hands. Resize rate with the exception: 430×800 4.8%, 430×932 2.3%, 390×844
+4.6%, 360×780 1.1% (10,000 hands each). New test: every climb in 300 real
+hands is two dominoes unless at the table edge. 477/477, typecheck, build pass.
+
+2026-09-14 (French phone pinwheel research) — Owner asked for JamDom's 4-way
+clockwise pinwheel on mobile French (arms run out, turn clockwise at the edge;
+doubles across each arm) at 28px or larger. Findings, not yet implemented:
+the stacked "comb" French layout (`phoneCrossRoute`) is what is LIVE (v136),
+not a regression from this session; it also lays doubles in line. It pans in
+16-23% of hands on 390/430 phones and nearly all on 360px. A clockwise
+pinwheel prototype (.local/qa/pinglobal.ts: arms routed together in play
+order, own quarter first, borrowing only when stuck) at 28px on the whole
+felt, over 1,500 simulated French hands: players as today 26% (390px) / 25%
+(430x800) / 96% (360px) of hands get an arm stuck; top badge off the wood and
+side players photo-only 9% / 9% / 76%; nothing on the wood 3% / 3% / 72%.
+Arm lengths: 6 typical, 9 at p95, 11 at p99, 14 max. Resume point: owner's
+choice between clearing the wood of player badges during French, smaller
+French bones, or keeping the comb; deploy stays on hold until French is
+settled and the other session's Lounge/Across changes are checked.
+
+2026-09-14 (French phone pinwheel built) — Owner chose JamDom's clockwise
+pinwheel at 28px, players as tap-to-open tabs instead of badges on the wood,
+and asked for work in the real app rather than prototypes. Built in the app:
+`phoneFrenchPinwheel()` (render.ts) lays arms in play order, turns clockwise
+at the edge, stands doubles across the arm, makes the L at a turn, keeps arms a
+unit apart, and grows a stuck arm past the bottom so nothing already down
+moves; `frenchPhoneTab()` (table-experience.ts) collapses each French player
+on a phone to a 28px photo with a bones-left badge that opens a small panel;
+French phones take the whole felt, with `frenchTabBlocks()` measuring the tabs
+against the stage grid before the first arm bone. Also fixed on phones: the
+six-second French penalty banner floats instead of pushing the table down 88px
+and back, and French's Pass sits in the tray header. Removed mid-hand fallback
+to the row route (it re-laid every bone). New `french-phone.test.ts` (6 tests:
+first bone towards its player, clockwise turns, crosswise and L doubles,
+stationarity, growth past the bottom, 200 real hands at 26x38 with tabs).
+
+Evidence: `npm test` 483/483, typecheck, build, `git diff --check`. Finger-tap
+Practice runs, two full French hands each: 390x844 (26x35) and 430x800 (28x32)
+had zero board moves, zero on-screen moves, no bone under a tab, no page scroll,
+every control on screen, no page errors. 360x780 (24x25) ran an arm out of room
+at 20 bones, shifted the board a unit and put bones under a tab, so phones
+under 380px keep the row route with the tabs guarded off it. Choosing that by a
+measured stage flipped the chucha from the row route to the pinwheel at the
+start of a 390px hand, so the choice follows the viewport width. Not yet verified:
+a real Lounge French table (needs signed-in players), and the owner's phone.
+Nothing committed; production still v136; deploy waits on the other session's
+Lounge/Across changes being checked.

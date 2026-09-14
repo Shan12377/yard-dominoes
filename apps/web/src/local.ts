@@ -114,7 +114,7 @@ export class LocalGame {
   }
 
   /** Deal the next hand, committing to the shuffle before any tile is dealt. */
-  async startHand(): Promise<void> {
+  async startHand(onDealt?: () => void | Promise<void>): Promise<void> {
     const serverSeed = randomSeed();
     const commitment = await commit(serverSeed);
     const clientSeeds = [randomSeed(8)];
@@ -161,6 +161,10 @@ export class LocalGame {
     this.lastResultBruk = false;
     if (this.hand.lastPenalties?.length) this.emit({ type: 'penalty', events: this.hand.lastPenalties });
     this.emit({ type: 'state' });
+    // A physical deal belongs after the committed shuffle exists but before
+    // anyone can pose or play. Practice uses this hook for its table animation;
+    // awaiting it keeps an opening Duppy from moving behind the deal screen.
+    await onDealt?.();
     await this.runDuppies();
   }
 
@@ -190,9 +194,24 @@ export class LocalGame {
     await this.runDuppies();
   }
 
-  private async runDuppies() {
+  /** The Duppy loop in flight, if any. */
+  private duppyLoop: Promise<void> | null = null;
+
+  /**
+   * One Duppy loop at a time. A pose made while the deal animation was still
+   * running started a second loop beside startHand's; both then decided a move
+   * for the same Duppy, and the slower one threw "not seat N's turn" and froze
+   * the hand (found in a 390px Practice run, 2026-09-14).
+   */
+  private runDuppies(): Promise<void> {
+    this.duppyLoop ??= this.duppyTurns().finally(() => { this.duppyLoop = null; });
+    return this.duppyLoop;
+  }
+
+  private async duppyTurns() {
     if (!this.hand) return;
     while (this.hand.status === 'active' && this.hand.turn !== this.mySeat) {
+      const decidedOn = this.hand;
       // One clear, human-sized beat between Duppy actions. At the old 420ms
       // pace a pass and the answering tile could happen before a newcomer
       // knew whose turn it was.
@@ -205,6 +224,9 @@ export class LocalGame {
       const pace = DUPPY_PACE_MS[this.options.duppyPace];
       await new Promise((r) => setTimeout(
         r, move.kind === 'pass' ? Math.min(DUPPY_PASS_PAUSE_MS, pace) : pace));
+      // Leaving the table or dealing again during the pause replaces the hand;
+      // the move decided for the old one must not be played into the new one.
+      if (!this.hand || this.hand !== decidedOn) return;
       this.hand = applyMove(this.hand, move);
       if (move.kind === 'pass') this.emit({ type: 'passed', seat: move.seat });
       else if ('tile' in move) this.emit({ type: 'played', seat: move.seat, tile: move.tile });

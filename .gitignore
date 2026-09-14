@@ -12,6 +12,7 @@ android/
 CLAUDE.local.md
 .vercel
 .env*
+.local/
 
 # Playwright E2E output
 test-results/

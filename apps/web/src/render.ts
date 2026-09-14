@@ -1,7 +1,10 @@
 import { halves, isDouble, matches } from '@yard/engine';
-import type { AnyBoard, Board, CrossBoard, HandResult, PenaltyEvent, Pip, TileId } from '@yard/engine';
-import { layoutLine, MIN_WIDTH_UNITS, orientLine } from './layout.ts';
-import type { OrientedTile, TilePlacement } from './layout.ts';
+import type { AnyBoard, Board, CrossBoard, HandResult, Move, PenaltyEvent, Pip, TileId } from '@yard/engine';
+import {
+  layoutAcrossLine, layoutLine, layoutPlayedRoute, MIN_WIDTH_UNITS, orientLine,
+  PHONE_ROUTE_MIN_COLS, PHONE_ROUTE_MIN_ROWS, phoneRouteFits, phoneRoutePlacements, playedRouteHeightUnits,
+} from './layout.ts';
+import type { OrientedTile, RouteRect, TilePlacement } from './layout.ts';
 
 /** Pip positions on a 3x3 grid, per face value, for a vertical half. */
 const LAYOUT: Record<number, number[]> = {
@@ -194,8 +197,26 @@ const CHROME_X = 2 * (6 + 12 + 10);
 const CHROME_Y = 2 * (6 + 14 + 10);
 
 export interface BoardFit {
+  /** Live standard-play history fixes the pose and grows each end independently. */
+  moveLog?: Move[];
+  /**
+   * Phone Practice: one fixed grid, measured once per hand, that holds the
+   * whole route for ANY hand with the pose in the middle. The board then never
+   * scrolls and no played bone ever moves. Needs `moveLog` and `unit`; see
+   * phonePracticeGeometry().
+   */
+  phoneRoute?: PhoneRouteGrid;
+  /**
+   * Mobile French: rectangles, in the phone cross grid's units, that no bone
+   * may cover — the players' collapsed tabs at the rim (see
+   * phoneFrenchPinwheel()).
+   */
+  phoneCrossBlocked?: ReadonlyArray<{ x: number; y: number; w: number; h: number }>;
   /** Cap the width in units — the hero uses it to keep its demo line short. */
   maxUnits?: number;
+  /** Use the dedicated Across route. Its lane is locked independently of the
+   * two hand docks, preventing a turn/selection from changing the chain. */
+  across?: boolean;
   /** Cap one layout unit. Live phone tables use this to keep a newly played
    *  bone the same physical size as the bone in the seven-tile hand. */
   maxUnit?: number;
@@ -364,10 +385,15 @@ export function chooseUnit(
   const cap = opts.maxUnits ?? Infinity;
   const minUnit = opts.minUnit ?? MIN_UNIT;
 
+  const route = opts.across
+    ? layoutAcrossLine
+    : opts.moveLog
+      ? (tiles: OrientedTile[], width: number) => layoutPlayedRoute(tiles, opts.moveLog!, width)
+      : layoutLine;
   const at = (u: number) => {
     const across = Math.min(Math.floor(box.width / u), cap);
     // Narrower than this and layoutLine has no room to turn the elbow.
-    return across < MIN_WIDTH_UNITS ? null : layoutLine(line, across);
+    return across < MIN_WIDTH_UNITS ? null : route(line, across);
   };
 
   if (opts.unit) {
@@ -385,11 +411,12 @@ export function chooseUnit(
   }
   // Nothing fit the height budget — take the smallest and let the felt
   // scroll, which is what it did for every board before this.
-  return last ?? { u: minUnit, placements: layoutLine(line, MIN_WIDTH_UNITS) };
+  return last ?? { u: minUnit, placements: route(line, MIN_WIDTH_UNITS) };
 }
 
 /**
- * Pan the board stage the least amount that brings a bone fully into view.
+ * Anchor the board stage once on its pose. Played bones must never make the
+ * camera follow them: that makes a fixed table feel as if the dominoes jump.
  *
  * The bone no longer shrinks to keep a whole chain on screen, so on a phone a
  * long chain is taller than its stage — measured at roughly 602px of board in
@@ -402,21 +429,18 @@ export function chooseUnit(
  */
 export function keepTileInView(stage: HTMLElement | null, tile: HTMLElement | null): void {
   if (!stage || !tile) return;
+  if (stage.dataset.routeCameraReady === 'true') return;
   if (stage.scrollHeight <= stage.clientHeight + 1) return; // nothing to pan
 
-  const view = stage.getBoundingClientRect();
-  const bone = tile.getBoundingClientRect();
-  if (view.height === 0 || bone.height === 0) return; // not laid out yet
-
-  const margin = 8;
-  let delta = 0;
-  if (bone.top < view.top + margin) delta = bone.top - view.top - margin;
-  else if (bone.bottom > view.bottom - margin) delta = bone.bottom - view.bottom + margin;
-  if (delta === 0) return;
-
-  const still = typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  stage.scrollBy({ top: delta, behavior: still ? 'auto' : 'smooth' });
+  // Bounding rectangles are unreliable while the grid is flex-centred and
+  // its content is taller than the stage. offsetTop is the grid's stable
+  // logical coordinate, so calculate the one-time camera position directly.
+  const target = tile.offsetTop + tile.offsetHeight / 2 - stage.clientHeight / 2;
+  const max = Math.max(0, stage.scrollHeight - stage.clientHeight);
+  const next = Math.max(0, Math.min(max, target));
+  if (Math.abs(stage.scrollTop - next) < 1) return;
+  stage.scrollTop = next;
+  stage.dataset.routeCameraReady = 'true';
 }
 
 /**
@@ -439,21 +463,50 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
     return opts.unit ?? opts.maxUnit ?? null;
   }
 
-  const { u, placements } = chooseUnit(orientLine(board), opts.box ?? feltBox(), opts);
+  if (opts.phoneRoute && opts.moveLog && opts.unit) {
+    const { cols, rows, origin, blocked, climb } = opts.phoneRoute;
+    const fixed = phoneRoutePlacements(orientLine(board), opts.moveLog, cols, rows, { origin, blocked, climb });
+    if (fixed) {
+      host.classList.add('phone-route');
+      host.style.gridTemplateColumns = `repeat(${cols}, ${opts.unit}px)`;
+      host.style.gridTemplateRows = `repeat(${rows}, ${opts.unit}px)`;
+      // A bone with no room left is the caller's cue to lay the hand again
+      // one size smaller (main.ts); it must never sit under a player.
+      host.dataset.phoneRouteOverflow = String(fixed.overflow);
+      appendPlacements(host, fixed.placements, 0, 0);
+      return opts.unit;
+    }
+  }
+
+  const fitBox = opts.box ?? feltBox();
+  const { u, placements } = chooseUnit(orientLine(board), fitBox, opts);
 
   // layoutLine currently starts at column zero, but a turn/elbow algorithm is
   // allowed to produce negative logical coordinates.  Size and place from the
   // complete bounds, not merely the farthest positive column.  Ignoring the
   // left bound made an end bone collapse into a clipped sliver whenever a
   // reverse run crossed column zero.
-  const minCol = Math.min(...placements.map((p) => p.col));
-  const maxCol = Math.max(...placements.map((p) => p.col + p.colSpan));
-  const minRow = Math.min(...placements.map((p) => p.row));
-  const maxRow = Math.max(...placements.map((p) => p.row + p.rowSpan));
+  // A live history-driven route owns a fixed table grid. Tight-wrapping only
+  // the bones already played would recenter the grid after every left/right
+  // extension and make the pose drift even though its logical cell is fixed.
+  const routeCols = opts.moveLog
+    ? Math.max(MIN_WIDTH_UNITS, Math.min(Math.floor(fitBox.width / u), opts.maxUnits ?? Infinity)) & ~1
+    : null;
+  const minCol = routeCols ? 0 : Math.min(...placements.map((p) => p.col));
+  const maxCol = routeCols ?? Math.max(...placements.map((p) => p.col + p.colSpan));
+  const minRow = routeCols ? 0 : Math.min(...placements.map((p) => p.row));
+  const maxRow = routeCols
+    ? playedRouteHeightUnits(routeCols)
+    : Math.max(...placements.map((p) => p.row + p.rowSpan));
 
   host.style.gridTemplateColumns = `repeat(${maxCol - minCol}, ${u}px)`;
   host.style.gridTemplateRows = `repeat(${maxRow - minRow}, ${u}px)`;
 
+  appendPlacements(host, placements, minCol, minRow);
+  return u;
+}
+
+function appendPlacements(host: HTMLElement, placements: TilePlacement[], minCol: number, minRow: number): void {
   placements.forEach((p, i) => {
     const node = boardTile(p);
     node.style.gridColumn = `${p.col - minCol + 1} / span ${p.colSpan}`;
@@ -461,7 +514,68 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
     node.style.setProperty('--i', String(i));
     host.appendChild(node);
   });
-  return u;
+}
+
+/** A phone Practice board: its grid, where the pose sits and what bones avoid, in grid units. */
+export interface PhoneRouteGrid {
+  cols: number;
+  rows: number;
+  origin: { x: number; y: number };
+  blocked: RouteRect[];
+  /** Full dominoes in every climb between rows. */
+  climb: number;
+}
+
+/** A rectangle in px, relative to the board stage's padding box. */
+export interface StageRect { left: number; top: number; right: number; bottom: number }
+
+/**
+ * The largest board bone for a phone Practice stage, chosen once per hand.
+ *
+ * Owner, 2026-09-14: bigger bones for older players, the whole wood used, and
+ * every played bone staying where it landed. The stage is the whole felt above
+ * the tray; the players' portraits and racks are `blockedPx`, which the route
+ * flows round rather than the board shrinking to the strip between them. A
+ * unit is accepted when the route holds the sizing hands (see phoneRouteFits).
+ */
+const phoneRouteFitCache = new Map<string, boolean>();
+/**
+ * Dominoes in every climb between rows, in every hand, no matter what (owner,
+ * 2026-09-14: "set a rule that it goes up by 2 no matter what ... keep the size
+ * the same as now"). The bone size is still chosen as if climbs were one domino,
+ * which is the size the owner approved; a long hand that then runs out of room
+ * is laid again one size smaller by main.ts's overflow fallback.
+ */
+const PHONE_CLIMB = 2;
+/** The climb the bone size is chosen with. */
+const PHONE_SIZING_CLIMB = 1;
+export function phonePracticeGeometry(
+  box: BoardBox, maxUnit: number, minUnit: number, blockedPx: readonly StageRect[] = [],
+): PhoneRouteGrid & { unit: number; left: number; top: number } {
+  const gridAt = (u: number, climb: number) => {
+    const cols = Math.max(PHONE_ROUTE_MIN_COLS, Math.floor(box.width / u));
+    const rows = Math.max(PHONE_ROUTE_MIN_ROWS, Math.floor(box.height / u));
+    const left = Math.floor((box.width - cols * u) / 2);
+    const top = Math.floor((box.height - rows * u) / 2);
+    const blocked = blockedPx.map((b) => {
+      const x = Math.floor((b.left - left) / u);
+      const y = Math.floor((b.top - top) / u);
+      return { x, y, w: Math.ceil((b.right - left) / u) - x, h: Math.ceil((b.bottom - top) / u) - y };
+    });
+    const origin = { x: Math.floor(cols / 2), y: Math.floor(rows / 2) };
+    return { unit: u, cols, rows, left, top, origin, blocked, climb };
+  };
+  for (let u = maxUnit; u >= minUnit; u -= 1) {
+    const grid = gridAt(u, PHONE_CLIMB);
+    const key = JSON.stringify([grid.cols, grid.rows, grid.origin, grid.blocked]);
+    let fits = phoneRouteFitCache.get(key);
+    if (fits === undefined) {
+      fits = phoneRouteFits(grid.cols, grid.rows, { origin: grid.origin, blocked: grid.blocked, climb: PHONE_SIZING_CLIMB });
+      phoneRouteFitCache.set(key, fits);
+    }
+    if (fits) return grid;
+  }
+  return gridAt(minUnit, PHONE_CLIMB);
 }
 
 interface CrossLayout {
@@ -987,6 +1101,155 @@ export function phoneCrossRoute(
   return out;
 }
 
+/**
+ * Mobile French as JamDom lays it (owner, 2026-09-14): a four-way clockwise
+ * pinwheel. Each arm heads out from the chucha towards its player, runs to the
+ * table edge and turns clockwise, and keeps turning clockwise inside its own
+ * quarter, so no arm folds back and forth into stacked rows ("a comb"). The
+ * comb in `phoneCrossRoute()` also laid doubles along the arm; here a double
+ * stands across the arm it arrives on, using half a bone of its length, and a
+ * double on a turn makes the L: past the end of the line, one half level with
+ * it and the other out into the turn.
+ *
+ * Bones are laid in play order (`order` holds the arm index of each play), and
+ * a bone's place depends only on bones already down, so nothing ever moves.
+ * Every lane is a double's width with one unit of look-ahead; arms keep a unit
+ * of felt between them and never cover a player's tab (`blocked`). Only an arm
+ * with nowhere clockwise to go borrows free felt outside its quarter, then may
+ * turn the other way, and last of all grows past the bottom of the board (the
+ * stage scrolls down to it). Growing downward keeps every bone already down
+ * exactly where it was. A bone with no room even then counts in `stuck`.
+ *
+ * Coordinates are grid units from the top-left; the chucha stands upright in
+ * the middle, as `phoneCrossRoute()` places it.
+ */
+export function phoneFrenchPinwheel(input: {
+  arms: ReadonlyArray<{ direction: CrossDirection; doubles: readonly boolean[] }>;
+  order: readonly number[];
+  cols: number;
+  rows: number;
+  blocked?: ReadonlyArray<{ x: number; y: number; w: number; h: number }>;
+}): { slots: PhoneCrossSlot[][]; stuck: number } {
+  type Rect = { x: number; y: number; w: number; h: number };
+  type Placed = Rect & { arm: number };
+  const { cols, rows } = input;
+  const cx = cols / 2;
+  const cy = Math.floor(rows / 2);
+  const minX = -cx;
+  const maxX = cols - cx;
+  const minY = -cy;
+  const maxY = rows - cy;
+  const step: Record<CrossDirection, readonly [number, number]> = { up: [0, -1], right: [1, 0], down: [0, 1], left: [-1, 0] };
+  const clockwise: Record<CrossDirection, CrossDirection> = { up: 'right', right: 'down', down: 'left', left: 'up' };
+  const anticlockwise: Record<CrossDirection, CrossDirection> = { up: 'left', left: 'down', down: 'right', right: 'up' };
+  const rect = (x: number, y: number, d: CrossDirection, along: number, across: number): Rect =>
+    d === 'right' ? { x, y: y - across / 2, w: along, h: across }
+      : d === 'left' ? { x: x - along, y: y - across / 2, w: along, h: across }
+        : d === 'down' ? { x: x - across / 2, y, w: across, h: along }
+          : { x: x - across / 2, y: y - along, w: across, h: along };
+  const grown = (r: Rect, d: CrossDirection, by: number): Rect =>
+    d === 'right' ? { ...r, w: r.w + by } : d === 'left' ? { ...r, x: r.x - by, w: r.w + by }
+      : d === 'down' ? { ...r, h: r.h + by } : { ...r, y: r.y - by, h: r.h + by };
+  const near = (a: Rect, b: Rect, gap: number) =>
+    a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap;
+  // Each arm's clockwise quarter, relative to the chucha (x -1..1, y -2..2).
+  // Neighbouring quarters meet on an edge, so lanes of different arms never
+  // overlap; the bones inside them keep a unit of felt from each other.
+  const quarter: Record<CrossDirection, (l: Rect) => boolean> = {
+    up: (l) => l.x >= -2 && l.y + l.h <= -2,
+    right: (l) => l.y >= -2 && l.x >= (l.y + l.h > 2 ? 2 : 1),
+    down: (l) => l.y >= 2 && l.x + l.w <= 2,
+    left: (l) => l.y + l.h <= 2 && l.x + l.w <= (l.y < -2 ? -2 : -1),
+  };
+  const hub: Rect = { x: -1, y: -2, w: 2, h: 4 };
+  const blocked = (input.blocked ?? []).map((b) => ({ ...b, x: b.x - cx, y: b.y - cy }));
+  const arms = input.arms.map(({ direction }) => {
+    const start: readonly [number, number] = direction === 'up' ? [0, -2] : direction === 'down' ? [0, 2]
+      : direction === 'right' ? [1, 0] : [-1, 0];
+    return {
+      direction, x: start[0], y: start[1], dir: direction,
+      lastAcross: direction === 'up' || direction === 'down' ? 2 : 4, own: [] as Placed[],
+    };
+  });
+  const all: Placed[] = [];
+  const slots: PhoneCrossSlot[][] = input.arms.map(() => []);
+  let stuck = 0;
+
+  for (const armIndex of input.order) {
+    const arm = arms[armIndex];
+    if (!arm) continue;
+    const index = arm.own.length;
+    const double = input.arms[armIndex].doubles[index] ?? false;
+    const joins = arm.own[index - 1];
+    const elbow = arm.own[index - 2];
+    const clear = (lane: Rect, bone: Rect, ownQuarter: boolean, pastBottom = false) => {
+      if (lane.x < minX || lane.x + lane.w > maxX || lane.y < minY) return false;
+      if (!pastBottom && lane.y + lane.h > maxY) return false;
+      if (ownQuarter && !quarter[arm.direction](lane)) return false;
+      for (const b of blocked) if (near(lane, b, 0)) return false;
+      if (index > 0 && near(bone, hub, 0)) return false;
+      for (const other of all) {
+        if (other === joins) continue;
+        if (other === elbow) {
+          if (near(bone, other, 0)) return false;
+          continue;
+        }
+        const felt = other.arm === armIndex && double ? 0 : 1;
+        if (near(bone, other, felt) || near(lane, other, 0)) return false;
+      }
+      return true;
+    };
+    const along = double ? 2 : 4;
+    const across = double ? 4 : 2;
+    const [dx, dy] = step[arm.dir];
+    const straightFits = (length: number, width: number, ownQuarter: boolean, pastBottom = false) => clear(
+      grown(rect(arm.x, arm.y, arm.dir, length, 4), arm.dir, 1), rect(arm.x, arm.y, arm.dir, length, width), ownQuarter, pastBottom);
+    const straight = (ownQuarter: boolean, pastBottom = false) => straightFits(along, across, ownQuarter, pastBottom)
+      ? { x: arm.x, y: arm.y, d: arm.dir, bone: rect(arm.x, arm.y, arm.dir, along, across), advance: along }
+      : null;
+    const turn = (to: CrossDirection, ownQuarter: boolean, pastBottom = false) => {
+      const [tx, ty] = step[to];
+      const leg = (x: number, y: number) => {
+        const bone = rect(x, y, to, 4, 2);
+        return clear(grown(rect(x, y, to, 4, 4), to, 1), bone, ownQuarter, pastBottom) ? { x, y, d: to, bone, advance: 4 } : null;
+      };
+      // A double on a turn is the L; an ordinary bone turns beside the
+      // outward half of the bone it joins.
+      const corner = double ? leg(arm.x + dx - tx, arm.y + dy - ty) : null;
+      return corner ?? leg(arm.x - dx + tx * (arm.lastAcross / 2), arm.y - dy + ty * (arm.lastAcross / 2));
+    };
+    let chosen: ReturnType<typeof straight> = null;
+    if (index === 0) {
+      chosen = straight(true);
+    } else {
+      const turnsHere = double && !straightFits(4, 2, true);
+      chosen = turnsHere
+        ? turn(clockwise[arm.dir], true) ?? straight(true)
+        : straight(true) ?? turn(clockwise[arm.dir], true);
+      chosen ??= straight(false) ?? turn(clockwise[arm.dir], false)
+        ?? turn(anticlockwise[arm.dir], true) ?? turn(anticlockwise[arm.dir], false);
+      chosen ??= straight(false, true) ?? turn(clockwise[arm.dir], false, true)
+        ?? turn(anticlockwise[arm.dir], false, true);
+    }
+    if (!chosen) {
+      stuck += 1;
+      chosen = { x: arm.x, y: arm.y, d: arm.dir, bone: rect(arm.x, arm.y, arm.dir, along, across), advance: along };
+    }
+    const placed: Placed = Object.assign(chosen.bone, { arm: armIndex });
+    arm.own.push(placed);
+    all.push(placed);
+    const [sx, sy] = step[chosen.d];
+    arm.x = chosen.x + sx * chosen.advance;
+    arm.y = chosen.y + sy * chosen.advance;
+    arm.dir = chosen.d;
+    arm.lastAcross = chosen.bone.w === chosen.advance ? chosen.bone.h : chosen.bone.w;
+    slots[armIndex].push({
+      x: placed.x + cx, y: placed.y + cy, w: placed.w, h: placed.h, orient: placed.w > placed.h ? 'h' : 'v',
+    });
+  }
+  return { slots, stuck };
+}
+
 /** Which pip faces which way when `placed` joins `anchor` at (x, y) from `previous`. */
 function crossFaces(
   placed: CrossBoard['arms'][number]['tiles'][number], anchor: Pip, orient: 'h' | 'v',
@@ -999,13 +1262,96 @@ function crossFaces(
   return { faces: forward ? [inward, outward] : [outward, inward], outward };
 }
 
+/**
+ * The narrowest phone that lays French as the pinwheel on the whole felt. A
+ * narrower one (a 360px screen) keeps the row route and keeps the players'
+ * tabs off its width, the way it always kept their full badges off. Decided by
+ * viewport width, not a measured stage: the first measurement of a hand can
+ * come in narrower than the settled one, and deciding from it drew the chucha
+ * on the row route and then moved it onto the pinwheel.
+ */
+export const PHONE_FRENCH_PINWHEEL_MIN_WIDTH = 380;
+
+/**
+ * Mobile French: the collapsed player tabs (see frenchPhoneTab) as rectangles
+ * in the phone cross grid's units, with a unit of felt around each so a bone
+ * never touches a tab.
+ *
+ * Measured against where the grid WILL sit, not against a drawn board: the
+ * stage centres a board smaller than itself (`safe center`), so the grid's
+ * corner follows from the stage and the grid size alone. That lets the tabs
+ * be known before the first bone goes down, so no bone is ever re-laid when
+ * they are found. Measure once per hand, before the stage can scroll.
+ */
+export function frenchTabBlocks(
+  stage: HTMLElement, root: ParentNode, box: BoardBox, unit: number,
+): Array<{ x: number; y: number; w: number; h: number }> {
+  if (!unit) return [];
+  const { cols, rows } = phoneCrossGrid(box, unit);
+  const view = stage.getBoundingClientRect();
+  if (!view.width) return [];
+  const left = view.left + stage.clientLeft + Math.max(0, (stage.clientWidth - cols * unit) / 2) - stage.scrollLeft;
+  const top = view.top + stage.clientTop + Math.max(0, (stage.clientHeight - rows * unit) / 2) - stage.scrollTop;
+  return [...root.querySelectorAll<HTMLElement>('.station-tab > .table-seat-identity')].map((tab) => {
+    const r = tab.getBoundingClientRect();
+    const x = Math.floor((r.left - left) / unit) - 1;
+    const y = Math.floor((r.top - top) / unit) - 1;
+    return {
+      x, y,
+      w: Math.ceil((r.right - left) / unit) + 1 - x,
+      h: Math.ceil((r.bottom - top) / unit) + 1 - y,
+    };
+  });
+}
+
+/**
+ * The pinwheel also needs this many columns, as a guard for an unusually
+ * narrow stage. A 360px phone's whole felt gives 24x25: in a real Practice
+ * hand an arm ran out of room at 20 bones, a bone landed above the board and
+ * shifted every bone down a unit, and bones sat under a player's tab. A 390px
+ * phone gives 26 and a 430px phone 28, and both held two full hands with
+ * nothing moving (2026-09-14). The choice itself follows
+ * PHONE_FRENCH_PINWHEEL_MIN_WIDTH, so every draw of a hand agrees.
+ */
+const PHONE_PINWHEEL_MIN_COLS = 26;
+
 function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, box: BoardBox, u: number) {
   const { cols, rows } = phoneCrossGrid(box, u);
   const armDirections = opts.viewerSeat === undefined
     ? board.arms.map((arm) => arm.direction)
     : crossArmDirections(board.arms, opts.viewerSeat);
-  const routes = board.arms.map((arm, index) =>
-    phoneCrossRoute(armDirections[index], cols, rows, arm.tiles.length));
+  // The pinwheel needs the order bones went down so none of them ever moves.
+  // A replay or the Coach shows a finished board with no move history; there
+  // the arms are taken in turn, which draws the same shape.
+  const played = (opts.moveLog ?? []).flatMap((move) => move.kind === 'playcross' ? [move.arm] : []);
+  const counts = board.arms.map((arm) => arm.tiles.length);
+  const order = played.length === counts.reduce((sum, n) => sum + n, 0)
+    ? played
+    : (() => {
+      const turns: number[] = [];
+      const left = [...counts];
+      while (left.some((n) => n > 0)) left.forEach((n, arm) => { if (n > 0) { turns.push(arm); left[arm] -= 1; } });
+      return turns;
+    })();
+  // Chosen from the viewport, like the stage: the first draw of a hand can
+  // work from a guessed stage, and choosing by its columns started a hand on
+  // the row route and then moved the chucha onto the pinwheel.
+  const pinwheel = window.innerWidth >= PHONE_FRENCH_PINWHEEL_MIN_WIDTH
+    && Math.max(cols, PHONE_PINWHEEL_MIN_COLS) === cols
+    ? phoneFrenchPinwheel({
+      arms: board.arms.map((arm, index) => ({
+        direction: armDirections[index], doubles: arm.tiles.map((placed) => isDouble(placed.tile)),
+      })),
+      order, cols, rows, blocked: opts.phoneCrossBlocked,
+    })
+    : null;
+  // A phone too narrow for the pinwheel keeps the older row-by-row route for
+  // the whole hand. The pinwheel is never swapped for it mid-hand: that re-laid
+  // every bone on the table (owner's rule, 2026-09-14: played bones never move).
+  const routes = pinwheel
+    ? pinwheel.slots
+    : board.arms.map((arm, index) => phoneCrossRoute(armDirections[index], cols, rows, arm.tiles.length));
+  host.dataset.frenchRoute = pinwheel ? 'pinwheel' : 'rows';
   // A rare long arm grows past the top or bottom; the board grows with it and
   // the stage pans vertically, still joined to the centre.
   let top = 0;
@@ -1479,7 +1825,10 @@ export function reserveBoardStage(
   // felt the old cap spent 48px of HEIGHT keeping bones off stations that are
   // nowhere near them vertically — and height is the scarce axis there. 16px is
   // still a clear reveal, and comfortably above the 12px phone floor.
-  const gutter = Math.max(12, Math.min(16, (feltRect.right - feltRect.left) * 0.015));
+  // Mobile Practice's fixed board keeps only a thin reveal from the racks: its
+  // route already keeps felt between bones, and every pixel of width is board.
+  const phoneRoute = boardStage.classList.contains('phone-route-stage');
+  const gutter = phoneRoute ? 6 : Math.max(12, Math.min(16, (feltRect.right - feltRect.left) * 0.015));
   const actionDock = felt.querySelector<HTMLElement>('.in-felt-actions');
   const acrossOwn = felt.querySelector<HTMLElement>('.in-felt-across-hands > .across-hand-own');
   const acrossPartner = felt.querySelector<HTMLElement>('.in-felt-across-hands > .across-hand-partner');

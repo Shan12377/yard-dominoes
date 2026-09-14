@@ -40,3 +40,74 @@ export function handTurnCue(panel: HTMLElement, active: boolean, pending = false
   panel.classList.toggle('hand-move-pending', pending);
   panel.setAttribute('aria-label', pending ? 'Your hand, sending move' : active ? 'Your hand, your turn' : 'Your hand, waiting');
 }
+
+/** Keep the rack and its corner identity on the same authoritative turn cue. */
+export function stationTurnCue(station: HTMLElement, active: boolean): void {
+  station.classList.toggle('turn', active);
+  const copy = station.querySelector('.table-seat-copy');
+  if (!copy) return;
+  const cue = document.createElement('span');
+  cue.className = 'table-seat-turn';
+  cue.textContent = 'Playing';
+  // Keep its line reserved when inactive; changing turns must not move the board.
+  cue.style.visibility = active ? 'visible' : 'hidden';
+  copy.appendChild(cue);
+}
+
+/**
+ * Which collapsed French player tabs are open, by table slot. Module scope on
+ * purpose: render() rebuilds every station on each Duppy turn, and a tab the
+ * player opened must not snap shut underneath them.
+ */
+const openFrenchTabs = new Set<string>();
+
+/**
+ * Mobile French (owner, 2026-09-14): a player's photo, name and rack collapse
+ * to a small tab at the rim, so the clockwise pinwheel has the felt; tapping
+ * the tab opens a small panel beside it and tapping again closes it. It is a
+ * disclosure beside the table, never a modal over a live hand.
+ *
+ * The panel is built here rather than restyling the station's own name and
+ * rack, which Practice and the Lounge each lay out differently.
+ */
+export function frenchPhoneTab(station: HTMLElement, slot: string, bones: number): void {
+  station.classList.add('station-tab');
+  station.dataset.bones = String(bones);
+  station.setAttribute('role', 'button');
+  station.tabIndex = 0;
+  const name = station.querySelector('.table-seat-copy strong')?.textContent?.trim() || 'Player';
+  const info = station.querySelector('.table-seat-copy small')?.textContent?.trim()
+    || `${bones} bone${bones === 1 ? '' : 's'}`;
+  station.setAttribute('aria-label', `${name}, ${bones} bone${bones === 1 ? '' : 's'} left. Tap for details`);
+
+  const details = document.createElement('div');
+  details.className = 'station-tab-details';
+  const title = document.createElement('strong');
+  title.textContent = name;
+  const line = document.createElement('small');
+  line.textContent = info;
+  const backs = document.createElement('span');
+  backs.className = 'station-tab-backs';
+  backs.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < bones; i += 1) backs.appendChild(document.createElement('i'));
+  details.append(title, line, backs);
+  station.appendChild(details);
+
+  const sync = () => {
+    const open = openFrenchTabs.has(slot);
+    station.classList.toggle('station-tab-open', open);
+    station.setAttribute('aria-expanded', String(open));
+  };
+  const toggle = () => {
+    if (openFrenchTabs.has(slot)) openFrenchTabs.delete(slot);
+    else openFrenchTabs.add(slot);
+    sync();
+  };
+  station.addEventListener('click', toggle);
+  station.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    toggle();
+  });
+  sync();
+}

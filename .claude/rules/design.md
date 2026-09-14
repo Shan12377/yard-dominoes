@@ -81,7 +81,9 @@ design:
 2. **Tiles use the confirmed flat JamDom treatment.** No raised bottom edge,
    bevel, heavy dark perimeter, or dramatic shadow. The player's hand is the
    master bone design: hand, board, and face-down racks share one renderer and
-   material system. Hand and played board share one physical size token;
+   material system. Hand and played board share one physical size token,
+   including mobile Practice's fixed JamDom-style route (owner, 2026-09-14;
+   see CLAUDE.md);
    concealed racks may use one smaller uniform perimeter-counter size to keep
    the centre clear. Played bones never
    fade, tint, soften their black pips, or scale independently to fit a line.

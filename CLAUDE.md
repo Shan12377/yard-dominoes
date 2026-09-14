@@ -98,6 +98,41 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   controlled face-up hand must still inherit the board's fitted short side.
   After the pre-deal measurement, the computed short sides of a played face-up bone
   and every controlled hand bone must differ by no more than 1 CSS pixel.
+  **Owner-approved exception, 2026-09-14: mobile Practice (≤700px, not French,
+  not Across) uses a stationary whole-felt board with big bones, like the
+  owner's JamDom WhatsApp video.** Played bones never move, the board never
+  scrolls or pans, and hand and board bones are one size. The stage is the
+  whole felt above the tray; the top and side players are `blocked` rectangles
+  the route flows round, not guards that shrink the board. The route is
+  `phoneRouteRects()`/`layoutPhoneRoute()` in layout.ts: the centre row runs
+  to the edge, then the LEFT end snakes upward in rows and the RIGHT end
+  downward. **Every climb between rows is two full dominoes, in every hand**
+  (owner, 2026-09-14: "goes up by 2 no matter what ... keep the size the same
+  as now"). Doubles in a climb are extra, since they are half a domino tall;
+  counting height instead made climbs of one and three. A climb turns early
+  only where the table stops it: the partner's rack or the top or bottom edge,
+  in the last row of a long hand. The bone size is still chosen as if climbs
+  were one domino (`PHONE_SIZING_CLIMB`), so about one hand in twenty on a
+  430×800 phone outgrows the board and is laid again one size smaller;
+  forcing two dominoes at the edge too made it one hand in seven.
+  Lanes are a double's width with one unit of look-ahead; bones meet edge to
+  edge and keep a unit of felt from other rows (a double may touch where two
+  doubles line up). **Doubles always stand across the line they arrive on.**
+  A double on a turn makes the JamDom L: past the end of the line, one half
+  level with the line it arrived on, the other half out into the turn, and the
+  line carries on from that outer half — never docked at its waist like a T,
+  never lying along the end bone (the owner's 3-3 and 5-5 complaints). With no
+  room for the L it is laid where a turning bone goes.
+  `phonePracticeGeometry()` picks the biggest bone for which at most
+  `PHONE_ROUTE_CORPUS_TOLERANCE` (20) of the 400 hardest simulated hands in
+  `phone-route-corpus.ts` overflow — about one hand in a thousand
+  (regenerate with `node scripts/gen-phone-route-corpus.ts`). Such a hand is
+  laid again one size smaller (main.ts, `lastPhoneRouteFit`). main.ts measures
+  until the pose is down, then locks grid, blocked rects, stage inset and
+  offset for the hand (`lastPhoneRouteKey`, keyed by hand and width). Measured bones: 430×932 30px, 430×800 26px,
+  390×844 26px, 360×780 24px. When passing is the
+  only move, Pass replaces the pace control in the tray header, because a row
+  under the bones fell off the screen.
   A player's required Pass control appears immediately beside the active hand
   when pass is the only legal move. It says `No matching bone` and never waits
   for a tile tap or shares the bottom-left corner with the player's portrait.
@@ -130,29 +165,48 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   owner has ruled on it twice — the second time after a build shipped with 20px
   phone bones. A board that is fully visible but unreadable is worse than one
   that is readable and pans.
-  **A phone routes French inside its own width.** It used to draw the desktop
-  450×390 reference route and pan. At the 28px phone bone that route is 420px
-  wide against a 290-320px stage, and every arm turned in the columns that fell
-  off the screen. The joining bones were hidden, so a turned-back run looked
-  like dominoes floating on their own (owner's iPhone screenshot, 2026-09-13).
-  An earlier note here said no routing scheme could fit a phone; that was
-  measured for fitting all four arms as straight L-shapes, and it was wrong
-  as a general claim. `phoneCrossRoute()` gives each arm one pinwheel quarter:
-  the first bone heads towards the player who opened it, then the arm runs
-  rows back and forth across its band, growing away from the chucha. Nothing
-  ever leaves the board's width. Neighbouring arms keep one unit of felt
-  between them, because touching bones from different arms read as a join.
-  Over 2,000 simulated French hands an arm reaches 6 bones typically, 9 at
-  the 95th percentile and 14 at most; a 430px phone (20×33 units) holds 9-10
-  per arm and a roomier one holds 14 or more. A rarer long arm grows past the
-  top or bottom and pans vertically, still joined to the centre. On a narrow
-  phone (a 360px screen measured a 247×322 stage, 16 columns) a band too
-  narrow for another row keeps going straight up or down the arm's own
-  column, so the board never pans sideways down to 12 columns. The 450×390
-  reference route remains the desktop authority. `centreCrossOnPose()` still
-  holds the chucha in the middle of any stage that pans: `align-items: safe
-  center` start-aligns anything larger than its box, which measured 44px of
-  drift and hid a whole arm.
+  **A phone lays French as JamDom's four-way clockwise pinwheel (owner,
+  2026-09-14).** `phoneFrenchPinwheel()` in render.ts: each arm heads out
+  from the chucha towards the player who opened it, runs to the table edge and
+  turns clockwise, and keeps turning clockwise inside its own quarter, so no
+  arm folds back and forth into stacked rows. The older `phoneCrossRoute()`
+  did exactly that ("a comb", owner's complaint) and laid doubles along the
+  arm. Now a double stands across the arm it arrives on, and a double on a
+  turn makes the L (past the end of the line, one half level with it, the
+  other half out into the turn); with no room for the L it lies where a
+  turning bone goes, still across. Bones are laid in play order from the move
+  log (a replay or the Coach, with no log, takes the arms in turn), and a
+  bone's place depends only on bones already down. Arms keep a unit of felt
+  between them. Only an arm with nowhere clockwise to go borrows free felt or
+  turns the other way, and last of all it grows past the BOTTOM of the board
+  so nothing already down moves (growing past the top would shift the whole
+  board). The pinwheel is never swapped for another route mid-hand: that
+  re-laid every bone. Phones 380px and wider (`PHONE_FRENCH_PINWHEEL_MIN_WIDTH`)
+  get the whole felt and the pinwheel; the whole felt gives a 390px phone 26
+  columns and a 430px phone 28, and both held two full hands with nothing
+  moving. A 360px phone gets only 24x25, where a real hand ran an arm out of
+  room, shifted the board a unit and put bones under a tab, so narrower phones
+  keep `phoneCrossRoute()` for the whole hand, with the tabs guarded off its
+  width. **Decide this from the viewport width, never a measured stage:** the
+  first measurement of a hand can come in narrower than the settled one, and
+  deciding from it drew the chucha on the row route and then moved it. The
+  French phone bone is never shrunk to make the pinwheel fit (owner: 28px, not
+  lower). **To give it the felt, French players on a phone are 28px tabs at
+  the rim** (`frenchPhoneTab()` in table-experience.ts, both surfaces): photo
+  plus a gold bones-left badge; tapping opens a small panel with name, score
+  and backs, and its open state lives in module scope so Duppy redraws never
+  close it. The stage is the whole felt (`.french-phone-stage`), and
+  `frenchTabBlocks()` measures the tabs once per hand, against where the grid
+  sits in the stage rather than a drawn board, so they are known before the
+  first arm bone and no bone is re-laid when they are found. Over 1,500
+  simulated French hands at 28px, players drawn as today left 25% of hands
+  with a stuck arm on a 390/430 phone; tabs brought it near 3-7%. Two layout
+  movers found with it and fixed on phones: the six-second French penalty
+  banner now floats instead of pushing the table down 88px and back, and
+  French's Pass control sits in the tray header like the linear game's.
+  `centreCrossOnPose()` still holds the chucha in the middle of any stage that
+  pans: `align-items: safe center` start-aligns anything larger than its box,
+  which measured 44px of drift and hid a whole arm.
 - `docs/prototypes/authentic-table.html` is the live-table composition authority:
   on desktop the local hand sits in a compact, content-width tray at the
   player's table edge; on phone it becomes the prototype's transparent,
@@ -180,8 +234,9 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   measured safe rectangle before the pose is dealt, then retain that route and
   physical bone size for the whole hand. The double-six route is bounded at
   32 half-tile columns by 22 rows; it may turn before consuming every spare
-  pixel so a later bone never forces a resize or scrollbar. A phone may turn
-  within a 20-half-tile lane and deliberately pan rather than shrink. A live French arm chooses its
+  pixel so a later bone never forces a resize or scrollbar. A Lounge phone may turn
+  within a 20-half-tile lane and deliberately pan rather than shrink; mobile
+  Practice never pans (see the JamDom phone-app exception above). A live French arm chooses its
   first lane from the measured guard: run straight while the protected square
   allows it, turn once near that boundary, then continue without curling back
   into the original line.

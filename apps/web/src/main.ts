@@ -17,7 +17,7 @@ import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { DUPPY_PACE_LABELS, DUPPY_PACE_NAMES } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { confirmTableExit, handTurnCue } from './table-experience.ts';
+import { confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
 import type { DuppyPace } from './local.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import { captureReferralCode } from './referral.ts';
@@ -29,7 +29,8 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, PHONE_FRENCH_PINWHEEL_MIN_WIDTH } from './render.ts';
+import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
@@ -368,6 +369,11 @@ function stopNagging() {
  *  reason to gate this on the hand being over. */
 function leaveLocalGame() {
   game = null; review = null; reviewOpen = false;
+  practiceDealAnimating = false;
+  if (practiceDealTimer !== null) window.clearTimeout(practiceDealTimer);
+  practiceDealTimer = null;
+  practiceDealResolve?.();
+  practiceDealResolve = null;
   stopNagging();
   talk = new Map(); shareLink = null;
   render();
@@ -398,8 +404,68 @@ let recentPlaySeat: number | null = null;
 let recentPassSeat: number | null = null;
 let winningTile: string | null = null;
 let winningSeat: number | null = null;
+let practiceDealAnimating = false;
+let practiceDealTimer: number | null = null;
+let practiceDealResolve: (() => void) | null = null;
 /** The hero line makes its entrance once per page load, not on every render. */
 let heroHasEntered = false;
+
+function finishPracticeDealAnimation(): void {
+  practiceDealAnimating = false;
+  if (practiceDealTimer !== null) window.clearTimeout(practiceDealTimer);
+  practiceDealTimer = null;
+  practiceDealResolve?.();
+  practiceDealResolve = null;
+  render();
+}
+
+function beginPracticeDealAnimation(): Promise<void> {
+  practiceDealAnimating = window.matchMedia('(max-width: 700px)').matches;
+  if (!practiceDealAnimating) return Promise.resolve();
+  if (practiceDealTimer !== null) window.clearTimeout(practiceDealTimer);
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return new Promise((resolve) => {
+    practiceDealResolve = resolve;
+    practiceDealTimer = window.setTimeout(finishPracticeDealAnimation, reduced ? 260 : 8_300);
+  });
+}
+
+async function showPracticeDeal(): Promise<void> {
+  const finished = beginPracticeDealAnimation();
+  // Sound and the first visible shuffle frame begin in the same render beat.
+  sfx.play('shuffle');
+  render();
+  await finished;
+}
+
+/** A cheap transform-only deal: one concealed bone visits each seat in turn. */
+function practiceDealOverlay(): HTMLElement {
+  const overlay = el('div', 'practice-deal-overlay');
+  overlay.setAttribute('role', 'status');
+  overlay.setAttribute('aria-label', 'Shuffling, then dealing one domino to each player in turn');
+  const mark = el('div', 'practice-deal-mark');
+  mark.append(el('strong', undefined, 'YAAD'), el('span', undefined, 'DOMINOES'));
+  const shuffle = el('div', 'practice-shuffle-pile');
+  for (let i = 0; i < 14; i += 1) {
+    const bone = el('i', 'practice-shuffle-bone');
+    bone.style.setProperty('--shuffle-index', String(i));
+    shuffle.appendChild(bone);
+  }
+  const flights = el('div', 'practice-deal-flights');
+  const seats = ['bottom', 'right', 'top', 'left'] as const;
+  for (let i = 0; i < 28; i += 1) {
+    const bone = el('i', `practice-deal-bone deal-to-${seats[i % seats.length]}`);
+    bone.style.setProperty('--deal-index', String(i));
+    bone.style.setProperty('--deal-slot', String(Math.floor(i / seats.length) - 3));
+    flights.appendChild(bone);
+  }
+  const skip = document.createElement('button');
+  skip.className = 'practice-deal-skip';
+  skip.textContent = 'Skip';
+  skip.onclick = finishPracticeDealAnimation;
+  overlay.append(mark, shuffle, flights, skip);
+  return overlay;
+}
 
 async function startGame(opts: {
   mode: GameMode; format: SetFormat; duppy: DuppyLevel;
@@ -514,6 +580,7 @@ async function startGame(opts: {
 
   review = null;
   reviewOpen = false;
+  practiceSupportOpen = false;
   verifyState = null;
   shareLink = null;
   recentPlayedTile = null;
@@ -521,8 +588,7 @@ async function startGame(opts: {
   recentPassSeat = null;
   winningTile = null;
   winningSeat = null;
-  sfx.play('shuffle');
-  await g.startHand();
+  await g.startHand(showPracticeDeal);
   render();
 }
 
@@ -932,6 +998,33 @@ let lobbyFormatChosen = false;
 let lobbyDuppy: DuppyLevel = 'ranker';
 let lobbyPace: DuppyPace = 'brisk';
 
+// Practice is deliberately account-free. A newcomer should be able to sit at
+// a table that feels like theirs without being forced through a gender field
+// or profile setup. These are a small, varied subset of the same local art
+// used by account avatars; the choice is only stored on this device.
+const PRACTICE_FACES = [
+  'hoops', 'plain', 'wrap', 'cedar', 'sonia', 'otis', 'braids', 'mei',
+] as const;
+type PracticeFace = typeof PRACTICE_FACES[number];
+const PRACTICE_FACE_LABELS: Record<PracticeFace, string> = {
+  hoops: 'Bantu knots and hoops', plain: 'Close-cropped hair and beard',
+  wrap: 'Gold headwrap', cedar: 'Curly fade and beard',
+  sonia: 'Sleek hair and earrings', otis: 'Silver beard and warm smile',
+  braids: 'Long braids and coral bandana', mei: 'Silver bob and glasses',
+};
+const PRACTICE_FACE_KEY = 'yard:practice-face';
+
+function savedPracticeFace(): PracticeFace {
+  try {
+    const saved = localStorage.getItem(PRACTICE_FACE_KEY);
+    return PRACTICE_FACES.includes(saved as PracticeFace) ? saved as PracticeFace : 'plain';
+  } catch {
+    return 'plain';
+  }
+}
+
+let lobbyFace: PracticeFace = savedPracticeFace();
+
 function lobby(): HTMLElement {
   const panel = el('div', 'panel door');
   panel.append(
@@ -1028,6 +1121,33 @@ function lobby(): HTMLElement {
   formatField.append(el('span', undefined, 'Set'), format, formatHint);
   form.insertBefore(formatField, form.children[1] ?? null);
 
+  const faceField = el('fieldset', 'practice-face-picker');
+  faceField.appendChild(el('legend', undefined, 'Your practice face'));
+  faceField.appendChild(el('p', 'muted small', 'Choose any face. No account needed.'));
+  const faces = el('div', 'practice-face-grid');
+  const chooseFace = (face: PracticeFace) => {
+    lobbyFace = face;
+    try { localStorage.setItem(PRACTICE_FACE_KEY, face); } catch { /* private mode */ }
+    for (const button of Array.from(faces.children) as HTMLButtonElement[]) {
+      button.setAttribute('aria-pressed', String(button.dataset.face === face));
+    }
+  };
+  for (const face of PRACTICE_FACES) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'practice-face-choice';
+    button.dataset.face = face;
+    button.setAttribute('aria-label', `Use ${PRACTICE_FACE_LABELS[face]} for practice`);
+    button.setAttribute('aria-pressed', String(face === lobbyFace));
+    const image = document.createElement('img');
+    image.className = 'avatar'; image.src = `/avatars/${face}.webp`; image.alt = '';
+    button.appendChild(image);
+    button.onclick = () => chooseFace(face);
+    faces.appendChild(button);
+  }
+  faceField.appendChild(faces);
+  form.appendChild(faceField);
+
   const go = document.createElement('button');
   go.className = 'act';
   go.textContent = 'Deal';
@@ -1061,7 +1181,7 @@ function scoreboard(g: LocalGame): HTMLElement {
   // the scrolling the coach was moved onto the board to avoid.
   if (g.hand?.status === 'active') {
     const read = document.createElement('button');
-    read.className = `act ghost small${readerOpen ? ' reader-on' : ''}`;
+    read.className = `act ghost small practice-score-read${readerOpen ? ' reader-on' : ''}`;
     read.setAttribute('aria-expanded', String(readerOpen));
     read.setAttribute('aria-controls', 'reader-overlay');
     read.textContent = readerOpen ? 'Hide read' : 'Read';
@@ -1159,6 +1279,33 @@ function seats(g: LocalGame): HTMLElement {
   return wrap;
 }
 
+/** Phone-only home for the public pass facts and the existing live-table
+ * lesson. Result, replay, Coach and fair-deal panels still appear after a
+ * hand exactly as they do today. */
+function mobilePracticeSupport(g: LocalGame): HTMLElement {
+  const support = document.createElement('details');
+  support.className = 'mobile-practice-support';
+  support.open = practiceSupportOpen;
+  support.ontoggle = () => { practiceSupportOpen = support.open; };
+  const summary = document.createElement('summary');
+  summary.textContent = 'Table reads & teaching';
+  support.appendChild(summary);
+  const body = el('div', 'mobile-practice-support-body');
+  body.append(el('p', 'muted small', 'See passes, table facts, and the current read when you want them.'));
+  const mobileSeats = seats(g);
+  mobileSeats.classList.add('mobile-practice-seats');
+  body.appendChild(mobileSeats);
+  if (g.hand?.status === 'active') {
+    const read = document.createElement('button');
+    read.className = 'act ghost mobile-practice-read';
+    read.textContent = readerOpen ? 'Hide live read' : 'Read this table';
+    read.onclick = () => { readerOpen = !readerOpen; render(); };
+    body.appendChild(read);
+  }
+  support.appendChild(body);
+  return support;
+}
+
 /**
  * Practice follows the same physical-table contract as an online game:
  * your hand is the playable rack below the felt; opponents' hands are only
@@ -1217,7 +1364,10 @@ function practicePassCallout(g: LocalGame): HTMLElement | null {
 
 /** Keep a named, readable record of the last live move during the Duppy beat. */
 function practicePlayCallout(g: LocalGame): HTMLElement | null {
-  if (recentPlaySeat === null || !recentPlayedTile || winningTile) return null;
+  // The local player's move already remains visible as the newest bone on the
+  // board. Repeating it as pale text at the bottom lands underneath the hand
+  // tray on a phone and reads like a rendering fault.
+  if (recentPlaySeat === null || recentPlaySeat === g.mySeat || !recentPlayedTile || winningTile) return null;
   const slot = (['bottom', 'right', 'top', 'left'] as const)[recentPlaySeat];
   const callout = el('div', `table-play-callout table-play-${slot}`,
     `${g.seatLabel(recentPlaySeat)} · ${recentPlayedTile}`);
@@ -1270,7 +1420,36 @@ let lastFrenchFitWidth = 0;
 let lastFrenchFitBox: { width: number; height: number } | null = null;
 /** The hand (and viewport) `lastFrenchFitBox` was measured for. */
 let lastFrenchFitKey: string | null = null;
+/**
+ * Phone Practice's fixed board grid and bone, chosen once per hand (and
+ * viewport width) from the measured stage. Height is deliberately not part of
+ * the key: Safari's bars slide in and out mid-hand, and re-measuring then would
+ * move every played bone.
+ */
+let lastPhoneRouteKey: string | null = null;
+let lastPhoneRoute: (PhoneRouteGrid & { unit: number; left: number; top: number }) | null = null;
+/** What the phone grid was fitted to, kept so a hand that runs out of room can be laid one size smaller. */
+let lastPhoneRouteFit: { box: { width: number; height: number }; blocked: StageRect[] } | null = null;
+/**
+ * The stage rectangle the phone grid was fitted to, kept for the rest of the
+ * hand. Re-measuring once bones are down let the tray's end-choice row, the
+ * turn cue or the result screen shrink or shift the stage under a fixed board.
+ */
+let lastPhoneRouteInset: string | null = null;
+/** Just the grid of a locked phone board, for renderBoard. */
+function phoneRouteGridOf(geo: PhoneRouteGrid): PhoneRouteGrid {
+  return { cols: geo.cols, rows: geo.rows, origin: geo.origin, blocked: geo.blocked, climb: geo.climb };
+}
+/** Largest board bone mobile Practice draws (40px); the measured wood usually decides first. */
+const PHONE_BOARD_MAX_UNIT = 20;
+const PHONE_BOARD_MIN_UNIT = 8;
 let lastFrenchGuardInset: string | null = null;
+/**
+ * Mobile French: the player tabs the pinwheel was laid round, and the hand
+ * they were measured for. Measured once per hand, never again mid-hand.
+ */
+let lastFrenchBlockedKey: string | null = null;
+let lastFrenchBlocked: Array<{ x: number; y: number; w: number; h: number }> | null = null;
 
 /**
  * Matches CrossArm['direction'] — the felt lays a French board's four arms
@@ -1308,6 +1487,8 @@ function partnerHandPanel(tiles: string[]): HTMLElement {
  * already.
  */
 let readerOpen = false;
+/** Keep a phone player's optional reads open across normal Duppy redraws. */
+let practiceSupportOpen = false;
 
 /**
  * What can be worked out from the table right now, and nothing more.
@@ -1526,9 +1707,26 @@ function myHand(g: LocalGame): HTMLElement {
   const panel = el('div', 'panel my-hand-panel');
   handTurnCue(panel, g.isMyTurn());
   if (!g.isMyTurn()) pendingTile = null;
-  panel.append(el('div', 'eyebrow', g.isMyTurn()
+  const handHeader = el('div', 'eyebrow', g.isMyTurn()
     ? (pendingTile ? 'Choose where it goes' : 'Your turn')
-    : 'Your hand'));
+    : 'Your hand');
+  // This is practice's Duppy thinking interval, not an invented move clock.
+  // Keeping it in the hand tray makes it reachable during a game without
+  // turning the practice page back into the old stack of controls below wood.
+  const pace = document.createElement('select');
+  pace.className = 'practice-hand-pace';
+  pace.setAttribute('aria-label', 'Duppy speed');
+  pace.title = 'Duppy speed';
+  pace.innerHTML = DUPPY_PACE_NAMES.map((name) =>
+    `<option value="${name}">${DUPPY_PACE_LABELS[name]}</option>`).join('');
+  pace.value = g.options.duppyPace;
+  pace.onchange = () => {
+    const next = pace.value as DuppyPace;
+    g.options.duppyPace = next;
+    lobbyPace = next;
+  };
+  handHeader.appendChild(pace);
+  panel.appendChild(handHeader);
 
   const playable = g.playableTiles();
   const legal = g.legal();
@@ -1632,7 +1830,16 @@ function myHand(g: LocalGame): HTMLElement {
     b.dataset.passAction = 'true';
     b.onclick = () => void g.play(legal[0]);
     passRow.appendChild(b);
-    panel.appendChild(passRow);
+    // Mobile Practice's tray has a fixed height, and a row added under the
+    // bones fell off the bottom of the screen: reaching Pass scrolled the
+    // whole table. The pace control is not needed while passing, so Pass
+    // takes its place in the tray header, right beside the hand.
+    // French on a phone had the same problem, so it gets the same fix.
+    if (window.innerWidth <= 700 && g.options.mode !== 'across') {
+      pace.replaceWith(passRow);
+    } else {
+      panel.appendChild(passRow);
+    }
   }
   return panel;
 }
@@ -1672,6 +1879,24 @@ function handResult(g: LocalGame): HTMLElement | null {
       ? `Board jammed. ${g.seatLabel(r.winnerSeat!)} took it on count.`
       : `${g.seatLabel(r.winnerSeat!)} played out.`;
   panel.append(el('h2', undefined, headline));
+
+  // A finished local hand is no longer private: seeing the actual bones left
+  // at every seat explains a block or close-out better than counts alone.
+  const remaining = el('section', 'remaining-hands');
+  remaining.append(el('div', 'eyebrow', 'Hands left on the table'));
+  const revealed = el('div', 'revealed-hands');
+  for (let seat = 0; seat < g.options.seatCount; seat += 1) {
+    const hand = g.hand.hands[seat] ?? [];
+    const seatHand = el('div', 'reveal-hand');
+    seatHand.append(el('strong', undefined, g.seatLabel(seat)));
+    seatHand.append(el('small', 'muted', `${hand.length} tile${hand.length === 1 ? '' : 's'} left`));
+    const tiles = el('div', 'hand revealed-tiles');
+    for (const id of hand) { const tile = tileEl(id); tile.classList.add('sm'); tiles.appendChild(tile); }
+    seatHand.appendChild(tiles);
+    revealed.appendChild(seatHand);
+  }
+  remaining.appendChild(revealed);
+  panel.appendChild(remaining);
 
   // French scores every pip on every hand, not just blocked ones — this is
   // the one place a player can check the math for themselves, on domino
@@ -1741,7 +1966,7 @@ function handResult(g: LocalGame): HTMLElement | null {
     next.className = 'act';
     next.textContent = 'Next hand';
     next.onclick = async () => {
-      review = null; reviewOpen = false; verifyState = null;
+      review = null; reviewOpen = false; practiceSupportOpen = false; verifyState = null;
       // Last hand's gloating and last hand's link must not carry over.
       talk = new Map();
       shareLink = null;
@@ -1755,8 +1980,8 @@ function handResult(g: LocalGame): HTMLElement | null {
       recentPlayedTile = null;
       recentPlaySeat = null;
       recentPassSeat = null;
-      sfx.play('shuffle');
-      await g.startHand(); render();
+      await g.startHand(showPracticeDeal);
+      render();
     };
     row.appendChild(next);
   } else {
@@ -1958,11 +2183,9 @@ function coachPanel(g: LocalGame, r: HandReview): HTMLElement {
  * Turning the sound off. One tap, and it stays off — people play this in bed
  * at two in the morning, and audio they cannot silence is an uninstall.
  *
- * Two independent toggles, not one — they used to share a flag on the theory
- * that separate mutes is how someone ends up hunting for whichever is still
- * making noise. In practice online play never triggers the duppy's voice at
- * all (that's offline-only), so muting it there silently killed the table's
- * knock/shuffle too, with no control anywhere online to notice or undo it.
+ * Voice Off is the master quiet control in Practice: it also silences table
+ * effects so a player never has to hunt for the sound that is still talking.
+ * Table sound remains separately adjustable while voice is on.
  */
 function soundToggle(): HTMLElement {
   const bar = el('div', 'sound-bar');
@@ -1973,7 +2196,12 @@ function soundToggle(): HTMLElement {
   voiceBtn.className = 'dismiss';
   voiceBtn.textContent = voiceOff ? 'Voice off' : 'Voice on';
   voiceBtn.setAttribute('aria-pressed', String(!voiceOff));
-  voiceBtn.onclick = () => { setMuted(!voiceOff); render(); };
+  voiceBtn.onclick = () => {
+    const turnVoiceOff = !voiceOff;
+    setMuted(turnVoiceOff);
+    if (turnVoiceOff) sfx.setMuted(true);
+    render();
+  };
   bar.appendChild(voiceBtn);
 
   const sfxOff = sfx.muted();
@@ -2011,22 +2239,26 @@ function tableView(g: LocalGame): DocumentFragment {
   if (penaltyEvents) frag.appendChild(penaltyBanner(penaltyEvents, (seat) => g.seatLabel(seat)));
 
   const room = el('div', 'practice-room');
+  room.classList.toggle('across-room', g.options.mode === 'across');
+  // The pose is the table's stationary camera anchor. Later plays must grow
+  // along their fixed route without moving the viewport after every turn.
+  const boardFocusTile = (g.hand?.moveLog ?? [])
+    .find((move) => move.kind === 'pose')?.tile ?? null;
   // Across has two readable controlled hands on the felt. Keep their physical
   // bone token on the room too so a measured board refit updates all three.
   room.classList.toggle('shared-table-hand-scale', g.options.mode === 'across');
-  // Seats ride ABOVE the felt now. They used to sit under the hand, which put
-  // the duppies' tile counts and their table talk below the fold on a phone —
-  // reported directly: "can you put those at the top, so don't have to keep
-  // scrolling down?" The hand still docks immediately under the board, which
-  // is the part design.md's board-first layout actually settles.
-  room.appendChild(seats(g));
+  const desktopSeats = seats(g);
+  desktopSeats.classList.add('desktop-practice-seats');
+  room.appendChild(desktopSeats);
   const felt = el('div', 'table-felt live-felt');
+  if (practiceDealAnimating) felt.classList.add('practice-dealing');
   felt.classList.add(`seat-count-${g.options.seatCount}`);
   // A real player's hand belongs at their physical edge of the table. Across
   // has a second controlled hand at the opposite edge, protected by the same
   // measured board guard.
-  const handOnFelt = !!g.hand && g.options.mode !== 'across';
-  if (g.options.mode === 'across') felt.classList.add('across-hands-on-felt');
+  // Across mirrors Open Hand's furniture: the active player's tray is part of
+  // the felt and the partner tray follows as the companion panel.
+  const handOnFelt = !!g.hand;
   // Every mode gets the same protected board stage. Across's two hands become
   // top and bottom obstacles instead of external panels competing with it.
   const boardStage = el('div', 'board-stage');
@@ -2038,6 +2270,33 @@ function tableView(g: LocalGame): DocumentFragment {
   // French needs room in both axes. Give the active cross a taller felt on
   // phones rather than squeezing its final arms behind the protected hand.
   if (handOnFelt && displayBoard?.kind === 'cross') felt.classList.add('french-cross-live');
+  // Mobile Practice copies the JamDom phone app (owner, 2026-09-14): a big
+  // hand below the wood and a fixed board of smaller bones that never moves.
+  const phoneFixedRoute = window.innerWidth <= 700
+    && g.options.format !== 'french' && g.options.mode !== 'across';
+  const phoneRouteKey = phoneFixedRoute ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}` : null;
+  const lockedPhoneRoute = phoneRouteKey !== null && phoneRouteKey === lastPhoneRouteKey ? lastPhoneRoute : null;
+  const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}`;
+  // The board is pinned at one offset inside its stage for the whole hand.
+  // Flex-centring it let a 1px change in the tray's height nudge every played
+  // bone up and down between turns.
+  const pinPhoneRoute = (geo: { left: number; top: number }) => {
+    line.style.position = 'absolute';
+    line.style.left = `${geo.left}px`;
+    line.style.top = `${geo.top}px`;
+    line.style.margin = '0';
+  };
+  if (phoneFixedRoute) {
+    room.classList.add('phone-route-room');
+    felt.classList.add('phone-route-table');
+    boardStage.classList.add('phone-route-stage');
+    // Hand and board are one set at one size (owner, 2026-09-14: "the domino
+    // size to the hand the same"). Until the stage is first measured at this
+    // width, start from 26px; the refit below sets the measured size. The tray
+    // has a fixed height, so this never resizes the board above it.
+    const measuredHere = lastPhoneRoute && lastPhoneRouteKey?.endsWith(`:${window.innerWidth}`);
+    room.style.setProperty('--hand-bone-short', `${(measuredHere ? lastPhoneRoute!.unit : 13) * 2}px`);
+  }
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
   // measured.
@@ -2053,6 +2312,8 @@ function tableView(g: LocalGame): DocumentFragment {
   const crossBox = displayBoard?.kind === 'cross' && lastFrenchFitWidth === window.innerWidth
     ? lastFrenchFitBox : null;
   const frenchTable = g.options.format === 'french';
+  // Mobile French takes the whole felt; its players are tabs at the rim.
+  if (frenchTable && window.innerWidth <= 700) boardStage.classList.add('french-phone-stage');
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}`
     : null;
@@ -2060,15 +2321,26 @@ function tableView(g: LocalGame): DocumentFragment {
     boardStage.style.inset = lastFrenchGuardInset;
     boardStage.dataset.boardGuard = 'pinned-hand-square';
   }
-  const tableCapUnit = liveTableUnit(window.innerWidth, null, frenchTable);
+  if (phoneFixedRoute && displayBoard && phoneRouteKey === lastPhoneRouteKey && lastPhoneRouteInset) {
+    boardStage.style.inset = lastPhoneRouteInset;
+  }
+  // Standard phone Practice uses a 32px short side. The route may pan, but a
+  // familiar full-size bone must not be traded away to make the board fit.
+  const tableCapUnit = window.innerWidth <= 700 && !frenchTable && g.options.mode !== 'across'
+    ? 18
+    : liveTableUnit(window.innerWidth, null, frenchTable);
   const tableMinUnit = window.innerWidth <= 700 ? 10 : g.options.mode === 'across' ? 22 : 11;
   const acrossLaneUnitsFor = (box?: { width: number } | null) => g.options.mode === 'across'
-    ? Math.max(64, Math.floor((box?.width ?? 1400) / Math.max(tableMinUnit, 1)) - 4)
+    // `tableUnit` is derived immediately below. This first-pass helper runs
+    // while deriving it, so use the same stable pre-deal cap here; the
+    // measured refit uses the resulting locked unit.
+    ? liveAcrossRouteUnits(box, tableCapUnit)
     : 32;
   const openingLinearGeometry = frenchTable ? null : liveLinearGeometry(
     window.innerWidth, cachedBox, tableMinUnit, acrossLaneUnitsFor(cachedBox));
-  const tableUnit = openingLinearGeometry?.unit
-    ?? liveTableUnit(window.innerWidth, displayBoard, frenchTable);
+  const tableUnit = window.innerWidth <= 700 && !frenchTable && g.options.mode !== 'across'
+    ? tableCapUnit
+    : openingLinearGeometry?.unit ?? liveTableUnit(window.innerWidth, displayBoard, frenchTable);
   // Phones keep their readable tier and pan a narrow lane. Desktop locks one
   // complete-hand route from the measured stage so it never changes bone size
   // or sprouts a scrollbar halfway through the hand.
@@ -2091,6 +2363,16 @@ function tableView(g: LocalGame): DocumentFragment {
     unit: tableUnit,
     minUnit: tableMinUnit,
     maxUnits: tableMaxUnits,
+    moveLog: g.hand?.moveLog,
+    ...(lockedPhoneRoute ? {
+      unit: lockedPhoneRoute.unit,
+      maxUnit: lockedPhoneRoute.unit,
+      phoneRoute: phoneRouteGridOf(lockedPhoneRoute),
+    } : {}),
+    across: g.options.mode === 'across',
+    ...(frenchTable && window.innerWidth <= 700 && frenchGuardKey !== null
+      && frenchGuardKey === lastFrenchBlockedKey && lastFrenchBlocked
+      ? { phoneCrossBlocked: lastFrenchBlocked } : {}),
     // Landscape shrinks the rigid French canvas to fit; a phone keeps its
     // readable bone and pans instead. See BoardFit.fitCrossToBox.
     fitCrossToBox: window.innerWidth > 700,
@@ -2103,6 +2385,10 @@ function tableView(g: LocalGame): DocumentFragment {
   if (fittedUnit) {
     felt.style.setProperty('--table-bone-short', `${fittedUnit * 2}px`);
     room.style.setProperty('--table-bone-short', `${fittedUnit * 2}px`);
+  }
+  if (lockedPhoneRoute && displayBoard) {
+    line.dataset.phoneRoute = phoneRouteLabel(lockedPhoneRoute);
+    pinPhoneRoute(lockedPhoneRoute);
   }
   const animateTile = () => {
     // The slam belongs to the hand it won, and only to that hand. `winningTile`
@@ -2137,8 +2423,10 @@ function tableView(g: LocalGame): DocumentFragment {
     if (rack && identity) {
       const slot = (['bottom', 'right', 'top', 'left'] as const)[seat];
       const station = el('div', `table-player-station table-player-station-${slot}`);
-      station.classList.toggle('turn', g.hand?.status === 'active' && g.hand.turn === seat);
       station.append(identity, rack);
+      stationTurnCue(station, g.hand?.status === 'active' && g.hand.turn === seat);
+      // Mobile French gives the pinwheel the felt: players become tabs.
+      if (frenchTable && window.innerWidth <= 700) frenchPhoneTab(station, slot, g.hand?.hands[seat]?.length ?? 0);
       felt.appendChild(station);
       tableStations.set(slot, station);
     } else {
@@ -2166,7 +2454,7 @@ function tableView(g: LocalGame): DocumentFragment {
   if (winCallout) felt.appendChild(winCallout);
   let handActions: HTMLElement | null = null;
   let choiceHandHost: HTMLElement | null = null;
-  if (handOnFelt) {
+  if (handOnFelt && g.options.mode !== 'across') {
     const hand = myHand(g);
     choiceHandHost = hand;
     hand.classList.add('in-felt-hand');
@@ -2175,26 +2463,42 @@ function tableView(g: LocalGame): DocumentFragment {
     const self = el('div', 'table-seat-identity table-seat-identity-bottom desktop-self-identity');
     self.classList.toggle('turn', g.isMyTurn());
     const portrait = document.createElement('img');
-    portrait.className = 'avatar'; portrait.src = '/avatars/plain.webp'; portrait.alt = '';
+    portrait.className = 'avatar'; portrait.src = `/avatars/${lobbyFace}.webp`; portrait.alt = '';
     const copy = el('span', 'table-seat-copy');
     copy.append(el('strong', undefined, 'You'), el('small', undefined, 'Practice player'));
     self.append(portrait, copy);
-    felt.appendChild(self);
+    // On a phone the portrait belongs in the tray header where it remains
+    // visible beside the player's own bones. The desktop composition keeps
+    // its larger identity card at the lower-left corner of the felt.
+    if (window.matchMedia('(max-width: 700px)').matches) {
+      self.classList.add('mobile-self-identity');
+      hand.querySelector('.eyebrow')?.appendChild(self);
+    } else {
+      felt.appendChild(self);
+    }
   }
   if (g.options.mode === 'across' && g.hand) {
+    // Across uses the same furniture as Open Hand in Practice: the readable
+    // playable tray stays at the player's edge and the partner's hand remains
+    // in the companion panel. Only the legal-turn authority differs online.
     const partnerSeat = g.mySeat ^ 2;
     const mine = myHand(g);
-    const partner = partnerHandPanel(g.hand.hands[partnerSeat]);
-    mine.classList.add('across-hand-own');
-    partner.classList.add('across-hand-partner');
     choiceHandHost = mine;
     handActions = takeHandActions(mine);
-    const acrossHands = el('div', 'across-hand-dock in-felt-across-hands shared-table-hand-scale');
-    acrossHands.append(mine, partner);
-    felt.appendChild(acrossHands);
+    mine.classList.add('in-felt-hand');
+    felt.appendChild(mine);
+    room.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
+  }
+  if (practiceDealAnimating && window.innerWidth <= 700) {
+    felt.appendChild(practiceDealOverlay());
   }
   room.appendChild(felt);
-  handActions = placeBoardChoices(boardStage, handActions, choiceHandHost);
+  room.appendChild(mobilePracticeSupport(g));
+  // The fixed phone board never pans, so every open end and its arrow is
+  // always on screen. The mirrored Left/Right row under the hand only exists
+  // for a board that can scroll an end out of view, and on a phone it made the
+  // tray taller mid-turn, sliding it over the bottom rows of the fixed board.
+  handActions = placeBoardChoices(boardStage, handActions, phoneFixedRoute ? null : choiceHandHost);
   if (handActions) {
     handActions.classList.add('in-felt-actions');
     felt.appendChild(handActions);
@@ -2211,7 +2515,11 @@ function tableView(g: LocalGame): DocumentFragment {
     // in its own protected lower rail, so the line must never fit into that
     // rail and later overlap it. A normal table keeps the existing felt box.
     const fitHost = boardStage;
-    if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
+    const phoneStageLocked = phoneFixedRoute && !!displayBoard
+      && phoneRouteKey === lastPhoneRouteKey && lastPhoneRouteInset !== null;
+    if (phoneStageLocked) {
+      boardStage.style.inset = lastPhoneRouteInset!;
+    } else if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
       boardStage.style.inset = lastFrenchGuardInset;
       boardStage.dataset.boardGuard = 'pinned-hand-square';
     } else {
@@ -2230,8 +2538,24 @@ function tableView(g: LocalGame): DocumentFragment {
       // 609px on EACH side to make a square, leaving the board 490px of 1708
       // and forcing a 30px bone on a table with room for 48px. That is the
       // "where is the space on desktop" the owner reported.
-      reserveBoardStage(felt, boardStage, tableStations.values(),
+      // The fixed phone board uses every column at every height, so it must
+      // keep clear of the side stations too: without them in the guard, bones
+      // at the ends of the centre row sat under a Duppy's portrait and rack.
+      // The fixed phone board takes the whole felt above the tray and flows
+      // round the side and top players itself (phoneRouteRects' `blocked`).
+      // Mobile French does the same round its players' tabs
+      // (phoneFrenchPinwheel's `blocked`).
+      const guardedStations = window.innerWidth <= 700
+        ? []
+        : tableStations.values();
+      reserveBoardStage(felt, boardStage, guardedStations,
         felt.querySelector<HTMLElement>('.in-felt-hand'), false);
+      // A French phone too narrow for the pinwheel (a 360px screen) keeps the
+      // row route, which does not know about the tabs: keep them off its width.
+      if (frenchTable && window.innerWidth <= 700 && window.innerWidth < PHONE_FRENCH_PINWHEEL_MIN_WIDTH) {
+        reserveBoardStage(felt, boardStage, tableStations.values(),
+          felt.querySelector<HTMLElement>('.in-felt-hand'), false);
+      }
       if (frenchGuardKey && boardStage.style.inset) {
         lastFrenchGuardKey = frenchGuardKey;
         lastFrenchGuardInset = boardStage.style.inset;
@@ -2251,6 +2575,57 @@ function tableView(g: LocalGame): DocumentFragment {
       || line.scrollHeight > fitHost.clientHeight;
     lastFeltBox = box;
     lastFeltHasHandRail = handOnFelt;
+    if (phoneFixedRoute && displayBoard?.kind !== 'cross') {
+      // Keep measuring until the pose is down: the table is still settling
+      // after the deal (tray header, turn cue), and an early, smaller reading
+      // locked a bone one size too small. Once a bone is on the board the grid
+      // is fixed for the hand, which is all "stationary" requires.
+      if (!displayBoard || phoneRouteKey !== lastPhoneRouteKey || !lastPhoneRoute) {
+        // The phone board has no line padding, so the stage's whole inner box
+        // is usable; 2px absorbs sub-pixel rounding.
+        const stageBox = { width: fitHost.clientWidth, height: fitHost.clientHeight };
+        const stageRect = fitHost.getBoundingClientRect();
+        const originX = stageRect.left + fitHost.clientLeft;
+        const originY = stageRect.top + fitHost.clientTop;
+        const blocked = [...tableStations.values()].map((station) => {
+          const r = station.getBoundingClientRect();
+          return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
+        }).filter((r) => r.right > 0 && r.bottom > 0 && r.left < stageBox.width && r.top < stageBox.height);
+        lastPhoneRouteFit = { box: stageBox, blocked };
+        lastPhoneRoute = phonePracticeGeometry(stageBox, PHONE_BOARD_MAX_UNIT, PHONE_BOARD_MIN_UNIT, blocked);
+        lastPhoneRouteKey = phoneRouteKey;
+        lastPhoneRouteInset = boardStage.style.inset || null;
+      } else if (line.dataset.phoneRouteOverflow && line.dataset.phoneRouteOverflow !== '0'
+        && lastPhoneRouteFit && lastPhoneRoute.unit > PHONE_BOARD_MIN_UNIT) {
+        // About one hand in a thousand outgrows the wood (see
+        // PHONE_ROUTE_CORPUS_TOLERANCE). Lay it again one size smaller rather
+        // than put a bone under a player or off the table.
+        lastPhoneRoute = phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1,
+          PHONE_BOARD_MIN_UNIT, lastPhoneRouteFit.blocked);
+      }
+      const geo = lastPhoneRoute;
+      room.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);
+      if (displayBoard && line.dataset.phoneRoute !== phoneRouteLabel(geo)) {
+        const drawn = renderBoard(line, displayBoard, {
+          unit: geo.unit, maxUnit: geo.unit, minUnit: geo.unit,
+          moveLog: g.hand?.moveLog,
+          phoneRoute: phoneRouteGridOf(geo),
+          viewerSeat: g.mySeat,
+        });
+        line.dataset.phoneRoute = phoneRouteLabel(geo);
+        pinPhoneRoute(geo);
+        if (drawn) {
+          felt.style.setProperty('--table-bone-short', `${drawn * 2}px`);
+          room.style.setProperty('--table-bone-short', `${drawn * 2}px`);
+        }
+        animateTile();
+      }
+      // The whole route fits by construction, so there is never anything to
+      // pan to. No camera: a played bone stays exactly where it landed.
+      boardStage.scrollTop = 0;
+      boardStage.scrollLeft = 0;
+      return;
+    }
     // French owns a fixed measured route and a fixed guard for the complete
     // hand. Rebuilding here was the old movement bug: every move recreated
     // the line after paint and recalculated its centre from shrinking racks.
@@ -2292,6 +2667,8 @@ function tableView(g: LocalGame): DocumentFragment {
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
           fitCrossToBox: window.innerWidth > 700,
+          // Mobile French lays its pinwheel in play order.
+          moveLog: g.hand?.moveLog,
           viewerSeat: g.mySeat,
         });
         if (corrected) {
@@ -2299,22 +2676,46 @@ function tableView(g: LocalGame): DocumentFragment {
           room.style.setProperty('--table-bone-short', `${corrected * 2}px`);
         }
       }
+      // Mobile French routes round the players' tabs. Measure them against
+      // where the grid sits in the stage on this hand's first measured render
+      // (usually before any arm bone), lay the board round them, and keep that
+      // for the whole hand.
+      if (window.innerWidth <= 700 && frenchGuardKey && frenchGuardKey !== lastFrenchBlockedKey) {
+        lastFrenchBlockedKey = frenchGuardKey;
+        lastFrenchBlocked = frenchTabBlocks(boardStage, felt, lockedBox, tableUnit);
+        renderBoard(line, displayBoard, {
+          box: lockedBox,
+          maxUnit: tableUnit,
+          unit: tableUnit,
+          minUnit: tableMinUnit,
+          maxUnits: tableMaxUnits,
+          fitCrossToBox: false,
+          moveLog: g.hand?.moveLog,
+          viewerSeat: g.mySeat,
+          phoneCrossBlocked: lastFrenchBlocked,
+        });
+      }
       return;
     }
     if (changed || boardOverflowedGuard) {
       const measuredGeometry = liveLinearGeometry(
         window.innerWidth, box, tableMinUnit, acrossLaneUnitsFor(box));
+      const keepOpeningUnit = g.options.mode === 'across'
+        || (window.innerWidth <= 700 && !frenchTable);
+      const measuredRouteUnit = keepOpeningUnit ? tableUnit : measuredGeometry.unit;
       const measuredUnit = renderBoard(line, displayBoard, {
         box,
-        maxUnit: g.options.mode === 'across' ? tableUnit : measuredGeometry.unit,
+        maxUnit: measuredRouteUnit,
         // Pinned here too. This refit runs after paint with the real measured
         // box, so leaving it as a ceiling let the board shrink straight back
         // on the very next resize — the first render would hold its size and
         // then quietly lose it. (The French branch above returns before this,
         // so the old conditional was dead code as well as wrong.)
-        unit: g.options.mode === 'across' ? tableUnit : measuredGeometry.unit,
+        unit: measuredRouteUnit,
         minUnit: tableMinUnit,
         maxUnits: measuredGeometry.maxUnits,
+        moveLog: g.hand?.moveLog,
+        across: g.options.mode === 'across',
         viewerSeat: g.mySeat,
       });
       if (measuredUnit) {
@@ -2323,13 +2724,12 @@ function tableView(g: LocalGame): DocumentFragment {
       }
       animateTile();
     }
-    // Now the board pans instead of shrinking, the bone that just landed can
-    // be below the fold on a phone. Never make a player hunt for their own
-    // play. No-ops on a desktop board, which always fits.
-    // Any board that pans must show it, not only a French cross.
+    // A tall phone route is manually scrollable, but the camera is anchored
+    // once on the pose. Later moves must never shift the table underneath a
+    // player's hand.
     markPannable(boardStage);
     keepTileInView(boardStage,
-      recentPlayedTile ? line.querySelector(`[data-tile="${recentPlayedTile}"]`) : null);
+      boardFocusTile ? line.querySelector(`[data-tile="${boardFocusTile}"]`) : null);
   };
   requestAnimationFrame(() => requestAnimationFrame(refitMeasuredBoard));
   // Rapid Duppy turns can replace a just-rendered node before its animation

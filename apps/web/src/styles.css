@@ -639,9 +639,12 @@ label.field > span {
   --table-bone-short: 42px;
   position: relative;
   isolation: isolate;
+  /* Two tightly repeated stripe layers looked like ruled timber rather than
+     real wood and forced Android to repaint a high-frequency pattern under
+     every moving bone. A few broad, quiet variations keep the warm grain
+     impression while the dominoes remain the thing the eye reads. */
   background:
-    repeating-linear-gradient(0deg, rgba(37, 18, 7, .16) 0 2px, transparent 2px 13px),
-    repeating-linear-gradient(0deg, transparent 0 31px, rgba(255, 226, 169, .10) 32px 34px, transparent 35px 49px),
+    linear-gradient(92deg, rgba(45, 22, 8, .24), transparent 19%, rgba(255, 221, 166, .08) 44%, transparent 69%, rgba(38, 18, 7, .2)),
     radial-gradient(120% 90% at 50% -15%, rgba(255, 255, 255, 0.14), transparent 55%),
     linear-gradient(165deg, var(--felt-hi), var(--felt) 45%, var(--felt-lo));
   border: 10px solid var(--signal-lo);
@@ -755,10 +758,10 @@ button.board-end-choice {
   padding: 2px;
   border: 3px solid var(--gold);
   border-radius: 999px;
-  background: transparent;
-  color: #ffc928;
+  background: #075d3c;
+  color: #fff8d3;
   font: 900 25px/1 var(--body);
-  box-shadow: 0 0 0 3px rgba(255, 201, 40, .18);
+  box-shadow: 0 0 0 4px rgba(5, 43, 67, .72), 0 0 18px rgba(255, 201, 40, .92);
   pointer-events: auto;
 }
 button.board-end-choice:hover,
@@ -769,7 +772,11 @@ button.board-end-choice:focus-visible {
   outline: 3px solid #7dd3fc;
   outline-offset: 2px;
 }
-.board-end-choice[data-opening-choice='true'] { width: 48px; min-width: 48px; height: 48px; }
+.board-end-choice[data-opening-choice='true'] {
+  width: 48px; min-width: 48px; height: 48px;
+  background: #ffd43b; color: #052b43; border-color: #fff7c2;
+  box-shadow: 0 0 0 5px rgba(5, 43, 67, .82), 0 0 24px rgba(255, 212, 59, .96);
+}
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand {
   position: absolute;
   left: 50%;
@@ -789,6 +796,23 @@ button.board-end-choice:focus-visible {
   box-shadow: 0 -8px 22px rgba(0, 0, 0, .22);
 }
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .eyebrow { margin-bottom: 2px; }
+.table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.practice-hand-pace {
+  min-height: 28px;
+  max-width: 126px;
+  padding: 3px 22px 3px 7px;
+  border: 1px solid rgba(255, 201, 40, .58);
+  border-radius: 7px;
+  background: rgba(3, 31, 51, .9);
+  color: var(--bone);
+  font: 700 10px/1 var(--body);
+}
+.practice-hand-pace:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
 .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .table-seat-identity-bottom {
   top: 7px;
   right: 9px;
@@ -1149,6 +1173,7 @@ button.board-end-choice:focus-visible {
 }
 .practice-room { display: grid; gap: 10px; width: 100%; min-width: 0; }
 .practice-room > *, .table-room > * { min-width: 0; max-width: 100%; }
+.mobile-practice-support { display: none; }
 .practice-seats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1450,6 +1475,10 @@ button.board-end-choice:focus-visible {
 .reveal-hand .hand { gap: 4px; }
 .reveal-hand .tile.sm { --w: 22px; --h: 44px; cursor: default; }
 .reveal-hand .tile.sm:hover { transform: none; }
+.remaining-hands { margin-top: 14px; }
+.revealed-hands { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.revealed-hands .reveal-hand { padding: 8px; border: 1px solid rgba(67, 199, 244, .24); border-radius: 8px; }
+.revealed-tiles { display: flex; flex-wrap: wrap; align-items: flex-start; }
 
 /* A played bone appears at its final size and colour immediately. The table
    knock supplies the feedback; scaling/fading the physical bone changed its
@@ -1730,6 +1759,22 @@ button.board-end-choice:focus-visible {
 .table-player-station.turn {
   border-color: var(--gold);
   box-shadow: 0 0 0 2px rgba(255, 201, 40, .2), 0 7px 18px rgba(0, 0, 0, .24);
+}
+/* Desktop stations use display:contents, so paint the rack itself. A steady
+   green field preserves the physical-hand cue without changing measured size. */
+.table-player-station.turn > .table-rack {
+  background: #007a3e;
+  border-radius: 4px;
+  box-shadow: 0 0 0 5px #007a3e, 0 0 0 7px var(--gold);
+}
+.table-seat-turn { display: none; }
+@media (min-width: 901px) {
+  .table-seat-turn {
+    display: block;
+    height: 16px;
+    color: var(--bone);
+    font: 800 12px/16px var(--body);
+  }
 }
 .table-player-station-top {
   top: 8px;
@@ -2954,6 +2999,138 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 .table-exit-dialog p { margin: 14px 0; line-height: 1.5; }
 .table-exit-dialog .row { justify-content: flex-end; }
 .desktop-self-identity { display: none; }
+@media (max-width: 700px) {
+  /* The selected Practice face shares the tray header with its owner's turn
+     cue and Duppy-speed control. It therefore stays visible without taking
+     a lane from the board or sitting underneath a domino. */
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .mobile-self-identity {
+    --seat-identity-size: 30px;
+    position: static;
+    z-index: auto;
+    display: grid;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    margin-left: auto;
+    transform: none;
+  }
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .mobile-self-identity .avatar {
+    width: 30px;
+    height: 30px;
+  }
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand > .eyebrow {
+    min-height: 30px;
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1;
+  }
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .practice-hand-pace {
+    min-height: 30px;
+    max-width: 112px;
+    padding-block: 2px;
+  }
+}
+
+/* Mobile Practice deals over an otherwise quiet wood surface. All 28 bones
+   animate with compositor-only transforms and opacity, so the sequence does
+   not add layout work to slower Android devices. */
+.practice-deal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: rgba(62, 31, 12, .18);
+}
+.practice-dealing > .board-stage,
+.practice-dealing > .table-player-station,
+.practice-dealing > .my-hand-panel,
+.practice-dealing > .table-pass-callout,
+.practice-dealing > .table-play-callout { opacity: 0; }
+/* Nothing on the table can be played until the deal has finished: a pose made
+   behind the animation started a second Duppy loop. */
+.practice-dealing > .my-hand-panel,
+.practice-dealing > .board-stage { pointer-events: none; }
+.practice-deal-mark {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  color: #fff8dc;
+  filter: drop-shadow(0 3px 4px rgba(28, 13, 4, .7));
+  pointer-events: none;
+  animation: practice-deal-mark 4.2s ease both;
+}
+.practice-deal-mark strong { color: #ffc928; font: 900 32px/.9 var(--display); letter-spacing: .03em; }
+.practice-deal-mark span { font: 900 13px/1 var(--mono); letter-spacing: .22em; }
+.practice-shuffle-pile,
+.practice-deal-flights { position: absolute; inset: 0; pointer-events: none; }
+.practice-shuffle-bone,
+.practice-deal-bone {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 17px;
+  height: 34px;
+  border: 1px solid rgba(36, 22, 8, .52);
+  border-radius: 3px;
+  background: linear-gradient(145deg, #fffdf5, #e8e2d4);
+  box-shadow: 0 2px 4px rgba(27, 13, 5, .38);
+  will-change: transform, opacity;
+}
+.practice-shuffle-bone {
+  opacity: .96;
+  animation: practice-shuffle 3.2s cubic-bezier(.45,.05,.3,1) both;
+}
+.practice-deal-bone {
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  animation: practice-deal 620ms cubic-bezier(.2,.72,.24,1) calc(3.05s + var(--deal-index) * 165ms) both;
+}
+.deal-to-bottom { --deal-x: calc(var(--deal-slot) * 36px); --deal-y: 32vh; --deal-rotate: 0deg; }
+.deal-to-top { --deal-x: calc(var(--deal-slot) * 25px); --deal-y: -32vh; --deal-rotate: 0deg; }
+.deal-to-left { --deal-x: -41vw; --deal-y: calc(var(--deal-slot) * 29px); --deal-rotate: 90deg; }
+.deal-to-right { --deal-x: 41vw; --deal-y: calc(var(--deal-slot) * 29px); --deal-rotate: 90deg; }
+.practice-deal-skip {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  z-index: 3;
+  min-height: 34px;
+  padding: 5px 11px;
+  border: 1px solid rgba(255, 248, 220, .68);
+  border-radius: 999px;
+  background: rgba(5, 43, 67, .9);
+  color: #fff8dc;
+  font: 800 11px/1 var(--body);
+}
+@keyframes practice-shuffle {
+  0% {
+    transform: translate(-50%, -50%) rotate(calc(var(--shuffle-index) * 25.72deg)) translateY(-92px) rotate(0deg);
+  }
+  48% {
+    transform: translate(-50%, -50%) rotate(calc(var(--shuffle-index) * 25.72deg + 520deg)) translateY(-64px) rotate(380deg);
+  }
+  88% { opacity: .96; }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(calc(var(--shuffle-index) * 25.72deg + 1080deg)) translateY(-22px) rotate(760deg);
+  }
+}
+@keyframes practice-deal {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(0); }
+  10% { opacity: 1; }
+  100% { opacity: 1; transform: translate(calc(-50% + var(--deal-x)), calc(-50% + var(--deal-y))) rotate(var(--deal-rotate)); }
+}
+@keyframes practice-deal-mark {
+  0%, 68% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(.92); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .practice-shuffle-bone,
+  .practice-deal-bone { animation: none; opacity: .72; }
+}
 
 /* ---------------------------------------------------------------- lounges */
 .lounge-card {
@@ -3009,7 +3186,18 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .rail-section { display: none; }
   .rail-section-active { display: block; }
   .table-talk-jump {
+    display: none;
+  }
+  .table-return-jump {
     display: block;
+    width: 100%; min-height: 44px; margin: 0 0 8px; padding: 8px 12px;
+    border: 1px solid rgba(67,199,244,.36); border-radius: var(--r);
+    background: var(--sand-hi); color: var(--ink);
+    font-family: var(--body); font-weight: 800;
+  }
+  .table-return-jump:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; }
+  /* Legacy floating launcher is intentionally replaced by the in-rail control. */
+  .table-talk-jump {
     position: fixed;
     z-index: 20;
     right: max(14px, env(safe-area-inset-right));
@@ -3029,10 +3217,21 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
      destination controls. It returns automatically as soon as the turn moves
      away; the lounge-scoped chat itself remains in the rail below. */
   #app:has(.table-room .hand-turn-active) .table-talk-jump { display: none; }
+  #app .table-talk-jump { display: none; }
 }
 
 @media (max-width: 700px) {
   .room { grid-template-columns: 1fr; }
+
+  /* Practice has no social rail beside the wood. Spend the page's horizontal
+     padding on the actual table so its outside border reaches the phone rim
+     and the fixed-size route gets a full extra bone of working width. */
+  .practice-room {
+    width: calc(100% + 32px);
+    max-width: none;
+    margin-inline: -16px;
+  }
+  .practice-room .board-stage { left: 0; right: 0; }
 
   /* Board first, uncontested — the spec's top priority for mobile. */
   .table-cross {
@@ -3075,8 +3274,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   }
   .table-room .felt-slot { height: auto; display: block; }
   .felt-slot { min-height: 0; }
-  .table-room .live-felt,
-  .practice-room .live-felt {
+  .table-room .live-felt {
     /* Was 68svh capped at 620px. svh is the viewport WITH the browser chrome
        showing, so on the reported device (430x932 hardware, ~745 of usable
        page) that resolved to a 507px felt and a 309px playing area -- not the
@@ -3097,43 +3295,55 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
     border-width: 7px;
     padding: 10px 8px;
   }
+  /* Practice has no social rail to keep above the fold. Its normal linear
+     table can therefore be a little shorter than Lounge while retaining the
+     board-stage's deliberate internal pan for a long final chain. French has
+     its own taller rule below because a four-arm route spends height faster. */
+  .practice-room .live-felt {
+    height: clamp(480px, 80svh, 710px);
+    min-height: clamp(480px, 80svh, 710px);
+    max-height: 710px;
+    border-width: 7px;
+    padding: 10px 8px;
+  }
   .felt-shell { padding: 8px; }
   /* Side opponents remain a single compact station on phones. Seven bones
      fit beneath the top station; the nine-bone three-player deal begins at
      the upper rail because that layout has no top opponent to avoid. */
-  .table-player-station-left,
-  .table-player-station-right {
-    top: calc(var(--table-bone-short) * 2 + 26px);
-    gap: 4px;
+  .practice-room .table-player-station-left,
+  .practice-room .table-player-station-right {
+    /* A physical side hand belongs halfway down its edge. The old stacked
+       station put the portrait above the rack and pinned both near the top,
+       making the players look squeezed while the rack missed the table's
+       centre. Keep the face alongside a vertical rack, straddling the rim. */
+    top: 50%;
+    gap: 6px;
     padding: 4px;
-    transform: none;
+    flex-direction: column;
+    transform: translateY(-50%);
   }
-  .felt-shell > .table-player-station-left,
-  .felt-shell > .table-player-station-right { top: calc(var(--table-bone-short) * 2 + 46px); }
-  .seat-count-3 > .table-player-station-left,
-  .seat-count-3 > .table-player-station-right { top: 8px; }
-  .felt-shell.seat-count-3 > .table-player-station-left,
-  .felt-shell.seat-count-3 > .table-player-station-right { top: 28px; }
-  .table-player-station-left > .table-seat-identity,
-  .table-player-station-right > .table-seat-identity {
-    width: auto;
-    flex-direction: row;
+  .practice-room .table-player-station-left > .table-seat-identity,
+  .practice-room .table-player-station-right > .table-seat-identity {
+    /* The face is a person at the table, not a status dot. It needs enough
+       area to survive a phone's display scaling and the AI badge. */
+    --seat-identity-size: 32px;
+    width: 32px;
+    height: 58px;
+    flex-direction: column;
     gap: 4px;
+    flex: 0 0 58px;
+    border-radius: 16px;
   }
-  .table-player-station-left .table-seat-copy,
-  .table-player-station-right .table-seat-copy { display: none; }
-  .table-player-station-left .table-seat-copy strong,
-  .table-player-station-right .table-seat-copy strong {
-    max-width: 34px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .table-player-station-left .table-seat-copy small,
-  .table-player-station-right .table-seat-copy small,
-  .table-player-station .table-seat-copy > .table-play-callout,
-  .table-player-station .table-seat-copy > .table-pass-callout { font-size: 7px; }
-  .table-player-station-left .backs,
-  .table-player-station-right .backs { gap: 3px; }
+  .practice-room .table-player-station-left .table-seat-copy,
+  .practice-room .table-player-station-right .table-seat-copy { display: none; }
+  .practice-room .table-player-station-left .table-seat-copy small,
+  .practice-room .table-player-station-right .table-seat-copy small,
+  .practice-room .table-player-station .table-seat-copy > .table-play-callout,
+  .practice-room .table-player-station .table-seat-copy > .table-pass-callout { font-size: 7px; }
+  .practice-room .table-player-station-left .table-seat-copy small,
+  .practice-room .table-player-station-right .table-seat-copy small { display: none; }
+  .practice-room .table-player-station-left .backs,
+  .practice-room .table-player-station-right .backs { gap: 3px; }
   /* These were hardcoded at 44x22, which ignored every bone token and kept
      each flank station 54px wide. Seven of them stacked is 172px of rack, and
      the measured guard then held the board 61px off both felt edges -- on a
@@ -3141,8 +3351,8 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
      tiles per row and ran out of height at the 18th bone. Drive them from the
      same counter token as the top station so all three opponents stay one
      uniform size. */
-  .table-player-station-left .backs i,
-  .table-player-station-right .backs i {
+  .practice-room .table-player-station-left .backs i,
+  .practice-room .table-player-station-right .backs i {
     width: calc(var(--table-counter-short, 22px) * 2);
     height: var(--table-counter-short, 22px);
   }
@@ -3156,8 +3366,6 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .practice-room .table-felt.hand-on-felt { overflow: visible; }
   .practice-room .table-player-station-left { left: -12px; }
   .practice-room .table-player-station-right { right: -12px; }
-  .felt-shell > .table-player-station-left { left: 0; }
-  .felt-shell > .table-player-station-right { right: 0; }
   /* A French cross spends space above, below, left and right of the chucha.
      Its own taller board-first surface lets the renderer show a crowded
      cross in full above the docked hand instead of clipping its final arm. */
@@ -3176,6 +3384,18 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
      the intentional exception above, otherwise Practice loses the very
      phone-width gain that keeps its complete cross in view. */
   .practice-room > .live-felt.french-cross-live { max-width: none; }
+  /* Android GPU compositing suffers when every permanent station asks for a
+     backdrop blur and a filtered rack. The Practice table keeps the same
+     geometry and turn signal with cheaper opaque paint; Lounge remains
+     untouched for this focused mobile performance pass. */
+  .practice-room .table-player-station {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    background: rgba(3, 31, 51, .7);
+  }
+  .practice-room .table-rack { filter: none; }
+  .practice-room .table-rack .backs i { box-shadow: 0 1px 1px rgba(36, 22, 8, .18); }
   .live-table-head { padding: 8px 10px; }
   .live-table-head h2 { font-size: 17px; }
   .live-table-head .act { min-height: 44px; padding: 7px 10px; }
@@ -3199,7 +3419,39 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
      (main.ts's seats()), so they move rather than disappear. They were put
      above the felt on 2026-09-05 because they sat below the fold — with the
      felt no longer pushed down, below the table is reachable again. */
-  .practice-seats { order: 1; }
+  /* The live board owns the phone. Supporting reads are one intentional
+     disclosure below it; replay, Coach and fair-deal results retain their
+     established post-hand panels. */
+  .practice-score-read,
+  .desktop-practice-seats { display: none; }
+  .mobile-practice-support {
+    display: block;
+    order: 1;
+    border: 1px solid rgba(67, 199, 244, .30);
+    border-radius: 10px;
+    background: rgba(5, 43, 67, .54);
+  }
+  .mobile-practice-support > summary {
+    min-height: 44px;
+    padding: 13px 12px;
+    color: var(--ink);
+    cursor: pointer;
+    font: 800 13px/1 var(--body);
+  }
+  .mobile-practice-support > summary:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+  .mobile-practice-support-body {
+    display: grid;
+    gap: 8px;
+    padding: 0 10px 10px;
+  }
+  .mobile-practice-support-body > .muted { margin: 0; }
+  .mobile-practice-seats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .mobile-practice-seats .seat { min-height: 0; }
+  .mobile-practice-read { justify-self: start; min-height: 44px; }
   .practice-room > .sound-bar { order: 2; }
   .sticky-scores { padding: 8px 12px; }
   .sticky-scores .spread { margin-bottom: 4px; }
@@ -3742,6 +3994,30 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
   padding: 14px; font-size: 13.5px; color: var(--muted);
 }
 
+/* Account-free practice still has a personal place at the table. This picker
+   intentionally offers faces without asking the player to classify themself. */
+.practice-face-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(185, 220, 235, .24);
+  border-radius: 10px;
+}
+.practice-face-picker legend { padding-inline: 4px; font-weight: 700; }
+.practice-face-picker .muted { margin: 0 0 8px; }
+.practice-face-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+.practice-face-choice {
+  width: 42px; height: 42px; padding: 0;
+  border: 2px solid transparent; border-radius: 50%;
+  background: transparent; cursor: pointer;
+}
+.practice-face-choice .avatar { width: 100%; height: 100%; object-fit: cover; }
+.practice-face-choice[aria-pressed='true'] {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(255, 201, 40, .26);
+}
+.practice-face-choice:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+
 
 /* ------------------------------------------------------------------ install */
 .install-card {
@@ -4095,8 +4371,8 @@ button.hand-end-choice {
 }
 
 @media (max-width: 700px) {
-  .table-room .live-felt.across-hands-on-felt,
-  .practice-room > .live-felt.across-hands-on-felt {
+  .table-room.across-room .live-felt,
+  .practice-room.across-room > .live-felt {
     height: max(520px, 70svh);
     min-height: 520px;
     max-height: none;
@@ -4156,11 +4432,24 @@ button.hand-end-choice {
 @media (max-width: 700px) {
   /* Concealed opponents only. The local player's own medallion, and every seat
      in the roster strip under the felt, keep their full size. */
-  .table-player-station-left .table-seat-identity,
-  .table-player-station-right .table-seat-identity {
+  .table-room .table-player-station-left .table-seat-identity,
+  .table-room .table-player-station-right .table-seat-identity {
     --seat-identity-size: 22px;
     width: 22px;
     height: 22px;
+  }
+  /* Practice keeps its side opponents legible. This more specific rule also
+     prevents the generic Lounge density trim above from shrinking them. */
+  .practice-room .table-player-station-left .table-seat-identity,
+  .practice-room .table-player-station-right .table-seat-identity,
+  .practice-room .table-player-station-left .table-seat-identity .avatar,
+  .practice-room .table-player-station-right .table-seat-identity .avatar,
+  .practice-room .table-player-station-left .table-seat-duppy,
+  .practice-room .table-player-station-right .table-seat-duppy {
+    --seat-identity-size: 32px;
+    width: 32px;
+    height: 58px;
+    border-radius: 16px;
   }
   /* The hand tray is transparent on a phone, so this padding was buying
      nothing visible while costing the board height directly above it. The
@@ -4191,6 +4480,15 @@ button.hand-end-choice {
   .table-room .live-felt,
   .table-room .live-felt.french-cross-live {
     height: max(420px, calc(100svh - 238px)); min-height: 0; max-height: none;
+  }
+  /* Across has two readable hands on the wood as well as the full chain.
+     Give that dedicated room a taller physical table instead of stealing
+     height from the routed stage or shrinking bones as the hand progresses. */
+  .table-room .live-felt.across-hands-on-felt,
+  .practice-room > .live-felt.across-hands-on-felt {
+    height: max(980px, calc(100svh - 170px));
+    min-height: 980px;
+    max-height: none;
   }
   .table-room .table-rail { max-height: calc(100svh - 170px); overflow-y: auto; }
   .table-room .rail-tabs { display: none; }
@@ -4342,5 +4640,240 @@ button.hand-end-choice {
   .table-room .table-rail,
   .practice-room > .practice-seats {
     max-height: none;
+  }
+}
+
+/* Mobile Practice, JamDom phone-app layout (owner, 2026-09-14). The board is a
+   fixed grid chosen once per hand that holds ANY hand, so it never scrolls,
+   never follows a move and no played bone reacts to a thumb. The hand is the
+   same bone size, below the wood. */
+@media (max-width: 700px) {
+  /* The board takes the whole felt above the tray; the route flows round the
+     top and side players itself. 6px keeps a bone off the felt's rim; the
+     hand guard in reserveBoardStage sets the real bottom. */
+  .board-stage.phone-route-stage {
+    inset: 6px 6px 124px;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .line.phone-route .tile { pointer-events: none; }
+  /* JamDom faces (owner, 2026-09-14: no space between joined dominoes, ours
+     looked blurry). No clipped reveal and no soft halo on the phone board or
+     hand: bones meet at their own thin edges and the pips are solid black. */
+  .line.phone-route .tile,
+  .phone-route-table .my-hand-panel .hand .tile {
+    clip-path: none;
+    box-shadow: none;
+    border: 1px solid #a8a296;
+    border-radius: 2px;
+    padding: 1px;
+    background: #fffef9;
+  }
+  .line.phone-route .tile .half,
+  .phone-route-table .my-hand-panel .hand .tile .half { padding: 1px; }
+  .line.phone-route .tile .half b,
+  .phone-route-table .my-hand-panel .hand .tile .half b {
+    width: 74%;
+    background: #000;
+    box-shadow: none;
+  }
+  .line.phone-route .tile .bar,
+  .phone-route-table .my-hand-panel .hand .tile .bar { background: #3b3329; }
+  /* Fixed tray height, sized for the largest phone bone (32px): the hand can
+     take the board's size without ever resizing the board stage above it. */
+  .table-felt.hand-on-felt.phone-route-table > .my-hand-panel.in-felt-hand {
+    height: 118px;
+    box-sizing: border-box;
+  }
+  .table-felt.hand-on-felt.phone-route-table.hand-many > .my-hand-panel.in-felt-hand { height: 186px; }
+  /* Every pixel of width is a column of board: the route's height table
+     steps at even column counts, so 16px of padding cost a whole bone size. */
+  .board-stage.phone-route-stage > .line.phone-route { padding: 0; }
+  /* The tray header holds the whole pace label ("Yard – 7.5 seconds"), and
+     when passing is the only move, the Pass control in its place. */
+  .table-felt.hand-on-felt.phone-route-table > .my-hand-panel.in-felt-hand .practice-hand-pace { flex: 0 1 auto; min-width: 0; max-width: 216px; }
+  .phone-route-table > .my-hand-panel.in-felt-hand > .eyebrow > .pass-action-row {
+    min-height: 0;
+    margin: 0;
+    padding: 2px 4px 2px 10px;
+    gap: 10px;
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .phone-route-table > .my-hand-panel.in-felt-hand > .eyebrow > .pass-action-row .pass-action { min-height: 40px; }
+  .practice-room.phone-route-room > .live-felt { padding-inline: 0; }
+  /* A row of the deal always fits across the tray: each column takes the big
+     hand bone when there is room and shrinks evenly when there is not, so the
+     hand never scrolls sideways or hides its last bone. */
+  .table-felt.hand-on-felt.phone-route-table > .my-hand-panel.in-felt-hand .hand {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(var(--hand-count, 7), minmax(0, var(--hand-bone-short, var(--table-bone-short))));
+    grid-auto-columns: auto;
+    overflow: visible;
+  }
+  .table-felt.hand-on-felt.phone-route-table > .my-hand-panel.in-felt-hand .hand.double-row {
+    grid-template-columns: repeat(7, minmax(0, var(--hand-bone-short, var(--table-bone-short))));
+    grid-template-rows: none;
+  }
+  /* The wood runs from just under the score strip down to the hand. */
+  .practice-room.phone-route-room > .live-felt {
+    height: calc(100svh - 72px);
+    min-height: 460px;
+    max-height: none;
+  }
+  /* One thin score strip instead of a two-row panel over the table. Tile
+     counts already sit on every rack, so the strip keeps only who and how
+     far along each side is, plus Read and Leave table. */
+  #app:has(.practice-room.phone-route-room) .practice-scorebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+  }
+  #app:has(.practice-room.phone-route-room) .practice-scorebar > .spread {
+    order: 2;
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+  /* The format label never changes during a set; the strip keeps the scores. */
+  #app:has(.practice-room.phone-route-room) .practice-scorebar > .spread > .eyebrow,
+  #app:has(.practice-room.phone-route-room) .practice-scorebar > .spread > .stack { display: none; }
+  /* Two short rows, one per side, so "You & partner" is never squeezed to "Y…". */
+  #app:has(.practice-room.phone-route-room) .practice-scorebar .scoreboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    flex: 1 1 auto;
+    gap: 2px;
+    min-width: 0;
+  }
+  #app:has(.practice-room.phone-route-room) .practice-scorebar .side-name {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+  #app:has(.practice-room.phone-route-room) .practice-scorebar .side-score { flex-wrap: nowrap; }
+  #app:has(.practice-room.phone-route-room) .practice-scorebar .under-love,
+  #app:has(.practice-room.phone-route-room) .practice-scorebar .tile-count { display: none; }
+  #app:has(.practice-room.phone-route-room) .practice-scorebar .pips i { width: 9px; height: 9px; }
+}
+
+/* Mobile French (owner, 2026-09-14): each player collapses to a 28px tab at
+   the rim, so the clockwise pinwheel has the felt. The gold badge is bones
+   left. Tapping a tab opens a small panel beside it (name, score and backs);
+   tapping again closes it. The station's own name and rack stay hidden: the
+   panel is built for the tab, because Practice and the Lounge lay those out
+   differently. */
+@media (max-width: 700px) {
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab {
+    z-index: 6;
+    width: 28px;
+    height: 28px;
+    min-width: 0;
+    min-height: 0;
+    gap: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    pointer-events: auto;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab { left: 4px; }
+  :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab { right: 4px; }
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab > .table-rack,
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-copy,
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-duppy-cue { display: none; }
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab > .table-seat-identity,
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-duppy,
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-identity :is(.avatar, .avatar-shell) {
+    width: 28px;
+    height: 28px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border-radius: 50%;
+    /* Practice's side identity is a column flex item with a 58px basis, and
+       a basis outranks height there. */
+    flex: 0 0 28px;
+  }
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab::after {
+    content: attr(data-bones);
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: #ffc928;
+    color: #052b43;
+    font: 800 11px/18px var(--mono);
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(5, 24, 50, .5);
+  }
+  :is(.table-felt, .felt-shell) > .table-player-station.station-tab:focus-visible {
+    outline: 3px solid #ffc928;
+    outline-offset: 3px;
+  }
+  .station-tab > .station-tab-details {
+    position: absolute;
+    z-index: 30;
+    display: none;
+    width: max-content;
+    max-width: min(220px, calc(100vw - 72px));
+    padding: 8px 10px;
+    border: 2px solid #ffc928;
+    border-radius: 12px;
+    background: rgba(5, 43, 67, .97);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .45);
+    color: #fff9ea;
+    text-align: left;
+    pointer-events: none;
+  }
+  .station-tab.station-tab-open > .station-tab-details { display: grid; gap: 4px; }
+  .table-player-station-left.station-tab > .station-tab-details { left: calc(100% + 10px); top: 50%; transform: translateY(-50%); }
+  .table-player-station-right.station-tab > .station-tab-details { right: calc(100% + 10px); top: 50%; transform: translateY(-50%); }
+  .table-player-station-top.station-tab > .station-tab-details { top: calc(100% + 10px); left: 50%; transform: translateX(-50%); }
+  .station-tab-details strong { font-size: 14px; line-height: 1.1; white-space: nowrap; }
+  .station-tab-details small { color: #b9dceb; font: 700 12px/1.2 var(--mono); white-space: nowrap; }
+  .station-tab-backs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+  .station-tab-backs i {
+    width: 12px;
+    height: 24px;
+    border: 1px solid rgba(86, 86, 82, .46);
+    border-radius: 3px;
+    background: linear-gradient(168deg, #fffefa, #f2f2ef 100%);
+  }
+}
+
+/* Mobile French takes the whole felt above the tray; the players' tabs are
+   what the pinwheel routes round (frenchTabBlocks). The hand guard in
+   reserveBoardStage sets the real bottom. */
+@media (max-width: 700px) {
+  .board-stage.french-phone-stage { inset: 6px 6px 124px; }
+}
+
+/* A French penalty notice ("passed three times running — +10") shows for six
+   seconds. In the page flow it pushed the whole phone table down 88px and back
+   up again, moving every played bone twice. On a phone it floats over the top
+   of the screen instead and never takes room from the table. */
+@media (max-width: 700px) {
+  .banner.penalty {
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    z-index: 40;
+    margin: 0;
+    border-color: var(--gold);
+    background: rgba(5, 43, 67, .96);
+    color: var(--ink);
+    font-weight: 700;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .4);
+    pointer-events: none;
   }
 }
