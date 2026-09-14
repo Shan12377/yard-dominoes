@@ -431,6 +431,10 @@ function beginPracticeDealAnimation(): Promise<void> {
 }
 
 async function showPracticeDeal(): Promise<void> {
+  // A new hand opens with the whole table on screen. Reaching "Deal" or "Next
+  // hand" meant scrolling down the page, and the table then opened scrolled
+  // off its own top edge.
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   const finished = beginPracticeDealAnimation();
   // Sound and the first visible shuffle frame begin in the same render beat.
   sfx.play('shuffle');
@@ -1013,6 +1017,19 @@ const PRACTICE_FACE_LABELS: Record<PracticeFace, string> = {
   braids: 'Long braids and coral bandana', mei: 'Silver bob and glasses',
 };
 const PRACTICE_FACE_KEY = 'yard:practice-face';
+/**
+ * Quick play (owner, 2026-09-14, like JamDom's "Click to Play"): a bone with
+ * exactly one place to go plays on one tap. Off by default, so a thumb landing
+ * on the neighbouring bone never plays it; a bone with two places always asks.
+ */
+const QUICK_PLAY_KEY = 'yard:quick-play';
+let quickPlay = (() => {
+  try { return localStorage.getItem(QUICK_PLAY_KEY) === 'on'; } catch { return false; }
+})();
+function setQuickPlay(on: boolean): void {
+  quickPlay = on;
+  try { localStorage.setItem(QUICK_PLAY_KEY, on ? 'on' : 'off'); } catch { /* private mode: lasts this visit */ }
+}
 
 function savedPracticeFace(): PracticeFace {
   try {
@@ -1107,12 +1124,18 @@ function lobby(): HTMLElement {
   duppyPace.value = lobbyPace;
   duppyPace.onchange = () => { lobbyPace = duppyPace.value as DuppyPace; };
 
+  const placing = document.createElement('select');
+  placing.innerHTML = `<option value="confirm">Tap the bone, then where it goes</option>
+                       <option value="quick">Quick play — one tap when it fits one place</option>`;
+  placing.value = quickPlay ? 'quick' : 'confirm';
+  placing.onchange = () => setQuickPlay(placing.value === 'quick');
+
   // No casual/tournament picker. It chose between two identical rulesets —
   // the six opens a set, a tied replay and the hand after a bruk on every
   // table — and "tournament" already names something real here: a scheduled
   // event played by real people. See CLAUDE.md.
   for (const [label, control] of [
-    ['Game', mode], ['Duppies', duppy], ['Duppy pace', duppyPace],
+    ['Game', mode], ['Duppies', duppy], ['Duppy pace', duppyPace], ['Placing bones', placing],
   ] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);
@@ -1759,6 +1782,10 @@ function myHand(g: LocalGame): HTMLElement {
       // player say which end was already the rule for a bone fitting both;
       // now the board confirms every bone, which is the same guard applied
       // to the case that could actually lose you one.
+      // Quick play is the player's own opt-in to one tap when there is only
+      // one place the bone can go.
+      const options = quickPlay && can ? legal.filter((move) => 'tile' in move && move.tile === tile) : [];
+      if (quickPlay && options.length === 1) { pendingTile = null; void g.play(options[0]); return; }
       pendingTile = pendingTile === tile ? null : tile;
       render();
     };

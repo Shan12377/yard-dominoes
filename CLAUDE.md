@@ -523,7 +523,13 @@ Do not relitigate these without asking.
   browser reconstructs the shuffle and shows every starting hand; seeds and
   hashes live under Technical details. Never charge coins for trust, never
   reveal a live hand, and never expose the `hands` table itself.
-- **No auto-play.** A tile fitting both ends prompts for which end.
+- **No auto-play.** A tile fitting both ends prompts for which end. By
+  default every tap only selects and the board confirms the move (a stray
+  thumb used to play the neighbouring bone). **Practice Quick play** (owner,
+  2026-09-14, like JamDom's "Click to Play") is the player's own opt-in in the
+  lobby, stored as `yard:quick-play`, off by default: a bone with exactly one
+  legal place then plays on one tap, and a bone with two places still asks.
+  The Lounge has no Quick play yet.
 - **Academy teaching is visual and interactive.** Every declared lesson has a
   deterministic SVG in `apps/web/public/art/boards/`, generated from
   `scripts/gen-diagrams.ts`; every declared drill resolves through

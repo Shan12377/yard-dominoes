@@ -597,9 +597,21 @@ test('tapping a bone never plays it outright — the board confirms every move',
   for (const [surface, source] of [['Practice', practiceSource], ['Lounge', onlineTableSource]] as const) {
     assert.doesNotMatch(source, /if \(options\.length === 1\) \{\s*pendingTile = null;/,
       `${surface} must not play a single-ended bone straight off the tap`);
-    assert.doesNotMatch(source, /options\.length === 1[\s\S]{0,80}?void (g|game)\.play\(options\[0\]\)/,
-      `${surface} must not auto-commit from the hand at all`);
   }
+  assert.doesNotMatch(onlineTableSource, /options\.length === 1[\s\S]{0,80}?void (g|game)\.play\(options\[0\]\)/,
+    'the Lounge must not auto-commit from the hand at all');
+});
+
+test('Practice Quick play is an opt-in, off by default, and still asks when a bone has two places', () => {
+  // Owner, 2026-09-14: some players want JamDom's "Click to Play" feel. The
+  // confirm step above stays the default; a player switches Quick play on in
+  // the lobby, and only a bone with exactly one legal place plays on one tap.
+  assert.match(practiceSource, /localStorage\.getItem\(QUICK_PLAY_KEY\) === 'on'; \} catch \{ return false; \}/,
+    'Quick play must start off, including when storage is unavailable');
+  assert.match(practiceSource,
+    /const options = quickPlay && can \? legal\.filter\(\(move\) => 'tile' in move && move\.tile === tile\) : \[\];\s*if \(quickPlay && options\.length === 1\) \{ pendingTile = null; void g\.play\(options\[0\]\); return; \}\s*pendingTile = pendingTile === tile \? null : tile;/,
+    'only a Quick play tap on a bone with one legal place commits; everything else selects');
+  assert.match(practiceSource, /\['Placing bones', placing\]/, 'the choice lives in the Practice lobby');
 });
 
 test('a move that fails in flight is retried, not silently dropped', () => {

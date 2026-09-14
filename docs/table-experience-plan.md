@@ -905,3 +905,15 @@ v137, deployed with `vercel deploy --prod` from a clean worktree; live
 `dpl_BcJsPh2BUqm9Jj4tfgSRnhBooqpW` is Ready. Resume point: owner's real-phone
 check of the phone Practice board and French pinwheel; a real Lounge French
 and Across table with signed-in players has still not been exercised.
+
+2026-09-14 (Quick play, table opens at the top) — Owner: some players want
+JamDom's "Click to Play" feel, and the Practice table did not fit the screen
+when a game started. Added Practice Quick play: a "Placing bones" choice in the
+lobby, stored as `yard:quick-play`, off by default; when on, a bone with exactly
+one legal place plays on one tap and a bone with two places still asks. The
+Lounge is unchanged. The table opened scrolled 171px down because reaching
+"Deal" (or "Next hand") scrolled the page; every Practice deal now scrolls to
+the top. Evidence at 390x844: after "Deal" from a lobby scrolled 1,298px down
+the table sits at the top (felt 70-842 on an 855px screen); Quick play off, a
+one-place bone only selects; on, it plays on one tap (hand 7 to 6); tests
+484/484, typecheck, build. Not yet deployed.
