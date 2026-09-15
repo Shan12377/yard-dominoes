@@ -1138,6 +1138,8 @@ export function liveTableView(
   // only action needed to begin the game directly on the felt so nobody has
   // to scroll away from the board to find it.
   if (!game.hand) felt.appendChild(startHandPanel(game));
+  const gameOver = onlineGameOverCard(game, rerender);
+  if (gameOver) felt.appendChild(gameOver);
   feltSlot.appendChild(feltShell);
   // The felt isn't attached to the document yet at this point in the build,
   // so getBoundingClientRect() would read all zeros here — wait a frame for
@@ -2069,8 +2071,55 @@ function coachSection(game: OnlineGame): HTMLElement {
   return wrap;
 }
 
+let gameOverDismissedHand: string | null = null;
+const ONLINE_RESULT_ID = 'online-hand-result';
+
+/**
+ * The same GAME OVER card Practice shows (owner, 2026-09-14): on a phone the
+ * result sits under the table and nothing said it was there. Closing it is
+ * remembered per hand, in module scope, because Realtime re-renders the felt.
+ */
+function onlineGameOverCard(game: OnlineGame, rerender: () => void): HTMLElement | null {
+  const hand = game.hand;
+  const r = hand?.result as any;
+  if (!hand || !r || hand.status === 'active' || gameOverDismissedHand === hand.hand_id) return null;
+  const partnered = isPartnered(game.table.mode);
+  const name = (seat: number) => describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide);
+  const setOver = game.winnerSide !== null;
+  const card = el('div', 'table-game-over');
+  card.setAttribute('role', 'status');
+  card.append(el('strong', 'table-game-over-title', setOver ? 'SET OVER' : 'GAME OVER'));
+  const line = setOver
+    ? (game.isSpectator ? 'The set is decided' : game.winnerSide === game.mySide ? 'You win the set' : 'The set goes against you')
+    : r.tie
+      ? 'Tied on count'
+      : r.status === 'blocked' && r.winnerSeat !== null
+        ? `Blocked · ${name(r.winnerSeat)} ${name(r.winnerSeat) === 'You' ? 'win' : 'wins'} on count`
+        : r.winnerSeat !== null
+          ? `${name(r.winnerSeat)} played out`
+          : 'Hand over';
+  card.append(el('span', 'table-game-over-line', line));
+  const see = document.createElement('button');
+  see.type = 'button';
+  see.className = 'table-game-over-see';
+  see.dataset.seeResult = 'true';
+  see.textContent = 'See hands left & scores ▼';
+  see.onclick = () => {
+    document.getElementById(ONLINE_RESULT_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'table-game-over-close';
+  close.setAttribute('aria-label', 'Hide and look at the board');
+  close.textContent = '×';
+  close.onclick = () => { gameOverDismissedHand = hand.hand_id; rerender(); };
+  card.append(see, close);
+  return card;
+}
+
 function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   const panel = el('div', 'panel');
+  panel.id = ONLINE_RESULT_ID;
   const r = game.hand!.result as any;
   const partnered = isPartnered(game.table.mode);
 

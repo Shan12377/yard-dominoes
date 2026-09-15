@@ -189,6 +189,15 @@ test('a finished hand says GAME OVER on the table and points to the result below
   assert.match(practiceSource, /pendingTile = null;\s*gameOverDismissed = false;/);
 });
 
+test('an online table shows the same GAME OVER card, closed per hand', () => {
+  const online = readFileSync(new URL('./onlinetableview.ts', import.meta.url), 'utf8');
+  assert.match(online,
+    /function onlineGameOverCard[\s\S]{0,300}?hand\.status === 'active' \|\| gameOverDismissedHand === hand\.hand_id\) return null;/);
+  assert.match(online, /getElementById\(ONLINE_RESULT_ID\)\?\.scrollIntoView/);
+  assert.match(online, /panel\.id = ONLINE_RESULT_ID;/);
+  assert.match(online, /felt\.appendChild\(gameOver\)/);
+});
+
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));
