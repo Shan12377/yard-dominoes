@@ -4762,43 +4762,45 @@ button.hand-end-choice {
    fixed grid chosen once per hand that holds ANY hand, so it never scrolls,
    never follows a move and no played bone reacts to a thumb. The hand is the
    same bone size, below the wood. */
+/* The fixed JamDom board, every width (owner, 2026-09-15: desktop gets every
+   change that made mobile precise). One grid per hand, never scrolls, never
+   moves; bones meet at their own thin edges with bright faces and solid
+   black pips. Desktop keeps its larger bone and its people's places. */
+.board-stage.phone-route-stage {
+  overflow: hidden;
+  /* Vertical swipes and the wheel still reach the page. */
+  touch-action: pan-y;
+  overscroll-behavior: auto;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.board-stage.phone-route-stage > .line.phone-route { padding: 0; }
+.line.phone-route .tile { pointer-events: none; }
+.line.phone-route .tile,
+.phone-route-table .my-hand-panel .hand .tile {
+  clip-path: none;
+  box-shadow: none;
+  border: 1px solid #a8a296;
+  border-radius: 2px;
+  padding: 1px;
+  background: #fffef9;
+}
+.line.phone-route .tile .half,
+.phone-route-table .my-hand-panel .hand .tile .half { padding: 1px; }
+.line.phone-route .tile .half b,
+.phone-route-table .my-hand-panel .hand .tile .half b {
+  width: 74%;
+  background: #000;
+  box-shadow: none;
+}
+.line.phone-route .tile .bar,
+.phone-route-table .my-hand-panel .hand .tile .bar { background: #3b3329; }
+
 @media (max-width: 700px) {
   /* The board takes the whole felt above the tray; the route flows round the
      top and side players itself. 6px keeps a bone off the felt's rim; the
      hand guard in reserveBoardStage sets the real bottom. */
-  .board-stage.phone-route-stage {
-    inset: 6px 6px 124px;
-    overflow: hidden;
-    /* Vertical swipes still scroll the page to what is below the table; a
-       locked board trapped the finger (owner, 2026-09-15). */
-    touch-action: pan-y;
-    overscroll-behavior: auto;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-  .line.phone-route .tile { pointer-events: none; }
-  /* JamDom faces (owner, 2026-09-14: no space between joined dominoes, ours
-     looked blurry). No clipped reveal and no soft halo on the phone board or
-     hand: bones meet at their own thin edges and the pips are solid black. */
-  .line.phone-route .tile,
-  .phone-route-table .my-hand-panel .hand .tile {
-    clip-path: none;
-    box-shadow: none;
-    border: 1px solid #a8a296;
-    border-radius: 2px;
-    padding: 1px;
-    background: #fffef9;
-  }
-  .line.phone-route .tile .half,
-  .phone-route-table .my-hand-panel .hand .tile .half { padding: 1px; }
-  .line.phone-route .tile .half b,
-  .phone-route-table .my-hand-panel .hand .tile .half b {
-    width: 74%;
-    background: #000;
-    box-shadow: none;
-  }
-  .line.phone-route .tile .bar,
-  .phone-route-table .my-hand-panel .hand .tile .bar { background: #3b3329; }
+  .board-stage.phone-route-stage { inset: 6px 6px 124px; }
   /* Fixed tray height, sized for the largest phone bone (32px): the hand can
      take the board's size without ever resizing the board stage above it. */
   .table-felt.hand-on-felt.phone-route-table > .my-hand-panel.in-felt-hand {
@@ -4806,9 +4808,6 @@ button.hand-end-choice {
     box-sizing: border-box;
   }
   .table-felt.hand-on-felt.phone-route-table.hand-many > .my-hand-panel.in-felt-hand { height: 186px; }
-  /* Every pixel of width is a column of board: the route's height table
-     steps at even column counts, so 16px of padding cost a whole bone size. */
-  .board-stage.phone-route-stage > .line.phone-route { padding: 0; }
   /* The tray header holds the whole pace label ("Yard – 7.5 seconds"), and
      when passing is the only move, the Pass control in its place. */
   .table-felt.hand-on-felt.phone-route-table > .my-hand-panel.in-felt-hand .practice-hand-pace { flex: 0 1 auto; min-width: 0; max-width: 216px; }

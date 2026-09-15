@@ -115,6 +115,14 @@ export class OnlineGame {
    * why nothing beyond that can be predicted client-side.
    */
   predictedBoard: AnyBoard | null = null;
+  /**
+   * The move log that goes with `predictedBoard`: the server's log plus the
+   * predicted move. The fixed phone board lays bones in play order, so
+   * drawing a predicted board against the old log fell back to a different
+   * layout and every bone jumped until the server caught up (390px Lounge,
+   * 2026-09-15).
+   */
+  predictedMoveLog: Move[] | null = null;
   predictedMyTiles: TileId[] | null = null;
   /**
    * Same as predictedMyTiles, for across's second seat. Without this, a move
@@ -574,6 +582,7 @@ export class OnlineGame {
         // already confirmed by this or superseded by it, either way this is
         // the truth now.
         this.predictedBoard = null;
+        this.predictedMoveLog = null;
         this.predictedMyTiles = null;
         this.predictedPartnerTiles = null;
         // Piggybacks the staleness sweep on a move that was already going to
@@ -846,6 +855,7 @@ export class OnlineGame {
     }, move);
     if (prediction) {
       this.predictedBoard = prediction.board;
+      this.predictedMoveLog = [...this.hand.move_log, move];
       if (seat === this.mySeat) this.predictedMyTiles = prediction.myTiles;
       else if (seat === this.partnerSeat()) this.predictedPartnerTiles = prediction.myTiles;
       this.emit({ type: 'state' });
@@ -858,6 +868,7 @@ export class OnlineGame {
       // move, so nothing of mine is owed a retry.
       if (err instanceof ConflictError) {
         this.predictedBoard = null;
+        this.predictedMoveLog = null;
         this.predictedMyTiles = null;
         this.predictedPartnerTiles = null;
         await this.refetchHand();
@@ -885,6 +896,7 @@ export class OnlineGame {
       // Out of attempts: only now does the prediction come down, so the board
       // and hand fall back to the last state actually confirmed by the server.
       this.predictedBoard = null;
+        this.predictedMoveLog = null;
       this.predictedMyTiles = null;
       this.predictedPartnerTiles = null;
       this.emit({ type: 'error', message: err instanceof Error ? err.message : 'move failed' });

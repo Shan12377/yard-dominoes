@@ -2392,8 +2392,9 @@ function tableView(g: LocalGame): DocumentFragment {
   if (handOnFelt && displayBoard?.kind === 'cross') felt.classList.add('french-cross-live');
   // Mobile Practice copies the JamDom phone app (owner, 2026-09-14): a big
   // hand below the wood and a fixed board of smaller bones that never moves.
-  const phoneFixedRoute = window.innerWidth <= 700
-    && g.options.format !== 'french' && g.options.mode !== 'across';
+  // Desktop too since 2026-09-15 (owner: "every change that was done to the
+  // mobile that made it precise"), at the desktop bone size.
+  const phoneFixedRoute = g.options.format !== 'french' && g.options.mode !== 'across';
   const phoneRouteKey = phoneFixedRoute ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}` : null;
   const lockedPhoneRoute = phoneRouteKey !== null && phoneRouteKey === lastPhoneRouteKey ? lastPhoneRoute : null;
   const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}`;
@@ -2681,7 +2682,7 @@ function tableView(g: LocalGame): DocumentFragment {
       // round the side and top players itself (phoneRouteRects' `blocked`).
       // Mobile French does the same round its players' tabs
       // (phoneFrenchPinwheel's `blocked`).
-      const guardedStations = window.innerWidth <= 700
+      const guardedStations = window.innerWidth <= 700 || phoneFixedRoute
         ? []
         : tableStations.values();
       if (!frenchDeskPinwheel) {
@@ -2714,6 +2715,9 @@ function tableView(g: LocalGame): DocumentFragment {
     lastFeltBox = box;
     lastFeltHasHandRail = handOnFelt;
     if (phoneFixedRoute && displayBoard?.kind !== 'cross') {
+      // Phones choose their own bone; desktop keeps its current size (owner).
+      const routeMaxUnit = window.innerWidth <= 700 ? PHONE_BOARD_MAX_UNIT : tableUnit;
+      const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : Math.min(tableUnit, tableMinUnit);
       // Keep measuring until the pose is down: the table is still settling
       // after the deal (tray header, turn cue), and an early, smaller reading
       // locked a bone one size too small. Once a bone is on the board the grid
@@ -2725,21 +2729,26 @@ function tableView(g: LocalGame): DocumentFragment {
         const stageRect = fitHost.getBoundingClientRect();
         const originX = stageRect.left + fitHost.clientLeft;
         const originY = stageRect.top + fitHost.clientTop;
-        const blocked = [...tableStations.values()].map((station) => {
+        // Desktop stations are display: contents; their corner cards and side
+        // racks are the real boxes the route must keep clear of.
+        const blockers: HTMLElement[] = window.innerWidth <= 700
+          ? [...tableStations.values()]
+          : [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity')];
+        const blocked = blockers.map((station) => {
           const r = station.getBoundingClientRect();
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
         }).filter((r) => r.right > 0 && r.bottom > 0 && r.left < stageBox.width && r.top < stageBox.height);
         lastPhoneRouteFit = { box: stageBox, blocked };
-        lastPhoneRoute = phonePracticeGeometry(stageBox, PHONE_BOARD_MAX_UNIT, PHONE_BOARD_MIN_UNIT, blocked);
+        lastPhoneRoute = phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked);
         lastPhoneRouteKey = phoneRouteKey;
         lastPhoneRouteInset = boardStage.style.inset || null;
       } else if (line.dataset.phoneRouteOverflow && line.dataset.phoneRouteOverflow !== '0'
-        && lastPhoneRouteFit && lastPhoneRoute.unit > PHONE_BOARD_MIN_UNIT) {
+        && lastPhoneRouteFit && lastPhoneRoute.unit > routeMinUnit) {
         // About one hand in a thousand outgrows the wood (see
         // PHONE_ROUTE_CORPUS_TOLERANCE). Lay it again one size smaller rather
         // than put a bone under a player or off the table.
         lastPhoneRoute = phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1,
-          PHONE_BOARD_MIN_UNIT, lastPhoneRouteFit.blocked);
+          routeMinUnit, lastPhoneRouteFit.blocked);
       }
       const geo = lastPhoneRoute;
       room.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);
