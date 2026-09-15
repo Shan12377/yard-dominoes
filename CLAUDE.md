@@ -315,9 +315,10 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-14, `www.yaaddominoes.com` serves commit `cbbef4b`
-  (`chore: service worker v143 for JamDom French layout`, on top of
-  `fe62eca` and `90b00d6`), deployed with `vercel deploy --prod` from a clean worktree of
+- As of 2026-09-14, `www.yaaddominoes.com` serves commit `87534ce`
+  (`chore: service worker v144 for French pass rule`, on top of `7d73d4e`;
+  play-move, advance-duppy, expire-turns, start-hand and review-hand were
+  redeployed with that engine), deployed with `vercel deploy --prod` from a clean worktree of
   `design/yaaddominoes-foundation`, which is also pushed to GitHub. For what
   any specific past deploy contained, read `git log` rather than trusting an
   accumulated list here — this line is a pointer to current truth, not a
