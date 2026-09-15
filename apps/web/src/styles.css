@@ -2093,6 +2093,58 @@ button.board-end-choice:focus-visible {
   pointer-events: none;
   animation: table-pass-callout 300ms cubic-bezier(.2,.9,.2,1.15) both;
 }
+/* Game over, on the table (JamDom style). Sits above the bones so it is
+   seen, and points down to the hands left and scores under the table. */
+.table-game-over {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(86%, 300px);
+  padding: 14px 16px 12px;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  border: 2px solid var(--gold);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #0c4f73, #052b43);
+  color: var(--bone);
+  box-shadow: 0 10px 28px rgba(5, 24, 50, .55);
+  text-align: center;
+  animation: table-pass-callout 300ms cubic-bezier(.2,.9,.2,1.15) both;
+}
+.table-game-over-title {
+  font: 900 26px/1 var(--display);
+  letter-spacing: .06em;
+  color: var(--gold);
+}
+.table-game-over-line { font: 700 14px/1.25 var(--body); }
+.table-game-over-see {
+  margin-top: 4px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #17130f;
+  font: 900 14px/1 var(--body);
+  cursor: pointer;
+}
+.table-game-over-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--bone);
+  font: 700 22px/1 var(--body);
+  cursor: pointer;
+}
+.table-game-over-see:focus-visible,
+.table-game-over-close:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 2px; }
 .table-play-callout {
   position: absolute;
   z-index: 1;

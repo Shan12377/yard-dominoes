@@ -175,6 +175,20 @@ test('last hand\'s winning bone never lands on the next hand\'s felt', () => {
     /next\.onclick[\s\S]{0,700}?winningTile = null;[\s\S]{0,200}?winningSeat = null;[\s\S]{0,300}?await g\.startHand\(showPracticeDeal\)/);
 });
 
+test('a finished hand says GAME OVER on the table and points to the result below', () => {
+  // Owner, 2026-09-14: on a phone the result sat under the table and nothing
+  // said it was there. The card is on the felt, only once the hand is over,
+  // and its button scrolls to the result panel it names.
+  assert.match(practiceSource,
+    /function practiceGameOverCard[\s\S]{0,200}?if \(!r \|\| g\.hand\?\.status === 'active' \|\| gameOverDismissed\) return null;/);
+  assert.match(practiceSource, /'SET OVER' : 'GAME OVER'/);
+  assert.match(practiceSource, /getElementById\(PRACTICE_RESULT_ID\)\?\.scrollIntoView/);
+  assert.match(practiceSource, /panel\.id = PRACTICE_RESULT_ID;/);
+  assert.match(practiceSource, /felt\.appendChild\(gameOver\)/);
+  // A new hand must bring the card back even if the last one was closed.
+  assert.match(practiceSource, /pendingTile = null;\s*gameOverDismissed = false;/);
+});
+
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));

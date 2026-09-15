@@ -953,3 +953,12 @@ pinwheel 26 columns, 390x844 26, 430x800 30, zero board or on-screen moves and
 no bone under a tab; 360x780 row route, no bone under a badge. Tests 484/484.
 A separate edge strip was not needed at 375: tabs sit at the rim.
 
+
+2026-09-14 (Game over on the table) — Owner: like JamDom, say game over on
+the table with something to tap that takes the player to hands left, or they
+will not know the result is below. Practice now shows a GAME OVER (or SET
+OVER) card on the felt naming the outcome, with "See hands left & scores" that
+scrolls to the result panel and an x to hide it and look at the final board.
+Verified by playing hands to the end: partner 375x812 and French 390x844, card
+on screen, tap scrolled the result into view, no page errors. Tests 485/485.
+Not deployed yet; Lounge tables not changed.

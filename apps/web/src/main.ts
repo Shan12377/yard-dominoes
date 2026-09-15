@@ -539,6 +539,7 @@ async function startGame(opts: {
       // it from wrongly pre-selecting a same-id tile if the next deal
       // happens to include it again.
       pendingTile = null;
+      gameOverDismissed = false;
       const lastMove = g.hand?.moveLog[g.hand.moveLog.length - 1];
       winningTile = g.hand?.status === 'domino' && lastMove && 'tile' in lastMove
         ? lastMove.tile
@@ -1399,6 +1400,49 @@ function practicePlayCallout(g: LocalGame): HTMLElement | null {
   return callout;
 }
 
+let gameOverDismissed = false;
+const PRACTICE_RESULT_ID = 'practice-hand-result';
+
+/**
+ * JamDom says "Game Over" on the table itself. Ours put the result under the
+ * table, and on a phone nothing showed it was there: the board just stopped
+ * (owner, 2026-09-14: "they wont know that something is below"). This card
+ * sits on the felt, names the outcome and takes the player down to the hands
+ * left and the scores. Closing it leaves the final board to look at.
+ */
+function practiceGameOverCard(g: LocalGame): HTMLElement | null {
+  const r = g.hand?.result;
+  if (!r || g.hand?.status === 'active' || gameOverDismissed) return null;
+  const card = el('div', 'table-game-over');
+  card.setAttribute('role', 'status');
+  const setOver = g.set.winnerSide !== null;
+  card.append(el('strong', 'table-game-over-title', setOver ? 'SET OVER' : 'GAME OVER'));
+  const line = setOver
+    ? (g.set.winnerSide === g.mySide ? 'You win the set' : 'The set goes against you')
+    : r.tie
+      ? 'Tied on count'
+      : r.status === 'blocked'
+        ? `Blocked · ${g.seatLabel(r.winnerSeat!)} wins on count`
+        : `${g.seatLabel(r.winnerSeat!)} played out`;
+  card.append(el('span', 'table-game-over-line', line));
+  const see = document.createElement('button');
+  see.type = 'button';
+  see.className = 'table-game-over-see';
+  see.dataset.seeResult = 'true';
+  see.textContent = 'See hands left & scores ▼';
+  see.onclick = () => {
+    document.getElementById(PRACTICE_RESULT_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'table-game-over-close';
+  close.setAttribute('aria-label', 'Hide and look at the board');
+  close.textContent = '×';
+  close.onclick = () => { gameOverDismissed = true; render(); };
+  card.append(see, close);
+  return card;
+}
+
 function practiceWinCallout(g: LocalGame): HTMLElement | null {
   if (winningSeat === null || !winningTile) return null;
   // Same staleness as the slam above: once the next hand is live, last hand's
@@ -1893,6 +1937,7 @@ function handResult(g: LocalGame): HTMLElement | null {
   if (!g.hand?.result) return null;
   const r = g.hand.result;
   const panel = el('div', 'panel');
+  panel.id = PRACTICE_RESULT_ID;
 
   if (g.set.winnerSide !== null && g.set.sixLove) {
     panel.append(el('div', 'banner six-love',
@@ -2484,6 +2529,8 @@ function tableView(g: LocalGame): DocumentFragment {
   if (playCallout) (playHost ?? felt).appendChild(playCallout);
   const winCallout = practiceWinCallout(g);
   if (winCallout) felt.appendChild(winCallout);
+  const gameOver = practiceGameOverCard(g);
+  if (gameOver) felt.appendChild(gameOver);
   let handActions: HTMLElement | null = null;
   let choiceHandHost: HTMLElement | null = null;
   if (handOnFelt && g.options.mode !== 'across') {
