@@ -15,7 +15,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone, phonePracticeGeometry } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone, phonePracticeGeometry, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits } from './render.ts';
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
@@ -465,7 +465,7 @@ let lastPhoneRoute: (PhoneRouteGrid & { unit: number; left: number; top: number 
 let lastPhoneRouteFit: { box: { width: number; height: number }; blocked: StageRect[] } | null = null;
 let lastPhoneRouteInset: string | null = null;
 function phoneRouteGridOf(geo: PhoneRouteGrid): PhoneRouteGrid {
-  return { cols: geo.cols, rows: geo.rows, origin: geo.origin, blocked: geo.blocked, climb: geo.climb };
+  return { cols: geo.cols, rows: geo.rows, origin: geo.origin, blocked: geo.blocked, climb: geo.climb, ...(geo.firstRowBones === undefined ? {} : { firstRowBones: geo.firstRowBones }) };
 }
 const PHONE_BOARD_MAX_UNIT = 20;
 const PHONE_BOARD_MIN_UNIT = 8;
@@ -1037,7 +1037,7 @@ export function liveTableView(
   const phoneFixedRoute = !frenchTable;
   const phoneRouteKey = phoneFixedRoute ? `${game.hand?.hand_id ?? 'undealt'}:${window.innerWidth}` : null;
   const lockedPhoneRoute = phoneRouteKey !== null && phoneRouteKey === lastPhoneRouteKey ? lastPhoneRoute : null;
-  const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}`;
+  const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number; firstRowBones?: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}${geo.firstRowBones ? `:r${geo.firstRowBones}` : ''}`;
   // Pinned at one offset for the whole hand; flex-centring let a 1px change
   // in the tray nudge every played bone.
   const pinPhoneRoute = (geo: { left: number; top: number }) => {
@@ -1290,6 +1290,8 @@ export function liveTableView(
     if (phoneFixedRoute && displayBoard?.kind !== 'cross') {
       const routeMaxUnit = window.innerWidth <= 700 ? PHONE_BOARD_MAX_UNIT : tableUnit;
       const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : Math.min(tableUnit, tableMinUnit);
+      // Desktop turns its centre row after three bones each side, like the phone.
+      const routeFirstRow = window.innerWidth <= 700 ? undefined : DESK_FIRST_ROW_BONES;
       // Same as Practice: keep measuring until the pose is down, then the
       // grid and bone are fixed for the hand.
       if (!displayBoard || phoneRouteKey !== lastPhoneRouteKey || !lastPhoneRoute) {
@@ -1307,13 +1309,25 @@ export function liveTableView(
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
         }).filter((r) => r.right > 0 && r.bottom > 0 && r.left < stageBox.width && r.top < stageBox.height);
         lastPhoneRouteFit = { box: stageBox, blocked };
-        lastPhoneRoute = phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked);
+        // Desktop keeps its bone (owner). The centre-row rule is used when a
+        // full hand fits with it at that bone; otherwise the ordinary rows.
+        const deskTrim = window.innerWidth > 700;
+        // The bone the ordinary rows choose is today's size. Try the centre-row
+        // rule at exactly that bone; routeMaxUnit is only the opening cap.
+        const plainRoute = phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked, undefined, deskTrim);
+        const withRule = routeFirstRow === undefined ? null
+          : phonePracticeGeometry(stageBox, plainRoute.unit, plainRoute.unit, blocked, routeFirstRow, deskTrim);
+        const ruleFits = !!withRule && withRule.unit === plainRoute.unit && phoneRouteGeometryFits(withRule);
+        lastPhoneRoute = ruleFits && withRule ? withRule : plainRoute;
+        // QA hook: which layout the hand chose, and the space it was measured in.
+        boardStage.dataset.routeRule = withRule ? (ruleFits ? 'on' : 'off') : 'none';
+        boardStage.dataset.routeRuleBox = `${stageBox.width}x${stageBox.height}:u${plainRoute.unit}:b${blocked.length}`;
         lastPhoneRouteKey = phoneRouteKey;
         lastPhoneRouteInset = boardStage.style.inset || null;
       } else if (line.dataset.phoneRouteOverflow && line.dataset.phoneRouteOverflow !== '0'
         && lastPhoneRouteFit && lastPhoneRoute.unit > routeMinUnit) {
         lastPhoneRoute = phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1,
-          routeMinUnit, lastPhoneRouteFit.blocked);
+          routeMinUnit, lastPhoneRouteFit.blocked, lastPhoneRoute.firstRowBones, window.innerWidth > 700);
       }
       const geo = lastPhoneRoute;
       feltSlot.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);
@@ -2014,7 +2028,9 @@ function myHandPanel(
       b.onclick = () => void game.play(move);
       askRow.appendChild(b);
     }
-    panel.appendChild(askRow);
+    // In the header, like Practice: a row under the bones grew the hand panel
+    // up into the fixed board (2026-09-15).
+    (panel.querySelector<HTMLElement>(':scope > .eyebrow') ?? panel).appendChild(askRow);
   }
 
   const onlyPass = legal.length === 1 && legal[0].kind === 'pass';
@@ -2028,7 +2044,9 @@ function myHandPanel(
     b.dataset.passAction = 'true';
     b.onclick = () => void game.play(legal[0]);
     passRow.appendChild(b);
-    panel.appendChild(passRow);
+    // In the header, like Practice: under the bones it grew the panel into
+    // the fixed board and laid its bottom row under the hand.
+    (panel.querySelector<HTMLElement>(':scope > .eyebrow') ?? panel).appendChild(passRow);
   }
 
   // French's paid reshuffle. The 50-70 window and the once-per-set limit

@@ -29,7 +29,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits } from './render.ts';
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -1545,7 +1545,7 @@ let lastPhoneRouteFit: { box: { width: number; height: number }; blocked: StageR
 let lastPhoneRouteInset: string | null = null;
 /** Just the grid of a locked phone board, for renderBoard. */
 function phoneRouteGridOf(geo: PhoneRouteGrid): PhoneRouteGrid {
-  return { cols: geo.cols, rows: geo.rows, origin: geo.origin, blocked: geo.blocked, climb: geo.climb };
+  return { cols: geo.cols, rows: geo.rows, origin: geo.origin, blocked: geo.blocked, climb: geo.climb, ...(geo.firstRowBones === undefined ? {} : { firstRowBones: geo.firstRowBones }) };
 }
 /** Largest board bone mobile Practice draws (40px); the measured wood usually decides first. */
 const PHONE_BOARD_MAX_UNIT = 20;
@@ -1957,7 +1957,9 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
     // A phone tray has a fixed height: a row added under the bones grew it
     // and moved the table. Like Pass, the choice takes the pace control's
     // place in the tray header.
-    if (window.innerWidth <= 700 && g.options.mode !== 'across') {
+    // Desktop too (2026-09-15): a row added under the bones grew the hand
+    // panel up into the fixed board, laying the bottom row under the hand.
+    if (window.innerWidth > 700 || g.options.mode !== 'across') {
       pace.replaceWith(askRow);
     } else {
       panel.appendChild(askRow);
@@ -1980,7 +1982,8 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
     // whole table. The pace control is not needed while passing, so Pass
     // takes its place in the tray header, right beside the hand.
     // French on a phone had the same problem, so it gets the same fix.
-    if (window.innerWidth <= 700 && g.options.mode !== 'across') {
+    // Desktop too: under the bones it grew the panel into the board.
+    if (window.innerWidth > 700 || g.options.mode !== 'across') {
       pace.replaceWith(passRow);
     } else {
       panel.appendChild(passRow);
@@ -2407,7 +2410,7 @@ function tableView(g: LocalGame): DocumentFragment {
   const phoneFixedRoute = g.options.format !== 'french';
   const phoneRouteKey = phoneFixedRoute ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}` : null;
   const lockedPhoneRoute = phoneRouteKey !== null && phoneRouteKey === lastPhoneRouteKey ? lastPhoneRoute : null;
-  const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}`;
+  const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number; firstRowBones?: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}${geo.firstRowBones ? `:r${geo.firstRowBones}` : ''}`;
   // The board is pinned at one offset inside its stage for the whole hand.
   // Flex-centring it let a 1px change in the tray's height nudge every played
   // bone up and down between turns.
@@ -2735,6 +2738,9 @@ function tableView(g: LocalGame): DocumentFragment {
       // Phones choose their own bone; desktop keeps its current size (owner).
       const routeMaxUnit = window.innerWidth <= 700 ? PHONE_BOARD_MAX_UNIT : tableUnit;
       const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : Math.min(tableUnit, tableMinUnit);
+      // Desktop turns its centre row after three bones each side, so the
+      // board snakes like the phone's instead of one long line.
+      const routeFirstRow = window.innerWidth <= 700 ? undefined : DESK_FIRST_ROW_BONES;
       // Keep measuring until the pose is down: the table is still settling
       // after the deal (tray header, turn cue), and an early, smaller reading
       // locked a bone one size too small. Once a bone is on the board the grid
@@ -2756,7 +2762,20 @@ function tableView(g: LocalGame): DocumentFragment {
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
         }).filter((r) => r.right > 0 && r.bottom > 0 && r.left < stageBox.width && r.top < stageBox.height);
         lastPhoneRouteFit = { box: stageBox, blocked };
-        lastPhoneRoute = phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked);
+        // Desktop keeps its bone (owner). The centre-row rule is used when a
+        // full hand fits with it at that bone; otherwise the ordinary rows.
+        const deskTrim = window.innerWidth > 700;
+        // The bone the ordinary rows choose is today's size. Try the centre-row
+        // rule at exactly that bone; routeMaxUnit is only the opening cap (26px
+        // on desktop), where the rule never fits and was never really tried.
+        const plainRoute = phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked, undefined, deskTrim);
+        const withRule = routeFirstRow === undefined ? null
+          : phonePracticeGeometry(stageBox, plainRoute.unit, plainRoute.unit, blocked, routeFirstRow, deskTrim);
+        const ruleFits = !!withRule && withRule.unit === plainRoute.unit && phoneRouteGeometryFits(withRule);
+        lastPhoneRoute = ruleFits && withRule ? withRule : plainRoute;
+        // QA hook: which layout the hand chose, and the space it was measured in.
+        boardStage.dataset.routeRule = withRule ? (ruleFits ? 'on' : 'off') : 'none';
+        boardStage.dataset.routeRuleBox = `${stageBox.width}x${stageBox.height}:u${plainRoute.unit}:b${blocked.length}`;
         lastPhoneRouteKey = phoneRouteKey;
         lastPhoneRouteInset = boardStage.style.inset || null;
       } else if (line.dataset.phoneRouteOverflow && line.dataset.phoneRouteOverflow !== '0'
@@ -2765,7 +2784,7 @@ function tableView(g: LocalGame): DocumentFragment {
         // PHONE_ROUTE_CORPUS_TOLERANCE). Lay it again one size smaller rather
         // than put a bone under a player or off the table.
         lastPhoneRoute = phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1,
-          routeMinUnit, lastPhoneRouteFit.blocked);
+          routeMinUnit, lastPhoneRouteFit.blocked, lastPhoneRoute.firstRowBones, window.innerWidth > 700);
       }
       const geo = lastPhoneRoute;
       room.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);

@@ -314,6 +314,13 @@ export interface PhoneRouteOptions {
    * Doubles in a climb are extra: they are only half a domino tall.
    */
   climb?: number;
+  /**
+   * Bones each end lays along the centre row before its first climb (owner,
+   * 2026-09-15: "center ... 3 or 4 across then down from the right and then
+   * left, and the other side the opposite", a centre row of 7 or 8). Unset,
+   * the centre row runs to the edge as on a phone. Later rows use the width.
+   */
+  firstRowBones?: number;
 }
 
 /** The pose's rectangle: a double stands crosswise, an ordinary bone lies along the line. */
@@ -382,8 +389,8 @@ export function phoneRouteRects(
   const maxY = heightUnits - origin.y;
   const blocked = (options.blocked ?? []).map((b) => ({ ...b, x: b.x - origin.x, y: b.y - origin.y }));
   const ends = {
-    left: { x: pose.x, y: 0, dir: 'left' as RouteDirection, lastAcross: pose.h, lastRun: 'left' as RouteDirection, climbed: 0, own: [] as RouteRect[] },
-    right: { x: pose.x + pose.w, y: 0, dir: 'right' as RouteDirection, lastAcross: pose.h, lastRun: 'right' as RouteDirection, climbed: 0, own: [] as RouteRect[] },
+    left: { x: pose.x, y: 0, dir: 'left' as RouteDirection, lastAcross: pose.h, lastRun: 'left' as RouteDirection, climbed: 0, rowBones: 0, firstRow: true, own: [] as RouteRect[] },
+    right: { x: pose.x + pose.w, y: 0, dir: 'right' as RouteDirection, lastAcross: pose.h, lastRun: 'right' as RouteDirection, climbed: 0, rowBones: 0, firstRow: true, own: [] as RouteRect[] },
   };
   const climb = options.climb ?? 2;
   const placed: RouteRect[] = [];
@@ -454,7 +461,9 @@ export function phoneRouteRects(
       // the bones snake in rows and a long end never walls itself in.
       if (horizontal) {
         // A double arriving where an ordinary bone could not go on is the turn.
-        const turnsHere = play.double && !straightFits(TILE_LONG, TILE_SHORT, keepToHalf);
+        const rowFull = options.firstRowBones !== undefined && state.firstRow
+          && state.rowBones >= options.firstRowBones;
+        const turnsHere = rowFull || (play.double && !straightFits(TILE_LONG, TILE_SHORT, keepToHalf));
         chosen = turnsHere
           ? turn(away, keepToHalf) ?? straight(keepToHalf) ?? turn(OPPOSITE[away], keepToHalf)
           : straight(keepToHalf) ?? turn(away, keepToHalf) ?? turn(OPPOSITE[away], keepToHalf);
@@ -485,6 +494,7 @@ export function phoneRouteRects(
     state.x = chosen.x + dx * chosen.advance;
     state.y = chosen.y + dy * chosen.advance;
     const climbing = chosen.d === 'up' || chosen.d === 'down';
+    if (climbing) { state.firstRow = false; state.rowBones = 0; } else { state.rowBones += 1; }
     const fullDomino = !play.double;
     state.climbed = !climbing ? 0 : (chosen.d === state.dir ? state.climbed : 0) + (fullDomino ? 1 : 0);
     state.dir = chosen.d;

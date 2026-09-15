@@ -471,7 +471,7 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
 
   if (opts.phoneRoute && opts.moveLog && opts.unit) {
     const { cols, rows, origin, blocked, climb } = opts.phoneRoute;
-    const fixed = phoneRoutePlacements(orientLine(board), opts.moveLog, cols, rows, { origin, blocked, climb });
+    const fixed = phoneRoutePlacements(orientLine(board), opts.moveLog, cols, rows, { origin, blocked, climb, firstRowBones: opts.phoneRoute?.firstRowBones });
     if (fixed) {
       host.classList.add('phone-route');
       host.style.gridTemplateColumns = `repeat(${cols}, ${opts.unit}px)`;
@@ -530,7 +530,12 @@ export interface PhoneRouteGrid {
   blocked: RouteRect[];
   /** Full dominoes in every climb between rows. */
   climb: number;
+  /** Desktop only: bones each end lays on the centre row before it climbs. */
+  firstRowBones?: number;
 }
+
+/** Desktop centre row: the pose and three bones each side (owner, 2026-09-15). */
+export const DESK_FIRST_ROW_BONES = 3;
 
 /** A rectangle in px, relative to the board stage's padding box. */
 export interface StageRect { left: number; top: number; right: number; bottom: number }
@@ -555,13 +560,39 @@ const phoneRouteFitCache = new Map<string, boolean>();
 const PHONE_CLIMB = 2;
 /** The climb the bone size is chosen with. */
 const PHONE_SIZING_CLIMB = 1;
+/** True when a chosen fixed-board grid holds the sizing hands with its own rules. */
+export function phoneRouteGeometryFits(grid: PhoneRouteGrid): boolean {
+  return phoneRouteFits(grid.cols, grid.rows, {
+    origin: grid.origin, blocked: grid.blocked, climb: PHONE_SIZING_CLIMB, firstRowBones: grid.firstRowBones,
+  });
+}
+
 export function phonePracticeGeometry(
-  box: BoardBox, maxUnit: number, minUnit: number, blockedPx: readonly StageRect[] = [],
+  box: BoardBox, maxUnit: number, minUnit: number, blockedPx: readonly StageRect[] = [], firstRowBones?: number,
+  /**
+   * Desktop only. A corner card or side rack standing on the board's left or
+   * right edge trims that edge instead of blocking the rows that must reach
+   * it (2026-09-15: an 8px sliver of the Lounge's top-right card, and Practice's
+   * right rack, kept the S from fitting at the desktop bone). Phones keep
+   * their narrow tabs as blockers, so their layout does not change.
+   */
+  trimEdges = false,
 ): PhoneRouteGrid & { unit: number; left: number; top: number } {
+  let edgeLeft = 0;
+  let edgeRight = box.width;
+  if (trimEdges) {
+    for (const b of blockedPx) {
+      if (b.right - b.left > box.width / 4) continue;
+      if (b.right >= box.width - 1 && b.left > box.width / 2) edgeRight = Math.min(edgeRight, b.left);
+      else if (b.left <= 1 && b.right < box.width / 2) edgeLeft = Math.max(edgeLeft, b.right);
+    }
+    blockedPx = blockedPx.filter((b) => b.left < edgeRight && b.right > edgeLeft);
+  }
+  const usableWidth = edgeRight - edgeLeft;
   const gridAt = (u: number, climb: number) => {
-    const cols = Math.max(PHONE_ROUTE_MIN_COLS, Math.floor(box.width / u));
+    const cols = Math.max(PHONE_ROUTE_MIN_COLS, Math.floor(usableWidth / u));
     const rows = Math.max(PHONE_ROUTE_MIN_ROWS, Math.floor(box.height / u));
-    const left = Math.floor((box.width - cols * u) / 2);
+    const left = edgeLeft + Math.floor((usableWidth - cols * u) / 2);
     const top = Math.floor((box.height - rows * u) / 2);
     const blocked = blockedPx.map((b) => {
       const x = Math.floor((b.left - left) / u);
@@ -569,14 +600,14 @@ export function phonePracticeGeometry(
       return { x, y, w: Math.ceil((b.right - left) / u) - x, h: Math.ceil((b.bottom - top) / u) - y };
     });
     const origin = { x: Math.floor(cols / 2), y: Math.floor(rows / 2) };
-    return { unit: u, cols, rows, left, top, origin, blocked, climb };
+    return { unit: u, cols, rows, left, top, origin, blocked, climb, ...(firstRowBones === undefined ? {} : { firstRowBones }) };
   };
   for (let u = maxUnit; u >= minUnit; u -= 1) {
     const grid = gridAt(u, PHONE_CLIMB);
-    const key = JSON.stringify([grid.cols, grid.rows, grid.origin, grid.blocked]);
+    const key = JSON.stringify([grid.cols, grid.rows, grid.origin, grid.blocked, firstRowBones ?? null]);
     let fits = phoneRouteFitCache.get(key);
     if (fits === undefined) {
-      fits = phoneRouteFits(grid.cols, grid.rows, { origin: grid.origin, blocked: grid.blocked, climb: PHONE_SIZING_CLIMB });
+      fits = phoneRouteFits(grid.cols, grid.rows, { origin: grid.origin, blocked: grid.blocked, climb: PHONE_SIZING_CLIMB, firstRowBones });
       phoneRouteFitCache.set(key, fits);
     }
     if (fits) return grid;
