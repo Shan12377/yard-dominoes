@@ -1075,3 +1075,13 @@ re-measure with the same 4x script (.local/qa/cpuperf.mjs) and on a real
 mid-range Android phone.
 
 Resume point 2026-09-15 09:25: v148 live (quick chat dropdown). Stage 4 still open: desktop Lounge side hand/rail cut off, and Lounge cut throat/partner boards getting the Practice route. Both need a real Lounge table to see (guest duppy table on the live site). Stage 3 French layout on hold.
+
+2026-09-15 (Stage 4 Lounge) — Quick chat is a dropdown of patois lines
+(live v148). Desktop side hands now sit 18px from the table edge (were 132px,
+near the middle) and the Lounge felt is sized under its two bars so the hand
+is not cut off at 900px tall. Phone Lounge cut throat, partner and open hand
+use Practice's fixed JamDom board (the stage went from 198px wide to
+316x576 at 390px). Verified on live-data duppy tables with a QA account
+(login in .local/qa/test-account.json, harness .local/qa/loungetable.mjs,
+which always leaves the table). Open questions: whether Lounge should let
+players sit before confirming their email.
