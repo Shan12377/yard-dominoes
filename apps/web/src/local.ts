@@ -141,6 +141,13 @@ export class LocalGame {
     // Duppy loop, so it froze (desktop French, 2026-09-15). Let the last hand
     // finish first.
     if (this.duppyLoop) await this.duppyLoop;
+    // The hand that just scored may have decided the set: a "Next hand"
+    // shown before it scored must not deal again (French, 375px, 2026-09-15:
+    // "set is already decided").
+    if (this.set.winnerSide !== null) {
+      this.emit({ type: 'state' });
+      return;
+    }
     const serverSeed = randomSeed();
     const commitment = await commit(serverSeed);
     const clientSeeds = [randomSeed(8)];
@@ -267,8 +274,13 @@ export class LocalGame {
     if (this.hand.status !== 'active') this.finishHand();
   }
 
+  /** The hand last folded into the set, so no path can score one hand twice. */
+  private scoredHand: object | null = null;
+
   private finishHand() {
     if (!this.hand?.result) return;
+    if (this.scoredHand === this.hand) return;
+    this.scoredHand = this.hand;
     const before = [...this.set.scores];
     this.scoresBeforeHand = before;
     this.set = applyHandResult(this.set, this.hand.result);

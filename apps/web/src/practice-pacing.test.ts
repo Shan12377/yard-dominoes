@@ -207,7 +207,7 @@ test('mobile French opens at the top of the table after the deal', () => {
 
 test('a new deal waits for the last hand to be scored and its Duppy loop to end', () => {
   assert.match(localSource,
-    /async startHand\(onDealt\?[\s\S]{0,900}?if \(this\.duppyLoop\) await this\.duppyLoop;\s*const serverSeed = randomSeed\(\);/);
+    /async startHand\(onDealt\?[\s\S]{0,900}?if \(this\.duppyLoop\) await this\.duppyLoop;[\s\S]{0,400}?const serverSeed = randomSeed\(\);/);
 });
 
 test('the GAME OVER card goes straight to the next hand, or a new set once it is decided', () => {
@@ -225,6 +225,12 @@ test('Practice offers Across: the player plays both hands, partner hand at the t
   assert.match(localSource, /while \(this\.hand\.status === 'active' && !this\.controls\(this\.hand\.turn\)\)/, 'duppies never play a seat the human controls');
   assert.match(practiceSource, /top\.classList\.add\('across-hand-partner'\)/);
   assert.match(practiceSource, /if \(passive\) \{ hand\.appendChild\(node\); continue; \}/, 'the waiting Across hand cannot be played');
+});
+
+test('a Next hand tapped as the set is decided never deals on a finished set', () => {
+  assert.match(localSource,
+    /if \(this\.duppyLoop\) await this\.duppyLoop;[\s\S]{0,300}?if \(this\.set\.winnerSide !== null\) \{\s*this\.emit\(\{ type: 'state' \}\);\s*return;/);
+  assert.match(localSource, /if \(this\.scoredHand === this\.hand\) return;\s*this\.scoredHand = this\.hand;/, 'each hand is scored once');
 });
 
 test('practice names the person who laid the last domino before the result screen', () => {
