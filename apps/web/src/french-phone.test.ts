@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyMove, deal, legalMoves } from '@yard/engine';
-import { phoneFrenchPinwheel } from './render.ts';
+import { phoneFrenchPinwheel, FRENCH_DESK_PINWHEEL_LEGS } from './render.ts';
 import type { PhoneCrossSlot } from './render.ts';
 
 // Mobile French, owner 2026-09-14: JamDom's four-way clockwise pinwheel. Each
@@ -81,6 +81,27 @@ test('left and right lay two bones, up and down three, then turn clockwise (JamD
   assertSound(slots, cols, rows);
   const hub = hubOf(cols, rows);
   const legs: Record<Dir, number> = { up: 3, right: 2, down: 3, left: 2 };
+  slots.forEach((arm, a) => {
+    const out = DIRS[a];
+    for (let i = 0; i < legs[out]; i++) {
+      assert.equal(travel(i === 0 ? hub : arm[i - 1], arm[i]), out, `${out} arm bone ${i} still heads ${out}`);
+    }
+    assert.equal(travel(arm[legs[out] - 1], arm[legs[out]]), CLOCKWISE[out], `${out} arm turns ${CLOCKWISE[out]} after ${legs[out]}`);
+  });
+});
+
+test('desktop lays four bones to each side and two up and down, then turns clockwise', () => {
+  const cols = 58;
+  const rows = 39;
+  const lengths = [6, 6, 6, 6];
+  const { slots, stuck } = phoneFrenchPinwheel({
+    arms: DIRS.map((direction, a) => ({ direction, doubles: new Array<boolean>(lengths[a]).fill(false) })),
+    order: roundRobin(lengths), cols, rows, legs: FRENCH_DESK_PINWHEEL_LEGS,
+  });
+  assert.equal(stuck, 0);
+  assertSound(slots, cols, rows);
+  const hub = hubOf(cols, rows);
+  const legs: Record<Dir, number> = { up: 2, right: 4, down: 2, left: 4 };
   slots.forEach((arm, a) => {
     const out = DIRS[a];
     for (let i = 0; i < legs[out]; i++) {

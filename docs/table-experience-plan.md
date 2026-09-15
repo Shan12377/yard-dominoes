@@ -998,3 +998,14 @@ longer count; the next pass starts a new run of one. `HandState.lastBoardPass`
 records the blocking move. Tests: the owner's case (no fine), three plain
 passes (still 10), three passes after a board pass (still 10). 491/491. The
 Online tables need the play-move and advance-duppy functions redeployed.
+
+2026-09-15 (desktop French: four to each side) — Owner asked whether four bones
+could go left and right instead of three. A phone cannot (at its 28px floor
+three side bones already reach the rim, measured on the 26-column grid), so
+phones keep two to the side and three up and down. Desktop now lays four to
+each side and two up and down (`FRENCH_DESK_PINWHEEL_LEGS`). Simulated 400
+real hands on 58x39 with corner cards, racks and hand blocked: 400 fit (366
+with the phone legs). Browser: 1440x900 and 1280x800 full hands, zero moves,
+nothing under a player, no errors; 375px phone unchanged. Tests 492/492.
+Owner preference noted for later, not applied: every board at 28x56px with
+flush joins like mobile cut throat.

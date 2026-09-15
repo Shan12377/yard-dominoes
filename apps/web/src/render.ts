@@ -1138,6 +1138,14 @@ export function phoneCrossRoute(
  */
 export const FRENCH_PINWHEEL_LEGS: Readonly<Record<CrossDirection, number>> = { left: 2, right: 2, up: 3, down: 3 };
 
+/**
+ * Desktop's wider felt lays four bones out to each side and two up and down
+ * before the first clockwise turn (owner, 2026-09-15). A phone cannot: at its
+ * 28px floor three side bones already reach the rim. Simulated over 400 real
+ * hands on a 58x39 desktop grid, all 400 fit (two sides and three up: 366).
+ */
+export const FRENCH_DESK_PINWHEEL_LEGS: Readonly<Record<CrossDirection, number>> = { left: 4, right: 4, up: 2, down: 2 };
+
 export function phoneFrenchPinwheel(input: {
   arms: ReadonlyArray<{ direction: CrossDirection; doubles: readonly boolean[] }>;
   legs?: Readonly<Record<CrossDirection, number>>;
@@ -1385,6 +1393,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
         direction: armDirections[index], doubles: arm.tiles.map((placed) => isDouble(placed.tile)),
       })),
       order, cols, rows, blocked: opts.phoneCrossBlocked,
+      ...(opts.frenchPinwheel ? { legs: FRENCH_DESK_PINWHEEL_LEGS } : {}),
     })
     : null;
   // A phone too narrow for the pinwheel keeps the older row-by-row route for
