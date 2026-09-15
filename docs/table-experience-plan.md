@@ -1104,3 +1104,5 @@ once per render (moved bones). Left: the Deal tap (hand-start layout fit plus a
 full table build) and French's per-render fit. Next step if players still feel
 it: build only what changed on the table instead of the whole table per move.
 Harness: .local/qa/cputrace.mjs (PORT=4174 sourcemap build).
+
+2026-09-15 14:20 (Lounge sign-in options, v154) — Owner: older players have no email they check; do both Google/Apple and email without confirmation. App side live: locked lounges show "Sign in to play" (opens the account form), Google/Apple buttons appear only when Supabase has the provider enabled (public /auth/v1/settings), a guest links the provider to their existing account (linkIdentity), and the email form says "You're all set" when no confirmation is needed. The Supabase settings change (Confirm email off, allow manual linking, add www.yaaddominoes.com redirect URLs) was blocked for Claude as a security change: the owner must make it in the dashboard, and create the Google OAuth client (and optionally Apple, which needs a paid Apple Developer account).
