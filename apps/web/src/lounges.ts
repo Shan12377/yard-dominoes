@@ -611,32 +611,33 @@ export const REACTIONS = [
 ] as const;
 
 /**
- * Quick chat — the eight things people actually say at a domino table, as
- * buttons. The business partner named these off the top of his head watching
- * the rival app, and they are the cheapest culture in the product: eleven
- * characters of patois carry more of a yard than a paragraph of interface copy.
+ * Quick chat — patois lines people actually say across a domino table,
+ * picked from one dropdown (owner, 2026-09-15). The old eight buttons (ME,
+ * YOU, ANY, BLESS, GG, DWL, KMT, BRB) are gone: players did not know what
+ * several of them meant, and a wall of buttons crowded the rail.
  *
- * They ride the SAME broadcast and the SAME on-screen slot as reactions, which
- * is not just less code — it means one person can only be saying one thing at
- * a time, so nobody can stack a reaction and a line on top of each other.
+ * They ride the SAME broadcast and the SAME on-screen slot as reactions, so
+ * one person can only be saying one thing at a time. Ids start with `say-`
+ * so a line never collides with a sticker of the same words ("Tek dat" and
+ * "Mi pass" are both): a sticker shows its picture, a line shows its words.
  *
- * **These are public by design, and that is the anti-cheat.** "ME", "YOU" and
- * "ANY" are real signals in partner play, and a private channel carrying them
- * between two seated players is exactly how a hand gets thrown. Broadcast to
- * the whole table, they are what they are across a real table: everyone hears
- * it, including the people it would hurt. See the private-message rule in
- * docs/superpowers/plans — nobody seated in a live hand may send or receive a
- * private message, and that rule has to be enforced on the server, not here.
+ * These are public by design: broadcast to the whole table, like talk across
+ * a real table. Nobody seated in a live hand may send or receive a private
+ * message, and that rule has to be enforced on the server, not here.
  */
 export const QUICK_CHAT = [
-  { id: 'me', label: 'ME' },
-  { id: 'you', label: 'YOU' },
-  { id: 'any', label: 'ANY' },
-  { id: 'bless', label: 'BLESS' },
-  { id: 'gg', label: 'GG' },
-  { id: 'dwl', label: 'DWL' },
-  { id: 'kmt', label: 'KMT' },
-  { id: 'brb', label: 'BRB' },
+  { id: 'say-play-mi-domino', label: 'Play mi domino' },
+  { id: 'say-send-mi-domino', label: 'Send mi domino' },
+  { id: 'say-watch-dis', label: 'Watch dis' },
+  { id: 'say-seh-yuh-pass', label: 'Seh yuh pass' },
+  { id: 'say-hold-dis', label: 'Hold dis' },
+  { id: 'say-tek-dat', label: 'Tek dat' },
+  { id: 'say-mi-pass', label: 'Mi pass' },
+  { id: 'say-yuh-chat-too-much', label: 'Yuh chat too much' },
+  { id: 'say-key-dat', label: 'Key dat!' },
+  { id: 'say-six-love-dat', label: 'Six love dat' },
+  { id: 'say-new-playa', label: 'New playa!' },
+  { id: 'say-ready-fi-di-six', label: 'Ready fi di six!' },
 ] as const;
 
 export const REACTION_EVENT = 'reaction';

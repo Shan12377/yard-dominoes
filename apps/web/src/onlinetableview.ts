@@ -1428,7 +1428,7 @@ export function liveTableView(
     talk.append(el('p', 'muted', 'Connecting chat to this table…'));
   }
   if (social?.quickChatBar) {
-    talk.append(el('div', 'rail-help', 'Quick words'), social.quickChatBar);
+    talk.append(el('div', 'rail-help', 'Quick chat'), social.quickChatBar);
   }
   if (social?.reactionBar) {
     talk.append(el('div', 'rail-help', 'Stickers'), social.reactionBar);

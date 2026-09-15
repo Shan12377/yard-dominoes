@@ -380,23 +380,34 @@ function sendSignal(id: string, rerender: () => void) {
 }
 
 /**
- * The eight words, as buttons. Text rather than pictures because these are
- * things people SAY — and because a player on a phone mid-hand can hit a short
- * word faster than they can recognise an icon.
+ * Quick chat as one dropdown of patois lines (owner, 2026-09-15). Picking a
+ * line says it to the table and the menu goes back to its prompt, ready for
+ * the next one. A styled select, never the operating system's own chevron
+ * (design rule 6).
  */
 function quickChatBar(rerender: () => void): HTMLElement {
   const bar = el('div', 'quick-chat');
   const ready = loungeState.me !== null && loungeState.room !== null;
+  const pick = document.createElement('select');
+  pick.className = 'quick-chat-select';
+  pick.disabled = !ready;
+  pick.setAttribute('aria-label', 'Say something to the table');
+  const prompt = document.createElement('option');
+  prompt.value = '';
+  prompt.textContent = ready ? 'Say something…' : 'Connecting to the room…';
+  pick.appendChild(prompt);
   for (const q of QUICK_CHAT) {
-    const b = document.createElement('button');
-    b.className = 'quick';
-    b.disabled = !ready;
-    b.textContent = q.label;
-    b.title = ready ? `Say ${q.label}` : 'Connecting to the room…';
-    b.setAttribute('aria-label', `Say ${q.label}`);
-    b.onclick = () => sendSignal(q.id, rerender);
-    bar.appendChild(b);
+    const option = document.createElement('option');
+    option.value = q.id;
+    option.textContent = q.label;
+    pick.appendChild(option);
   }
+  pick.onchange = () => {
+    const id = pick.value;
+    pick.value = '';
+    if (id) sendSignal(id, rerender);
+  };
+  bar.appendChild(pick);
   return bar;
 }
 

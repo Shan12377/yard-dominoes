@@ -2078,11 +2078,14 @@ button.board-end-choice:focus-visible {
   box-shadow: 0 2px 6px rgba(5, 24, 50, .35);
 }
 .table-seat-identity .said {
-  max-width: 104px;
-  padding: 3px 5px;
+  /* Whole patois lines now ("Yuh chat too much"): readable size, wrapping
+     onto two lines rather than one tiny one. */
+  width: max-content;
+  max-width: 150px;
+  padding: 4px 8px;
   background: var(--signal-lo);
   color: var(--bone);
-  font: 700 9px/1.2 var(--body);
+  font: 800 12px/1.25 var(--body);
   text-align: center;
 }
 .table-pass-callout {
@@ -2320,6 +2323,8 @@ button.board-end-choice:focus-visible {
 .quick-chat .quick:hover:not(:disabled) { border-color: var(--gold-deep); color: var(--gold-deep); }
 .quick-chat .quick:disabled { opacity: 0.45; cursor: not-allowed; }
 .quick-chat .quick:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+/* One dropdown of lines (owner, 2026-09-15); inherits the site select style. */
+.quick-chat .quick-chat-select { width: 100%; min-height: 44px; font-weight: 700; }
 
 /* What a seat just said. Shares its slot with a thrown reaction, so nobody is
    ever showing a picture and a word at the same time. */
