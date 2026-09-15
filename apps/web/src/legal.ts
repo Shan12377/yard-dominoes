@@ -23,17 +23,26 @@ import { el } from './render.ts';
  * change and no stale company name hiding in a paragraph somewhere.
  */
 export const ENTITY = {
-  /** Registered company name, e.g. 'Yaad Dominoes LLC'. */
-  legalName: 'Yaad Dominoes LLC (pending formation)',
-  /** Registered agent's address — NOT a home address. See docs. */
-  address: '[registered agent address — to be added]',
+  /**
+   * Registered company name, e.g. 'Yaad Dominoes LLC'. Empty until the LLC is
+   * formed: the pages then name the game and show no placeholder (owner,
+   * 2026-09-15: "remove these incomplete things").
+   */
+  legalName: '',
+  /** Registered agent's address — NOT a home address. Empty until there is one. */
+  address: '',
   /** A monitored inbox. Required: this is where privacy requests land. */
-  email: '[support@ — to be added]',
+  email: 'info@drshallandahunter.com',
   /** Where the company is formed. Drives which law governs. */
   jurisdiction: 'the State of Florida, United States',
 } as const;
 
 export const PRODUCT = 'YaadDominoes';
+
+/** Who runs the game, as far as it is settled: the company once formed, else the game. */
+const OPERATOR = ENTITY.legalName || PRODUCT;
+/** The operator, then the address when there is one. */
+const OPERATOR_AT = [ENTITY.legalName, ENTITY.address].filter(Boolean).join(', ');
 export const LAST_UPDATED = '1 August 2026';
 
 /** COPPA's line. Below this, no chat, no voice, no tables with strangers. */
@@ -165,7 +174,7 @@ function document_(eyebrow: string, title: string, intro: string, sections: Sect
     panel.appendChild(block);
   }
   const foot = el('p', 'legal-updated',
-    `${ENTITY.legalName} · ${ENTITY.address} · ${ENTITY.email}`);
+    [OPERATOR, ENTITY.address, ENTITY.email].filter(Boolean).join(' · '));
   panel.appendChild(foot);
   return panel;
 }
@@ -176,7 +185,7 @@ export function termsView(): HTMLElement {
     + 'They are short because the service is simple: it is a dominoes game.',
     [
       ['Who runs this',
-        `${PRODUCT} is operated by ${ENTITY.legalName}, ${ENTITY.address}. `
+        (OPERATOR_AT ? `${PRODUCT} is operated by ${OPERATOR_AT}. ` : '')
         + `These terms are governed by the laws of ${ENTITY.jurisdiction}.`],
 
       ['How old you have to be',
@@ -343,6 +352,6 @@ export function privacyView(): HTMLElement {
         + 'breached, and we are not going to be the first to claim otherwise.'],
 
       ['Contact',
-        `${ENTITY.legalName}, ${ENTITY.address}. Email ${ENTITY.email}.`],
+        `${OPERATOR_AT ? `${OPERATOR_AT}. ` : ''}Email ${ENTITY.email}.`],
     ]);
 }
