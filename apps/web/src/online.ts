@@ -115,6 +115,17 @@ export async function secureAccount(email: string, password: string): Promise<vo
   if (error) throw error;
 }
 
+/**
+ * Sign a secured account out of this browser. Only offered to secured
+ * accounts: a guest has nothing to sign back in with, so signing one out
+ * would lose that player for good.
+ */
+export async function signOut(): Promise<void> {
+  // This device only: the default ends the account's sessions everywhere.
+  const { error } = await client().auth.signOut({ scope: 'local' });
+  if (error) throw error;
+}
+
 /** Switch the current browser session to an already-secured account. */
 export async function signInWithPassword(email: string, password: string): Promise<void> {
   const { error } = await client().auth.signInWithPassword({ email, password });

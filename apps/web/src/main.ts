@@ -2231,6 +2231,14 @@ function handResult(g: LocalGame): HTMLElement | null {
       );
       v.appendChild(technical);
     }
+    // Close the deal check again (owner, 2026-09-15: no way to close it).
+    const hide = document.createElement('button');
+    hide.type = 'button';
+    hide.className = 'act ghost small deal-check-hide';
+    hide.dataset.hideDealCheck = 'true';
+    hide.textContent = 'Hide deal check';
+    hide.onclick = () => { verifyState = null; render(); };
+    v.appendChild(hide);
     panel.appendChild(v);
   }
   return panel;

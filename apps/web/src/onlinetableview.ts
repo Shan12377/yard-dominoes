@@ -27,6 +27,7 @@ import {
   CLOCK_LABELS, CLOCK_NAMES, DUPPY_LABELS, DUPPY_LEVELS, DUPPY_PACE_LABELS, DUPPY_PACE_NAMES, duppyThinkSeconds,
   dealPlan, isPartnered, sideOf, type ClockName, type DuppyLevel, type DuppyPace, type GameMode,
 } from '@yard/engine';
+import type { Move, TileId } from '@yard/engine';
 import * as sfx from './sfx.ts';
 
 /** Surface a failed request inline, next to whatever control triggered it —
@@ -2097,12 +2098,19 @@ function takeHandActions(panel: HTMLElement): HTMLElement | null {
 }
 
 /** A completed hand's free, browser-verified visual deal receipt. */
-function revealSection(game: OnlineGame): HTMLElement {
+function revealSection(game: OnlineGame, rerender: () => void): HTMLElement {
   const wrap = el('section', 'deal-check');
   const partnered = isPartnered(game.table.mode);
 
-  if (game.revealedDeal && game.dealVerification) {
+  const checkHandId = game.hand?.hand_id ?? '';
+  if (game.revealedDeal && game.dealVerification && dealCheckOpen.has(checkHandId)) {
     const verification = game.dealVerification;
+    const hide = document.createElement('button');
+    hide.type = 'button';
+    hide.className = 'act ghost small deal-check-hide';
+    hide.dataset.hideDealCheck = 'true';
+    hide.textContent = 'Hide deal check';
+    hide.onclick = () => { dealCheckOpen.delete(checkHandId); rerender(); };
     const verdict = el('div', `deal-verdict ${verification.ok ? 'ok' : 'bad'}`);
     verdict.setAttribute('role', 'status');
     verdict.append(
@@ -2156,14 +2164,19 @@ function revealSection(game: OnlineGame): HTMLElement {
       el('div', 'muted', 'Hand'), el('code', 'seed', receipt.handId),
     );
     wrap.appendChild(technical);
+    wrap.appendChild(hide);
     return wrap;
   }
 
   const button = document.createElement('button');
   button.className = 'act ghost';
-  button.textContent = game.revealPending ? 'Checking the deal…' : 'Verify the deal — free';
-  button.disabled = game.revealPending;
-  button.onclick = () => void game.reveal();
+  button.textContent = game.revealPending && dealCheckOpen.has(checkHandId) ? 'Checking the deal…' : 'Verify the deal — free';
+  button.disabled = game.revealPending && dealCheckOpen.has(checkHandId);
+  button.onclick = () => {
+    dealCheckOpen.add(checkHandId);
+    if (game.revealedDeal) rerender();
+    else void game.reveal();
+  };
   wrap.append(el('p', 'muted',
     'After the hand, your browser can rebuild the locked shuffle and show every starting hand.'));
   wrap.appendChild(button);
@@ -2293,6 +2306,29 @@ function coachSection(game: OnlineGame): HTMLElement {
 
 let gameOverDismissedHand: string | null = null;
 const ONLINE_RESULT_ID = 'online-hand-result';
+/** Hands whose deal check the player opened; Hide closes it (owner, 2026-09-15). */
+const dealCheckOpen = new Set<string>();
+/** Hands whose starting deal was fetched to show the hands left, so a failure is not retried every render. */
+const handsLeftRequested = new Set<string>();
+
+/**
+ * The bones each seat still held when the hand ended: its starting hand, plus
+ * anything it drew, less everything it played. Worked out in the browser from
+ * the free post-hand deal reveal and the public move log, so nothing hidden
+ * is ever sent while a hand is live.
+ */
+function handsLeft(deal: readonly TileId[][], moves: readonly Move[]): TileId[][] {
+  const left = deal.map((hand) => [...hand]);
+  for (const move of moves) {
+    if (move.kind === 'draw') left[move.seat]?.push(move.tile);
+    else if (move.kind === 'pose' || move.kind === 'play' || move.kind === 'playcross') {
+      const hand = left[move.seat];
+      const at = hand ? hand.indexOf(move.tile) : -1;
+      if (hand && at >= 0) hand.splice(at, 1);
+    }
+  }
+  return left;
+}
 
 /**
  * The same GAME OVER card Practice shows (owner, 2026-09-14): on a phone the
@@ -2323,7 +2359,7 @@ function onlineGameOverCard(game: OnlineGame, rerender: () => void): HTMLElement
   see.type = 'button';
   see.className = 'table-game-over-see';
   see.dataset.seeResult = 'true';
-  see.textContent = 'See hands left & scores ▼';
+  see.textContent = game.isSpectator ? 'See scores ▼' : 'See hands left & scores ▼';
   see.onclick = () => {
     document.getElementById(ONLINE_RESULT_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -2383,6 +2419,36 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
   }
   panel.append(el('h2', undefined, heading));
 
+  // Hands left on the table, as in Practice and at a real table where every
+  // hand is turned over at the end (owner, 2026-09-15). Players only: the
+  // free reveal answers the people who played the hand.
+  const handId = game.hand!.hand_id;
+  if (!game.isSpectator) {
+    if (!game.revealedDeal && !game.revealPending && !handsLeftRequested.has(handId)) {
+      handsLeftRequested.add(handId);
+      void game.reveal();
+    }
+    const remaining = el('div', 'hands-left');
+    remaining.append(el('div', 'eyebrow', 'Hands left on the table'));
+    if (game.revealedDeal) {
+      const left = handsLeft(game.revealedDeal, (game.hand!.move_log ?? []) as Move[]);
+      const revealed = el('div', 'revealed-hands');
+      left.forEach((hand, seat) => {
+        const seatHand = el('div', 'reveal-hand');
+        seatHand.append(el('strong', undefined, describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide)));
+        seatHand.append(el('small', 'muted', `${hand.length} tile${hand.length === 1 ? '' : 's'} left`));
+        const tiles = el('div', 'hand revealed-tiles');
+        for (const id of hand) { const tile = tileEl(id); tile.classList.add('sm'); tiles.appendChild(tile); }
+        seatHand.appendChild(tiles);
+        revealed.appendChild(seatHand);
+      });
+      remaining.appendChild(revealed);
+    } else {
+      remaining.append(el('p', 'muted small', game.revealPending ? 'Turning the hands over…' : 'The hands could not be shown just now.'));
+    }
+    panel.appendChild(remaining);
+  }
+
   // French scores every pip on every hand, not just blocked ones — this is
   // the one place a player can check the math for themselves, on domino
   // wins as much as blocked hands.
@@ -2405,7 +2471,7 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     if (penaltyLog) panel.appendChild(penaltyLog);
   }
 
-  panel.appendChild(revealSection(game));
+  panel.appendChild(revealSection(game, rerender));
   panel.appendChild(settleSection(game));
   if (!game.isSpectator) panel.appendChild(coachSection(game));
 

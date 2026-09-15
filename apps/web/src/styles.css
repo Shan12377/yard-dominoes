@@ -1535,7 +1535,10 @@ button.board-end-choice:focus-visible {
 .reveal { display: grid; gap: 8px; margin: 10px 0; }
 .reveal-hand { display: grid; gap: 4px; }
 .reveal-hand .hand { gap: 4px; }
-.reveal-hand .tile.sm { --w: 22px; --h: 44px; cursor: default; }
+/* Revealed and verified hands are real dominoes at a readable size (owner,
+   2026-09-15: the deal check's 22-24px bones were "super blurry": pips sized
+   in fractions of a pixel). 28x56 is the phone floor every bone keeps. */
+.reveal-hand .tile.sm { --w: 28px; --h: 56px; cursor: default; }
 .reveal-hand .tile.sm:hover { transform: none; }
 .remaining-hands { margin-top: 14px; }
 .revealed-hands { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
@@ -2421,7 +2424,11 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
 }
 .verified-seat strong, .verified-boneyard strong { display: block; margin-bottom: 7px; font-size: 12px; }
 .verified-seat .hand, .verified-boneyard .hand { display: flex; gap: 4px; overflow-x: auto; padding: 2px 2px 5px; }
-.verified-seat .tile.sm, .verified-boneyard .tile.sm { --w: 24px; --h: 48px; flex: none; }
+.verified-seat .tile.sm, .verified-boneyard .tile.sm { --w: 28px; --h: 56px; flex: none; }
+@media (min-width: 701px) {
+  .reveal-hand .tile.sm,
+  .verified-seat .tile.sm, .verified-boneyard .tile.sm { --w: 34px; --h: 68px; }
+}
 .verified-seat.seat-0 { grid-area: south; }
 .verified-seat.seat-1 { grid-area: east; }
 .verified-seat.seat-2 { grid-area: north; }
@@ -5246,3 +5253,7 @@ button.hand-end-choice {
     grid-auto-columns: min(var(--table-bone-short), 40px);
   }
 }
+
+/* Hide deal check sits under the verified table, clear of the technical details. */
+.deal-check-hide { margin-top: 10px; }
+.hands-left { margin: 10px 0; }

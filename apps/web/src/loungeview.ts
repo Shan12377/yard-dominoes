@@ -25,7 +25,7 @@ import { profilePanel, adminSection, avatarImg, timeAgo, openReferralSection } f
 export { openReferralSection };
 import {
   ensureSignedIn, findActiveSeat, videoSessionCall, turnCredentialsCall,
-  secureAccount, signInWithPassword, isAnonymousUser, continueWithProvider, enabledProviders,
+  secureAccount, signInWithPassword, isAnonymousUser, continueWithProvider, enabledProviders, signOut,
   requestPasswordReset, updatePassword, watchForPasswordRecovery,
 } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
@@ -1803,6 +1803,27 @@ export function profileView(rerender: () => void): DocumentFragment {
     : (loungeState.isAnonymous ? 'Secure account' : 'Account');
   accountBtn.onclick = () => openAccount(defaultMode);
   accountHead.append(accountBtn);
+  // Log out (owner, 2026-09-15), for secured accounts only: a guest has no
+  // email or Google to come back with, so signing one out would lose it.
+  if (!loungeState.isAnonymous) {
+    const signOutBtn = document.createElement('button');
+    signOutBtn.className = 'act ghost small';
+    signOutBtn.dataset.signOut = 'true';
+    signOutBtn.textContent = 'Sign out';
+    signOutBtn.onclick = () => void (async () => {
+      if (!window.confirm('Sign out of this account on this device? You can sign back in any time.')) return;
+      signOutBtn.disabled = true;
+      try {
+        await signOut();
+        // A fresh page drops every trace of the old account's lounge state.
+        window.location.assign('/');
+      } catch (err) {
+        signOutBtn.disabled = false;
+        window.alert(err instanceof Error ? err.message : 'Could not sign out. Try again.');
+      }
+    })();
+    accountHead.append(signOutBtn);
+  }
   // A fresh browser always lands on a brand-new guest session — "Sign in"
   // to an account secured elsewhere was previously reachable only by
   // opening "Secure account" first and finding a toggle link buried
