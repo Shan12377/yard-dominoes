@@ -1052,3 +1052,11 @@ domino, Watch dis, Seh yuh pass, Hold dis, Yuh chat too much, Key dat!, Six
 love dat, New playa!, Ready fi di six! Desktop hand at the side must sit
 further in (it is cut off). Lounge cut throat/partner boards get Practice's
 flush joins, doubles and fixed stationary route at the current size.
+
+2026-09-15 (phone French: three to each side, kept) — Owner looked at the
+experiment on the Wi-Fi dev link and chose it over two to the side ("keep the
+one in the image"), declining to spend more on the explicit-route version for
+now. Phones: left and right lay three then turn (then three more), up and down
+lay two; a side bone may reach the rim. Measured cost: fewer hands fit cleanly
+(87/200 in the fixture, 265/400 with real edge tabs vs 324 before); the tests
+now floor that rather than hide it. Revisit in Stage 3 (French layout).

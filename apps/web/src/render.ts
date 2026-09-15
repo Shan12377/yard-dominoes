@@ -1136,7 +1136,12 @@ export function phoneCrossRoute(
  * down lay three then turn right and left. The short legs keep the pinwheel
  * tight around the middle instead of running every arm to the rim first.
  */
-export const FRENCH_PINWHEEL_LEGS: Readonly<Record<CrossDirection, number>> = { left: 2, right: 2, up: 3, down: 3 };
+export type FrenchPinwheelLegs = Readonly<Record<CrossDirection, number | readonly number[]>>;
+
+// Owner, 2026-09-15 (second try): three out to each side then turn, and the
+// side arms lay three more before their second clockwise turn; up and down lay
+// two then turn. A number is the first leg only; a list is consecutive legs.
+export const FRENCH_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: [3, 3], right: [3, 3], up: [2], down: [2] };
 
 /**
  * Desktop's wider felt lays four bones out to each side and two up and down
@@ -1144,11 +1149,11 @@ export const FRENCH_PINWHEEL_LEGS: Readonly<Record<CrossDirection, number>> = { 
  * 28px floor three side bones already reach the rim. Simulated over 400 real
  * hands on a 58x39 desktop grid, all 400 fit (two sides and three up: 366).
  */
-export const FRENCH_DESK_PINWHEEL_LEGS: Readonly<Record<CrossDirection, number>> = { left: 4, right: 4, up: 2, down: 2 };
+export const FRENCH_DESK_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: 4, right: 4, up: 2, down: 2 };
 
 export function phoneFrenchPinwheel(input: {
   arms: ReadonlyArray<{ direction: CrossDirection; doubles: readonly boolean[] }>;
-  legs?: Readonly<Record<CrossDirection, number>>;
+  legs?: FrenchPinwheelLegs;
   order: readonly number[];
   cols: number;
   rows: number;
@@ -1193,6 +1198,7 @@ export function phoneFrenchPinwheel(input: {
     return {
       direction, x: start[0], y: start[1], dir: direction,
       lastAcross: direction === 'up' || direction === 'down' ? 2 : 4, own: [] as Placed[],
+      turns: 0, legBones: 0,
     };
   });
   const all: Placed[] = [];
@@ -1207,8 +1213,10 @@ export function phoneFrenchPinwheel(input: {
     const joins = arm.own[index - 1];
     const elbow = arm.own[index - 2];
     const clear = (lane: Rect, bone: Rect, ownQuarter: boolean, pastBottom = false) => {
-      if (lane.x < minX || lane.x + lane.w > maxX || lane.y < minY) return false;
-      if (!pastBottom && lane.y + lane.h > maxY) return false;
+      // The bone itself must be on the board; the felt ahead of it may be the
+      // rim. That lets a side arm lay its last bone right to the edge.
+      if (bone.x < minX || bone.x + bone.w > maxX || bone.y < minY) return false;
+      if (!pastBottom && bone.y + bone.h > maxY) return false;
       if (ownQuarter && !quarter[arm.direction](lane)) return false;
       for (const b of blocked) if (near(lane, b, 0)) return false;
       if (index > 0 && near(bone, hub, 0)) return false;
@@ -1242,10 +1250,12 @@ export function phoneFrenchPinwheel(input: {
       const corner = double ? leg(arm.x + dx - tx, arm.y + dy - ty) : null;
       return corner ?? leg(arm.x - dx + tx * (arm.lastAcross / 2), arm.y - dy + ty * (arm.lastAcross / 2));
     };
+    const plan = (input.legs ?? FRENCH_PINWHEEL_LEGS)[arm.direction];
+    const legLength = (typeof plan === 'number' ? [plan] : plan)[arm.turns];
     let chosen: ReturnType<typeof straight> = null;
     if (index === 0) {
       chosen = straight(true);
-    } else if (arm.dir === arm.direction && index === (input.legs ?? FRENCH_PINWHEEL_LEGS)[arm.direction]) {
+    } else if (legLength !== undefined && arm.legBones === legLength) {
       // The first leg is done: turn clockwise now, straight only if the turn
       // has no room.
       chosen = turn(clockwise[arm.dir], true) ?? straight(true);
@@ -1271,8 +1281,15 @@ export function phoneFrenchPinwheel(input: {
     const [sx, sy] = step[chosen.d];
     arm.x = chosen.x + sx * chosen.advance;
     arm.y = chosen.y + sy * chosen.advance;
+    const turned = chosen.d !== arm.dir;
     arm.dir = chosen.d;
     arm.lastAcross = chosen.bone.w === chosen.advance ? chosen.bone.h : chosen.bone.w;
+    if (turned) {
+      arm.turns += 1;
+      arm.legBones = 1;
+    } else {
+      arm.legBones += 1;
+    }
     slots[armIndex].push({
       x: placed.x + cx, y: placed.y + cy, w: placed.w, h: placed.h, orient: placed.w > placed.h ? 'h' : 'v',
     });
