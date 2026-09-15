@@ -315,8 +315,8 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-15, `www.yaaddominoes.com` serves commit `a58b23e`
-  (v154: Lounge Sign in to play, one-tap Google/Apple shown when enabled in
+- As of 2026-09-15, `www.yaaddominoes.com` serves commit `ce97bf5`
+  (v155: desktop boards fill the table with bigger bones and a 4-bone centre row, never clipped; JamDom French arms on desktop; Practice pass the pose; top hand inside the table; v154: Lounge Sign in to play, one-tap Google/Apple shown when enabled in
   Supabase, no email-link wait when confirmation is off; v153: Android smoothness pass, locked fixed board skips layout-forcing
   reads and cannot scroll; v152: desktop JamDom S board at today's bone, Practice Across, Pass in the
   hand header, never deal on a decided set, phone French board pinned; v151: Lounge desktop French pinwheel; Across shows my hand at the bottom
