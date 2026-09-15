@@ -368,7 +368,7 @@ export function scoreFactors(
   view: PublicView, move: Move, level: Exclude<DuppyLevel, 'pickney'>,
 ): MoveFactors {
   const w = WEIGHTS[level];
-  if (move.kind === 'pass' || move.kind === 'draw') return { ...NO_FACTORS };
+  if (move.kind === 'pass' || move.kind === 'draw' || move.kind === 'askpose') return { ...NO_FACTORS };
 
   const f: MoveFactors = { ...NO_FACTORS };
   const tile = move.tile;
@@ -423,7 +423,7 @@ export function scoreFactors(
 
 /** Heuristic value of a candidate move. Higher is better. */
 export function scoreMove(view: PublicView, move: Move, level: Exclude<DuppyLevel, 'pickney'>): number {
-  if (move.kind === 'pass' || move.kind === 'draw') return -1000;
+  if (move.kind === 'pass' || move.kind === 'draw' || move.kind === 'askpose') return -1000;
   return factorTotal(scoreFactors(view, move, level));
 }
 
@@ -483,7 +483,9 @@ function stateFromDeal(view: PublicView, deal: TileId[][]): HandState {
     board: cloneAnyBoard(view.board),
     turn: view.turn,
     consecutivePasses: 0,
-    moveLog: [],
+    // The log decides who may still be asked to pose and whether a pass ends
+    // a run of three, so the stub carries the table's real history.
+    moveLog: view.moveLog.map((m) => ({ ...m })),
     penalties: new Array(view.seatCount).fill(0),
     status: 'active',
     result: null,
@@ -535,6 +537,13 @@ export function chooseMove(view: PublicView, level: DuppyLevel, rng: Rng = Math.
   const moves = legalMoves(stub).filter((m) => m.seat === view.seat);
   if (moves.length === 0) throw new Error('no legal move available');
   if (moves.length === 1) return moves[0];
+  // No double to pose: a duppy asks its partner when it has one still to
+  // ask, otherwise the next seat round the table. It cannot see who holds a
+  // double, so nothing smarter is honest.
+  if (moves.every((m) => m.kind === 'askpose')) {
+    const toPartner = partner === null ? undefined : moves.find((m) => m.kind === 'askpose' && m.target === partner);
+    return toPartner ?? moves[0];
+  }
 
   if (level === 'pickney') return moves[Math.floor(rng() * moves.length)];
 

@@ -48,7 +48,8 @@ export type ReplayStep =
   | { kind: 'play'; seat: number; tile: TileId; end: 'left' | 'right' }
   | { kind: 'playcross'; seat: number; tile: TileId; arm: number }
   | { kind: 'draw'; seat: number }
-  | { kind: 'pass'; seat: number };
+  | { kind: 'pass'; seat: number }
+  | { kind: 'askpose'; seat: number; target: number };
 
 /** A step before its seat is worked out. Spelled out because `Omit` over a
  *  union collapses it to the keys they share. */
@@ -57,7 +58,8 @@ type StepBody =
   | { kind: 'play'; tile: TileId; end: 'left' | 'right' }
   | { kind: 'playcross'; tile: TileId; arm: number }
   | { kind: 'draw' }
-  | { kind: 'pass' };
+  | { kind: 'pass' }
+  | { kind: 'askpose'; target: number };
 
 export interface ReplayHand {
   /** Seat that opened. Turn order runs from here, one seat per step. */
@@ -76,12 +78,14 @@ export interface ReplayHand {
  * position and never needs encoding. A draw does not end a turn, so the same
  * seat acts again.
  */
-function seatsFor(poser: number, seatCount: number, kinds: string[]): number[] {
+function seatsFor(poser: number, seatCount: number, steps: StepBody[]): number[] {
   const seats: number[] = [];
   let seat = poser;
-  for (const kind of kinds) {
+  for (const step of steps) {
     seats.push(seat);
-    if (kind !== 'draw') seat = (seat + 1) % seatCount;
+    // Asking someone to pose hands the turn to them, not to the next seat.
+    if (step.kind === 'askpose') seat = step.target;
+    else if (step.kind !== 'draw') seat = (seat + 1) % seatCount;
   }
   return seats;
 }
@@ -94,6 +98,7 @@ export function encodeHand(
   for (const move of moves) {
     if (move.kind === 'pass') { out += 'X'; continue; }
     if (move.kind === 'draw') { out += 'D'; continue; }
+    if (move.kind === 'askpose') { out += 'A' + move.target; continue; }
     const idx = TILES.indexOf(move.tile);
     if (idx < 0) continue;
     if (move.kind === 'playcross') { out += move.arm + ALPHABET[idx]; continue; }
@@ -120,6 +125,12 @@ export function decodeHand(code: string): ReplayHand | null {
     const c = code[i];
     if (c === 'X') { partial.push({ kind: 'pass' }); continue; }
     if (c === 'D') { partial.push({ kind: 'draw' }); continue; }
+    if (c === 'A') {
+      const target = Number(code[++i]);
+      if (!Number.isInteger(target) || target < 0 || target >= seatCount) return null;
+      partial.push({ kind: 'askpose', target });
+      continue;
+    }
     if (c === '0' || c === '1' || c === '2' || c === '3') {
       const tile = TILES[ALPHABET.indexOf(code[++i] ?? '')];
       if (!tile) return null;
@@ -135,7 +146,7 @@ export function decodeHand(code: string): ReplayHand | null {
   }
   if (partial.length === 0) return null;
 
-  const seats = seatsFor(poser, seatCount, partial.map((p) => p.kind));
+  const seats = seatsFor(poser, seatCount, partial);
   const steps = partial.map((p, i) => ({ ...p, seat: seats[i] })) as ReplayStep[];
   return { poser, seat, seatCount, format, steps };
 }
@@ -151,7 +162,7 @@ export function decodeHand(code: string): ReplayHand | null {
 export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
   let board: AnyBoard | null = null;
   for (const step of replay.steps.slice(0, count)) {
-    if (step.kind === 'pass' || step.kind === 'draw') continue;
+    if (step.kind === 'pass' || step.kind === 'draw' || step.kind === 'askpose') continue;
     const [a, b] = halves(step.tile);
 
     if (!board) {

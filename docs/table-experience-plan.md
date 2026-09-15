@@ -1009,3 +1009,16 @@ with the phone legs). Browser: 1440x900 and 1280x800 full hands, zero moves,
 nothing under a player, no errors; 375px phone unchanged. Tests 492/492.
 Owner preference noted for later, not applied: every board at 28x56px with
 flush joins like mobile cut throat.
+
+2026-09-15 (French: ask someone to pose) — Owner: a round 2+ winner with no
+double is fined 10 and ASKS someone to pose; a seat asked with no double is
+fined 10 and asks a third; nobody is skipped automatically. New `askpose`
+move (seat names target; targets exclude everyone who already asked); deal()
+no longer searches or fines. Duppies ask their partner first, else the next
+seat. Practice and online show "No double (+10). Who poses?" (in the phone
+tray header like Pass). Also: the board-pass reset from earlier used a
+HandState field the server never saved, so online it did nothing; the board
+pass is now marked on the move in `moveLog`, which the server keeps. Tests
+494/494; phone 390/375 four hands clean. The ask buttons were not reached in
+browser play (no qualifying deal came up). Not deployed; functions need
+redeploying for online.

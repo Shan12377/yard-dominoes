@@ -27,11 +27,12 @@ function node<K extends keyof HTMLElementTagNameMap>(
 function moveName(move: Move): string {
   if (move.kind === 'pass') return 'Pass';
   if (move.kind === 'draw') return 'Draw';
+  if (move.kind === 'askpose') return 'Asked someone to pose';
   return move.tile;
 }
 
 function moveTile(move: Move): TileId | null {
-  return move.kind === 'pass' || move.kind === 'draw' ? null : move.tile;
+  return move.kind === 'pass' || move.kind === 'draw' || move.kind === 'askpose' ? null : move.tile;
 }
 
 function moveDetail(move: Move): string | null {

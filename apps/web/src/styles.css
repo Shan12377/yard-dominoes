@@ -926,6 +926,32 @@ button.board-end-choice:focus-visible {
 }
 .pass-action-row .pass-action { min-width: 92px; min-height: 44px; }
 
+/* French "no double" choice (owner, 2026-09-15). On a phone it sits in the
+   tray header like Pass, so it must stay one short line: the label names the
+   fine and each seat is a compact button. */
+@media (max-width: 700px) {
+  .my-hand-panel > .eyebrow > .ask-pose-row {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 2px 4px 2px 8px;
+    gap: 6px;
+    justify-content: flex-start;
+    overflow-x: auto;
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+  }
+  .my-hand-panel > .eyebrow > .ask-pose-row .pass-action {
+    min-width: 0;
+    min-height: 40px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+}
+
 /* ------------------------------------------------------- the live coach --
    Practice only. The trigger sits in the sticky score bar so it is reachable
    without scrolling, and the read itself opens over the board (.reader-overlay

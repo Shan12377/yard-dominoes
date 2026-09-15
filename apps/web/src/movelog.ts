@@ -70,5 +70,6 @@ export function describeMoveLine(
     case 'playcross': return `${name} played ${move.tile}`;
     case 'draw': return `${name} drew a tile`;
     case 'pass': return `${name} passed`;
+    case 'askpose': return `${name} had no double and asked ${describeSeat(move.target, seats, mySeat, isPartnerMode, mySide)} to pose`;
   }
 }

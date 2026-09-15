@@ -909,6 +909,8 @@ function replayView(): HTMLElement {
     caption.textContent = 'Before the first tile.';
   } else if (step.kind === 'pass') {
     caption.textContent = `${seatName(r, step.seat)} passed.`;
+  } else if (step.kind === 'askpose') {
+    caption.textContent = `${seatName(r, step.seat)} had no double and asked ${seatName(r, step.target)} to pose.`;
   } else if (step.kind === 'draw') {
     caption.textContent = `${seatName(r, step.seat)} drew.`;
   } else {
@@ -1892,6 +1894,32 @@ function myHand(g: LocalGame): HTMLElement {
       }
     }
     panel.appendChild(choice);
+  }
+
+  // French round 2+ with no double: fined 10 and the player names who poses
+  // (owner, 2026-09-15). Shown where Pass goes, one button per seat.
+  const askMoves = legal.filter((move): move is Extract<Move, { kind: 'askpose' }> => move.kind === 'askpose');
+  if (g.isMyTurn() && askMoves.length > 0) {
+    const askRow = el('div', 'pass-action-row ask-pose-row');
+    askRow.setAttribute('role', 'group');
+    askRow.setAttribute('aria-label', 'You have no double to pose. Choose who poses; it costs you 10.');
+    askRow.append(el('strong', undefined, 'No double (+10). Who poses?'));
+    for (const move of askMoves) {
+      const b = document.createElement('button');
+      b.className = 'act pass-action';
+      b.textContent = g.seatLabel(move.target);
+      b.dataset.askPose = String(move.target);
+      b.onclick = () => void g.play(move);
+      askRow.appendChild(b);
+    }
+    // A phone tray has a fixed height: a row added under the bones grew it
+    // and moved the table. Like Pass, the choice takes the pace control's
+    // place in the tray header.
+    if (window.innerWidth <= 700 && g.options.mode !== 'across') {
+      pace.replaceWith(askRow);
+    } else {
+      panel.appendChild(askRow);
+    }
   }
 
   const onlyPass = legal.length === 1 && legal[0].kind === 'pass';

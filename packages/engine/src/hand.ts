@@ -153,25 +153,11 @@ export function deal(input: DealInput): HandState {
   const lastPenalties: PenaltyEvent[] = [];
 
   if (input.poseMustBeAnyDouble) {
-    // French, round 2+: the nominal poser (the previous winner) must lead
-    // SOME double they hold — free choice among however many they have. If
-    // they hold none, seat order from them decides who actually poses, and
-    // the nominal poser is fined for it.
-    const nominal = input.poser ?? 0;
-    let found = -1;
-    for (let i = 0; i < input.seatCount; i++) {
-      const seat = (nominal + i) % input.seatCount;
-      if (hands[seat].some(isDouble)) { found = seat; break; }
-    }
-    // found < 0 only if nobody at the table holds a double at all —
-    // vanishingly rare (a 28-tile set always has 7), but never strand a
-    // live table on it: fall back to the nominal poser, who legalMoves()'s
-    // own defensive fallback then lets open with anything.
-    poser = found >= 0 ? found : nominal;
-    if (found >= 0 && found !== nominal) {
-      penalties[nominal] += 10;
-      lastPenalties.push({ seat: nominal, amount: 10, reason: 'no-double-to-pose' });
-    }
+    // French, round 2+: the previous winner poses a double of their choice.
+    // If they hold none they are not skipped here: on their turn they are
+    // fined 10 and ask someone to pose (an `askpose` move), and a seat asked
+    // with no double is fined and asks again (owner, 2026-09-15).
+    poser = input.poser ?? 0;
     forceOpening = false;
   } else {
     // When the score is fresh, has just bruk, or a replay is due, the hand
@@ -228,15 +214,22 @@ export function legalMoves(s: HandState): Move[] {
   // Opening the hand.
   if (s.board === null) {
     if (s.poseMustBeAnyDouble) {
-      // French, round 2+: deal() already searched for a seat holding a
-      // double before assigning `poser` — this seat holding none should be
-      // unreachable — but never strand a live table on an invariant a
-      // caller could theoretically violate; fall through to any tile
-      // rather than returning zero legal moves.
+      // French, round 2+: pose any double you hold. With none, ask a seat
+      // that has not been asked yet (the winner and everyone who already
+      // asked are out). Only if every seat has been asked, which a full
+      // deal cannot reach, may this seat open with anything.
       const doubles = hand.filter((t) => isDouble(t));
       if (doubles.length > 0) {
         return doubles.map((tile) => ({ kind: 'pose', seat, tile }) as Move);
       }
+      const asked = new Set(s.moveLog.flatMap((m) => m.kind === 'askpose' ? [m.seat] : []));
+      asked.add(seat);
+      const targets: Move[] = [];
+      for (let i = 1; i < s.seatCount; i++) {
+        const target = (seat + i) % s.seatCount;
+        if (!asked.has(target)) targets.push({ kind: 'askpose', seat, target });
+      }
+      if (targets.length > 0) return targets;
     }
     if (s.poseMustBeDoubleSix) {
       // Tournament / post-bruk / French-round-1 opening: the required
@@ -313,6 +306,7 @@ function sameMove(a: Move, b: Move): boolean {
   if ('tile' in a && 'tile' in b && a.tile !== b.tile) return false;
   if (a.kind === 'play' && b.kind === 'play') return a.end === b.end;
   if (a.kind === 'playcross' && b.kind === 'playcross') return a.arm === b.arm;
+  if (a.kind === 'askpose' && b.kind === 'askpose') return a.target === b.target;
   return true;
 }
 
@@ -531,6 +525,16 @@ export function applyMove(prev: HandState, move: Move): HandState {
       s.consecutivePasses = 0;
       break;
     }
+    case 'askpose': {
+      // No double to pose: fined 10, and the named seat is now due to pose.
+      // Nothing else about the hand changes, so return before the board and
+      // end-of-hand checks below.
+      s.penalties[move.seat] += 10;
+      penaltyEvents.push({ seat: move.seat, amount: 10, reason: 'no-double-to-pose' });
+      s.penaltyLog = [...(s.penaltyLog ?? []), ...penaltyEvents];
+      s.turn = move.target;
+      return s;
+    }
     case 'draw': {
       const tile = s.boneyard.shift()!;
       s.hands[move.seat].push(tile);
@@ -552,12 +556,17 @@ export function applyMove(prev: HandState, move: Move): HandState {
         // the next pass after it is the first of a new run. The board-pass
         // pass is always that seat's first move after the blocking move,
         // because every other seat has to pass it in turn.
-        const boardPass = s.lastBoardPass;
-        if (boardPass && boardPass.seat !== move.seat) {
-          const after = s.moveLog
-            .map((m, index) => ({ m, index }))
-            .filter(({ m, index }) => m.seat === move.seat && index > boardPass.move);
-          own = after.slice(1).map(({ m }) => m);
+        // Read from the saved move log (see Move.boardPass): the server
+        // rebuilds each hand from it, so a separate state field was lost
+        // between moves online.
+        let boardPassAt = -1;
+        for (let i = s.moveLog.length - 1; i >= 0; i--) {
+          const m = s.moveLog[i];
+          if ((m.kind === 'pose' || m.kind === 'play' || m.kind === 'playcross') && m.boardPass) { boardPassAt = i; break; }
+        }
+        if (boardPassAt >= 0 && s.moveLog[boardPassAt].seat !== move.seat) {
+          const after = s.moveLog.filter((m, index) => m.seat === move.seat && index > boardPassAt);
+          own = after.slice(1);
         }
         const last3 = own.slice(-3);
         if (last3.length === 3 && last3.every((m) => m.kind === 'pass')) {
@@ -576,7 +585,8 @@ export function applyMove(prev: HandState, move: Move): HandState {
   // hand outright. `draw` already returned above, so only pose/play/
   // playcross/pass reach here.
   if (s.format === 'french' && move.kind !== 'pass' && blocksEveryoneElse(s, move.seat)) {
-    s.lastBoardPass = { move: s.moveLog.length - 1, seat: move.seat };
+    const last = s.moveLog.length - 1;
+    s.moveLog[last] = { ...s.moveLog[last], boardPass: true } as Move;
     for (let seat = 0; seat < s.seatCount; seat++) {
       if (seat !== move.seat) {
         s.penalties[seat] += 10;

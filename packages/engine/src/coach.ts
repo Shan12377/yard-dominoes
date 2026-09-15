@@ -342,7 +342,8 @@ export function reviewHand(
   for (let ply = 0; ply < moveLog.length; ply++) {
     const move = moveLog[ply];
 
-    if (move.seat === seat && move.kind !== 'draw') {
+    // Asking someone to pose is forced by the deal, not a playing decision.
+    if (move.seat === seat && move.kind !== 'draw' && move.kind !== 'askpose') {
       const options_ = legalMoves(s);
       if (options_.length > 1) {
         const memo = new Map<string, number>();

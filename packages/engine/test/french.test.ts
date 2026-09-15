@@ -211,25 +211,47 @@ describe('French: round 2+ must pose a double', () => {
     );
   });
 
-  it('a nominal poser holding no double is fined 10, and the pose passes to the first seat (in order) that has one', () => {
-    const order = [
-      '0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '1-2', // seat 0 — nominal poser, NO doubles
-      '1-1', '1-3', '1-4', '1-5', '1-6', '2-3', '2-4', // seat 1 — holds 1-1
-      '0-0', '2-2', '2-5', '2-6', '3-3', '3-4', '3-5', // seat 2
-      '3-6', '4-4', '4-5', '4-6', '5-5', '5-6', '6-6', // seat 3
-    ];
-    const hand = deal({
-      order, seatCount: 4, mode: 'cutthroat', useBoneyard: false,
-      poser: 0, poseMustBeDoubleSix: false, poseMustBeAnyDouble: true,
-      openingTile: '0-0', format: 'french',
-    });
-    assert.equal(hand.poser, 1, 'seat 0 held nothing double — seat 1 is next in order and has one');
-    assert.equal(hand.turn, 1);
-    assert.deepEqual(hand.penalties, [10, 0, 0, 0], 'seat 0 is fined for not holding a double on their turn to pose');
-    assert.deepEqual(hand.lastPenalties, [{ seat: 0, amount: 10, reason: 'no-double-to-pose' }]);
+  // Owner, 2026-09-15: "I have to ask someone to pose for me and get a 10 for
+  // not having a double... if the person I asked does not have a double to
+  // pose they get 10 as well" -- and that person asks a third.
+  const noDoubleDeal = () => deal({
+    order: [
+      '0-1', '0-2', '0-3', '0-4', '0-5', '0-6', '1-2', // seat 0 -- the winner, NO doubles
+      '1-3', '1-4', '1-5', '1-6', '2-3', '2-4', '2-5', // seat 1 -- NO doubles
+      '0-0', '2-2', '2-6', '3-3', '3-4', '3-5', '3-6', // seat 2 -- doubles
+      '1-1', '4-4', '4-5', '4-6', '5-5', '5-6', '6-6', // seat 3 -- doubles
+    ],
+    seatCount: 4, mode: 'cutthroat', useBoneyard: false,
+    poser: 0, poseMustBeDoubleSix: false, poseMustBeAnyDouble: true,
+    openingTile: '0-0', format: 'french',
+  });
 
+  it('a winner with no double is not skipped: they ask anyone to pose, and are fined 10 for it', () => {
+    const hand = noDoubleDeal();
+    assert.equal(hand.turn, 0, 'the winner is due to pose');
+    assert.deepEqual(hand.penalties, [0, 0, 0, 0], 'nothing is fined at the deal');
     const moves = legalMoves(hand);
-    assert.deepEqual(moves.map((m) => (m as any).tile), ['1-1'], 'seat 1\'s only double is their only legal pose');
+    assert.deepEqual(moves.map((m) => m.kind === 'askpose' ? m.target : -1), [1, 2, 3], 'any other seat may be asked');
+
+    const asked = applyMove(hand, { kind: 'askpose', seat: 0, target: 2 });
+    assert.equal(asked.turn, 2);
+    assert.deepEqual(asked.penalties, [10, 0, 0, 0]);
+    assert.deepEqual(asked.lastPenalties, [{ seat: 0, amount: 10, reason: 'no-double-to-pose' }]);
+    assert.deepEqual(legalMoves(asked).map((m) => (m as any).tile).sort(), ['0-0', '2-2', '3-3'],
+      'the asked seat poses any double of their choice');
+  });
+
+  it('an asked seat with no double is fined 10 too and asks a third seat, never one already asked', () => {
+    const first = applyMove(noDoubleDeal(), { kind: 'askpose', seat: 0, target: 1 });
+    assert.deepEqual(legalMoves(first).map((m) => m.kind === 'askpose' ? m.target : -1), [2, 3],
+      'seat 1 cannot pose, and cannot ask the winner who already asked');
+    const second = applyMove(first, { kind: 'askpose', seat: 1, target: 3 });
+    assert.equal(second.turn, 3);
+    assert.deepEqual(second.penalties, [10, 10, 0, 0]);
+    assert.throws(() => applyMove(first, { kind: 'askpose', seat: 1, target: 0 }), /illegal/);
+    const posed = applyMove(second, { kind: 'pose', seat: 3, tile: '5-5' });
+    assert.equal(posed.board?.kind, 'cross');
+    assert.deepEqual(posed.penaltyLog?.map((e) => [e.seat, e.reason]), [[0, 'no-double-to-pose'], [1, 'no-double-to-pose']]);
   });
 });
 
@@ -664,7 +686,7 @@ describe('French: a board pass resets the three-passes-in-a-row run', () => {
     ],
     doublesPlayed: [1 as const],
   };
-  function stuckSeatZero(moveLog: HandState['moveLog'], lastBoardPass?: HandState['lastBoardPass']): HandState {
+  function stuckSeatZero(moveLog: HandState['moveLog']): HandState {
     return {
       seatCount: 4,
       mode: 'cutthroat',
@@ -681,18 +703,16 @@ describe('French: a board pass resets the three-passes-in-a-row run', () => {
       poseMustBeDoubleSix: false,
       openingTile: '0-0',
       poser: 0,
-      ...(lastBoardPass ? { lastBoardPass } : {}),
     } as HandState;
   }
   const pass = (seat: number) => ({ kind: 'pass', seat }) as HandState['moveLog'][number];
-  const play = (seat: number) => ({ kind: 'playcross', seat, tile: '1-2', arm: 0 }) as HandState['moveLog'][number];
+  const play = (seat: number, boardPass = false) => ({ kind: 'playcross', seat, tile: '1-2', arm: 0, ...(boardPass ? { boardPass } : {}) }) as HandState['moveLog'][number];
 
   it('pass, board pass, pass: the pass after the board pass is the first of a new run', () => {
     // Seat 0 passes, seat 1 makes the board pass (index 1), 2 and 3 pass,
     // seat 0's forced board-pass pass, seat 1 plays, 2 and 3 pass.
     const state = stuckSeatZero(
-      [pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3)],
-      { move: 1, seat: 1 },
+      [pass(0), play(1, true), pass(2), pass(3), pass(0), play(1), pass(2), pass(3)],
     );
     const next = applyMove(state, { kind: 'pass', seat: 0 });
     assert.equal(next.penalties[0], 0, 'no triple-pass fine: the board pass already cost this seat its 10');
@@ -705,10 +725,17 @@ describe('French: a board pass resets the three-passes-in-a-row run', () => {
     assert.equal(next.penalties[0], 10);
   });
 
+  it('applyMove marks a board pass in the saved move log, where the server keeps it', () => {
+    const state = stuckSeatZero([]);
+    const blocker = { ...state, turn: 1, hands: [['5-6'], ['1-2', '6-6'], ['4-5'], ['3-4']] } as HandState;
+    const next = applyMove(blocker, { kind: 'playcross', seat: 1, tile: '1-2', arm: 0 });
+    const last = next.moveLog[next.moveLog.length - 1] as any;
+    assert.equal(last.boardPass, true);
+  });
+
   it('three passes after the board-pass pass still cost 10', () => {
     const state = stuckSeatZero(
-      [play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3)],
-      { move: 0, seat: 1 },
+      [play(1, true), pass(2), pass(3), pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3)],
     );
     const next = applyMove(state, { kind: 'pass', seat: 0 });
     assert.equal(next.penalties[0], 10, 'passes at 7 and 11 plus this one are a fresh run of three');

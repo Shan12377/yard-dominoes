@@ -120,14 +120,22 @@ export interface CrossBoard {
 export type AnyBoard = Board | CrossBoard;
 
 export type Move =
-  | { kind: 'pose'; seat: number; tile: TileId }
-  | { kind: 'play'; seat: number; tile: TileId; end: End }
+  | { kind: 'pose'; seat: number; tile: TileId; boardPass?: boolean }
+  | { kind: 'play'; seat: number; tile: TileId; end: End; boardPass?: boolean }
   /**
    * French cross-board play. arm is an index into CrossBoard.arms. During the
    * filling phase (arms.length < 4) arm equals arms.length — the engine
    * appends a new arm attached to the chucha. Post-fill arm is 0..3.
    */
-  | { kind: 'playcross'; seat: number; tile: TileId; arm: number }
+  | { kind: 'playcross'; seat: number; tile: TileId; arm: number; boardPass?: boolean }
+  /**
+   * French, round 2+: the seat due to pose holds no double. It is fined 10
+   * and names who poses instead; if that seat has no double either, it is
+   * fined 10 and asks someone else (owner, 2026-09-15). Never a seat already
+   * asked. `boardPass` on the other moves marks a French board pass in the
+   * log itself, because the server rebuilds a hand from its saved move log.
+   */
+  | { kind: 'askpose'; seat: number; target: number }
   | { kind: 'draw'; seat: number; tile: TileId }
   /**
    * `ends` is stamped by the engine when the pass is applied. A pass is the
@@ -237,13 +245,6 @@ export interface HandState {
    * nothing outside the French scoring path reads it.
    */
   penalties: number[];
-  /**
-   * French only: the most recent board pass, as the index in `moveLog` of the
-   * move that left everyone else unable to answer and the seat that made it.
-   * A board pass resets each fined seat's three-passes-in-a-row run (owner,
-   * 2026-09-15). Absent on hands that never had one, and on older rows.
-   */
-  lastBoardPass?: { move: number; seat: number };
   status: HandStatus;
   result: HandResult | null;
   /**

@@ -1831,6 +1831,27 @@ function myHandPanel(
     panel.appendChild(choice);
   }
 
+  // French round 2+ with no double: fined 10 and the player names who poses
+  // (owner, 2026-09-15). Same place and look as Practice.
+  const askMoves = legal.filter((move) => move.kind === 'askpose');
+  if (game.isMyTurn() && askMoves.length > 0) {
+    const partnered = isPartnered(game.table.mode);
+    const askRow = el('div', 'pass-action-row ask-pose-row');
+    askRow.setAttribute('role', 'group');
+    askRow.setAttribute('aria-label', 'You have no double to pose. Choose who poses; it costs you 10.');
+    askRow.append(el('strong', undefined, 'No double (+10). Who poses?'));
+    for (const move of askMoves) {
+      if (move.kind !== 'askpose') continue;
+      const b = document.createElement('button');
+      b.className = 'act pass-action';
+      b.textContent = describeSeat(move.target, game.seats, game.mySeat, partnered, game.mySide);
+      b.dataset.askPose = String(move.target);
+      b.onclick = () => void game.play(move);
+      askRow.appendChild(b);
+    }
+    panel.appendChild(askRow);
+  }
+
   const onlyPass = legal.length === 1 && legal[0].kind === 'pass';
   if (game.isMyTurn() && onlyPass) {
     const passRow = el('div', 'pass-action-row');
