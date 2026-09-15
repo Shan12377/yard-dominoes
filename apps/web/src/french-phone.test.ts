@@ -5,8 +5,9 @@ import { phoneFrenchPinwheel } from './render.ts';
 import type { PhoneCrossSlot } from './render.ts';
 
 // Mobile French, owner 2026-09-14: JamDom's four-way clockwise pinwheel. Each
-// arm runs out from the chucha towards its player and turns clockwise at the
-// table edge, so no arm stacks rows on top of another. Doubles stand across
+// arm runs out from the chucha towards its player and turns clockwise, so no
+// arm stacks rows on top of another. Since 2026-09-15 the first turn comes
+// after JamDom's short legs: two bones left and right, three up and down. Doubles stand across
 // the arm they arrive on; a double on a turn makes the L. Bones are laid in
 // play order and a bone's place depends only on bones already down.
 
@@ -66,6 +67,27 @@ test('each arm heads out towards its player first, joined to the chucha', () => 
   const hub = hubOf(cols, rows);
   slots.forEach((arm, a) => assert.equal(travel(hub, arm[0]), DIRS[a], `arm ${a} must head ${DIRS[a]}`));
   assertSound(slots, cols, rows);
+});
+
+test('left and right lay two bones, up and down three, then turn clockwise (JamDom)', () => {
+  const cols = 26;
+  const rows = 38;
+  const lengths = [5, 5, 5, 5];
+  const { slots, stuck } = phoneFrenchPinwheel({
+    arms: DIRS.map((direction, a) => ({ direction, doubles: new Array<boolean>(lengths[a]).fill(false) })),
+    order: roundRobin(lengths), cols, rows,
+  });
+  assert.equal(stuck, 0);
+  assertSound(slots, cols, rows);
+  const hub = hubOf(cols, rows);
+  const legs: Record<Dir, number> = { up: 3, right: 2, down: 3, left: 2 };
+  slots.forEach((arm, a) => {
+    const out = DIRS[a];
+    for (let i = 0; i < legs[out]; i++) {
+      assert.equal(travel(i === 0 ? hub : arm[i - 1], arm[i]), out, `${out} arm bone ${i} still heads ${out}`);
+    }
+    assert.equal(travel(arm[legs[out] - 1], arm[legs[out]]), CLOCKWISE[out], `${out} arm turns ${CLOCKWISE[out]} after ${legs[out]}`);
+  });
 });
 
 test('arms turn clockwise at the table edge and never stack rows like a comb', () => {
@@ -229,5 +251,9 @@ test('real French hands lay out on a phone without touching arms or covering pla
     }
   }
   assert.ok(hands >= 150, 'enough real French hands were simulated');
-  assert.ok(clean / hands >= 0.95, `only ${clean} of ${hands} hands fit a 390px phone without a fallback`);
+  // JamDom's short first legs (left/right 2, up/down 3) keep the pinwheel
+  // tight but leave less room for a long late arm. The owner accepted about
+  // one hand in eight or nine needing the fallback (2026-09-15: "only 2
+  // difference and we can always see where to tweak later").
+  assert.ok(clean / hands >= 0.85, `only ${clean} of ${hands} hands fit a 390px phone without a fallback`);
 });

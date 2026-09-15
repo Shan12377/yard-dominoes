@@ -1123,8 +1123,18 @@ export function phoneCrossRoute(
  * Coordinates are grid units from the top-left; the chucha stands upright in
  * the middle, as `phoneCrossRoute()` places it.
  */
+/**
+ * How many bones each arm lays straight out from the chucha before its first
+ * clockwise turn, as JamDom lays French (owner, 2026-09-15, with a JamDom
+ * table for reference): left and right lay two then turn up and down, up and
+ * down lay three then turn right and left. The short legs keep the pinwheel
+ * tight around the middle instead of running every arm to the rim first.
+ */
+export const FRENCH_PINWHEEL_LEGS: Readonly<Record<CrossDirection, number>> = { left: 2, right: 2, up: 3, down: 3 };
+
 export function phoneFrenchPinwheel(input: {
   arms: ReadonlyArray<{ direction: CrossDirection; doubles: readonly boolean[] }>;
+  legs?: Readonly<Record<CrossDirection, number>>;
   order: readonly number[];
   cols: number;
   rows: number;
@@ -1221,6 +1231,12 @@ export function phoneFrenchPinwheel(input: {
     let chosen: ReturnType<typeof straight> = null;
     if (index === 0) {
       chosen = straight(true);
+    } else if (arm.dir === arm.direction && index === (input.legs ?? FRENCH_PINWHEEL_LEGS)[arm.direction]) {
+      // The first leg is done: turn clockwise now, straight only if the turn
+      // has no room.
+      chosen = turn(clockwise[arm.dir], true) ?? straight(true);
+      chosen ??= turn(clockwise[arm.dir], false) ?? straight(false)
+        ?? turn(clockwise[arm.dir], false, true) ?? straight(false, true);
     } else {
       const turnsHere = double && !straightFits(4, 2, true);
       chosen = turnsHere

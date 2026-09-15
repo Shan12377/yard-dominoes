@@ -5017,6 +5017,64 @@ button.hand-end-choice {
   .practice-room .table-felt > .table-player-station-right.station-tab { right: 14px; }
 }
 
+/* Practice French on a phone (owner, 2026-09-15): players hang half off the
+   table edge, JamDom style, so the pinwheel's arms get the felt. Only 14px of
+   each tab (one grid unit) is inside the board: the photo is centred on the
+   edge, "View" runs along the inner half and the face-down bones stick half
+   onto the felt. The felt starts 12px off each screen side and 13px above the
+   board, which is where the -5px offsets come from. */
+@media (max-width: 700px) {
+  .practice-room .table-felt > .station-tab { --tab-photo: 32px; }
+  .practice-room .table-felt > .station-tab-rack,
+  .station-tab > .station-tab-rack { display: flex; gap: 2px; pointer-events: none; }
+  .station-tab > .station-tab-rack > i {
+    display: block;
+    border: 1px solid #a8a296;
+    border-radius: 2px;
+    background: #fff9ea;
+    box-shadow: 0 1px 2px rgba(5, 24, 50, .45);
+  }
+  .practice-room .table-felt > .table-player-station-left.station-tab,
+  .practice-room .table-felt > .table-player-station-right.station-tab {
+    width: var(--tab-photo);
+    gap: 4px;
+  }
+  .practice-room .table-felt > .table-player-station-left.station-tab { left: -5px; }
+  .practice-room .table-felt > .table-player-station-right.station-tab { right: -5px; }
+  .practice-room .table-felt > :is(.table-player-station-left, .table-player-station-right).station-tab > .station-tab-cue {
+    order: -1;
+    width: 16px;
+    padding: 5px 1px;
+    writing-mode: vertical-rl;
+    text-align: center;
+  }
+  .practice-room .table-felt > .table-player-station-left.station-tab > .station-tab-cue { align-self: flex-end; }
+  .practice-room .table-felt > .table-player-station-right.station-tab > .station-tab-cue { align-self: flex-start; transform: rotate(180deg); }
+  .practice-room .table-felt > :is(.table-player-station-left, .table-player-station-right).station-tab > .station-tab-rack { flex-direction: column; align-items: center; }
+  .practice-room .table-felt > :is(.table-player-station-left, .table-player-station-right).station-tab > .station-tab-rack > i { width: 22px; height: 10px; }
+  /* The count sits on the photo's inner side. */
+  .practice-room .table-felt > :is(.table-player-station-left, .table-player-station-right).station-tab::after { top: 58px; }
+  .practice-room .table-felt > .table-player-station-left.station-tab::after { right: -14px; }
+  .practice-room .table-felt > .table-player-station-right.station-tab::after { right: auto; left: -14px; }
+
+  .practice-room .table-felt > .table-player-station-top.station-tab {
+    top: -5px;
+    width: auto;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .practice-room .table-felt > .table-player-station-top.station-tab > .station-tab-cue {
+    order: -1;
+    width: 40px;
+    margin-top: 0;
+    text-align: center;
+  }
+  .practice-room .table-felt > .table-player-station-top.station-tab > .station-tab-rack { align-self: flex-start; margin-top: 7px; margin-left: 14px; }
+  .practice-room .table-felt > .table-player-station-top.station-tab > .station-tab-rack > i { width: 10px; height: 22px; }
+  .practice-room .table-felt > .table-player-station-top.station-tab::after { top: 14px; right: auto; left: 64px; }
+}
+
 /* The French phone pinwheel grows past the bottom when an arm runs out of
    room. Centred, the board jumped up the moment it outgrew the stage; top
    aligned from the first bone, growing never moves it. */

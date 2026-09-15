@@ -96,7 +96,13 @@ export function frenchPhoneTab(station: HTMLElement, slot: string, bones: number
   cue.className = 'station-tab-cue';
   cue.setAttribute('aria-hidden', 'true');
   cue.textContent = 'View';
-  station.append(cue, details);
+  // Face-down bones hanging half off the table edge, like a real player's
+  // hand at the rim (owner, 2026-09-15). Only their inner half is on the felt.
+  const rack = document.createElement('span');
+  rack.className = 'station-tab-rack';
+  rack.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < bones; i += 1) rack.appendChild(document.createElement('i'));
+  station.append(cue, rack, details);
 
   const sync = () => {
     const open = openFrenchTabs.has(slot);
