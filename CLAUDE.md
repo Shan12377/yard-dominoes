@@ -315,8 +315,9 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-15, `www.yaaddominoes.com` serves commit `72714fa`
-  (v150: Lounge fixed board pinned every render and drawn with the predicted
+- As of 2026-09-15, `www.yaaddominoes.com` serves commit `7b7cf61`
+  (v151: Lounge desktop French pinwheel; Across shows my hand at the bottom
+  and my partner hand at the top on a fixed board; v150: Lounge fixed board pinned every render and drawn with the predicted
   move log, so it never jumps; desktop cut throat/partner/open hand use the
   fixed JamDom board at desktop size; v149: phone Lounge cut throat/partner/open hand use Practice's fixed board,
   desktop side hands at the table edge, Lounge felt fits under its bars;

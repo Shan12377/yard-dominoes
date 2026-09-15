@@ -1087,3 +1087,5 @@ which always leaves the table). Open questions: whether Lounge should let
 players sit before confirming their email.
 
 Resume point 2026-09-15 11:20: v150 live. Next: desktop French like JamDom in the Lounge (port frenchDeskPinwheel to onlinetableview, bigger use of space), Across partner hand at the top and playable by the controlling player (Lounge), and add Across to the Practice menu (owner asked; main.ts already renders across).
+
+Resume point 2026-09-15 11:35: v151 live. Across Lounge verified desktop and 390px (0 moves). Still open: Across in the Practice menu (LocalGame has no across seat control yet), desktop French bone size (kept current; owner may want JamDom-size bones).
