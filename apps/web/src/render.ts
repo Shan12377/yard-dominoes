@@ -1264,13 +1264,15 @@ function crossFaces(
 
 /**
  * The narrowest phone that lays French as the pinwheel on the whole felt. A
- * narrower one (a 360px screen) keeps the row route and keeps the players'
+ * 375px phone gets 26 columns once the French board stops reserving the
+ * linear line's 18px padding it never uses; a narrower one (a 360px screen)
+ * gets 24 and keeps the row route and keeps the players'
  * tabs off its width, the way it always kept their full badges off. Decided by
  * viewport width, not a measured stage: the first measurement of a hand can
  * come in narrower than the settled one, and deciding from it drew the chucha
  * on the row route and then moved it onto the pinwheel.
  */
-export const PHONE_FRENCH_PINWHEEL_MIN_WIDTH = 380;
+export const PHONE_FRENCH_PINWHEEL_MIN_WIDTH = 370;
 
 /**
  * Whether this phone lays French as the pinwheel. Uses the smaller of the

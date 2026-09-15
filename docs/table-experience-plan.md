@@ -942,3 +942,14 @@ for the whole game, nothing moved, no bone under a badge; 360x780 row route,
 no bone under a badge, on-screen movement none. Tests 484/484, typecheck.
 Resume point: owner approval to deploy; owner's phone check; a real Lounge
 French and Across table.
+
+2026-09-14 (375px phones get the pinwheel) — Owner: keep player info off the
+table and bring the pinwheel to narrow phones without smaller dominoes. The
+French phone board had been measured with the linear line's 18px padding
+removed, padding a French board never has; that cost a 375px phone two columns
+(24 instead of 26). It now fits the stage's whole inner box and the cutoff is
+370px. Bones stay 28px. Evidence, full hands with finger taps: 375x812
+pinwheel 26 columns, 390x844 26, 430x800 30, zero board or on-screen moves and
+no bone under a tab; 360x780 row route, no bone under a badge. Tests 484/484.
+A separate edge strip was not needed at 375: tabs sit at the rim.
+

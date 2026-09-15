@@ -181,14 +181,15 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   turns the other way, and last of all it grows past the BOTTOM of the board
   so nothing already down moves (growing past the top would shift the whole
   board). The pinwheel is never swapped for another route mid-hand: that
-  re-laid every bone. Phones 380px and wider (`frenchPinwheelPhone()`, which
+  re-laid every bone. Phones 370px and wider (`frenchPinwheelPhone()`, which
   takes the smaller of the layout and screen width) get the whole felt, the
-  player tabs and the pinwheel; the whole felt gives a 390px phone 26 columns
-  and a 430px phone 28, and both held two full hands with nothing moving and
-  no bone under a tab. A 375px phone gets only 24 columns and a 360px phone
-  24x25, where a real hand ran an arm out of room, so narrower phones keep
-  their full player badges and `phoneCrossRoute()` for the whole hand, guarded
-  off the badges as before. **Decide this from that stable width, never a
+  player tabs and the pinwheel. A phone French board fits the stage's whole
+  inner box (no linear line padding; keeping that 18px cost a 375px phone two
+  columns), so 375px gets 26 columns, 390px 26 and 430px 30, and all three
+  held two full hands with nothing moving and no bone under a tab. A 360px
+  phone gets 24, where a real hand ran an arm out of room, so it keeps its
+  full player badges and `phoneCrossRoute()` for the whole hand, guarded off
+  the badges as before. **Decide this from that stable width, never a
   measured stage or bare `innerWidth`:** a first measurement can come in
   narrower than the settled one, and a page wider than the screen let
   `innerWidth` swing across the cutoff, flipping a hand between the routes.
@@ -314,13 +315,13 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-14, `www.yaaddominoes.com` serves commit `a24e811`
-  (`feat: Practice Quick play option, and every deal opens with the table on
-  screen`, service worker v138), deployed with `vercel deploy --prod` from a
-  clean worktree of `design/yaaddominoes-foundation`. For what any specific
-  past deploy contained, read `git log` rather than trusting an accumulated
-  list here — this line is a pointer to current truth, not a changelog.
-  Update this line, don't append another one, next time.
+- As of 2026-09-14, `www.yaaddominoes.com` serves commit `2232888`
+  (`chore: service worker v139 for the French phone fixes`, on top of
+  `4e487d9`), deployed with `vercel deploy --prod` from a clean worktree of
+  `design/yaaddominoes-foundation`, which is also pushed to GitHub. For what
+  any specific past deploy contained, read `git log` rather than trusting an
+  accumulated list here — this line is a pointer to current truth, not a
+  changelog. Update this line, don't append another one, next time.
 - **`profiles.is_owner`** (0052) is narrower than `is_admin` — it gates
   referral financials specifically (stats, cash-out requests, marking
   paid) in `referral-admin`. Only Candy has it. Granting `is_admin` to a

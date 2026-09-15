@@ -2676,7 +2676,13 @@ function tableView(g: LocalGame): DocumentFragment {
       if (!frenchGuardKey || frenchGuardKey !== lastFrenchFitKey
         || lastFrenchFitWidth !== window.innerWidth || !lastFrenchFitBox) {
         lastFrenchFitWidth = window.innerWidth;
-        lastFrenchFitBox = box;
+        // A phone French board has no line padding, so it fits the stage's
+        // whole inner box. Keeping the linear line's 18px cost a 375px phone
+        // two columns, which is what kept it off the pinwheel. Bones keep
+        // their size; only the columns they fit across change.
+        lastFrenchFitBox = window.innerWidth <= 700
+          ? { width: fitHost.clientWidth, height: fitHost.clientHeight }
+          : box;
         lastFrenchFitKey = frenchGuardKey;
       }
       const lockedBox = lastFrenchFitBox ?? box;

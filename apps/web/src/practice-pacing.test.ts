@@ -298,7 +298,11 @@ test('Practice and Lounge pin the French route and invisible guard for the whole
     // the French bone came from feltBox()'s window guess and was never once
     // compared against the stage it had to fit -- a 510x442 canvas drawn into
     // a 464x439 stage, clipping 98% of desktop hands from the seventh bone.
-    assert.match(source, /lastFrenchFitBox = box;/,
+    // A phone records the stage's whole inner box: a French phone board has no
+    // line padding, and keeping the linear line's 18px cost a 375px phone two
+    // columns of 28px bones (2026-09-14).
+    assert.match(source,
+      /lastFrenchFitBox = window\.innerWidth <= 700\s*\? \{ width: fitHost\.clientWidth, height: fitHost\.clientHeight \}\s*: box;/,
       'French must record the stage it was actually measured against');
     // A phone also rebuilds when its measured grid differs from the one it
     // was first drawn in (2026-09-13: phones route inside their own width).
