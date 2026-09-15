@@ -5120,5 +5120,9 @@ button.hand-end-choice {
    room. Centred, the board jumped up the moment it outgrew the stage; top
    aligned from the first bone, growing never moves it. */
 @media (max-width: 700px) {
-  .board-stage.french-phone-stage { align-items: flex-start; }
+  .board-stage.french-phone-stage { align-items: flex-start; align-content: start; }
+  /* The stage is a grid, where align-items alone left a board shorter than
+     the stage centred: it sat 5px down, then jumped to the top when a long
+     arm grew past the bottom (375px, 2026-09-15). */
+  .board-stage.french-phone-stage > .line { align-self: start; }
 }
