@@ -1085,3 +1085,5 @@ use Practice's fixed JamDom board (the stage went from 198px wide to
 (login in .local/qa/test-account.json, harness .local/qa/loungetable.mjs,
 which always leaves the table). Open questions: whether Lounge should let
 players sit before confirming their email.
+
+Resume point 2026-09-15 11:20: v150 live. Next: desktop French like JamDom in the Lounge (port frenchDeskPinwheel to onlinetableview, bigger use of space), Across partner hand at the top and playable by the controlling player (Lounge), and add Across to the Practice menu (owner asked; main.ts already renders across).
