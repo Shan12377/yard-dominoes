@@ -315,9 +315,9 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-14, `www.yaaddominoes.com` serves commit `2232888`
-  (`chore: service worker v139 for the French phone fixes`, on top of
-  `4e487d9`), deployed with `vercel deploy --prod` from a clean worktree of
+- As of 2026-09-14, `www.yaaddominoes.com` serves commit `3ac32ee`
+  (`feat: Game Over card on online tables too (v141)`, with the 375px French
+  pinwheel fix in `ef3a7a5`), deployed with `vercel deploy --prod` from a clean worktree of
   `design/yaaddominoes-foundation`, which is also pushed to GitHub. For what
   any specific past deploy contained, read `git log` rather than trusting an
   accumulated list here — this line is a pointer to current truth, not a
