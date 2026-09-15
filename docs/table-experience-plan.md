@@ -990,3 +990,11 @@ and the hand (`frenchTabBlocks` selector). Evidence: 390x844 and 375x812 two
 hands each, 1440x900 (60x40) and 1280x800 (58x39) full hands, zero board or
 on-screen moves, nothing under a player, no errors. Lounge desktop French
 still uses the fixed canvas. Not deployed.
+
+2026-09-15 (French: a board pass resets the pass run) — Owner: fined 10 for a
+third pass in a row when a board pass sat between the passes. The pass forced
+by a board pass is already fined 10 there, so it and every earlier pass no
+longer count; the next pass starts a new run of one. `HandState.lastBoardPass`
+records the blocking move. Tests: the owner's case (no fine), three plain
+passes (still 10), three passes after a board pass (still 10). 491/491. The
+Online tables need the play-move and advance-duppy functions redeployed.

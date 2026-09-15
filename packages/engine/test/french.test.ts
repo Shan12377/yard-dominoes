@@ -648,3 +648,69 @@ describe('French: an arm belongs to the seat that opened it', () => {
     assert.deepEqual(after, before, 'an arm belongs to whoever opened it, not whoever extends it');
   });
 });
+
+// Owner, 2026-09-15: "I passed, then a board pass came (everyone got 10), and
+// my next pass was fined as a third pass in a row. After a board pass the next
+// pass counts as 1." A board pass resets the run for every seat it fined.
+describe('French: a board pass resets the three-passes-in-a-row run', () => {
+  const board = {
+    kind: 'cross' as const,
+    center: '1-1' as const,
+    arms: [
+      { direction: 'right' as const, tiles: [], openEnd: 1 as const },
+      { direction: 'left' as const, tiles: [], openEnd: 1 as const },
+      { direction: 'up' as const, tiles: [], openEnd: 1 as const },
+      { direction: 'down' as const, tiles: [], openEnd: 1 as const },
+    ],
+    doublesPlayed: [1 as const],
+  };
+  function stuckSeatZero(moveLog: HandState['moveLog'], lastBoardPass?: HandState['lastBoardPass']): HandState {
+    return {
+      seatCount: 4,
+      mode: 'cutthroat',
+      hands: [['5-6'], ['1-2'], ['4-5'], ['3-4']],
+      boneyard: [],
+      board,
+      format: 'french',
+      turn: 0,
+      consecutivePasses: 0,
+      moveLog,
+      penalties: [0, 0, 0, 0],
+      status: 'active',
+      result: null,
+      poseMustBeDoubleSix: false,
+      openingTile: '0-0',
+      poser: 0,
+      ...(lastBoardPass ? { lastBoardPass } : {}),
+    } as HandState;
+  }
+  const pass = (seat: number) => ({ kind: 'pass', seat }) as HandState['moveLog'][number];
+  const play = (seat: number) => ({ kind: 'playcross', seat, tile: '1-2', arm: 0 }) as HandState['moveLog'][number];
+
+  it('pass, board pass, pass: the pass after the board pass is the first of a new run', () => {
+    // Seat 0 passes, seat 1 makes the board pass (index 1), 2 and 3 pass,
+    // seat 0's forced board-pass pass, seat 1 plays, 2 and 3 pass.
+    const state = stuckSeatZero(
+      [pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3)],
+      { move: 1, seat: 1 },
+    );
+    const next = applyMove(state, { kind: 'pass', seat: 0 });
+    assert.equal(next.penalties[0], 0, 'no triple-pass fine: the board pass already cost this seat its 10');
+    assert.ok(!(next.lastPenalties ?? []).some((e) => e.reason === 'triple-pass'));
+  });
+
+  it('three real passes in a row with no board pass still cost 10', () => {
+    const state = stuckSeatZero([pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3)]);
+    const next = applyMove(state, { kind: 'pass', seat: 0 });
+    assert.equal(next.penalties[0], 10);
+  });
+
+  it('three passes after the board-pass pass still cost 10', () => {
+    const state = stuckSeatZero(
+      [play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3), pass(0), play(1), pass(2), pass(3)],
+      { move: 0, seat: 1 },
+    );
+    const next = applyMove(state, { kind: 'pass', seat: 0 });
+    assert.equal(next.penalties[0], 10, 'passes at 7 and 11 plus this one are a fresh run of three');
+  });
+});

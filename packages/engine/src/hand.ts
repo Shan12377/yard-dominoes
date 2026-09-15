@@ -545,7 +545,20 @@ export function applyMove(prev: HandState, move: Move): HandState {
       // the seat's own trailing moves rather than a separate counter — same
       // derive-from-moveLog approach knownVoids() already uses.
       if (s.format === 'french') {
-        const own = s.moveLog.filter((m) => m.seat === move.seat);
+        let own = s.moveLog.filter((m) => m.seat === move.seat);
+        // A board pass resets the run (owner, 2026-09-15). The pass a seat
+        // is forced into by a board pass is already fined 10 there, so
+        // neither it nor any pass before it counts towards three in a row:
+        // the next pass after it is the first of a new run. The board-pass
+        // pass is always that seat's first move after the blocking move,
+        // because every other seat has to pass it in turn.
+        const boardPass = s.lastBoardPass;
+        if (boardPass && boardPass.seat !== move.seat) {
+          const after = s.moveLog
+            .map((m, index) => ({ m, index }))
+            .filter(({ m, index }) => m.seat === move.seat && index > boardPass.move);
+          own = after.slice(1).map(({ m }) => m);
+        }
         const last3 = own.slice(-3);
         if (last3.length === 3 && last3.every((m) => m.kind === 'pass')) {
           s.penalties[move.seat] += 10;
@@ -563,6 +576,7 @@ export function applyMove(prev: HandState, move: Move): HandState {
   // hand outright. `draw` already returned above, so only pose/play/
   // playcross/pass reach here.
   if (s.format === 'french' && move.kind !== 'pass' && blocksEveryoneElse(s, move.seat)) {
+    s.lastBoardPass = { move: s.moveLog.length - 1, seat: move.seat };
     for (let seat = 0; seat < s.seatCount; seat++) {
       if (seat !== move.seat) {
         s.penalties[seat] += 10;

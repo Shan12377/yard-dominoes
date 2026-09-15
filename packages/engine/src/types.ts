@@ -237,6 +237,13 @@ export interface HandState {
    * nothing outside the French scoring path reads it.
    */
   penalties: number[];
+  /**
+   * French only: the most recent board pass, as the index in `moveLog` of the
+   * move that left everyone else unable to answer and the seat that made it.
+   * A board pass resets each fined seat's three-passes-in-a-row run (owner,
+   * 2026-09-15). Absent on hands that never had one, and on older rows.
+   */
+  lastBoardPass?: { move: number; seat: number };
   status: HandStatus;
   result: HandResult | null;
   /**
