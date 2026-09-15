@@ -4708,6 +4708,10 @@ button.hand-end-choice {
     overscroll-behavior: auto;
     scrollbar-width: none;
   }
+  /* Every desktop board, fitted or not: the mouse wheel over the table must
+     scroll the page. "contain" stopped it, so scrolling only worked over the
+     right-hand rail (owner, 2026-09-15). */
+  .board-stage { overscroll-behavior: auto; }
 }
 
 /* The compact desktop header wraps one line taller than the wide header.
