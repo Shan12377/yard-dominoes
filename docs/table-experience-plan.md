@@ -1061,7 +1061,7 @@ lay two; a side bone may reach the rim. Measured cost: fewer hands fit cleanly
 (87/200 in the fixture, 265/400 with real edge tabs vs 324 before); the tests
 now floor that rather than hide it. Revisit in Stage 3 (French layout).
 
-## Parked: Android smoothness (start when a player complains)
+## Android smoothness (started 2026-09-15 at the owner's request)
 
 Owner, 2026-09-15: not urgent; pick up when someone reports Android slowness.
 Lighthouse is not the problem (live mobile: home 99, Practice 100; a11y, best
@@ -1091,3 +1091,16 @@ Resume point 2026-09-15 11:20: v150 live. Next: desktop French like JamDom in th
 Resume point 2026-09-15 11:35: v151 live. Across Lounge verified desktop and 390px (0 moves). Still open: Across in the Practice menu (LocalGame has no across seat control yet), desktop French bone size (kept current; owner may want JamDom-size bones).
 
 2026-09-15 13:10 (desktop S board, Across in Practice) — Desktop cut throat/partner/open hand/Across lay the JamDom S at today's bone: pose centred, three bones each side on the centre row, then the ends climb and come back (FRENCH-free `firstRowBones`, tried at the bone the ordinary rows choose, not the 26px opening cap). Practice desktop top hand hangs half off the top edge; desktop edge cards/racks trim the board edge instead of blocking its rows; Pass and Who poses live in the hand header so the panel never grows into the board. Practice gained Across (you play both hands; partner hand at the top). Fixes: never deal on a decided set, score each hand once; phone French board margins no longer centre it (it jumped ~5px when a long arm grew past the bottom). Verified: desktop Practice partner 1440 and cut throat 1280, desktop Lounge cut throat, phone Lounge cut throat, Practice Across desktop and phone, phone French 375 four hands: 0 moves, nothing under a player, no errors. Tests 498/498.
+
+2026-09-15 13:50 Android smoothness, first pass. Clean traces (nothing else
+running) of 150s at 4x CPU on the production build showed the earlier 19-stall
+figure was inflated by a concurrent browser test. Real partner play: 4 tasks
+over 50ms (168, 96, 67, 59ms); the Coach review is not a factor (<10ms). The
+cost is forced layout: every render rebuilds the table and the board fit reads
+sizes straight after. Fix: a locked fixed board (cut throat/partner/open hand/
+Across) skips those reads; its stage uses overflow: clip so nothing scrolls it.
+After: 3 tasks (179 at the Deal tap, 83, 59ms). Tried and reverted: fitting
+once per render (moved bones). Left: the Deal tap (hand-start layout fit plus a
+full table build) and French's per-render fit. Next step if players still feel
+it: build only what changed on the table instead of the whole table per move.
+Harness: .local/qa/cputrace.mjs (PORT=4174 sourcemap build).
