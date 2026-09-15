@@ -452,6 +452,14 @@ let lastFrenchBlocked: Array<{ x: number; y: number; w: number; h: number }> | n
  * measured stage, exactly as main.ts does; height is not in the key because
  * Safari's bars slide in and out mid-hand.
  */
+/**
+ * Across keeps one board rectangle for the whole hand. Its two hands swap
+ * which one is live (and so its height and turn cue) every turn, and
+ * re-measuring the stage from them re-laid the whole board (desktop Lounge,
+ * 2026-09-15). Measured once per hand and viewport width, then kept.
+ */
+let lastAcrossStageKey: string | null = null;
+let lastAcrossStageInset: string | null = null;
 let lastPhoneRouteKey: string | null = null;
 let lastPhoneRoute: (PhoneRouteGrid & { unit: number; left: number; top: number }) | null = null;
 let lastPhoneRouteFit: { box: { width: number; height: number }; blocked: StageRect[] } | null = null;
@@ -1012,13 +1020,21 @@ export function liveTableView(
   const crossBox = displayBoard?.kind === 'cross' && lastFrenchFitWidth === window.innerWidth
     ? lastFrenchFitBox : null;
   const frenchTable = game.table.format === 'french';
+  // Desktop French: the JamDom pinwheel over the whole felt, steering round
+  // the corner cards, side racks and the hand, as Practice does (owner,
+  // 2026-09-15: "a lot of space in the desktop for french").
+  const frenchDeskPinwheel = frenchTable && window.innerWidth > 700;
+  const FRENCH_DESK_BLOCKERS = '.table-seat-identity, .table-rack, .in-felt-hand, .desktop-self-identity';
+  if (frenchDeskPinwheel) boardStage.classList.add('french-desk-stage');
   // Mobile French takes the whole felt; its players are tabs at the rim.
   if (frenchTable && frenchPinwheelPhone()) {
     boardStage.classList.add('french-phone-stage');
   }
   // Cut throat, partner and open hand on a phone: Practice's fixed board.
-  // Every width since 2026-09-15, at the desktop bone size on desktop.
-  const phoneFixedRoute = !frenchTable && game.table.mode !== 'across';
+  // Every width since 2026-09-15, at the desktop bone size on desktop. Across
+  // too: its own rules decide who plays, not where bones go, and its old
+  // growing line shifted every bone when one went on the left end.
+  const phoneFixedRoute = !frenchTable;
   const phoneRouteKey = phoneFixedRoute ? `${game.hand?.hand_id ?? 'undealt'}:${window.innerWidth}` : null;
   const lockedPhoneRoute = phoneRouteKey !== null && phoneRouteKey === lastPhoneRouteKey ? lastPhoneRoute : null;
   const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}`;
@@ -1039,9 +1055,14 @@ export function liveTableView(
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${game.hand?.hand_id ?? 'undealt'}:${window.innerWidth}`
     : null;
-  if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
+  if (!frenchDeskPinwheel && frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
     boardStage.style.inset = lastFrenchGuardInset;
     boardStage.dataset.boardGuard = 'pinned-hand-square';
+  }
+  const acrossStageKey = game.table.mode === 'across' && game.hand
+    ? `${game.hand.hand_id}:${window.innerWidth}` : null;
+  if (acrossStageKey !== null && acrossStageKey === lastAcrossStageKey && lastAcrossStageInset) {
+    boardStage.style.inset = lastAcrossStageInset;
   }
   const tableCapUnit = liveTableUnit(window.innerWidth, null, frenchTable);
   const tableMinUnit = window.innerWidth <= 700 ? 10 : game.table.mode === 'across' ? 22 : 11;
@@ -1093,9 +1114,10 @@ export function liveTableView(
     fitCrossToBox: window.innerWidth > 700,
     // Mobile French lays its pinwheel in play order.
     moveLog: displayMoveLog,
-    ...(frenchTable && window.innerWidth <= 700 && frenchGuardKey !== null
+    ...(frenchTable && frenchGuardKey !== null
       && frenchGuardKey === lastFrenchBlockedKey && lastFrenchBlocked
       ? { phoneCrossBlocked: lastFrenchBlocked } : {}),
+    frenchPinwheel: frenchDeskPinwheel,
     // A French arm runs towards the seat that opened it -- relative to me. A
     // spectator has no seat, so their arms keep the stored fill order.
     ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
@@ -1210,9 +1232,13 @@ export function liveTableView(
       && phoneRouteKey === lastPhoneRouteKey && lastPhoneRouteInset !== null;
     if (phoneStageLocked) {
       boardStage.style.inset = lastPhoneRouteInset!;
-    } else if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
+    } else if (!frenchDeskPinwheel && frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
       boardStage.style.inset = lastFrenchGuardInset;
       boardStage.dataset.boardGuard = 'pinned-hand-square';
+    } else if (frenchDeskPinwheel) {
+      // The whole felt; the pinwheel keeps clear of people itself.
+    } else if (acrossStageKey !== null && acrossStageKey === lastAcrossStageKey && lastAcrossStageInset) {
+      boardStage.style.inset = lastAcrossStageInset;
     } else {
       // Square the guard for French only. A linear chain snakes in rows and
       // keeps the full rectangle — squaring it cost ~155px of height on a
@@ -1245,6 +1271,10 @@ export function liveTableView(
         lastFrenchGuardKey = frenchGuardKey;
         lastFrenchGuardInset = boardStage.style.inset;
       }
+      if (acrossStageKey && boardStage.style.inset) {
+        lastAcrossStageKey = acrossStageKey;
+        lastAcrossStageInset = boardStage.style.inset;
+      }
     }
     const box = { width: fitHost.clientWidth - 18, height: fitHost.clientHeight - 18 };
     if (box.width <= 0 || box.height <= 0) return;
@@ -1271,7 +1301,7 @@ export function liveTableView(
         // racks are the real boxes the route must keep clear of.
         const blockers: HTMLElement[] = window.innerWidth <= 700
           ? [...tableStations.values()]
-          : [...feltShell.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity')];
+          : [...feltShell.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner')];
         const blocked = blockers.map((station) => {
           const r = station.getBoundingClientRect();
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
@@ -1328,7 +1358,7 @@ export function liveTableView(
         // whole inner box. Keeping the linear line's 18px cost a 375px phone
         // two columns, which is what kept it off the pinwheel. Bones keep
         // their size; only the columns they fit across change.
-        lastFrenchFitBox = window.innerWidth <= 700
+        lastFrenchFitBox = window.innerWidth <= 700 || frenchDeskPinwheel
           ? { width: fitHost.clientWidth, height: fitHost.clientHeight }
           : box;
         lastFrenchFitKey = frenchGuardKey;
@@ -1338,12 +1368,12 @@ export function liveTableView(
       // stage the pose must stay in the middle rather than being start-aligned
       // into a corner with an arm off-screen.
       centreCrossOnPose(boardStage, line);
-      const want = window.innerWidth > 700
+      const want = window.innerWidth > 700 && !frenchDeskPinwheel
         ? Math.min(tableUnit, frenchCanvasUnit(lockedBox))
         : tableUnit;
       // A phone routes inside its measured width, so a first pass drawn from
       // the window guess must be redrawn once the real stage is known.
-      const phoneGridStale = window.innerWidth <= 700
+      const phoneGridStale = (window.innerWidth <= 700 || frenchDeskPinwheel)
         && line.dataset.crossGrid !== phoneCrossGridKey(lockedBox, tableUnit);
       if (fittedUnit && (want !== fittedUnit || phoneGridStale)) {
         const corrected = renderBoard(line, displayBoard, {
@@ -1353,6 +1383,8 @@ export function liveTableView(
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
           fitCrossToBox: window.innerWidth > 700,
+          frenchPinwheel: frenchDeskPinwheel,
+          ...(frenchGuardKey === lastFrenchBlockedKey && lastFrenchBlocked ? { phoneCrossBlocked: lastFrenchBlocked } : {}),
           // Mobile French lays its pinwheel in play order.
           moveLog: displayMoveLog,
           ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
@@ -1367,9 +1399,10 @@ export function liveTableView(
       // where the grid sits in the stage on this hand's first measured render
       // (usually before any arm bone), lay the board round them, and keep that
       // for the whole hand.
-      if (window.innerWidth <= 700 && frenchGuardKey && frenchGuardKey !== lastFrenchBlockedKey) {
+      if ((window.innerWidth <= 700 || frenchDeskPinwheel) && frenchGuardKey && frenchGuardKey !== lastFrenchBlockedKey) {
         lastFrenchBlockedKey = frenchGuardKey;
-        lastFrenchBlocked = frenchTabBlocks(boardStage, feltShell, lockedBox, tableUnit);
+        lastFrenchBlocked = frenchTabBlocks(boardStage, feltShell, lockedBox, tableUnit,
+          frenchDeskPinwheel ? FRENCH_DESK_BLOCKERS : '.station-tab');
         renderBoard(line, displayBoard, {
           box: lockedBox,
           maxUnit: tableUnit,
@@ -1377,6 +1410,7 @@ export function liveTableView(
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
           fitCrossToBox: false,
+          frenchPinwheel: frenchDeskPinwheel,
           moveLog: displayMoveLog,
           ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
           phoneCrossBlocked: lastFrenchBlocked,
@@ -1447,13 +1481,28 @@ export function liveTableView(
         feltShell.appendChild(bottomIdentity);
       } else hand.appendChild(bottomIdentity);
     }
-    felt.appendChild(hand);
     if (game.table.mode === 'across') {
+      // Across: my hand at the bottom, my partner's hand at the top, both on
+      // the table (owner, 2026-09-15). Whichever seat is on turn is the live,
+      // playable panel; the other is read-only until its turn comes.
+      hand.classList.remove('in-felt-hand');
       const partnerSeat = game.partnerSeat();
-      const otherSeat = activeSeat === partnerSeat ? game.mySeat : partnerSeat;
-      if (otherSeat !== null) {
-        feltSlot.appendChild(myOtherHandPanel(game.tilesForSeat(otherSeat), otherSeat === game.mySeat ? 'Your hand' : 'Your partner hand'));
+      const activeIsPartner = partnerSeat !== null && activeSeat === partnerSeat;
+      const own = activeIsPartner ? myHandPanel(game, rerender, game.mySeat, true) : hand;
+      const top = partnerSeat === null ? null
+        : activeIsPartner ? hand : myHandPanel(game, rerender, partnerSeat, true);
+      const both = el('div', 'in-felt-across-hands');
+      own.classList.add('across-hand-own');
+      both.appendChild(own);
+      if (top) {
+        top.classList.add('across-hand-partner');
+        both.appendChild(top);
       }
+      felt.classList.add('across-hands-on-felt');
+      feltShell.classList.add('across-hands-on-felt');
+      felt.appendChild(both);
+    } else {
+      felt.appendChild(hand);
     }
   }
   handActions = placeBoardChoices(boardStage, handActions, choiceHandHost);
@@ -1779,6 +1828,12 @@ function myHandPanel(
   game: OnlineGame,
   rerender: () => void,
   fixedSeat: number | null = null,
+  /**
+   * Across shows both of a player's hands on the table (owner, 2026-09-15:
+   * partner hand at the top). The hand not on turn is drawn read-only and
+   * must not touch the chosen-tile state the live hand owns.
+   */
+  passive = false,
 ): HTMLElement {
   const panel = el('div', 'panel my-hand-panel');
   // A tile tapped right before the hand ended (legal or not) must not carry
@@ -1802,13 +1857,15 @@ function myHandPanel(
   // (predictedTilesFor), not just predictedMyTiles, or an across move from
   // the partner seat would never freeze and could double-submit.
   const pending = seat !== null && game.predictedTilesFor(seat) !== null;
-  handTurnCue(panel, game.isMyTurn(), pending);
-  if (!game.isMyTurn() || pending) pendingTile = null;
+  handTurnCue(panel, !passive && game.isMyTurn(), pending);
+  if (!passive && (!game.isMyTurn() || pending)) pendingTile = null;
   const tiles = seat === null ? [] : (game.predictedTilesFor(seat) ?? game.tilesForSeat(seat));
   // A tile chosen in one of my two hands must not appear "chosen" in the
   // other just because it shares a tile id — see pendingTileSeat's comment.
-  if (pendingTileSeat !== seat) { pendingTile = null; pendingTileSeat = seat; }
-  const label = pending
+  if (!passive && pendingTileSeat !== seat) { pendingTile = null; pendingTileSeat = seat; }
+  const label = passive
+    ? (onPartnerSeat ? 'Your partner hand' : 'Your hand')
+    : pending
     ? 'Sending…'
     : onPartnerSeat
       ? (game.isMyTurn()
@@ -1816,7 +1873,7 @@ function myHandPanel(
           : 'Your partner hand')
       : (game.isMyTurn() ? (pendingTile ? 'Choose where it goes' : 'Your turn') : 'Your hand');
   panel.append(el('div', 'eyebrow', label));
-  const legal = pending ? [] : game.legalMovesForMe();
+  const legal = pending || passive ? [] : game.legalMovesForMe();
   const playable = new Set(legal.flatMap((m) => ('tile' in m ? [m.tile] : [])));
   const hand = el('div', 'hand');
   // The in-felt rail shares its width across exactly this many bones. A
@@ -1832,14 +1889,14 @@ function myHandPanel(
     const node = tileEl(tile);
     const can = playable.has(tile);
     node.classList.add(can ? 'playable' : 'dead');
-    if (pendingTile === tile) node.classList.add('chosen');
+    if (!passive && pendingTile === tile) node.classList.add('chosen');
     // Every tile is selectable, playable or not — a real table never stops
     // your hand touching a tile that doesn't fit, it just won't land. The
     // 'playable' class is the hint; tapping a 'dead' one shows why it can't
     // be played instead of doing nothing. Still frozen while a move is
     // in flight (pending) — that guard exists so a second move can't queue
     // up before the server confirms the first.
-    if (!pending && game.isMyTurn()) {
+    if (!passive && !pending && game.isMyTurn()) {
       node.tabIndex = 0;
       const choose = () => {
         if (!game.isMyTurn()) return;
@@ -1864,7 +1921,7 @@ function myHandPanel(
   // The pose decision, made with the tiles in front of you rather than on a
   // result screen before the deal. It goes into the panel body, so
   // takeHandActions() lifts it onto the felt with every other hand decision.
-  if (game.canPassPoseNow() && poseChoiceDismissed !== game.hand?.hand_id) {
+  if (!passive && game.canPassPoseNow() && poseChoiceDismissed !== game.hand?.hand_id) {
     const row = el('div', 'row');
     row.append(el('span', 'muted', 'Yours to pose — or hand it across?'));
     const keep = document.createElement('button');
@@ -1882,7 +1939,7 @@ function myHandPanel(
     panel.appendChild(row);
   }
 
-  if (pendingTile && game.hand?.status === 'active') {
+  if (!passive && pendingTile && game.hand?.status === 'active') {
     // The pip value on each end, not just the bare direction — "I thought
     // this was the right end" is a real argument at a real table, and the
     // number settles it before it starts.

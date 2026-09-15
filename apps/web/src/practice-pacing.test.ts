@@ -287,11 +287,15 @@ test('table settings reads and behaves as an obvious control', () => {
   assert.match(styles, /\.table-start-options summary[\s\S]{0,300}?min-height: 52px/);
 });
 
-test('Across follows Open Hand furniture while retaining both private hands', () => {
-  assert.doesNotMatch(onlineTableSource, /felt\.classList\.add\('across-hands-on-felt'\)/);
+test('Across puts my hand at the bottom and my partner hand at the top, both on the table', () => {
+  // Owner, 2026-09-15: "ensure that the across hand is at the top and the
+  // partner can play both". The seat on turn is the live panel.
+  assert.match(onlineTableSource, /felt\.classList\.add\('across-hands-on-felt'\)/);
   assert.match(onlineTableSource, /const activeSeat = game\.table\.mode === 'across' \? game\.activeSeat\(\) : game\.mySeat/);
   assert.match(onlineTableSource, /myHandPanel\(game, rerender, activeSeat\)/);
-  assert.match(onlineTableSource, /myOtherHandPanel\(game\.tilesForSeat\(otherSeat\)/);
+  assert.match(onlineTableSource, /top\.classList\.add\('across-hand-partner'\)/);
+  assert.match(onlineTableSource, /own\.classList\.add\('across-hand-own'\)/);
+  assert.match(onlineTableSource, /if \(!passive && pendingTileSeat !== seat\)/, 'the read-only hand never clears the live chosen tile');
   assert.match(onlineTableSource, /across: game\.table\.mode === 'across'/);
 });
 
@@ -620,7 +624,8 @@ test('board choices have a hand-adjacent fallback when an endpoint is out of vie
 });
 
 test('Lounge coordinates waiting and Across partner-hand selection like Practice', () => {
-  assert.ok(onlineTableSource.includes('if (!pending && game.isMyTurn())'),
+  // `!passive` too: Across draws the hand not on turn read-only (2026-09-15).
+  assert.ok(onlineTableSource.includes('if (!passive && !pending && game.isMyTurn())'),
     'a waiting Lounge player must not select a misleading tile');
   assert.ok(onlineTableSource.includes("pendingTile ? 'Choose where it goes' : 'Your partner hand — your turn'"),
     'Across must show the same selected-bone instruction while controlling the partner hand');
