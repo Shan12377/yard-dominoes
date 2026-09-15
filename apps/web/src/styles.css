@@ -2157,6 +2157,25 @@ button.board-end-choice:focus-visible {
   font: 900 14px/1 var(--body);
   cursor: pointer;
 }
+/* Going straight on is the main action; the results link is the quieter one. */
+.table-game-over-next {
+  margin-top: 4px;
+  min-height: 44px;
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #17130f;
+  font: 900 15px/1 var(--body);
+  cursor: pointer;
+}
+.table-game-over-next:disabled { opacity: .6; cursor: default; }
+.table-game-over-next ~ .table-game-over-see {
+  background: transparent;
+  border: 2px solid var(--gold);
+  color: var(--bone);
+}
+.table-game-over-next:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 2px; }
 .table-game-over-close {
   position: absolute;
   top: 4px;
@@ -4732,7 +4751,10 @@ button.hand-end-choice {
   .board-stage.phone-route-stage {
     inset: 6px 6px 124px;
     overflow: hidden;
-    touch-action: none;
+    /* Vertical swipes still scroll the page to what is below the table; a
+       locked board trapped the finger (owner, 2026-09-15). */
+    touch-action: pan-y;
+    overscroll-behavior: auto;
     -webkit-mask-image: none;
     mask-image: none;
   }
@@ -5125,4 +5147,8 @@ button.hand-end-choice {
      the stage centred: it sat 5px down, then jumped to the top when a long
      arm grew past the bottom (375px, 2026-09-15). */
   .board-stage.french-phone-stage > .line { align-self: start; }
+  /* A swipe on the French board must reach the page, or the coach and
+     results below the table cannot be reached with a finger (owner,
+     2026-09-15). A board grown past the bottom still pans first. */
+  .board-stage.french-phone-stage { overscroll-behavior: auto; touch-action: pan-y; }
 }

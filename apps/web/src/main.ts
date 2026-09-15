@@ -1445,8 +1445,41 @@ function practiceGameOverCard(g: LocalGame): HTMLElement | null {
   close.setAttribute('aria-label', 'Hide and look at the board');
   close.textContent = '×';
   close.onclick = () => { gameOverDismissed = true; render(); };
-  card.append(see, close);
+  // Owner, 2026-09-15: a player who does not want the results goes straight
+  // on. Next hand while the set is live; New set once it is decided.
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'table-game-over-next';
+  go.dataset.gameOverNext = 'true';
+  if (setOver) {
+    go.textContent = 'New set';
+    go.onclick = () => leaveLocalGame();
+  } else {
+    go.textContent = 'Next hand';
+    go.onclick = () => { go.disabled = true; void practiceNextHand(g); };
+  }
+  card.append(go, see, close);
   return card;
+}
+
+/** Clear everything about the finished hand and deal the next one. */
+async function practiceNextHand(g: LocalGame): Promise<void> {
+  review = null; reviewOpen = false; practiceSupportOpen = false; verifyState = null;
+  // Last hand's gloating and last hand's link must not carry over.
+  talk = new Map();
+  shareLink = null;
+  // Nor last hand's winning bone, its LAST BONE banner, or a play/pass
+  // marker still inside its 2.5s beat — all of them describe a hand that
+  // is about to stop existing. The renderers guard on hand status too, so
+  // this is belt and braces rather than the only thing standing between a
+  // player and a phantom tile.
+  winningTile = null;
+  winningSeat = null;
+  recentPlayedTile = null;
+  recentPlaySeat = null;
+  recentPassSeat = null;
+  await g.startHand(showPracticeDeal);
+  render();
 }
 
 function practiceWinCallout(g: LocalGame): HTMLElement | null {
@@ -2069,24 +2102,7 @@ function handResult(g: LocalGame): HTMLElement | null {
     const next = document.createElement('button');
     next.className = 'act';
     next.textContent = 'Next hand';
-    next.onclick = async () => {
-      review = null; reviewOpen = false; practiceSupportOpen = false; verifyState = null;
-      // Last hand's gloating and last hand's link must not carry over.
-      talk = new Map();
-      shareLink = null;
-      // Nor last hand's winning bone, its LAST BONE banner, or a play/pass
-      // marker still inside its 2.5s beat — all of them describe a hand that
-      // is about to stop existing. The renderers guard on hand status too, so
-      // this is belt and braces rather than the only thing standing between a
-      // player and a phantom tile.
-      winningTile = null;
-      winningSeat = null;
-      recentPlayedTile = null;
-      recentPlaySeat = null;
-      recentPassSeat = null;
-      await g.startHand(showPracticeDeal);
-      render();
-    };
+    next.onclick = () => void practiceNextHand(g);
     row.appendChild(next);
   } else {
     const again = document.createElement('button');

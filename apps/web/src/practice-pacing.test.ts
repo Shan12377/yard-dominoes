@@ -172,7 +172,7 @@ test('last hand\'s winning bone never lands on the next hand\'s felt', () => {
     /function practiceWinCallout[\s\S]{0,400}?if \(g\.hand\?\.status === 'active'\) return null;/);
   // The "Next hand" button clears the same state at the source.
   assert.match(practiceSource,
-    /next\.onclick[\s\S]{0,700}?winningTile = null;[\s\S]{0,200}?winningSeat = null;[\s\S]{0,300}?await g\.startHand\(showPracticeDeal\)/);
+    /async function practiceNextHand[\s\S]{0,700}?winningTile = null;[\s\S]{0,200}?winningSeat = null;[\s\S]{0,300}?await g\.startHand\(showPracticeDeal\)/);
 });
 
 test('a finished hand says GAME OVER on the table and points to the result below', () => {
@@ -208,6 +208,14 @@ test('mobile French opens at the top of the table after the deal', () => {
 test('a new deal waits for the last hand to be scored and its Duppy loop to end', () => {
   assert.match(localSource,
     /async startHand\(onDealt\?[\s\S]{0,900}?if \(this\.duppyLoop\) await this\.duppyLoop;\s*const serverSeed = randomSeed\(\);/);
+});
+
+test('the GAME OVER card goes straight to the next hand, or a new set once it is decided', () => {
+  assert.match(practiceSource, /go\.textContent = 'New set';\s*go\.onclick = \(\) => leaveLocalGame\(\);/);
+  assert.match(practiceSource, /go\.textContent = 'Next hand';\s*go\.onclick = \(\) => \{ go\.disabled = true; void practiceNextHand\(g\); \};/);
+  assert.match(practiceSource, /next\.onclick = \(\) => void practiceNextHand\(g\);/, 'one next-hand path for both buttons');
+  const online = readFileSync(new URL('./onlinetableview.ts', import.meta.url), 'utf8');
+  assert.match(online, /if \(!setOver && !game\.isSpectator\) \{[\s\S]{0,400}?go\.onclick = \(\) => \{ go\.disabled = true; void game\.dealNext\(\); \};/);
 });
 
 test('practice names the person who laid the last domino before the result screen', () => {

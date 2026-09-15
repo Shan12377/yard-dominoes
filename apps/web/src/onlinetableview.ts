@@ -2134,6 +2134,17 @@ function onlineGameOverCard(game: OnlineGame, rerender: () => void): HTMLElement
   close.setAttribute('aria-label', 'Hide and look at the board');
   close.textContent = '×';
   close.onclick = () => { gameOverDismissedHand = hand.hand_id; rerender(); };
+  // Straight on to the next deal without reading the results (owner,
+  // 2026-09-15), for a seated player while the set is still live.
+  if (!setOver && !game.isSpectator) {
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'table-game-over-next';
+    go.dataset.gameOverNext = 'true';
+    go.textContent = 'Deal next hand';
+    go.onclick = () => { go.disabled = true; void game.dealNext(); };
+    card.append(go);
+  }
   card.append(see, close);
   return card;
 }
