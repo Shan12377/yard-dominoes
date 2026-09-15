@@ -962,3 +962,15 @@ scrolls to the result panel and an x to hide it and look at the final board.
 Verified by playing hands to the end: partner 375x812 and French 390x844, card
 on screen, tap scrolled the result into view, no page errors. Tests 485/485.
 Not deployed yet; Lounge tables not changed.
+
+2026-09-15 (French phone opens on the table) — Owner: French Practice on a
+phone still opened off the table, the top player needed a scroll, Duppy 3's
+bone count hid under the photo, and the count wanted another colour. The
+French score panel was 100px (two rows of four players plus tile counts),
+which pushed the table past a real iPhone's visible height. French phones now
+get a one-strip score bar (four scores in two columns, sky-blue numbers), the
+page returns to the top when the eight-second deal animation ends, the bones
+badge draws above the photo in sky blue, and the top tab's View cue clears
+the turn ring. Measured: 390x664 felt 70-601 (was 116-647), 375x548 felt
+70-550 (was 116-596); two full hands at 375 with zero moves, nothing under a
+tab. Tests 487/487.

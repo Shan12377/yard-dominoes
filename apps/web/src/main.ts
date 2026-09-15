@@ -416,6 +416,10 @@ function finishPracticeDealAnimation(): void {
   practiceDealTimer = null;
   practiceDealResolve?.();
   practiceDealResolve = null;
+  // The deal plays for eight seconds; a phone that scrolled during it (or a
+  // Safari bar that settled) opened the hand off the table's top edge, with
+  // the top player hidden (owner, 2026-09-15). Open the hand at the top.
+  if (window.innerWidth <= 700) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   render();
 }
 
@@ -2387,6 +2391,7 @@ function tableView(g: LocalGame): DocumentFragment {
   // Mobile French takes the whole felt; its players are tabs at the rim.
   if (frenchTable && frenchPinwheelPhone()) {
     boardStage.classList.add('french-phone-stage');
+    room.classList.add('french-phone-room');
   }
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}`

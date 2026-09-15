@@ -198,6 +198,13 @@ test('an online table shows the same GAME OVER card, closed per hand', () => {
   assert.match(online, /felt\.appendChild\(gameOver\)/);
 });
 
+test('mobile French opens at the top of the table after the deal', () => {
+  // Owner, 2026-09-15: the French hand opened scrolled, hiding the top player.
+  assert.match(practiceSource,
+    /function finishPracticeDealAnimation[\s\S]{0,500}?if \(window\.innerWidth <= 700\) window\.scrollTo\(\{ top: 0, left: 0, behavior: 'instant' \}\);[\s\S]{0,20}?render\(\);/);
+  assert.match(practiceSource, /boardStage\.classList\.add\('french-phone-stage'\);\s*room\.classList\.add\('french-phone-room'\);/);
+});
+
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));

@@ -4812,6 +4812,44 @@ button.hand-end-choice {
   #app:has(.practice-room.phone-route-room) .practice-scorebar .pips i { width: 9px; height: 9px; }
 }
 
+/* Mobile French score strip (owner, 2026-09-15): the two-row panel was
+   100px and pushed the table's bottom off a real iPhone. Bones left are on
+   the tabs, so the strip keeps the four scores in two short columns. */
+@media (max-width: 700px) {
+  #app:has(.practice-room.french-phone-room) .practice-scorebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+  }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar > .spread { order: 2; flex: 0 0 auto; gap: 6px; }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar > .spread > .eyebrow,
+  #app:has(.practice-room.french-phone-room) .practice-scorebar > .spread > .stack,
+  /* .under-love holds the score number itself; French never says "under love". */
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .tile-count { display: none; }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .side-score {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .under-love {
+    color: #43c7f4;
+    font-weight: 900;
+  }
+  /* The separator belonged to the hidden tile count that followed it. */
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .under-love::after { content: none; }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 1 1 auto;
+    gap: 2px 10px;
+    min-width: 0;
+  }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .side-score { flex-wrap: nowrap; }
+}
+
 /* Mobile French (owner, 2026-09-14): each player collapses to a 28px tab at
    the rim, so the clockwise pinwheel has the felt. The gold badge is bones
    left. Tapping a tab opens a small panel beside it (name, score and backs);
@@ -4865,9 +4903,13 @@ button.hand-end-choice {
     min-width: 24px;
     height: 24px;
     padding: 0 5px;
+    /* Above the photo: the top tab's photo painted over it (owner,
+       2026-09-15), and sky blue so the count is not mistaken for gold
+       turn/score cues. */
+    z-index: 3;
     border: 2px solid #052b43;
     border-radius: 12px;
-    background: #ffc928;
+    background: #43c7f4;
     color: #052b43;
     font: 900 15px/20px var(--mono);
     text-align: center;
@@ -4886,6 +4928,8 @@ button.hand-end-choice {
     white-space: nowrap;
   }
   .station-tab.station-tab-open > .station-tab-cue { background: #ffc928; color: #052b43; }
+  /* The top tab's gold turn ring spreads past the photo and ran into "View". */
+  .table-player-station-top.station-tab > .station-tab-cue { position: relative; z-index: 4; margin-top: 8px; }
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab:focus-visible {
     outline: 3px solid #ffc928;
     outline-offset: 3px;
