@@ -121,7 +121,9 @@ function scheduleSiteHandsFetch(): void {
   else window.addEventListener('load', start, { once: true });
 }
 
-let view: View = 'play';
+// yaaddominoes.com/terms and /privacy open those pages directly: Google's
+// sign-in branding (and any store listing) needs a real address for each.
+let view: View = location.pathname === '/terms' ? 'terms' : location.pathname === '/privacy' ? 'privacy' : 'play';
 const WALKTHROUGH_SEEN_KEY = 'yard:walkthrough-v1';
 function walkthroughWasSeen(): boolean {
   // Storage can be blocked outright in some private/embedded browsers. A

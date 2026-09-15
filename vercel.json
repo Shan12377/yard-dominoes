@@ -2,5 +2,15 @@
   "buildCommand": "npm run build --workspace @yard/web",
   "outputDirectory": "apps/web/dist",
   "installCommand": "npm install",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/terms",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/index.html"
+    }
+  ]
 }
