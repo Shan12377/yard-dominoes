@@ -2720,6 +2720,15 @@ function tableView(g: LocalGame): DocumentFragment {
         lastFrenchGuardInset = boardStage.style.inset;
       }
     }
+    // A fixed board locked for this hand, already drawn at its locked grid,
+    // with every bone placed: nothing below can change it, and each size read
+    // forced a full layout of the table just rebuilt (the biggest stall on a
+    // 4x-throttled phone, Android smoothness 2026-09-15). Skip the reads.
+    if (phoneStageLocked && lastPhoneRoute && displayBoard?.kind !== 'cross'
+      && line.dataset.phoneRoute === phoneRouteLabel(lastPhoneRoute)
+      && (!line.dataset.phoneRouteOverflow || line.dataset.phoneRouteOverflow === '0')) {
+      return;
+    }
     // 14px is the line padding; the extra 4px absorbs grid/border rounding so
     // a fitted bone cannot protrude a pixel past the invisible guard.
     const box = { width: fitHost.clientWidth - 18, height: fitHost.clientHeight - 18 };

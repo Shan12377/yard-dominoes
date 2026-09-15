@@ -4800,6 +4800,12 @@ button.hand-end-choice {
    black pips. Desktop keeps its larger bone and its people's places. */
 .board-stage.phone-route-stage {
   overflow: hidden;
+  /* clip, not just hidden: a hidden box can still be scrolled by script, and
+     showing an end choice on the board scrolled it, moving every bone on
+     screen. clip cannot scroll at all, so the locked board needs no reset
+     (and no layout-forcing scroll writes) on every render. Browsers without
+     clip keep hidden. */
+  overflow: clip;
   /* Vertical swipes and the wheel still reach the page. */
   touch-action: pan-y;
   overscroll-behavior: auto;

@@ -1276,6 +1276,14 @@ export function liveTableView(
         lastAcrossStageInset = boardStage.style.inset;
       }
     }
+    // A fixed board locked for this hand and already drawn at its grid with
+    // every bone placed: nothing below changes it, and each size read forced a
+    // full layout of the freshly rebuilt table (Android smoothness, 2026-09-15).
+    if (phoneStageLocked && lastPhoneRoute && displayBoard?.kind !== 'cross'
+      && line.dataset.phoneRoute === phoneRouteLabel(lastPhoneRoute)
+      && (!line.dataset.phoneRouteOverflow || line.dataset.phoneRouteOverflow === '0')) {
+      return;
+    }
     const box = { width: fitHost.clientWidth - 18, height: fitHost.clientHeight - 18 };
     if (box.width <= 0 || box.height <= 0) return;
     const changed = lastFeltHasHandRail !== handOnFelt
