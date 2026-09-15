@@ -1273,9 +1273,21 @@ function crossFaces(
 export const PHONE_FRENCH_PINWHEEL_MIN_WIDTH = 380;
 
 /**
+ * Whether this phone lays French as the pinwheel. Uses the smaller of the
+ * layout width and the screen width: a page wider than the screen (Practice's
+ * felt reaches past both edges) let `innerWidth` read 375 on one draw and
+ * nearer 400 on the next, and a 375px phone flipped between the pinwheel and
+ * the row route in one hand.
+ */
+export function frenchPinwheelPhone(): boolean {
+  const screenWidth = window.screen?.width || window.innerWidth;
+  const width = Math.min(window.innerWidth, screenWidth);
+  return window.innerWidth <= 700 && width >= PHONE_FRENCH_PINWHEEL_MIN_WIDTH;
+}
+
+/**
  * Mobile French: the collapsed player tabs (see frenchPhoneTab) as rectangles
- * in the phone cross grid's units, with a unit of felt around each so a bone
- * never touches a tab.
+ * in the phone cross grid's units, with a unit of felt around each.
  *
  * Measured against where the grid WILL sit, not against a drawn board: the
  * stage centres a board smaller than itself (`safe center`), so the grid's
@@ -1290,10 +1302,16 @@ export function frenchTabBlocks(
   const { cols, rows } = phoneCrossGrid(box, unit);
   const view = stage.getBoundingClientRect();
   if (!view.width) return [];
+  // Centred across; top-aligned down (`.french-phone-stage`), so a board that
+  // grows past the bottom never moves.
   const left = view.left + stage.clientLeft + Math.max(0, (stage.clientWidth - cols * unit) / 2) - stage.scrollLeft;
-  const top = view.top + stage.clientTop + Math.max(0, (stage.clientHeight - rows * unit) / 2) - stage.scrollTop;
-  return [...root.querySelectorAll<HTMLElement>('.station-tab > .table-seat-identity')].map((tab) => {
+  const top = view.top + stage.clientTop - stage.scrollTop;
+  return [...root.querySelectorAll<HTMLElement>('.station-tab')].map((tab) => {
+    // The whole collapsed tab: photo, count badge and its "View" cue. Its open
+    // panel is positioned outside it and never counts.
     const r = tab.getBoundingClientRect();
+    // A unit of felt around each tab. Without it a rare arm that had to
+    // borrow room laid a bone against a tab and clipped it (390px, 2026-09-14).
     const x = Math.floor((r.left - left) / unit) - 1;
     const y = Math.floor((r.top - top) / unit) - 1;
     return {
@@ -1336,7 +1354,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
   // Chosen from the viewport, like the stage: the first draw of a hand can
   // work from a guessed stage, and choosing by its columns started a hand on
   // the row route and then moved the chucha onto the pinwheel.
-  const pinwheel = window.innerWidth >= PHONE_FRENCH_PINWHEEL_MIN_WIDTH
+  const pinwheel = frenchPinwheelPhone()
     && Math.max(cols, PHONE_PINWHEEL_MIN_COLS) === cols
     ? phoneFrenchPinwheel({
       arms: board.arms.map((arm, index) => ({
@@ -1357,7 +1375,9 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
   let top = 0;
   let bottom = rows;
   for (const route of routes) for (const s of route) {
-    top = Math.min(top, s.y);
+    // The pinwheel grows only past the bottom. A bone it could not place
+    // anywhere must never shift every other bone down to make room above.
+    if (!pinwheel) top = Math.min(top, s.y);
     bottom = Math.max(bottom, s.y + s.h);
   }
   host.classList.add('french-reference-route', 'french-phone-route');

@@ -29,7 +29,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, PHONE_FRENCH_PINWHEEL_MIN_WIDTH } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone } from './render.ts';
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -2340,7 +2340,9 @@ function tableView(g: LocalGame): DocumentFragment {
     ? lastFrenchFitBox : null;
   const frenchTable = g.options.format === 'french';
   // Mobile French takes the whole felt; its players are tabs at the rim.
-  if (frenchTable && window.innerWidth <= 700) boardStage.classList.add('french-phone-stage');
+  if (frenchTable && frenchPinwheelPhone()) {
+    boardStage.classList.add('french-phone-stage');
+  }
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}`
     : null;
@@ -2453,7 +2455,10 @@ function tableView(g: LocalGame): DocumentFragment {
       station.append(identity, rack);
       stationTurnCue(station, g.hand?.status === 'active' && g.hand.turn === seat);
       // Mobile French gives the pinwheel the felt: players become tabs.
-      if (frenchTable && window.innerWidth <= 700) frenchPhoneTab(station, slot, g.hand?.hands[seat]?.length ?? 0);
+      // Only where the pinwheel runs; a narrower phone keeps its full badges.
+      if (frenchTable && frenchPinwheelPhone()) {
+        frenchPhoneTab(station, slot, g.hand?.hands[seat]?.length ?? 0);
+      }
       felt.appendChild(station);
       tableStations.set(slot, station);
     } else {
@@ -2579,7 +2584,7 @@ function tableView(g: LocalGame): DocumentFragment {
         felt.querySelector<HTMLElement>('.in-felt-hand'), false);
       // A French phone too narrow for the pinwheel (a 360px screen) keeps the
       // row route, which does not know about the tabs: keep them off its width.
-      if (frenchTable && window.innerWidth <= 700 && window.innerWidth < PHONE_FRENCH_PINWHEEL_MIN_WIDTH) {
+      if (frenchTable && window.innerWidth <= 700 && !frenchPinwheelPhone()) {
         reserveBoardStage(felt, boardStage, tableStations.values(),
           felt.querySelector<HTMLElement>('.in-felt-hand'), false);
       }

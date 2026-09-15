@@ -181,29 +181,34 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   turns the other way, and last of all it grows past the BOTTOM of the board
   so nothing already down moves (growing past the top would shift the whole
   board). The pinwheel is never swapped for another route mid-hand: that
-  re-laid every bone. Phones 380px and wider (`PHONE_FRENCH_PINWHEEL_MIN_WIDTH`)
-  get the whole felt and the pinwheel; the whole felt gives a 390px phone 26
-  columns and a 430px phone 28, and both held two full hands with nothing
-  moving. A 360px phone gets only 24x25, where a real hand ran an arm out of
-  room, shifted the board a unit and put bones under a tab, so narrower phones
-  keep `phoneCrossRoute()` for the whole hand, with the tabs guarded off its
-  width. **Decide this from the viewport width, never a measured stage:** the
-  first measurement of a hand can come in narrower than the settled one, and
-  deciding from it drew the chucha on the row route and then moved it. The
-  French phone bone is never shrunk to make the pinwheel fit (owner: 28px, not
-  lower). **To give it the felt, French players on a phone are 28px tabs at
-  the rim** (`frenchPhoneTab()` in table-experience.ts, both surfaces): photo
-  plus a gold bones-left badge; tapping opens a small panel with name, score
-  and backs, and its open state lives in module scope so Duppy redraws never
-  close it. The stage is the whole felt (`.french-phone-stage`), and
-  `frenchTabBlocks()` measures the tabs once per hand, against where the grid
-  sits in the stage rather than a drawn board, so they are known before the
-  first arm bone and no bone is re-laid when they are found. Over 1,500
-  simulated French hands at 28px, players drawn as today left 25% of hands
-  with a stuck arm on a 390/430 phone; tabs brought it near 3-7%. Two layout
-  movers found with it and fixed on phones: the six-second French penalty
-  banner now floats instead of pushing the table down 88px and back, and
-  French's Pass control sits in the tray header like the linear game's.
+  re-laid every bone. Phones 380px and wider (`frenchPinwheelPhone()`, which
+  takes the smaller of the layout and screen width) get the whole felt, the
+  player tabs and the pinwheel; the whole felt gives a 390px phone 26 columns
+  and a 430px phone 28, and both held two full hands with nothing moving and
+  no bone under a tab. A 375px phone gets only 24 columns and a 360px phone
+  24x25, where a real hand ran an arm out of room, so narrower phones keep
+  their full player badges and `phoneCrossRoute()` for the whole hand, guarded
+  off the badges as before. **Decide this from that stable width, never a
+  measured stage or bare `innerWidth`:** a first measurement can come in
+  narrower than the settled one, and a page wider than the screen let
+  `innerWidth` swing across the cutoff, flipping a hand between the routes.
+  The French phone bone is never shrunk to make the pinwheel fit (owner: 28px,
+  not lower). **The pinwheel board is top-aligned in its stage** so growing
+  past the bottom never moves it, and a bone that could not be placed never
+  shifts the board down. **French players on those phones are tabs at the rim**
+  (`frenchPhoneTab()` in table-experience.ts, both surfaces): a 32px photo, a
+  large bold bones-left badge and a plain "View" cue (owner: the numbers were
+  too small and nothing said the tab opens); tapping opens a small panel with
+  name, score and backs, and its open state lives in module scope so Duppy
+  redraws never close it. The stage is the whole felt (`.french-phone-stage`),
+  and `frenchTabBlocks()` measures each whole tab once per hand, with a unit of
+  felt around it, against where the grid sits in the stage rather than a drawn
+  board, so tabs are known before the first arm bone. French phone bones meet
+  flush, with the same crisp faces as the phone partner board (no clipped
+  reveal). Two layout movers found with it and fixed on phones: the six-second
+  French penalty banner floats instead of pushing the table down 88px and
+  back, and French's Pass control sits in the tray header like the linear
+  game's.
   `centreCrossOnPose()` still holds the chucha in the middle of any stage that
   pans: `align-items: safe center` start-aligns anything larger than its box,
   which measured 44px of drift and hid a whole arm.
@@ -309,13 +314,13 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-14, `www.yaaddominoes.com` serves commit `27ce346`
-  (`feat: big-bone phone Practice board, French pinwheel with player tabs,
-  Across like partner`, service worker v137), deployed with `vercel deploy
-  --prod` from a clean worktree of `design/yaaddominoes-foundation`. For what
-  any specific past deploy contained, read `git log` rather than trusting an
-  accumulated list here — this line is a pointer to current truth, not a
-  changelog. Update this line, don't append another one, next time.
+- As of 2026-09-14, `www.yaaddominoes.com` serves commit `a24e811`
+  (`feat: Practice Quick play option, and every deal opens with the table on
+  screen`, service worker v138), deployed with `vercel deploy --prod` from a
+  clean worktree of `design/yaaddominoes-foundation`. For what any specific
+  past deploy contained, read `git log` rather than trusting an accumulated
+  list here — this line is a pointer to current truth, not a changelog.
+  Update this line, don't append another one, next time.
 - **`profiles.is_owner`** (0052) is narrower than `is_admin` — it gates
   referral financials specifically (stats, cash-out requests, marking
   paid) in `referral-admin`. Only Candy has it. Granting `is_admin` to a

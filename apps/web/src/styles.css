@@ -4769,11 +4769,14 @@ button.hand-end-choice {
 @media (max-width: 700px) {
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab {
     z-index: 6;
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: auto;
     min-width: 0;
     min-height: 0;
-    gap: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -4782,39 +4785,55 @@ button.hand-end-choice {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
-  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab { left: 4px; }
-  :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab { right: 4px; }
+  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab { left: 2px; }
+  :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab { right: 2px; }
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab > .table-rack,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-copy,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-duppy-cue { display: none; }
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab > .table-seat-identity,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-duppy,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-identity :is(.avatar, .avatar-shell) {
-    width: 28px;
-    height: 28px;
+    position: relative;
+    width: 32px;
+    height: 32px;
     min-width: 0;
     min-height: 0;
     padding: 0;
     border-radius: 50%;
     /* Practice's side identity is a column flex item with a 58px basis, and
        a basis outranks height there. */
-    flex: 0 0 28px;
+    flex: 0 0 32px;
   }
+  /* Bones left: big and bold enough to read at arm's length. */
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab::after {
     content: attr(data-bones);
     position: absolute;
-    right: -6px;
-    bottom: -6px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
-    border-radius: 9px;
+    top: 14px;
+    right: -8px;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 5px;
+    border: 2px solid #052b43;
+    border-radius: 12px;
     background: #ffc928;
     color: #052b43;
-    font: 800 11px/18px var(--mono);
+    font: 900 15px/20px var(--mono);
     text-align: center;
-    box-shadow: 0 1px 3px rgba(5, 24, 50, .5);
+    box-sizing: border-box;
+    box-shadow: 0 1px 4px rgba(5, 24, 50, .55);
   }
+  /* A plain word, not an icon, so it is obvious the tab opens. */
+  .station-tab > .station-tab-cue {
+    display: block;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(5, 43, 67, .92);
+    color: #fff9ea;
+    font: 800 11px/14px var(--body);
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+  .station-tab.station-tab-open > .station-tab-cue { background: #ffc928; color: #052b43; }
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab:focus-visible {
     outline: 3px solid #ffc928;
     outline-offset: 3px;
@@ -4876,4 +4895,35 @@ button.hand-end-choice {
     box-shadow: 0 8px 20px rgba(0, 0, 0, .4);
     pointer-events: none;
   }
+}
+
+/* Mobile French bones meet flush, the same crisp faces as the phone partner
+   board (owner, 2026-09-14: "dominoes are not joined — air gaps"). The old
+   clipped reveal left a strip of table between joined bones. */
+@media (max-width: 700px) {
+  .line.french-phone-route .tile {
+    clip-path: none;
+    box-shadow: none;
+    border: 1px solid #a8a296;
+    border-radius: 2px;
+    padding: 1px;
+    background: #fffef9;
+  }
+  .line.french-phone-route .tile .half { padding: 1px; }
+  .line.french-phone-route .tile .half b { width: 74%; background: #000; box-shadow: none; }
+  .line.french-phone-route .tile .bar { background: #3b3329; }
+}
+
+/* Practice's phone felt runs 12px past each screen edge to reach the rim, so a
+   side tab 2px inside the felt sat 3px off the screen. */
+@media (max-width: 700px) {
+  .practice-room .table-felt > .table-player-station-left.station-tab { left: 14px; }
+  .practice-room .table-felt > .table-player-station-right.station-tab { right: 14px; }
+}
+
+/* The French phone pinwheel grows past the bottom when an arm runs out of
+   room. Centred, the board jumped up the moment it outgrew the stage; top
+   aligned from the first bone, growing never moves it. */
+@media (max-width: 700px) {
+  .board-stage.french-phone-stage { align-items: flex-start; }
 }

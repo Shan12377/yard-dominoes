@@ -917,3 +917,28 @@ the top. Evidence at 390x844: after "Deal" from a lobby scrolled 1,298px down
 the table sits at the top (felt 70-842 on an 855px screen); Quick play off, a
 one-place bone only selects; on, it plays on one tap (hand 7 to 6); tests
 484/484, typecheck, build. Not yet deployed.
+
+2026-09-14 (French phone: joined bones, readable tabs, steady layout) — Owner
+screenshot notes: gaps between French bones, a double in line, a hook after
+one bone, no L at a turn, and player counts too small with no sign the tab
+opens. The in-line double, the hook and the missing L are the row route,
+which phones under 380px (e.g. 375px iPhones) still get; the whole felt gives
+a 375px phone 24 columns, too few for a 28px pinwheel. Fixed: French phone
+bones meet flush (crisp faces like the partner board); tabs are a 32px photo,
+a large bold bones-left badge and a "View" cue; the pinwheel board is
+top-aligned so growing past the bottom never moves it, and a bone that cannot
+be placed never shifts it down; phones under 380px keep full player badges and
+the guarded row route; the width decision uses min(innerWidth, screen.width)
+because a page wider than the screen swung `innerWidth` across the cutoff.
+Lounge production history, read with `vercel curl`: the partner/open-hand
+Across was live only in the Sept 13 01:59 deploy (v134, uploaded from an
+uncommitted working folder), was replaced by the four-sided Across at 03:36,
+and is live again since `27ce346`. GitHub `origin` was last pushed Sept 10.
+
+Evidence (Practice, finger taps, two full hands each): 430x800 and 390x844
+pinwheel with zero board moves, no bone under a tab, no page scroll, no
+errors (430 showed only the domino shake at a hand's end); 375x812 row route
+for the whole game, nothing moved, no bone under a badge; 360x780 row route,
+no bone under a badge, on-screen movement none. Tests 484/484, typecheck.
+Resume point: owner approval to deploy; owner's phone check; a real Lounge
+French and Across table.

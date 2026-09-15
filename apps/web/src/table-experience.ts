@@ -91,7 +91,12 @@ export function frenchPhoneTab(station: HTMLElement, slot: string, bones: number
   backs.setAttribute('aria-hidden', 'true');
   for (let i = 0; i < bones; i += 1) backs.appendChild(document.createElement('i'));
   details.append(title, line, backs);
-  station.appendChild(details);
+  // A plain word says the tab opens; a bare photo did not (owner, 2026-09-14).
+  const cue = document.createElement('span');
+  cue.className = 'station-tab-cue';
+  cue.setAttribute('aria-hidden', 'true');
+  cue.textContent = 'View';
+  station.append(cue, details);
 
   const sync = () => {
     const open = openFrenchTabs.has(slot);

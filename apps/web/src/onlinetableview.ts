@@ -15,7 +15,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, PHONE_FRENCH_PINWHEEL_MIN_WIDTH } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition, type SeatSlot } from './seatlayout.ts';
@@ -994,7 +994,9 @@ export function liveTableView(
     ? lastFrenchFitBox : null;
   const frenchTable = game.table.format === 'french';
   // Mobile French takes the whole felt; its players are tabs at the rim.
-  if (frenchTable && window.innerWidth <= 700) boardStage.classList.add('french-phone-stage');
+  if (frenchTable && frenchPinwheelPhone()) {
+    boardStage.classList.add('french-phone-stage');
+  }
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${game.hand?.hand_id ?? 'undealt'}:${window.innerWidth}`
     : null;
@@ -1098,7 +1100,10 @@ export function liveTableView(
       station.append(identity, rack);
       stationTurnCue(station, game.hand?.status === 'active' && game.hand.turn === s.seatIndex);
       // Mobile French gives the pinwheel the felt: players become tabs.
-      if (frenchTable && window.innerWidth <= 700) frenchPhoneTab(station, slot, count);
+      // Only where the pinwheel runs; a narrower phone keeps its full badges.
+      if (frenchTable && frenchPinwheelPhone()) {
+        frenchPhoneTab(station, slot, count);
+      }
       feltShell.appendChild(station);
       tableStations.set(slot, station);
     } else {
@@ -1172,7 +1177,7 @@ export function liveTableView(
         felt.querySelector<HTMLElement>('.in-felt-hand'), false);
       // A French phone too narrow for the pinwheel (a 360px screen) keeps the
       // row route, which does not know about the tabs: keep them off its width.
-      if (frenchTable && window.innerWidth <= 700 && window.innerWidth < PHONE_FRENCH_PINWHEEL_MIN_WIDTH) {
+      if (frenchTable && window.innerWidth <= 700 && !frenchPinwheelPhone()) {
         reserveBoardStage(felt, boardStage, tableStations.values(),
           felt.querySelector<HTMLElement>('.in-felt-hand'), false);
       }
