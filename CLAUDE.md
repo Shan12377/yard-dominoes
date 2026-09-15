@@ -315,14 +315,14 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-14, `www.yaaddominoes.com` serves commit `8d890b3`
+- As of 2026-09-15, `www.yaaddominoes.com` serves commit `8d890b3`
   (v147, Stage 2: Next hand on the Game Over card, swipes and the mouse wheel
   over a table scroll the page; on top of v146 Stage 1: French ask-who-poses
   rule, board pass kept in the move log,
   phone French three bones to each side; play-move, advance-duppy,
   expire-turns, start-hand and review-hand redeployed with that engine. If the
   Supabase CLI hangs after reading ~/.supabase/profile, pass
-  SUPABASE_ACCESS_TOKEN from ~/.supabase/access-token), deployed with that engine), deployed with `vercel deploy --prod` from a clean worktree of
+  SUPABASE_ACCESS_TOKEN from ~/.supabase/access-token), deployed with `vercel deploy --prod` from a clean worktree of
   `design/yaaddominoes-foundation`, which is also pushed to GitHub. For what
   any specific past deploy contained, read `git log` rather than trusting an
   accumulated list here — this line is a pointer to current truth, not a
