@@ -32,9 +32,11 @@ See @README.md for setup and architecture.
 - Vocabulary that describes the culture or product model remains valid rather
   than being rebranded: Yard duppy level, Yardie membership, Yard Gate lounge,
   yard rules, and Sunday Yard.
-- The current legal entity string is separate from the product brand. Do not
-  change it from its pending placeholder without confirmation of the registered
-  company name.
+- The legal entity is separate from the product brand. Owner, 2026-09-15: no
+  placeholder text on the site; `ENTITY` in legal.ts is blank (pages name
+  YaadDominoes) and the contact email is info@drshallandahunter.com until the
+  LLC exists. Fill in the registered name and address only when the owner
+  confirms them.
 
 ## Commands
 
