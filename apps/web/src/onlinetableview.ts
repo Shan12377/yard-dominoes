@@ -15,7 +15,8 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone, phonePracticeGeometry } from './render.ts';
+import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
 import { seatPosition, type SeatSlot } from './seatlayout.ts';
@@ -444,6 +445,22 @@ let lastFrenchGuardInset: string | null = null;
  */
 let lastFrenchBlockedKey: string | null = null;
 let lastFrenchBlocked: Array<{ x: number; y: number; w: number; h: number }> | null = null;
+/**
+ * Phone Lounge boards use Practice's fixed JamDom route (owner, 2026-09-15:
+ * "the same closeness of domino and directions ... so they are steady and
+ * stationary the same"). Chosen once per hand and viewport width from the
+ * measured stage, exactly as main.ts does; height is not in the key because
+ * Safari's bars slide in and out mid-hand.
+ */
+let lastPhoneRouteKey: string | null = null;
+let lastPhoneRoute: (PhoneRouteGrid & { unit: number; left: number; top: number }) | null = null;
+let lastPhoneRouteFit: { box: { width: number; height: number }; blocked: StageRect[] } | null = null;
+let lastPhoneRouteInset: string | null = null;
+function phoneRouteGridOf(geo: PhoneRouteGrid): PhoneRouteGrid {
+  return { cols: geo.cols, rows: geo.rows, origin: geo.origin, blocked: geo.blocked, climb: geo.climb };
+}
+const PHONE_BOARD_MAX_UNIT = 20;
+const PHONE_BOARD_MIN_UNIT = 8;
 
 /**
  * The social layer, handed in by whoever owns the Realtime channel it rides on.
@@ -997,6 +1014,25 @@ export function liveTableView(
   if (frenchTable && frenchPinwheelPhone()) {
     boardStage.classList.add('french-phone-stage');
   }
+  // Cut throat, partner and open hand on a phone: Practice's fixed board.
+  const phoneFixedRoute = window.innerWidth <= 700 && !frenchTable && game.table.mode !== 'across';
+  const phoneRouteKey = phoneFixedRoute ? `${game.hand?.hand_id ?? 'undealt'}:${window.innerWidth}` : null;
+  const lockedPhoneRoute = phoneRouteKey !== null && phoneRouteKey === lastPhoneRouteKey ? lastPhoneRoute : null;
+  const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}`;
+  // Pinned at one offset for the whole hand; flex-centring let a 1px change
+  // in the tray nudge every played bone.
+  const pinPhoneRoute = (geo: { left: number; top: number }) => {
+    line.style.position = 'absolute';
+    line.style.left = `${geo.left}px`;
+    line.style.top = `${geo.top}px`;
+    line.style.margin = '0';
+  };
+  if (phoneFixedRoute) {
+    felt.classList.add('phone-route-table');
+    boardStage.classList.add('phone-route-stage');
+    const measuredHere = lastPhoneRoute && lastPhoneRouteKey?.endsWith(`:${window.innerWidth}`);
+    feltSlot.style.setProperty('--hand-bone-short', `${(measuredHere ? lastPhoneRoute!.unit : 13) * 2}px`);
+  }
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${game.hand?.hand_id ?? 'undealt'}:${window.innerWidth}`
     : null;
@@ -1042,6 +1078,12 @@ export function liveTableView(
     unit: tableUnit,
     minUnit: tableMinUnit,
     maxUnits: tableMaxUnits,
+    ...(lockedPhoneRoute ? {
+      unit: lockedPhoneRoute.unit,
+      maxUnit: lockedPhoneRoute.unit,
+      phoneRoute: phoneRouteGridOf(lockedPhoneRoute),
+      moveLog: game.hand?.move_log,
+    } : {}),
     across: game.table.mode === 'across',
     // Landscape shrinks the rigid French canvas to fit; a phone keeps its
     // readable bone and pans instead. See BoardFit.fitCrossToBox.
@@ -1153,7 +1195,11 @@ export function liveTableView(
     // rounding. Without that allowance a dense row could cross the invisible
     // guard by one pixel and be clipped.
     const fitHost = boardStage;
-    if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
+    const phoneStageLocked = phoneFixedRoute && !!displayBoard
+      && phoneRouteKey === lastPhoneRouteKey && lastPhoneRouteInset !== null;
+    if (phoneStageLocked) {
+      boardStage.style.inset = lastPhoneRouteInset!;
+    } else if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
       boardStage.style.inset = lastFrenchGuardInset;
       boardStage.dataset.boardGuard = 'pinned-hand-square';
     } else {
@@ -1174,8 +1220,9 @@ export function liveTableView(
       // "where is the space on desktop" the owner reported.
       // Mobile French routes round its players' tabs instead of keeping the
       // whole side of the table clear (phoneFrenchPinwheel's `blocked`).
+      // The fixed phone board routes round the players itself, like French.
       reserveBoardStage(felt, boardStage,
-        window.innerWidth <= 700 && frenchTable ? [] : tableStations.values(),
+        window.innerWidth <= 700 && (frenchTable || phoneFixedRoute) ? [] : tableStations.values(),
         felt.querySelector<HTMLElement>('.in-felt-hand'), false);
       // A French phone too narrow for the pinwheel (a 360px screen) keeps the
       // row route, which does not know about the tabs: keep them off its width.
@@ -1199,6 +1246,49 @@ export function liveTableView(
       || line.scrollHeight > fitHost.clientHeight;
     lastFeltBox = box;
     lastFeltHasHandRail = handOnFelt;
+    if (phoneFixedRoute && displayBoard?.kind !== 'cross') {
+      // Same as Practice: keep measuring until the pose is down, then the
+      // grid and bone are fixed for the hand.
+      if (!displayBoard || phoneRouteKey !== lastPhoneRouteKey || !lastPhoneRoute) {
+        const stageBox = { width: fitHost.clientWidth, height: fitHost.clientHeight };
+        const stageRect = fitHost.getBoundingClientRect();
+        const originX = stageRect.left + fitHost.clientLeft;
+        const originY = stageRect.top + fitHost.clientTop;
+        const blocked = [...tableStations.values()].map((station) => {
+          const r = station.getBoundingClientRect();
+          return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
+        }).filter((r) => r.right > 0 && r.bottom > 0 && r.left < stageBox.width && r.top < stageBox.height);
+        lastPhoneRouteFit = { box: stageBox, blocked };
+        lastPhoneRoute = phonePracticeGeometry(stageBox, PHONE_BOARD_MAX_UNIT, PHONE_BOARD_MIN_UNIT, blocked);
+        lastPhoneRouteKey = phoneRouteKey;
+        lastPhoneRouteInset = boardStage.style.inset || null;
+      } else if (line.dataset.phoneRouteOverflow && line.dataset.phoneRouteOverflow !== '0'
+        && lastPhoneRouteFit && lastPhoneRoute.unit > PHONE_BOARD_MIN_UNIT) {
+        lastPhoneRoute = phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1,
+          PHONE_BOARD_MIN_UNIT, lastPhoneRouteFit.blocked);
+      }
+      const geo = lastPhoneRoute;
+      feltSlot.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);
+      if (displayBoard && line.dataset.phoneRoute !== phoneRouteLabel(geo)) {
+        const drawn = renderBoard(line, displayBoard, {
+          unit: geo.unit, maxUnit: geo.unit, minUnit: geo.unit,
+          moveLog: game.hand?.move_log,
+          phoneRoute: phoneRouteGridOf(geo),
+          ...(game.mySeat === null ? {} : { viewerSeat: game.mySeat }),
+        });
+        line.dataset.phoneRoute = phoneRouteLabel(geo);
+        pinPhoneRoute(geo);
+        if (drawn) {
+          felt.style.setProperty('--table-bone-short', `${drawn * 2}px`);
+          feltShell.style.setProperty('--table-bone-short', `${drawn * 2}px`);
+          feltSlot.style.setProperty('--table-bone-short', `${drawn * 2}px`);
+        }
+        tagWinningTile(line, felt, game);
+      }
+      boardStage.scrollTop = 0;
+      boardStage.scrollLeft = 0;
+      return;
+    }
     // French uses the same fixed route and opening guard for every move. A
     // second render here caused Lounge to visibly jump after Realtime updates.
     if (frenchTable) {
