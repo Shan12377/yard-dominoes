@@ -1073,3 +1073,5 @@ table on every move. Plan when ready: profile to confirm, move the Coach review
 into a Web Worker or idle time, redraw only what changed per move, then
 re-measure with the same 4x script (.local/qa/cpuperf.mjs) and on a real
 mid-range Android phone.
+
+Resume point 2026-09-15 09:25: v148 live (quick chat dropdown). Stage 4 still open: desktop Lounge side hand/rail cut off, and Lounge cut throat/partner boards getting the Practice route. Both need a real Lounge table to see (guest duppy table on the live site). Stage 3 French layout on hold.
