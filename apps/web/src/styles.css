@@ -5196,6 +5196,11 @@ button.hand-end-choice {
      the stage centred: it sat 5px down, then jumped to the top when a long
      arm grew past the bottom (375px, 2026-09-15). */
   .board-stage.french-phone-stage > .line { align-self: start; }
+  /* align-self alone did not hold it: .line centres itself with margin: auto,
+     and auto margins in a flex stage share out the spare height regardless of
+     align-self. The board sat ~5px down, then jumped to the top when a long
+     arm grew past the bottom (375px, 2026-09-15, twice). */
+  .board-stage.french-phone-stage > .line { margin-top: 0; margin-bottom: 0; }
   /* A swipe on the French board must reach the page, or the coach and
      results below the table cannot be reached with a finger (owner,
      2026-09-15). A board grown past the bottom still pans first. */
