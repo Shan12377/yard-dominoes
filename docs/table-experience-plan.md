@@ -1060,3 +1060,16 @@ now. Phones: left and right lay three then turn (then three more), up and down
 lay two; a side bone may reach the rim. Measured cost: fewer hands fit cleanly
 (87/200 in the fixture, 265/400 with real edge tabs vs 324 before); the tests
 now floor that rather than hide it. Revisit in Stage 3 (French layout).
+
+## Parked: Android smoothness (start when a player complains)
+
+Owner, 2026-09-15: not urgent; pick up when someone reports Android slowness.
+Lighthouse is not the problem (live mobile: home 99, Practice 100; a11y, best
+practices and SEO all 100). The felt slowness is in play: 90s of French Practice
+at 390px on the production build with 4x CPU throttling had 19 long tasks
+(2.6s total, worst 425ms and 421ms). Likely causes, unproven: the Coach review
+solving the hand when it ends (main thread), and render() rebuilding the whole
+table on every move. Plan when ready: profile to confirm, move the Coach review
+into a Web Worker or idle time, redraw only what changed per move, then
+re-measure with the same 4x script (.local/qa/cpuperf.mjs) and on a real
+mid-range Android phone.
