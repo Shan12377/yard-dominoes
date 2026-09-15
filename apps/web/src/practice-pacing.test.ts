@@ -205,6 +205,11 @@ test('mobile French opens at the top of the table after the deal', () => {
   assert.match(practiceSource, /boardStage\.classList\.add\('french-phone-stage'\);\s*room\.classList\.add\('french-phone-room'\);/);
 });
 
+test('a new deal waits for the last hand to be scored and its Duppy loop to end', () => {
+  assert.match(localSource,
+    /async startHand\(onDealt\?[\s\S]{0,900}?if \(this\.duppyLoop\) await this\.duppyLoop;\s*const serverSeed = randomSeed\(\);/);
+});
+
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));

@@ -115,6 +115,13 @@ export class LocalGame {
 
   /** Deal the next hand, committing to the shuffle before any tile is dealt. */
   async startHand(onDealt?: () => void | Promise<void>): Promise<void> {
+    // "Next hand" shows the moment the last bone lands, while a Duppy's loop
+    // is still pausing on it before it scores the hand. Dealing during that
+    // pause replaced the hand first: the old result was never scored, the
+    // new hand's poser came from the stale set, and the new hand never got a
+    // Duppy loop, so it froze (desktop French, 2026-09-15). Let the last hand
+    // finish first.
+    if (this.duppyLoop) await this.duppyLoop;
     const serverSeed = randomSeed();
     const commitment = await commit(serverSeed);
     const clientSeeds = [randomSeed(8)];

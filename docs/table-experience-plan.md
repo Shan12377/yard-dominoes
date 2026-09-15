@@ -1022,3 +1022,33 @@ pass is now marked on the move in `moveLog`, which the server keeps. Tests
 494/494; phone 390/375 four hands clean. The ask buttons were not reached in
 browser play (no qualifying deal came up). Not deployed; functions need
 redeploying for online.
+
+## Staged plan from owner feedback, 2026-09-15 06:06
+
+Owner direction: the mobile layout we have now is the preferred model for
+every table; desktop differs only in bone/board size and where the people sit.
+Work in stages, deploy after each.
+
+Stage 1 (now): French ask-to-pose rule live in Practice AND Lounge (engine,
+Practice UI, online UI, play-move/advance-duppy/expire-turns/start-hand/
+review-hand redeploy), board pass kept in the move log so the pass reset works
+online, desktop penalty banner no longer pushes the table. Wi-Fi test link to
+the dev server for phone checks.
+
+Stage 2: Game Over card gets "Next hand" (and "New game" when the set is over)
+so a player can skip the results. French Practice phone: reaching the coach /
+page below the table must not fight the board (scroll trap). Desktop scrolling
+problem.
+
+Stage 3: French layout rules. Up and down arms three from the middle; the down
+arm's cross row turns DOWN again, never back up (the encaged turn in the
+owner's desktop screenshot). Strict: no arm may ever box another in or collide.
+Hand bones may be a little smaller and sit between the corner pictures, closer
+to the table edge. Score text a more visible colour.
+
+Stage 4: Lounge. Remove the Quick words row (ME/YOU/ANY/BLESS/GG/DWL/KMT/BRB).
+Quick chat becomes a dropdown of patois phrases: Play mi domino, Send mi
+domino, Watch dis, Seh yuh pass, Hold dis, Yuh chat too much, Key dat!, Six
+love dat, New playa!, Ready fi di six! Desktop hand at the side must sit
+further in (it is cut off). Lounge cut throat/partner boards get Practice's
+flush joins, doubles and fixed stationary route at the current size.

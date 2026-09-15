@@ -5000,14 +5000,16 @@ button.hand-end-choice {
 
 /* A French penalty notice ("passed three times running — +10") shows for six
    seconds. In the page flow it pushed the whole phone table down 88px and back
-   up again, moving every played bone twice. On a phone it floats over the top
-   of the screen instead and never takes room from the table. */
-@media (max-width: 700px) {
+   up again, moving every played bone twice. It floats over the top of the
+   screen instead and never takes room from the table: on desktop too, where
+   a "no double to pose" notice pushed the whole table down 45px mid-hand
+   (1440x900, 2026-09-15). */
+@media all {
   .banner.penalty {
     position: fixed;
     top: max(8px, env(safe-area-inset-top));
-    left: 12px;
-    right: 12px;
+    left: max(12px, calc(50% - 320px));
+    right: max(12px, calc(50% - 320px));
     z-index: 40;
     margin: 0;
     border-color: var(--gold);
