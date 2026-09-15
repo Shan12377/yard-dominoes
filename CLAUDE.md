@@ -315,9 +315,12 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-14, `www.yaaddominoes.com` serves commit `fd88a59`
-  (`chore: service worker v145 for desktop French legs`, on top of `37adebc`;
-  the French pass-rule functions went out with v144), deployed with that engine), deployed with `vercel deploy --prod` from a clean worktree of
+- As of 2026-09-14, `www.yaaddominoes.com` serves commit `331fab5`
+  (v146, Stage 1: French ask-who-poses rule, board pass kept in the move log,
+  phone French three bones to each side; play-move, advance-duppy,
+  expire-turns, start-hand and review-hand redeployed with that engine. If the
+  Supabase CLI hangs after reading ~/.supabase/profile, pass
+  SUPABASE_ACCESS_TOKEN from ~/.supabase/access-token), deployed with that engine), deployed with `vercel deploy --prod` from a clean worktree of
   `design/yaaddominoes-foundation`, which is also pushed to GitHub. For what
   any specific past deploy contained, read `git log` rather than trusting an
   accumulated list here — this line is a pointer to current truth, not a
