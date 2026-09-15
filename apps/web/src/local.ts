@@ -109,8 +109,27 @@ export class LocalGame {
 
   get mySide() { return sideOf(this.mySeat, this.options.mode); }
 
+  /**
+   * Across in Practice (owner, 2026-09-15): the human plays both hands of
+   * their side, their own seat and the partner seat opposite. Duppies play
+   * the other two.
+   */
+  get partnerSeat(): number | null {
+    return this.options.mode === 'across' ? (this.mySeat + 2) % this.options.seatCount : null;
+  }
+
+  /** True for every seat the human plays. */
+  controls(seat: number): boolean {
+    return seat === this.mySeat || seat === this.partnerSeat;
+  }
+
+  /** The human's seat that is on turn, or their own seat while waiting. */
+  activeSeat(): number {
+    return this.hand && this.hand.status === 'active' && this.controls(this.hand.turn) ? this.hand.turn : this.mySeat;
+  }
+
   isMyTurn(): boolean {
-    return this.hand?.status === 'active' && this.hand.turn === this.mySeat;
+    return this.hand?.status === 'active' && this.controls(this.hand.turn);
   }
 
   /** Deal the next hand, committing to the shuffle before any tile is dealt. */
@@ -217,7 +236,7 @@ export class LocalGame {
 
   private async duppyTurns() {
     if (!this.hand) return;
-    while (this.hand.status === 'active' && this.hand.turn !== this.mySeat) {
+    while (this.hand.status === 'active' && !this.controls(this.hand.turn)) {
       const decidedOn = this.hand;
       // One clear, human-sized beat between Duppy actions. At the old 420ms
       // pace a pass and the answering tile could happen before a newcomer

@@ -1070,6 +1070,7 @@ function lobby(): HTMLElement {
   mode.dataset.tour = 'game';
   mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>
                     <option value="openhand">Open hand — partner sees your tiles</option>
+                    <option value="across">Across — you play both hands</option>
                     <option value="cutthroat">Cut throat — every man for himself</option>
                     <option value="french">French — race to 100, lowest wins</option>`;
   mode.value = lobbyMode;
@@ -1809,13 +1810,20 @@ function drawbacksOf(a: MoveAdvice, g: LocalGame): string[] {
   return out.slice(0, 2);
 }
 
-function myHand(g: LocalGame): HTMLElement {
+/**
+ * A hand the human plays. `seat` is their own seat, or in Across the partner
+ * seat opposite; `passive` draws the Across hand that is not on turn as a
+ * read-only panel that never touches the chosen-tile state (2026-09-15).
+ */
+function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): HTMLElement {
   const panel = el('div', 'panel my-hand-panel');
-  handTurnCue(panel, g.isMyTurn());
-  if (!g.isMyTurn()) pendingTile = null;
-  const handHeader = el('div', 'eyebrow', g.isMyTurn()
-    ? (pendingTile ? 'Choose where it goes' : 'Your turn')
-    : 'Your hand');
+  const live = !passive && g.isMyTurn();
+  const partnerHand = g.partnerSeat !== null && seat === g.partnerSeat;
+  handTurnCue(panel, live);
+  if (!passive && !g.isMyTurn()) pendingTile = null;
+  const handHeader = el('div', 'eyebrow', live
+    ? (pendingTile ? 'Choose where it goes' : partnerHand ? 'Your partner hand — your turn' : 'Your turn')
+    : partnerHand ? 'Your partner hand' : 'Your hand');
   // This is practice's Duppy thinking interval, not an invented move clock.
   // Keeping it in the hand tray makes it reachable during a game without
   // turning the practice page back into the old stack of controls below wood.
@@ -1831,11 +1839,11 @@ function myHand(g: LocalGame): HTMLElement {
     g.options.duppyPace = next;
     lobbyPace = next;
   };
-  handHeader.appendChild(pace);
+  if (!passive) handHeader.appendChild(pace);
   panel.appendChild(handHeader);
 
-  const playable = g.playableTiles();
-  const legal = g.legal();
+  const playable = passive ? new Set<TileId>() : g.playableTiles();
+  const legal = passive ? [] : g.legal();
   const hand = el('div', 'hand');
   // See the .in-felt-hand rule: the rail sizes its columns from this rather
   // than assuming a seven-bone deal.
@@ -1847,10 +1855,11 @@ function myHand(g: LocalGame): HTMLElement {
   hand.style.setProperty('--hand-count', String(Math.max(dealCount, 1)));
   hand.classList.toggle('double-row', dealCount >= 10);
 
-  for (const tile of g.hand?.hands[g.mySeat] ?? []) {
+  for (const tile of g.hand?.hands[seat] ?? []) {
     const node = tileEl(tile);
     const can = playable.has(tile);
     node.classList.add(can ? 'playable' : 'dead');
+    if (passive) { hand.appendChild(node); continue; }
     if (pendingTile === tile) node.classList.add('chosen');
     // Every tile is selectable, playable or not — a real table never stops
     // your hand touching a tile that doesn't fit, it just won't land. The
@@ -1878,7 +1887,7 @@ function myHand(g: LocalGame): HTMLElement {
   }
   panel.appendChild(hand);
 
-  if (pendingTile && g.hand?.status === 'active') {
+  if (!passive && pendingTile && g.hand?.status === 'active') {
     const board = g.hand?.board ?? null;
     const linear = board?.kind === 'linear' ? board : null;
     const cross = board?.kind === 'cross' ? board : null;
@@ -2394,7 +2403,8 @@ function tableView(g: LocalGame): DocumentFragment {
   // hand below the wood and a fixed board of smaller bones that never moves.
   // Desktop too since 2026-09-15 (owner: "every change that was done to the
   // mobile that made it precise"), at the desktop bone size.
-  const phoneFixedRoute = g.options.format !== 'french' && g.options.mode !== 'across';
+  // Across too, as in the Lounge: its rules decide who plays, not where bones go.
+  const phoneFixedRoute = g.options.format !== 'french';
   const phoneRouteKey = phoneFixedRoute ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}` : null;
   const lockedPhoneRoute = phoneRouteKey !== null && phoneRouteKey === lastPhoneRouteKey ? lastPhoneRoute : null;
   const phoneRouteLabel = (geo: { unit: number; cols: number; rows: number; climb: number }) => `${geo.unit}:${geo.cols}x${geo.rows}:${geo.climb}`;
@@ -2615,16 +2625,23 @@ function tableView(g: LocalGame): DocumentFragment {
     }
   }
   if (g.options.mode === 'across' && g.hand) {
-    // Across uses the same furniture as Open Hand in Practice: the readable
-    // playable tray stays at the player's edge and the partner's hand remains
-    // in the companion panel. Only the legal-turn authority differs online.
-    const partnerSeat = g.mySeat ^ 2;
-    const mine = myHand(g);
-    choiceHandHost = mine;
-    handActions = takeHandActions(mine);
-    mine.classList.add('in-felt-hand');
-    felt.appendChild(mine);
-    room.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
+    // Across, same as the Lounge (owner, 2026-09-15): my hand at the bottom,
+    // my partner hand at the top, both on the table. The seat on turn is the
+    // live panel; the other is read-only until its turn.
+    const partnerSeat = g.partnerSeat ?? (g.mySeat + 2) % g.options.seatCount;
+    const active = g.activeSeat();
+    const liveHand = myHand(g, active);
+    choiceHandHost = liveHand;
+    handActions = takeHandActions(liveHand);
+    const waitingHand = myHand(g, active === partnerSeat ? g.mySeat : partnerSeat, true);
+    const own = active === partnerSeat ? waitingHand : liveHand;
+    const top = active === partnerSeat ? liveHand : waitingHand;
+    own.classList.add('across-hand-own');
+    top.classList.add('across-hand-partner');
+    const both = el('div', 'in-felt-across-hands');
+    both.append(own, top);
+    felt.classList.add('across-hands-on-felt');
+    felt.appendChild(both);
   }
   if (practiceDealAnimating && window.innerWidth <= 700) {
     felt.appendChild(practiceDealOverlay());
@@ -2733,7 +2750,7 @@ function tableView(g: LocalGame): DocumentFragment {
         // racks are the real boxes the route must keep clear of.
         const blockers: HTMLElement[] = window.innerWidth <= 700
           ? [...tableStations.values()]
-          : [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity')];
+          : [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner')];
         const blocked = blockers.map((station) => {
           const r = station.getBoundingClientRect();
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };

@@ -218,6 +218,15 @@ test('the GAME OVER card goes straight to the next hand, or a new set once it is
   assert.match(online, /if \(!setOver && !game\.isSpectator\) \{[\s\S]{0,400}?go\.onclick = \(\) => \{ go\.disabled = true; void game\.dealNext\(\); \};/);
 });
 
+test('Practice offers Across: the player plays both hands, partner hand at the top', () => {
+  // Owner, 2026-09-15: Across belongs in Practice too.
+  assert.match(practiceSource, /<option value="across">Across — you play both hands<\/option>/);
+  assert.match(localSource, /controls\(seat: number\): boolean \{\s*return seat === this\.mySeat \|\| seat === this\.partnerSeat;/);
+  assert.match(localSource, /while \(this\.hand\.status === 'active' && !this\.controls\(this\.hand\.turn\)\)/, 'duppies never play a seat the human controls');
+  assert.match(practiceSource, /top\.classList\.add\('across-hand-partner'\)/);
+  assert.match(practiceSource, /if \(passive\) \{ hand\.appendChild\(node\); continue; \}/, 'the waiting Across hand cannot be played');
+});
+
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));
