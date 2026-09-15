@@ -315,8 +315,10 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-15, `www.yaaddominoes.com` serves commit `c6662ec`
-  (v148: Lounge quick chat dropdown of patois lines; v147, Stage 2: Next hand on the Game Over card, swipes and the mouse wheel
+- As of 2026-09-15, `www.yaaddominoes.com` serves commit `2f8690f`
+  (v149: phone Lounge cut throat/partner/open hand use Practice's fixed board,
+  desktop side hands at the table edge, Lounge felt fits under its bars;
+  v148: Lounge quick chat dropdown of patois lines; v147, Stage 2: Next hand on the Game Over card, swipes and the mouse wheel
   over a table scroll the page; on top of v146 Stage 1: French ask-who-poses
   rule, board pass kept in the move log,
   phone French three bones to each side; play-move, advance-duppy,
