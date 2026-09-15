@@ -90,7 +90,7 @@ test('phones lay three bones left and right, two up and down, then turn clockwis
   });
 });
 
-test('desktop lays four bones to each side and two up and down, then turns clockwise', () => {
+test('desktop lays four bones to each side and three up and down, then turns clockwise', () => {
   const cols = 58;
   const rows = 39;
   const lengths = [6, 6, 6, 6];
@@ -101,7 +101,7 @@ test('desktop lays four bones to each side and two up and down, then turns clock
   assert.equal(stuck, 0);
   assertSound(slots, cols, rows);
   const hub = hubOf(cols, rows);
-  const legs: Record<Dir, number> = { up: 2, right: 4, down: 2, left: 4 };
+  const legs: Record<Dir, number> = { up: 3, right: 4, down: 3, left: 4 };
   slots.forEach((arm, a) => {
     const out = DIRS[a];
     for (let i = 0; i < legs[out]; i++) {

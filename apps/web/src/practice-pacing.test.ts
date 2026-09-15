@@ -244,6 +244,17 @@ test('Lounge sign-in offers one tap with Google or Apple and never strands a pla
   assert.match(lounge, /signIn\.textContent = 'Sign in to play';/);
 });
 
+test('Practice lets the winning side pass the pose, never on hand one or a forced double-six', () => {
+  assert.match(localSource, /canPassPose\(\): boolean \{[\s\S]{0,400}?h\.moveLog\.length === 0[\s\S]{0,200}?isPartnered\(this\.options\.mode\)[\s\S]{0,200}?!this\.set\.poseMustBeDoubleSix && this\.set\.handsPlayed > 0/);
+  assert.match(localSource, /this\.set = passPoseToPartner\(this\.set\);/);
+  assert.match(practiceSource, /pass\.textContent = 'Pass to partner';/);
+});
+
+test('the Practice table never spills over the result heading on desktop', () => {
+  assert.match(styles, /#app:has\(\.practice-room\) \.practice-room \{ height: auto; \}/);
+  assert.doesNotMatch(styles, /\.table-rack-top \{ top: 0; transform: translate\(-50%, -50%\); \}/, 'the top hand sits inside the table like the others');
+});
+
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));

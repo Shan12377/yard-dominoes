@@ -15,7 +15,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone, phonePracticeGeometry, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone, phonePracticeGeometry, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits, deskRouteGeometry, DESK_ROUTE_STAGE_INSET, DESK_ROUTE_MIN_UNIT } from './render.ts';
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
@@ -1064,7 +1064,7 @@ export function liveTableView(
   if (acrossStageKey !== null && acrossStageKey === lastAcrossStageKey && lastAcrossStageInset) {
     boardStage.style.inset = lastAcrossStageInset;
   }
-  const tableCapUnit = liveTableUnit(window.innerWidth, null, frenchTable);
+  const tableCapUnit = liveTableUnit(window.innerWidth, null, frenchTable, window.innerHeight);
   const tableMinUnit = window.innerWidth <= 700 ? 10 : game.table.mode === 'across' ? 22 : 11;
   // First solve the physical bone. Across's route width is calculated only
   // after that, from this exact unit; using the smaller readability floor here
@@ -1072,7 +1072,7 @@ export function liveTableView(
   const openingLinearGeometry = frenchTable ? null : liveLinearGeometry(
     window.innerWidth, cachedBox, tableMinUnit, 32);
   const tableUnit = openingLinearGeometry?.unit
-    ?? liveTableUnit(window.innerWidth, displayBoard, frenchTable);
+    ?? liveTableUnit(window.innerWidth, displayBoard, frenchTable, window.innerHeight);
   const acrossLaneUnitsFor = (box?: { width: number } | null) => game.table.mode === 'across'
     ? liveAcrossRouteUnits(box, tableUnit)
     : 32;
@@ -1297,12 +1297,18 @@ export function liveTableView(
     lastFeltHasHandRail = handOnFelt;
     if (phoneFixedRoute && displayBoard?.kind !== 'cross') {
       const routeMaxUnit = window.innerWidth <= 700 ? PHONE_BOARD_MAX_UNIT : tableUnit;
-      const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : Math.min(tableUnit, tableMinUnit);
+      // Desktop may step down to any readable bone rather than lay one past the
+      // wood (Across stopped at 22px and hid 6/1 under the table edge).
+      const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : DESK_ROUTE_MIN_UNIT;
       // Desktop turns its centre row after three bones each side, like the phone.
       const routeFirstRow = window.innerWidth <= 700 ? undefined : DESK_FIRST_ROW_BONES;
       // Same as Practice: keep measuring until the pose is down, then the
       // grid and bone are fixed for the hand.
       if (!displayBoard || phoneRouteKey !== lastPhoneRouteKey || !lastPhoneRoute) {
+        // Desktop: the board takes the whole felt and flows round the people
+        // and hands on it (owner, 2026-09-15: "domino should play until it
+        // fills the board"), exactly as the phone board does.
+        if (window.innerWidth > 700) boardStage.style.inset = DESK_ROUTE_STAGE_INSET;
         const stageBox = { width: fitHost.clientWidth, height: fitHost.clientHeight };
         const stageRect = fitHost.getBoundingClientRect();
         const originX = stageRect.left + fitHost.clientLeft;
@@ -1311,7 +1317,7 @@ export function liveTableView(
         // racks are the real boxes the route must keep clear of.
         const blockers: HTMLElement[] = window.innerWidth <= 700
           ? [...tableStations.values()]
-          : [...feltShell.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner')];
+          : [...feltShell.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner, .in-felt-hand, .in-felt-actions')];
         const blocked = blockers.map((station) => {
           const r = station.getBoundingClientRect();
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
@@ -1320,13 +1326,14 @@ export function liveTableView(
         // Desktop keeps its bone (owner). The centre-row rule is used when a
         // full hand fits with it at that bone; otherwise the ordinary rows.
         const deskTrim = window.innerWidth > 700;
-        // The bone the ordinary rows choose is today's size. Try the centre-row
-        // rule at exactly that bone; routeMaxUnit is only the opening cap.
-        const plainRoute = phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked, undefined, deskTrim);
-        const withRule = routeFirstRow === undefined ? null
-          : phonePracticeGeometry(stageBox, plainRoute.unit, plainRoute.unit, blocked, routeFirstRow, deskTrim);
-        const ruleFits = !!withRule && withRule.unit === plainRoute.unit && phoneRouteGeometryFits(withRule);
-        lastPhoneRoute = ruleFits && withRule ? withRule : plainRoute;
+        // Phones: the ordinary rows at their own bone. Desktop: the centre-row
+        // S at the biggest bone every hand fits (deskRouteGeometry).
+        const plainRoute = deskTrim
+          ? deskRouteGeometry(stageBox, blocked, routeMinUnit)
+          : phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked);
+        const withRule = routeFirstRow === undefined ? null : plainRoute;
+        const ruleFits = !!withRule && phoneRouteGeometryFits(withRule);
+        lastPhoneRoute = plainRoute;
         // QA hook: which layout the hand chose, and the space it was measured in.
         boardStage.dataset.routeRule = withRule ? (ruleFits ? 'on' : 'off') : 'none';
         boardStage.dataset.routeRuleBox = `${stageBox.width}x${stageBox.height}:u${plainRoute.unit}:b${blocked.length}`;
@@ -1334,8 +1341,9 @@ export function liveTableView(
         lastPhoneRouteInset = boardStage.style.inset || null;
       } else if (line.dataset.phoneRouteOverflow && line.dataset.phoneRouteOverflow !== '0'
         && lastPhoneRouteFit && lastPhoneRoute.unit > routeMinUnit) {
-        lastPhoneRoute = phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1,
-          routeMinUnit, lastPhoneRouteFit.blocked, lastPhoneRoute.firstRowBones, window.innerWidth > 700);
+        lastPhoneRoute = window.innerWidth > 700
+          ? deskRouteGeometry(lastPhoneRouteFit.box, lastPhoneRouteFit.blocked, routeMinUnit, lastPhoneRoute.unit - 1)
+          : phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1, routeMinUnit, lastPhoneRouteFit.blocked);
       }
       const geo = lastPhoneRoute;
       feltSlot.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);

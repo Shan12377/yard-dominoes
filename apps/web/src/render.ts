@@ -272,10 +272,16 @@ export interface BoardFit {
 export interface BoardBox { width: number; height: number }
 
 /** The live board's pre-deal physical size, in half-bone units. */
+/** Desktop French: viewport height not available to the up and down arms (bars, rack, hand). */
+const FRENCH_DESK_CHROME_PX = 360;
+/** Units of height the up and down arms need together: chucha, two bones and a double each, with felt. */
+const FRENCH_DESK_BAND_UNITS = 28;
+
 export function liveTableUnit(
   viewportWidth: number,
   board: AnyBoard | null,
   french = false,
+  viewportHeight = Number.POSITIVE_INFINITY,
 ): number {
   if (french || board?.kind === 'cross') {
     // The approved reference is JamDom's 30×60 bone on a 1000×800 desktop
@@ -283,7 +289,15 @@ export function liveTableUnit(
     // consult the number played. A bone is one physical object from deal to
     // final play; the route must absorb a crowded board, never the bone size.
     if (viewportWidth <= 700) return 14; // 28px short side on a phone.
-    return Math.max(15, Math.min(30, Math.round(viewportWidth * .0125)));
+    // Desktop French bones are up to a quarter bigger than JamDom's ratio
+    // (owner, 2026-09-15: "scale bones up about 25-30%"), but never so big
+    // that the up and down arms, which run between the top player's rack and
+    // my hand, turn before two bones and a double (the owner's other ask: arms
+    // straight before turning). The height is binding on a laptop: 19px at
+    // 1440x900, 25px at 1920x1080.
+    const byWidth = Math.round(viewportWidth * .0156);
+    const byHeight = Math.floor((viewportHeight - FRENCH_DESK_CHROME_PX) / FRENCH_DESK_BAND_UNITS);
+    return Math.max(18, Math.min(38, byWidth, byHeight));
   }
   if (viewportWidth <= 700) {
     // Flat, exactly like the French branch above, and for the same reason: the
@@ -535,7 +549,7 @@ export interface PhoneRouteGrid {
 }
 
 /** Desktop centre row: the pose and three bones each side (owner, 2026-09-15). */
-export const DESK_FIRST_ROW_BONES = 3;
+export const DESK_FIRST_ROW_BONES = 4;
 
 /** A rectangle in px, relative to the board stage's padding box. */
 export interface StageRect { left: number; top: number; right: number; bottom: number }
@@ -567,6 +581,47 @@ export function phoneRouteGeometryFits(grid: PhoneRouteGrid): boolean {
   });
 }
 
+const DESK_EDGE_SLACK = 32;
+/** Felt left between the board band and the top rack or my hand. */
+const DESK_BAND_GAP = 6;
+
+/** A desktop double-six stage's inset inside the felt: the whole wood, less a reveal. */
+export const DESK_ROUTE_STAGE_INSET = '10px';
+
+/** The biggest desktop bone's half (a 76px domino): big enough to feel like wood. */
+export const DESK_ROUTE_MAX_UNIT = 38;
+/** The smallest desktop bone a long hand may be laid again at. */
+export const DESK_ROUTE_MIN_UNIT = 11;
+
+/**
+ * Desktop double-six board (owner, 2026-09-15: "dominoes are too small ...
+ * domino should play until it fills the board", "consistent ... direction").
+ * The rows run the whole width between the side players, in the band between
+ * the top player's rack and my hand: a row cannot pass through either, so the
+ * wood above and below them only cost bone size when it was counted. Every
+ * hand turns its centre row after DESK_FIRST_ROW_BONES, and the bone is sized
+ * with the climb it is really laid with, so a long hand does not run off the
+ * table (the rare one that would is laid again a size smaller, never clipped).
+ */
+export function deskRouteGeometry(
+  box: BoardBox, blockedPx: readonly StageRect[], minUnit: number, maxUnit = DESK_ROUTE_MAX_UNIT,
+): PhoneRouteGrid & { unit: number; left: number; top: number } {
+  let bandTop = 0;
+  let bandBottom = box.height;
+  for (const b of blockedPx) {
+    const middle = (b.left + b.right) / 2;
+    if (middle < box.width / 4 || middle > box.width * 3 / 4) continue;
+    if (b.top < box.height / 3) bandTop = Math.max(bandTop, Math.ceil(b.bottom) + DESK_BAND_GAP);
+    else if (b.bottom > box.height * 2 / 3) bandBottom = Math.min(bandBottom, Math.floor(b.top) - DESK_BAND_GAP);
+  }
+  const band = { width: box.width, height: Math.max(0, bandBottom - bandTop) };
+  const shifted = blockedPx
+    .map((b) => ({ left: b.left, right: b.right, top: b.top - bandTop, bottom: b.bottom - bandTop }))
+    .filter((b) => b.bottom > 0 && b.top < band.height);
+  const grid = phonePracticeGeometry(band, maxUnit, minUnit, shifted, DESK_FIRST_ROW_BONES, true, undefined, PHONE_CLIMB);
+  return { ...grid, top: grid.top + bandTop, blocked: grid.blocked.map((b) => ({ ...b })) };
+}
+
 export function phonePracticeGeometry(
   box: BoardBox, maxUnit: number, minUnit: number, blockedPx: readonly StageRect[] = [], firstRowBones?: number,
   /**
@@ -577,14 +632,20 @@ export function phonePracticeGeometry(
    * their narrow tabs as blockers, so their layout does not change.
    */
   trimEdges = false,
+  /** Corpus hands allowed to outgrow the board; see PhoneRouteOptions.tolerance. */
+  tolerance?: number,
+  /** The climb the bone is sized with. Phones size as if one domino (see PHONE_SIZING_CLIMB). */
+  sizingClimb = PHONE_SIZING_CLIMB,
 ): PhoneRouteGrid & { unit: number; left: number; top: number } {
   let edgeLeft = 0;
   let edgeRight = box.width;
   if (trimEdges) {
     for (const b of blockedPx) {
       if (b.right - b.left > box.width / 4) continue;
-      if (b.right >= box.width - 1 && b.left > box.width / 2) edgeRight = Math.min(edgeRight, b.left);
-      else if (b.left <= 1 && b.right < box.width / 2) edgeLeft = Math.max(edgeLeft, b.right);
+      // Within DESK_EDGE_SLACK of the edge counts as on it: a whole-felt stage
+      // leaves the felt's own padding between a card and the stage edge.
+      if (b.right >= box.width - DESK_EDGE_SLACK && b.left > box.width / 2) edgeRight = Math.min(edgeRight, b.left);
+      else if (b.left <= DESK_EDGE_SLACK && b.right < box.width / 2) edgeLeft = Math.max(edgeLeft, b.right);
     }
     blockedPx = blockedPx.filter((b) => b.left < edgeRight && b.right > edgeLeft);
   }
@@ -604,10 +665,10 @@ export function phonePracticeGeometry(
   };
   for (let u = maxUnit; u >= minUnit; u -= 1) {
     const grid = gridAt(u, PHONE_CLIMB);
-    const key = JSON.stringify([grid.cols, grid.rows, grid.origin, grid.blocked, firstRowBones ?? null]);
+    const key = JSON.stringify([grid.cols, grid.rows, grid.origin, grid.blocked, firstRowBones ?? null, tolerance ?? null, sizingClimb]);
     let fits = phoneRouteFitCache.get(key);
     if (fits === undefined) {
-      fits = phoneRouteFits(grid.cols, grid.rows, { origin: grid.origin, blocked: grid.blocked, climb: PHONE_SIZING_CLIMB, firstRowBones });
+      fits = phoneRouteFits(grid.cols, grid.rows, { origin: grid.origin, blocked: grid.blocked, climb: sizingClimb, firstRowBones, tolerance });
       phoneRouteFitCache.set(key, fits);
     }
     if (fits) return grid;
@@ -1180,7 +1241,7 @@ export const FRENCH_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: [3, 3], right: [
  * 28px floor three side bones already reach the rim. Simulated over 400 real
  * hands on a 58x39 desktop grid, all 400 fit (two sides and three up: 366).
  */
-export const FRENCH_DESK_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: 4, right: 4, up: 2, down: 2 };
+export const FRENCH_DESK_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: 4, right: 4, up: 3, down: 3 };
 
 export function phoneFrenchPinwheel(input: {
   arms: ReadonlyArray<{ direction: CrossDirection; doubles: readonly boolean[] }>;
@@ -1189,12 +1250,28 @@ export function phoneFrenchPinwheel(input: {
   cols: number;
   rows: number;
   blocked?: ReadonlyArray<{ x: number; y: number; w: number; h: number }>;
-}): { slots: PhoneCrossSlot[][]; stuck: number } {
+  /**
+   * Desktop: stand the chucha halfway between the top player's rack and my
+   * hand rather than halfway down the felt, so the up and down arms get the
+   * same room (owner, 2026-09-15: all four arms 3-4 bones before turning).
+   */
+  centreBetweenBlocks?: boolean;
+}): { slots: PhoneCrossSlot[][]; stuck: number; cy: number } {
   type Rect = { x: number; y: number; w: number; h: number };
   type Placed = Rect & { arm: number };
   const { cols, rows } = input;
   const cx = cols / 2;
-  const cy = Math.floor(rows / 2);
+  let cy = Math.floor(rows / 2);
+  if (input.centreBetweenBlocks) {
+    let bandTop = 0;
+    let bandBottom = rows;
+    for (const b of input.blocked ?? []) {
+      if (b.x > cx || b.x + b.w < cx) continue;
+      if (b.y + b.h <= rows / 2) bandTop = Math.max(bandTop, b.y + b.h);
+      else if (b.y >= rows / 2) bandBottom = Math.min(bandBottom, b.y);
+    }
+    cy = Math.floor((bandTop + bandBottom) / 2);
+  }
   const minX = -cx;
   const maxX = cols - cx;
   const minY = -cy;
@@ -1325,7 +1402,7 @@ export function phoneFrenchPinwheel(input: {
       x: placed.x + cx, y: placed.y + cy, w: placed.w, h: placed.h, orient: placed.w > placed.h ? 'h' : 'v',
     });
   }
-  return { slots, stuck };
+  return { slots, stuck, cy };
 }
 
 /** Which pip faces which way when `placed` joins `anchor` at (x, y) from `previous`. */
@@ -1441,7 +1518,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
         direction: armDirections[index], doubles: arm.tiles.map((placed) => isDouble(placed.tile)),
       })),
       order, cols, rows, blocked: opts.phoneCrossBlocked,
-      ...(opts.frenchPinwheel ? { legs: FRENCH_DESK_PINWHEEL_LEGS } : {}),
+      ...(opts.frenchPinwheel ? { legs: FRENCH_DESK_PINWHEEL_LEGS, centreBetweenBlocks: true } : {}),
     })
     : null;
   // A phone too narrow for the pinwheel keeps the older row-by-row route for
@@ -1475,7 +1552,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
   };
 
   const cx = cols / 2;
-  const cy = Math.floor(rows / 2);
+  const cy = pinwheel?.cy ?? Math.floor(rows / 2);
   const pose = tileEl(board.center);
   pose.classList.add('hub');
   place(pose, { x: cx - 1, y: cy - 2, w: 2, h: 4 });

@@ -160,6 +160,10 @@ body.walkthrough-open { overflow: hidden; }
     height: max(680px, calc(100svh - 120px));
     min-height: 680px;
   }
+  /* The room had its own shorter fixed height, so the taller table spilled
+     ~30px over the result heading below it ("Board jammed…", owner,
+     2026-09-15). The room now grows with its table. */
+  #app:has(.practice-room) .practice-room { height: auto; }
   /* The Lounge has two bars above the felt (table name, then scores), about
      170px, not Practice's one. Sized like Practice, a 900px-tall desktop ran
      the player's own hand off the bottom of the screen (owner, 2026-09-15). */
@@ -4469,6 +4473,14 @@ button.dismiss.small { font-size: 12px; }
 }
 .in-felt-across-hands > .across-hand-own { bottom: 8px; }
 .in-felt-across-hands > .across-hand-partner { top: 8px; }
+/* Desktop Across (owner, 2026-09-15: "the across game table needs to be big
+   like the other ones"). The two hands are the board's top and bottom limits,
+   so every pixel of panel padding was a pixel of board height: tight panels. */
+@media (min-width: 701px) {
+  .in-felt-across-hands > .across-hand-own,
+  .in-felt-across-hands > .across-hand-partner { padding: 6px 12px; }
+  .in-felt-across-hands > .my-hand-panel .hand { padding: 4px 4px 2px; }
+}
 /* The top controlled hand replaces the concealed top rack; showing both is a
    duplicate hand and wastes the exact vertical space Across needs. */
 .felt-shell.across-hands-on-felt > .table-player-station-top .table-rack,
@@ -4597,13 +4609,23 @@ button.hand-end-choice {
 /* Desktop table composition, shared by Practice and Lounge. The station is
    an ownership group; its portrait and rack reserve their own measured boxes. */
 @media (min-width: 901px) {
+  /* Practice is all table at every desktop width (owner, 2026-09-15:
+     "dominoes are too small ... domino should play until it fills the board").
+     The seat list repeats the scorebar and the players' cards, so it follows
+     the table as one strip, as it already did below 1100px, and its 260px
+     goes to the wood. */
   .practice-room,
   .practice-room:has(> .live-felt.french-cross-live) {
-    grid-template-columns: minmax(0, 1fr) 260px;
-    grid-template-rows: minmax(0, 1fr) auto;
-    grid-template-areas: "table rail" "table controls";
-    height: max(460px, calc(100svh - 150px));
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "table" "rail" "controls";
+    height: auto;
     min-height: 0; max-height: none;
+  }
+  .practice-room > .practice-seats {
+    grid-template-columns: auto repeat(4, minmax(0, 1fr));
+    align-items: center;
+    max-height: none;
   }
   .practice-room > .live-felt,
   .practice-room:has(> .live-felt.french-cross-live) > .live-felt {
@@ -4725,12 +4747,6 @@ button.hand-end-choice {
      a hand halfway down the side never meets them. */
   .table-player-station > .table-rack-left { left: 18px; top: 52%; transform: translateY(-50%); }
   .table-player-station > .table-rack-right { right: 18px; top: 52%; transform: translateY(-50%); }
-  /* Practice desktop: the top hand hangs half off the table's top edge, like
-     the players on the phone (owner, 2026-09-15). Its full rack reached 46px
-     into the board, exactly where the S turns up from the centre row, and
-     that alone kept the three-each-side rule from fitting at this bone. The
-     felt clips the upper half, so only the lower half of the backs shows. */
-  .practice-room .table-felt .table-player-station > .table-rack-top { top: 0; transform: translate(-50%, -50%); }
   .my-hand-panel.hand-turn-active .hand .tile.chosen,
   .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand.hand-turn-active .hand .tile.chosen {
     outline: 3px solid #7dd3fc;
@@ -5217,3 +5233,16 @@ button.hand-end-choice {
    the fallback underneath. Older players tap these instead of typing. */
 .one-tap-signin { display: grid; gap: 10px; margin: 12px 0 4px; }
 .one-tap-signin .one-tap { width: 100%; min-height: 52px; font-size: 16px; font-weight: 800; }
+
+/* Desktop: the players' face-down racks and my hand keep a fixed, modest bone
+   however big the board's bones grow (owner, 2026-09-15: bigger board bones,
+   French arms straight 3-4 before turning). They scaled with the board, so
+   every size step on the board took the same step of height away from it at
+   the top rack and the hand, exactly where the up and down arms run. */
+@media (min-width: 701px) {
+  .table-felt,
+  .felt-shell { --table-counter-short: min(var(--table-bone-short), 24px); }
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand .hand {
+    grid-auto-columns: min(var(--table-bone-short), 40px);
+  }
+}

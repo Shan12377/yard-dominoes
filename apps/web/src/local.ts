@@ -14,7 +14,7 @@
 import {
   createSet, applyHandResult, deal, legalMoves, applyMove, dealPlan,
   provablyFairShuffle, commit, randomSeed, verifyHand,
-  duppyMove, reviewHand, accuracy, isPartnered, sideOf, DUPPY_PACE_SECONDS,
+  duppyMove, reviewHand, accuracy, isPartnered, sideOf, DUPPY_PACE_SECONDS, passPoseToPartner,
 } from '@yard/engine';
 import type {
   DuppyLevel, DuppyPace, GameMode, HandReview, HandState, Move, PenaltyEvent, SetFormat, SetState, TileId,
@@ -126,6 +126,30 @@ export class LocalGame {
   /** The human's seat that is on turn, or their own seat while waiting. */
   activeSeat(): number {
     return this.hand && this.hand.status === 'active' && this.controls(this.hand.turn) ? this.hand.turn : this.mySeat;
+  }
+
+  /**
+   * Pass the pose (owner, 2026-09-15): in a partnered game the side that won
+   * may choose which partner leads, before anyone plays. Never on a set's
+   * first hand, and never when the double-six is forced (after a bruk, a tied
+   * replay or one-all).
+   */
+  canPassPose(): boolean {
+    const h = this.hand;
+    return !!h && h.status === 'active' && h.moveLog.length === 0
+      && isPartnered(this.options.mode) && this.set.winnerSide === null
+      && !this.set.poseMustBeDoubleSix && this.set.handsPlayed > 0
+      && this.controls(h.turn) && h.turn === h.poser;
+  }
+
+  /** Hand the pose across the table to the partner of the seat due to pose. */
+  async passPose(): Promise<void> {
+    if (!this.hand || !this.canPassPose()) return;
+    this.set = passPoseToPartner(this.set);
+    const partner = (this.hand.poser + 2) % this.options.seatCount;
+    this.hand = { ...this.hand, turn: partner, poser: partner };
+    this.emit({ type: 'state' });
+    await this.runDuppies();
   }
 
   isMyTurn(): boolean {

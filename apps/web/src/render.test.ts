@@ -227,10 +227,10 @@ test('live tables start with a deliberate readable hand and rack tier', () => {
   assert.equal(liveTableUnit(1368, null), 26, 'desktop bones have a generous 52px short side');
   assert.equal(liveTableUnit(390, null, true), 14,
     'French keeps a readable 28px short side on phone');
-  assert.equal(liveTableUnit(938, null, true), 15,
-    'French keeps JamDom’s 30px baseline on compact desktop');
-  assert.equal(liveTableUnit(1368, emptyCrossBoard()), 17,
-    'French scales the reference proportion on desktop');
+  assert.equal(liveTableUnit(938, null, true), 18,
+    'French keeps a 36px floor on compact desktop (a quarter over JamDom’s 30px)');
+  assert.equal(liveTableUnit(1368, emptyCrossBoard()), 21,
+    'French scales a quarter over the reference proportion on desktop');
   assert.equal(chooseCrossUnit(emptyCrossBoard(), PHONE, { maxUnit: 14 }), 14,
     'French board and hand honour the same readable ceiling');
 });
@@ -363,9 +363,9 @@ test('French bone size is fixed from opening pose through the late hand', () => 
     }],
   });
   assert.deepEqual([1, 11, 15, 19].map((n) => liveTableUnit(846, at(n), true)),
-    [15, 15, 15, 15]);
+    [18, 18, 18, 18]);
   assert.deepEqual([1, 11, 15, 19].map((n) => liveTableUnit(1900, at(n), true)),
-    [24, 24, 24, 24]);
+    [30, 30, 30, 30]);
 });
 
 test('a played-out live hand fits desktop without scrolling while phone keeps deliberate pan', () => {

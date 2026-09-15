@@ -29,7 +29,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits, deskRouteGeometry, DESK_ROUTE_STAGE_INSET, DESK_ROUTE_MIN_UNIT } from './render.ts';
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -1495,6 +1495,8 @@ function practiceWinCallout(g: LocalGame): HTMLElement | null {
   return callout;
 }
 
+/** The hand whose pass-the-pose choice was already answered. */
+let practicePoseChoiceDismissed: string | null = null;
 let pendingTile: string | null = null;
 /**
  * The felt's real measured size, cached across renders — see tableView()'s
@@ -1886,6 +1888,24 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
     hand.appendChild(node);
   }
   panel.appendChild(hand);
+
+  // Pass the pose (owner, 2026-09-15), made with the bones in front of you,
+  // before anyone plays. Same choice and words as the Lounge.
+  if (!passive && g.canPassPose() && practicePoseChoiceDismissed !== g.fairness?.handId) {
+    const row = el('div', 'row pose-choice');
+    row.append(el('span', 'muted', 'Yours to pose — or hand it to your partner?'));
+    const keep = document.createElement('button');
+    keep.className = 'act';
+    keep.textContent = 'Keep it';
+    keep.onclick = () => { practicePoseChoiceDismissed = g.fairness?.handId ?? null; render(); };
+    const pass = document.createElement('button');
+    pass.className = 'act ghost';
+    pass.textContent = 'Pass to partner';
+    pass.dataset.passPose = 'true';
+    pass.onclick = () => { practicePoseChoiceDismissed = g.fairness?.handId ?? null; void g.passPose(); };
+    row.append(keep, pass);
+    panel.appendChild(row);
+  }
 
   if (!passive && pendingTile && g.hand?.status === 'active') {
     const board = g.hand?.board ?? null;
@@ -2472,7 +2492,7 @@ function tableView(g: LocalGame): DocumentFragment {
   // familiar full-size bone must not be traded away to make the board fit.
   const tableCapUnit = window.innerWidth <= 700 && !frenchTable && g.options.mode !== 'across'
     ? 18
-    : liveTableUnit(window.innerWidth, null, frenchTable);
+    : liveTableUnit(window.innerWidth, null, frenchTable, window.innerHeight);
   const tableMinUnit = window.innerWidth <= 700 ? 10 : g.options.mode === 'across' ? 22 : 11;
   const acrossLaneUnitsFor = (box?: { width: number } | null) => g.options.mode === 'across'
     // `tableUnit` is derived immediately below. This first-pass helper runs
@@ -2484,7 +2504,7 @@ function tableView(g: LocalGame): DocumentFragment {
     window.innerWidth, cachedBox, tableMinUnit, acrossLaneUnitsFor(cachedBox));
   const tableUnit = window.innerWidth <= 700 && !frenchTable && g.options.mode !== 'across'
     ? tableCapUnit
-    : openingLinearGeometry?.unit ?? liveTableUnit(window.innerWidth, displayBoard, frenchTable);
+    : openingLinearGeometry?.unit ?? liveTableUnit(window.innerWidth, displayBoard, frenchTable, window.innerHeight);
   // Phones keep their readable tier and pan a narrow lane. Desktop locks one
   // complete-hand route from the measured stage so it never changes bone size
   // or sprouts a scrollbar halfway through the hand.
@@ -2746,7 +2766,9 @@ function tableView(g: LocalGame): DocumentFragment {
     if (phoneFixedRoute && displayBoard?.kind !== 'cross') {
       // Phones choose their own bone; desktop keeps its current size (owner).
       const routeMaxUnit = window.innerWidth <= 700 ? PHONE_BOARD_MAX_UNIT : tableUnit;
-      const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : Math.min(tableUnit, tableMinUnit);
+      // Desktop may step down to any readable bone rather than lay one past the
+      // wood (Across stopped at 22px and hid 6/1 under the table edge).
+      const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : DESK_ROUTE_MIN_UNIT;
       // Desktop turns its centre row after three bones each side, so the
       // board snakes like the phone's instead of one long line.
       const routeFirstRow = window.innerWidth <= 700 ? undefined : DESK_FIRST_ROW_BONES;
@@ -2757,6 +2779,10 @@ function tableView(g: LocalGame): DocumentFragment {
       if (!displayBoard || phoneRouteKey !== lastPhoneRouteKey || !lastPhoneRoute) {
         // The phone board has no line padding, so the stage's whole inner box
         // is usable; 2px absorbs sub-pixel rounding.
+        // Desktop: the board takes the whole felt and flows round the people
+        // and hands on it (owner, 2026-09-15: "domino should play until it
+        // fills the board"), exactly as the phone board does.
+        if (window.innerWidth > 700) boardStage.style.inset = DESK_ROUTE_STAGE_INSET;
         const stageBox = { width: fitHost.clientWidth, height: fitHost.clientHeight };
         const stageRect = fitHost.getBoundingClientRect();
         const originX = stageRect.left + fitHost.clientLeft;
@@ -2765,23 +2791,24 @@ function tableView(g: LocalGame): DocumentFragment {
         // racks are the real boxes the route must keep clear of.
         const blockers: HTMLElement[] = window.innerWidth <= 700
           ? [...tableStations.values()]
-          : [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner')];
+          : [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner, .in-felt-hand, .in-felt-actions')];
         const blocked = blockers.map((station) => {
           const r = station.getBoundingClientRect();
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
         }).filter((r) => r.right > 0 && r.bottom > 0 && r.left < stageBox.width && r.top < stageBox.height);
         lastPhoneRouteFit = { box: stageBox, blocked };
+        if (new URLSearchParams(location.search).has('qa')) boardStage.dataset.routeBlocked = JSON.stringify([stageBox, blocked]);
         // Desktop keeps its bone (owner). The centre-row rule is used when a
         // full hand fits with it at that bone; otherwise the ordinary rows.
         const deskTrim = window.innerWidth > 700;
-        // The bone the ordinary rows choose is today's size. Try the centre-row
-        // rule at exactly that bone; routeMaxUnit is only the opening cap (26px
-        // on desktop), where the rule never fits and was never really tried.
-        const plainRoute = phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked, undefined, deskTrim);
-        const withRule = routeFirstRow === undefined ? null
-          : phonePracticeGeometry(stageBox, plainRoute.unit, plainRoute.unit, blocked, routeFirstRow, deskTrim);
-        const ruleFits = !!withRule && withRule.unit === plainRoute.unit && phoneRouteGeometryFits(withRule);
-        lastPhoneRoute = ruleFits && withRule ? withRule : plainRoute;
+        // Phones: the ordinary rows at their own bone. Desktop: the centre-row
+        // S at the biggest bone every hand fits (deskRouteGeometry).
+        const plainRoute = deskTrim
+          ? deskRouteGeometry(stageBox, blocked, routeMinUnit)
+          : phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked);
+        const withRule = routeFirstRow === undefined ? null : plainRoute;
+        const ruleFits = !!withRule && phoneRouteGeometryFits(withRule);
+        lastPhoneRoute = plainRoute;
         // QA hook: which layout the hand chose, and the space it was measured in.
         boardStage.dataset.routeRule = withRule ? (ruleFits ? 'on' : 'off') : 'none';
         boardStage.dataset.routeRuleBox = `${stageBox.width}x${stageBox.height}:u${plainRoute.unit}:b${blocked.length}`;
@@ -2792,8 +2819,9 @@ function tableView(g: LocalGame): DocumentFragment {
         // About one hand in a thousand outgrows the wood (see
         // PHONE_ROUTE_CORPUS_TOLERANCE). Lay it again one size smaller rather
         // than put a bone under a player or off the table.
-        lastPhoneRoute = phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1,
-          routeMinUnit, lastPhoneRouteFit.blocked, lastPhoneRoute.firstRowBones, window.innerWidth > 700);
+        lastPhoneRoute = window.innerWidth > 700
+          ? deskRouteGeometry(lastPhoneRouteFit.box, lastPhoneRouteFit.blocked, routeMinUnit, lastPhoneRoute.unit - 1)
+          : phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1, routeMinUnit, lastPhoneRouteFit.blocked);
       }
       const geo = lastPhoneRoute;
       room.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);

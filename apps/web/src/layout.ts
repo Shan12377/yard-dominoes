@@ -321,6 +321,13 @@ export interface PhoneRouteOptions {
    * the centre row runs to the edge as on a phone. Later rows use the width.
    */
   firstRowBones?: number;
+  /**
+   * Sizing only: how many corpus hands may outgrow the board. Phones accept
+   * PHONE_ROUTE_CORPUS_TOLERANCE; desktop accepts none, because a bone that
+   * outgrows the wood there is clipped under the table edge or the hand
+   * (owner, 2026-09-15: "6/1 ... does not show").
+   */
+  tolerance?: number;
 }
 
 /** The pose's rectangle: a double stands crosswise, an ordinary bone lies along the line. */
@@ -537,7 +544,7 @@ export function phoneRouteFits(widthUnits: number, heightUnits: number, options:
   for (const hand of phoneRouteCorpus()) {
     if (phoneRouteRects(hand.plays, widthUnits, heightUnits, hand.poseIsDouble, options).overflow === 0) continue;
     failures += 1;
-    if (failures > PHONE_ROUTE_CORPUS_TOLERANCE) return false;
+    if (failures > (options.tolerance ?? PHONE_ROUTE_CORPUS_TOLERANCE)) return false;
   }
   return true;
 }
