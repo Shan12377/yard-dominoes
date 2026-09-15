@@ -332,7 +332,7 @@ test('Practice and Lounge pin the French route and invisible guard for the whole
     // line padding, and keeping the linear line's 18px cost a 375px phone two
     // columns of 28px bones (2026-09-14).
     assert.match(source,
-      /lastFrenchFitBox = window\.innerWidth <= 700\s*\? \{ width: fitHost\.clientWidth, height: fitHost\.clientHeight \}\s*: box;/,
+      /lastFrenchFitBox = window\.innerWidth <= 700(?: \|\| frenchDeskPinwheel)?\s*\? \{ width: fitHost\.clientWidth, height: fitHost\.clientHeight \}\s*: box;/,
       'French must record the stage it was actually measured against');
     // A phone also rebuilds when its measured grid differs from the one it
     // was first drawn in (2026-09-13: phones route inside their own width).
@@ -341,7 +341,7 @@ test('Practice and Lounge pin the French route and invisible guard for the whole
     assert.match(source, /if \(fittedUnit && \(want !== fittedUnit \|\| phoneGridStale\)\)/,
       'and may only rebuild when the fitted bone or the phone grid genuinely changes');
     assert.match(source,
-      /const phoneGridStale = window\.innerWidth <= 700\s*&& line\.dataset\.crossGrid !== phoneCrossGridKey\(lockedBox, tableUnit\);/,
+      /const phoneGridStale = \(?window\.innerWidth <= 700(?: \|\| frenchDeskPinwheel\))?\s*&& line\.dataset\.crossGrid !== phoneCrossGridKey\(lockedBox, tableUnit\);/,
       'the phone grid check compares what was drawn against the measured stage');
     // The stage is measured once per hand. Re-measuring after a long arm made
     // the stage pan let a scrollbar narrow it, and re-routed every bone
@@ -544,7 +544,7 @@ test('a phone never shrinks the French bone, however well the cross would fit', 
   }
   // And the cap must never outrank the readable floor in the renderer.
   assert.match(renderSource,
-    /const requested = opts\.fitCrossToBox === false \? pinned : Math\.min\(pinned, fitCap\)/);
+    /const requested = opts\.fitCrossToBox === false \|\| opts\.frenchPinwheel \? pinned : Math\.min\(pinned, fitCap\)/);
   assert.match(renderSource, /const u = Math\.max\(readableFloor,/,
     'the readable minimum is the last word on bone size');
 });

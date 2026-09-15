@@ -974,3 +974,19 @@ badge draws above the photo in sky blue, and the top tab's View cue clears
 the turn ring. Measured: 390x664 felt 70-601 (was 116-647), 375x548 felt
 70-550 (was 116-596); two full hands at 375 with zero moves, nothing under a
 tab. Tests 487/487.
+
+2026-09-15 (JamDom French legs, edge players, desktop pinwheel) — Owner, with a
+JamDom table photo: lay French like JamDom (double in the middle, left and
+right two bones then turn up and down, up and down three then turn right and
+left), hang the players half off the table edge, and perfect desktop Practice
+(bottom rows were cut off, a scrollbar sat mid-table, doubles lay inline).
+Phone: `FRENCH_PINWHEEL_LEGS`; the owner accepted the simulated trade (about
+330 of 400 hands fit cleanly vs 360 for the old full-out legs). Practice phone
+tabs now sit half off the rim with vertical View, the count on the photo's
+inner side and face-down bones half on the felt; left and right then make
+their full two bones. Desktop Practice: `frenchPinwheel` lays the same
+pinwheel over the whole felt (inset 12px), steering round corner cards, racks
+and the hand (`frenchTabBlocks` selector). Evidence: 390x844 and 375x812 two
+hands each, 1440x900 (60x40) and 1280x800 (58x39) full hands, zero board or
+on-screen moves, nothing under a player, no errors. Lounge desktop French
+still uses the fixed canvas. Not deployed.

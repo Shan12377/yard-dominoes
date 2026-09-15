@@ -5075,6 +5075,19 @@ button.hand-end-choice {
   .practice-room .table-felt > .table-player-station-top.station-tab::after { top: 14px; right: auto; left: 64px; }
 }
 
+/* Desktop Practice French (owner, 2026-09-15): the board takes the whole
+   felt and the pinwheel steers round the corner players, the face-down racks
+   and the hand, so nothing is cut off and no scrollbar appears mid-table. */
+@media (min-width: 701px) {
+  .practice-room .board-stage.french-desk-stage {
+    inset: 12px;
+    overflow: hidden;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0;
+  }
+}
+
 /* The French phone pinwheel grows past the bottom when an arm runs out of
    room. Centred, the board jumped up the moment it outgrew the stage; top
    aligned from the first bone, growing never moves it. */

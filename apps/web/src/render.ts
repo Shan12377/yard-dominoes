@@ -254,6 +254,12 @@ export interface BoardFit {
    */
   fitCrossToBox?: boolean;
   /**
+   * Lay French as the JamDom pinwheel at the pinned bone size, whatever the
+   * screen. Desktop Practice sets it (owner, 2026-09-15: a desktop table has
+   * room to spare, doubles should stand across and nothing should scroll).
+   */
+  frenchPinwheel?: boolean;
+  /**
    * Where the person looking at this board is sitting. A French arm runs
    * towards whoever opened it, which is only meaningful relative to the
    * viewer -- see armDirectionFor(). Omit it (a replay, the hero demo, a
@@ -1314,7 +1320,7 @@ export function frenchPinwheelPhone(): boolean {
  * they are found. Measure once per hand, before the stage can scroll.
  */
 export function frenchTabBlocks(
-  stage: HTMLElement, root: ParentNode, box: BoardBox, unit: number,
+  stage: HTMLElement, root: ParentNode, box: BoardBox, unit: number, selector = '.station-tab',
 ): Array<{ x: number; y: number; w: number; h: number }> {
   if (!unit) return [];
   const { cols, rows } = phoneCrossGrid(box, unit);
@@ -1324,7 +1330,7 @@ export function frenchTabBlocks(
   // grows past the bottom never moves.
   const left = view.left + stage.clientLeft + Math.max(0, (stage.clientWidth - cols * unit) / 2) - stage.scrollLeft;
   const top = view.top + stage.clientTop - stage.scrollTop;
-  return [...root.querySelectorAll<HTMLElement>('.station-tab')].map((tab) => {
+  return [...root.querySelectorAll<HTMLElement>(selector)].filter((tab) => tab.getBoundingClientRect().width > 0).map((tab) => {
     // The whole collapsed tab: photo, count badge and its "View" cue. Its open
     // panel is positioned outside it and never counts.
     const r = tab.getBoundingClientRect();
@@ -1372,7 +1378,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
   // Chosen from the viewport, like the stage: the first draw of a hand can
   // work from a guessed stage, and choosing by its columns started a hand on
   // the row route and then moved the chucha onto the pinwheel.
-  const pinwheel = frenchPinwheelPhone()
+  const pinwheel = (opts.frenchPinwheel || frenchPinwheelPhone())
     && Math.max(cols, PHONE_PINWHEEL_MIN_COLS) === cols
     ? phoneFrenchPinwheel({
       arms: board.arms.map((arm, index) => ({
@@ -1466,10 +1472,10 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
   const fitCap = frenchCanvasUnit(box);
   const readableFloor = opts.minUnit ?? CROSS_MIN_UNIT;
   const pinned = opts.unit ?? fitCap;
-  const requested = opts.fitCrossToBox === false ? pinned : Math.min(pinned, fitCap);
+  const requested = opts.fitCrossToBox === false || opts.frenchPinwheel ? pinned : Math.min(pinned, fitCap);
   const u = Math.max(readableFloor, Math.min(opts.maxUnit ?? MAX_UNIT, requested));
   // A phone keeps the readable bone and routes inside its own width.
-  if (opts.fitCrossToBox === false) return renderPhoneCross(host, board, opts, box, u);
+  if (opts.fitCrossToBox === false || opts.frenchPinwheel) return renderPhoneCross(host, board, opts, box, u);
   const short = u * 2;
   const scale = short / 30;
   host.classList.add('french-reference-route');

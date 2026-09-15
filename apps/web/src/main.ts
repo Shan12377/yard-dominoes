@@ -2388,6 +2388,13 @@ function tableView(g: LocalGame): DocumentFragment {
   const crossBox = displayBoard?.kind === 'cross' && lastFrenchFitWidth === window.innerWidth
     ? lastFrenchFitBox : null;
   const frenchTable = g.options.format === 'french';
+  // Desktop Practice French lays the same JamDom pinwheel over the whole felt
+  // and steers round the players, instead of a fixed canvas in a guarded
+  // square (owner, 2026-09-15: bottom rows were cut off and a scrollbar sat in
+  // the middle of the table).
+  const frenchDeskPinwheel = frenchTable && window.innerWidth > 700;
+  const FRENCH_DESK_BLOCKERS = '.table-seat-identity, .table-rack, .in-felt-hand';
+  if (frenchDeskPinwheel) boardStage.classList.add('french-desk-stage');
   // Mobile French takes the whole felt; its players are tabs at the rim.
   if (frenchTable && frenchPinwheelPhone()) {
     boardStage.classList.add('french-phone-stage');
@@ -2396,7 +2403,7 @@ function tableView(g: LocalGame): DocumentFragment {
   const frenchGuardKey = frenchTable && handOnFelt
     ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}`
     : null;
-  if (frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
+  if (!frenchDeskPinwheel && frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
     boardStage.style.inset = lastFrenchGuardInset;
     boardStage.dataset.boardGuard = 'pinned-hand-square';
   }
@@ -2449,9 +2456,10 @@ function tableView(g: LocalGame): DocumentFragment {
       phoneRoute: phoneRouteGridOf(lockedPhoneRoute),
     } : {}),
     across: g.options.mode === 'across',
-    ...(frenchTable && window.innerWidth <= 700 && frenchGuardKey !== null
+    ...(frenchTable && frenchGuardKey !== null
       && frenchGuardKey === lastFrenchBlockedKey && lastFrenchBlocked
       ? { phoneCrossBlocked: lastFrenchBlocked } : {}),
+    frenchPinwheel: frenchDeskPinwheel,
     // Landscape shrinks the rigid French canvas to fit; a phone keeps its
     // readable bone and pans instead. See BoardFit.fitCrossToBox.
     fitCrossToBox: window.innerWidth > 700,
@@ -2632,8 +2640,10 @@ function tableView(g: LocalGame): DocumentFragment {
       const guardedStations = window.innerWidth <= 700
         ? []
         : tableStations.values();
-      reserveBoardStage(felt, boardStage, guardedStations,
-        felt.querySelector<HTMLElement>('.in-felt-hand'), false);
+      if (!frenchDeskPinwheel) {
+        reserveBoardStage(felt, boardStage, guardedStations,
+          felt.querySelector<HTMLElement>('.in-felt-hand'), false);
+      }
       // A French phone too narrow for the pinwheel (a 360px screen) keeps the
       // row route, which does not know about the tabs: keep them off its width.
       if (frenchTable && window.innerWidth <= 700 && !frenchPinwheelPhone()) {
@@ -2732,7 +2742,7 @@ function tableView(g: LocalGame): DocumentFragment {
         // whole inner box. Keeping the linear line's 18px cost a 375px phone
         // two columns, which is what kept it off the pinwheel. Bones keep
         // their size; only the columns they fit across change.
-        lastFrenchFitBox = window.innerWidth <= 700
+        lastFrenchFitBox = window.innerWidth <= 700 || frenchDeskPinwheel
           ? { width: fitHost.clientWidth, height: fitHost.clientHeight }
           : box;
         lastFrenchFitKey = frenchGuardKey;
@@ -2742,12 +2752,12 @@ function tableView(g: LocalGame): DocumentFragment {
       // stage the pose must stay in the middle rather than being start-aligned
       // into a corner with an arm off-screen.
       centreCrossOnPose(boardStage, line);
-      const want = window.innerWidth > 700
+      const want = window.innerWidth > 700 && !frenchDeskPinwheel
         ? Math.min(tableUnit, frenchCanvasUnit(lockedBox))
         : tableUnit;
       // A phone routes inside its measured width, so a first pass drawn from
       // the window guess must be redrawn once the real stage is known.
-      const phoneGridStale = window.innerWidth <= 700
+      const phoneGridStale = (window.innerWidth <= 700 || frenchDeskPinwheel)
         && line.dataset.crossGrid !== phoneCrossGridKey(lockedBox, tableUnit);
       if (fittedUnit && (want !== fittedUnit || phoneGridStale)) {
         const corrected = renderBoard(line, displayBoard, {
@@ -2757,6 +2767,8 @@ function tableView(g: LocalGame): DocumentFragment {
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
           fitCrossToBox: window.innerWidth > 700,
+          frenchPinwheel: frenchDeskPinwheel,
+          ...(frenchGuardKey === lastFrenchBlockedKey && lastFrenchBlocked ? { phoneCrossBlocked: lastFrenchBlocked } : {}),
           // Mobile French lays its pinwheel in play order.
           moveLog: g.hand?.moveLog,
           viewerSeat: g.mySeat,
@@ -2770,9 +2782,10 @@ function tableView(g: LocalGame): DocumentFragment {
       // where the grid sits in the stage on this hand's first measured render
       // (usually before any arm bone), lay the board round them, and keep that
       // for the whole hand.
-      if (window.innerWidth <= 700 && frenchGuardKey && frenchGuardKey !== lastFrenchBlockedKey) {
+      if ((window.innerWidth <= 700 || frenchDeskPinwheel) && frenchGuardKey && frenchGuardKey !== lastFrenchBlockedKey) {
         lastFrenchBlockedKey = frenchGuardKey;
-        lastFrenchBlocked = frenchTabBlocks(boardStage, felt, lockedBox, tableUnit);
+        lastFrenchBlocked = frenchTabBlocks(boardStage, felt, lockedBox, tableUnit,
+          frenchDeskPinwheel ? FRENCH_DESK_BLOCKERS : '.station-tab');
         renderBoard(line, displayBoard, {
           box: lockedBox,
           maxUnit: tableUnit,
@@ -2780,6 +2793,7 @@ function tableView(g: LocalGame): DocumentFragment {
           minUnit: tableMinUnit,
           maxUnits: tableMaxUnits,
           fitCrossToBox: false,
+          frenchPinwheel: frenchDeskPinwheel,
           moveLog: g.hand?.moveLog,
           viewerSeat: g.mySeat,
           phoneCrossBlocked: lastFrenchBlocked,
