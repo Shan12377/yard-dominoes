@@ -233,6 +233,17 @@ test('a Next hand tapped as the set is decided never deals on a finished set', (
   assert.match(localSource, /if \(this\.scoredHand === this\.hand\) return;\s*this\.scoredHand = this\.hand;/, 'each hand is scored once');
 });
 
+test('Lounge sign-in offers one tap with Google or Apple and never strands a player on a confirmation link', () => {
+  // Owner, 2026-09-15: older players often have no email they check.
+  const lounge = readFileSync(new URL('./loungeview.ts', import.meta.url), 'utf8');
+  const online = readFileSync(new URL('./online.ts', import.meta.url), 'utf8');
+  assert.match(online, /auth\/v1\/settings/, 'buttons follow what Supabase has switched on');
+  assert.match(online, /linkIdentity\(\{ provider, options: \{ redirectTo \} \}\)/, 'a guest keeps their account when they add Google or Apple');
+  assert.match(lounge, /'Continue with Google' : 'Continue with Apple'/);
+  assert.match(lounge, /"You're all set\. You can play in the Lounge now\."/);
+  assert.match(lounge, /signIn\.textContent = 'Sign in to play';/);
+});
+
 test('practice names the person who laid the last domino before the result screen', () => {
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} · LAST BONE`'));
   assert.ok(practiceSource.includes('`${g.seatLabel(winningSeat)} played the last domino`'));

@@ -51,6 +51,42 @@ export async function ensureSignedIn() {
   return signInAsGuest();
 }
 
+/**
+ * Which one-tap sign-ins are switched on in Supabase. Read from the public
+ * auth settings, so a Google or Apple button only appears once the owner has
+ * set that provider up and never sends an older player to an error page.
+ */
+export async function enabledProviders(): Promise<{ google: boolean; apple: boolean }> {
+  if (!url || !anon) return { google: false, apple: false };
+  try {
+    const res = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: anon } });
+    if (!res.ok) return { google: false, apple: false };
+    const settings = await res.json() as { external?: { google?: boolean; apple?: boolean } };
+    return { google: !!settings.external?.google, apple: !!settings.external?.apple };
+  } catch {
+    return { google: false, apple: false };
+  }
+}
+
+/**
+ * One tap with Google or Apple (owner, 2026-09-15: most players are older and
+ * have no email they check, but an Android phone is already signed into
+ * Google). A guest links the provider to the account they already have, so
+ * their name, coins and history stay. If linking is switched off in Supabase,
+ * it signs in instead.
+ */
+export async function continueWithProvider(provider: 'apple' | 'google'): Promise<void> {
+  const redirectTo = window.location.origin;
+  const { data } = await client().auth.getUser();
+  if (data.user?.is_anonymous) {
+    const { error } = await client().auth.linkIdentity({ provider, options: { redirectTo } });
+    if (!error) return;
+    if (!/link/i.test(error.message)) throw error;
+  }
+  const { error } = await client().auth.signInWithOAuth({ provider, options: { redirectTo } });
+  if (error) throw error;
+}
+
 export async function signInWithProvider(provider: 'apple' | 'google') {
   const { error } = await client().auth.signInWithOAuth({
     provider,

@@ -5212,3 +5212,8 @@ button.hand-end-choice {
      2026-09-15). A board grown past the bottom still pans first. */
   .board-stage.french-phone-stage { overscroll-behavior: auto; touch-action: pan-y; }
 }
+
+/* One-tap sign-in (owner, 2026-09-15): big, obvious buttons first, email as
+   the fallback underneath. Older players tap these instead of typing. */
+.one-tap-signin { display: grid; gap: 10px; margin: 12px 0 4px; }
+.one-tap-signin .one-tap { width: 100%; min-height: 52px; font-size: 16px; font-weight: 800; }

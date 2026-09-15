@@ -25,7 +25,7 @@ import { profilePanel, adminSection, avatarImg, timeAgo, openReferralSection } f
 export { openReferralSection };
 import {
   ensureSignedIn, findActiveSeat, videoSessionCall, turnCredentialsCall,
-  secureAccount, signInWithPassword, isAnonymousUser,
+  secureAccount, signInWithPassword, isAnonymousUser, continueWithProvider, enabledProviders,
   requestPasswordReset, updatePassword, watchForPasswordRecovery,
 } from './online.ts';
 import { OnlineGame } from './onlinetable.ts';
@@ -911,6 +911,10 @@ function giftButton(toUserId: string, rerender: () => void): HTMLButtonElement {
 // the account you already have, or sign into one you secured earlier.
 let accountOpen = false;
 let accountMode: 'secure' | 'signin' = 'secure';
+/** Which one-tap sign-ins Supabase has switched on; null until checked. */
+let providers: { google: boolean; apple: boolean } | null = null;
+let providersLoading = false;
+let providerError: string | null = null;
 let accountBusy = false;
 let accountError: string | null = null;
 let accountMessage: string | null = null;
@@ -1108,6 +1112,35 @@ function accountPanel(rerender: () => void): HTMLElement {
       + 'reachable from any device — not just this browser.'
     : 'Switch this browser to an account you already secured.'));
 
+  // One tap first (owner, 2026-09-15): many players have no email they check,
+  // but their phone is already signed into Google (or Apple on an iPhone).
+  if (providers === null && !providersLoading) {
+    providersLoading = true;
+    void enabledProviders().then((found) => { providers = found; providersLoading = false; rerender(); });
+  }
+  const oneTap = (['google', 'apple'] as const).filter((name) => providers?.[name]);
+  if (oneTap.length) {
+    const row = el('div', 'one-tap-signin');
+    for (const name of oneTap) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'act one-tap';
+      b.dataset.provider = name;
+      b.textContent = name === 'google' ? 'Continue with Google' : 'Continue with Apple';
+      b.onclick = () => void (async () => {
+        providerError = null;
+        try { await continueWithProvider(name); } catch (err) {
+          providerError = err instanceof Error ? err.message : 'could not open that sign-in';
+          rerender();
+        }
+      })();
+      row.appendChild(b);
+    }
+    panel.appendChild(row);
+    if (providerError) panel.append(el('div', 'banner small', providerError));
+    panel.append(el('p', 'muted small', 'or use an email and password'));
+  }
+
   const email = document.createElement('input');
   email.type = 'email';
   email.className = 'field';
@@ -1172,7 +1205,12 @@ function accountPanel(rerender: () => void): HTMLElement {
     try {
       if (secure) {
         await secureAccount(addr, pass);
-        accountMessage = `Check ${addr} for a confirmation link to finish.`;
+        // With email confirmation switched off in Supabase the account is
+        // secured on the spot; only ask for the link when it is still needed.
+        loungeState.isAnonymous = await isAnonymousUser();
+        accountMessage = loungeState.isAnonymous
+          ? `Check ${addr} for a confirmation link to finish.`
+          : "You're all set. You can play in the Lounge now.";
         accountPasswordDraft = '';
         // Not fully secured until the confirmation link is clicked (still
         // anonymous till then), but the prompt has done its job — no reason
@@ -1335,6 +1373,18 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
       enter.textContent = 'Enter';
       enter.onclick = () => void openLounge(lounge, rerender);
       right.appendChild(enter);
+    } else if (loungeState.isAnonymous) {
+      // The lock a player can fix right now: sign in, with one tap if they can.
+      const signIn = document.createElement('button');
+      signIn.className = 'act ghost';
+      signIn.textContent = 'Sign in to play';
+      signIn.dataset.signInToPlay = 'true';
+      signIn.onclick = () => {
+        accountOpen = true;
+        accountMode = 'secure';
+        goToMembership();
+      };
+      right.append(signIn);
     } else {
       right.append(el('div', 'muted', gate.why ?? 'Locked'));
     }
