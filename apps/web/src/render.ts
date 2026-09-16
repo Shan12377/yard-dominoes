@@ -616,6 +616,9 @@ const phoneRouteFitCache = new Map<string, boolean>();
  * is laid again one size smaller by main.ts's overflow fallback.
  */
 const PHONE_CLIMB = 2;
+/** Across stands three dominoes in each climb, so its turns sit clear of the middle. */
+export const ACROSS_CLIMB = 3;
+
 /** The climb the bone size is chosen with. */
 const PHONE_SIZING_CLIMB = 1;
 /** True when a chosen fixed-board grid holds the sizing hands with its own rules. */
@@ -649,6 +652,7 @@ export const DESK_ROUTE_MIN_UNIT = 11;
  */
 export function deskRouteGeometry(
   box: BoardBox, blockedPx: readonly StageRect[], minUnit: number, maxUnit = DESK_ROUTE_MAX_UNIT,
+  layoutClimb = PHONE_CLIMB,
 ): PhoneRouteGrid & { unit: number; left: number; top: number } {
   let bandTop = 0;
   let bandBottom = box.height;
@@ -662,7 +666,7 @@ export function deskRouteGeometry(
   const shifted = blockedPx
     .map((b) => ({ left: b.left, right: b.right, top: b.top - bandTop, bottom: b.bottom - bandTop }))
     .filter((b) => b.bottom > 0 && b.top < band.height);
-  const grid = phonePracticeGeometry(band, maxUnit, minUnit, shifted, DESK_FIRST_ROW_BONES, true, undefined, PHONE_CLIMB);
+  const grid = phonePracticeGeometry(band, maxUnit, minUnit, shifted, DESK_FIRST_ROW_BONES, true, undefined, layoutClimb, layoutClimb);
   return { ...grid, top: grid.top + bandTop, blocked: grid.blocked.map((b) => ({ ...b })) };
 }
 
@@ -680,6 +684,14 @@ export function phonePracticeGeometry(
   tolerance?: number,
   /** The climb the bone is sized with. Phones size as if one domino (see PHONE_SIZING_CLIMB). */
   sizingClimb = PHONE_SIZING_CLIMB,
+  /**
+   * Dominoes standing in each climb between rows. Across uses three (owner,
+   * 2026-09-15: "go up by one more domino when ready to turn up or down so
+   * not close to the middle ... it will also show fuller"); every other game
+   * keeps two. Measured over the 400 sizing hands, the third bone costs
+   * nothing at the sizes these tables actually use.
+   */
+  layoutClimb = PHONE_CLIMB,
 ): PhoneRouteGrid & { unit: number; left: number; top: number } {
   let edgeLeft = 0;
   let edgeRight = box.width;
@@ -708,7 +720,7 @@ export function phonePracticeGeometry(
     return { unit: u, cols, rows, left, top, origin, blocked, climb, ...(firstRowBones === undefined ? {} : { firstRowBones }) };
   };
   for (let u = maxUnit; u >= minUnit; u -= 1) {
-    const grid = gridAt(u, PHONE_CLIMB);
+    const grid = gridAt(u, layoutClimb);
     const key = JSON.stringify([grid.cols, grid.rows, grid.origin, grid.blocked, firstRowBones ?? null, tolerance ?? null, sizingClimb]);
     let fits = phoneRouteFitCache.get(key);
     if (fits === undefined) {
@@ -717,7 +729,7 @@ export function phonePracticeGeometry(
     }
     if (fits) return grid;
   }
-  return gridAt(minUnit, PHONE_CLIMB);
+  return gridAt(minUnit, layoutClimb);
 }
 
 interface CrossLayout {
@@ -2013,6 +2025,43 @@ export function centreCrossOnPose(stage: HTMLElement | null, line: HTMLElement |
   const dy = (bone.top + bone.height / 2) - (view.top + view.height / 2);
   if (panX > 1) stage.scrollLeft = Math.max(0, Math.min(panX, Math.round(dx)));
   if (panY > 1) stage.scrollTop = Math.max(0, Math.min(panY, Math.round(dy)));
+}
+
+/**
+ * Put the turn strip in the side player's own column, in the tallest gap the
+ * furniture leaves (owner, 2026-09-15: the info belongs down the side, not
+ * across the middle). Measured rather than pinned: the rack grows and shrinks
+ * with the bones left, so a fixed offset lands on top of it. The column is
+ * already outside the board's trimmed edge, so wherever it lands here costs
+ * the dominoes nothing.
+ */
+export function placeSideInfo(felt: HTMLElement, side: HTMLElement): void {
+  const feltRect = felt.getBoundingClientRect();
+  if (!feltRect.height) return;
+  const height = side.getBoundingClientRect().height || 48;
+  const column = [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity')]
+    .filter((node) => node !== side && !side.contains(node))
+    .map((node) => node.getBoundingClientRect())
+    .filter((r) => r.width > 0 && r.left - feltRect.left < feltRect.width / 3)
+    .map((r) => ({ top: r.top - feltRect.top, bottom: r.bottom - feltRect.top }))
+    .sort((a, b) => a.top - b.top);
+  const gaps: Array<{ top: number; bottom: number }> = [];
+  let cursor = 8;
+  for (const box of column) {
+    if (box.top - cursor >= height + 12) gaps.push({ top: cursor, bottom: box.top });
+    cursor = Math.max(cursor, box.bottom);
+  }
+  if (feltRect.height - 8 - cursor >= height + 12) gaps.push({ top: cursor, bottom: feltRect.height - 8 });
+  // Nearest my own hand: the lowest gap that fits.
+  const chosen = gaps[gaps.length - 1];
+  if (!chosen) {
+    // No room in the column at all — sit beside the hand along the bottom.
+    side.style.top = 'auto';
+    side.style.bottom = '8px';
+    return;
+  }
+  side.style.bottom = 'auto';
+  side.style.top = `${Math.round(chosen.top + (chosen.bottom - chosen.top - height) / 2)}px`;
 }
 
 export function reserveBoardStage(

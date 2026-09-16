@@ -4838,6 +4838,7 @@ button.hand-end-choice {
 .board-stage.phone-route-stage > .line.phone-route { padding: 0; }
 .line.phone-route .tile { pointer-events: none; }
 .line.phone-route .tile,
+.line.french-phone-route .tile,
 .phone-route-table .my-hand-panel .hand .tile {
   clip-path: none;
   box-shadow: none;
@@ -4847,14 +4848,17 @@ button.hand-end-choice {
   background: #fffef9;
 }
 .line.phone-route .tile .half,
+.line.french-phone-route .tile .half,
 .phone-route-table .my-hand-panel .hand .tile .half { padding: 1px; }
 .line.phone-route .tile .half b,
+.line.french-phone-route .tile .half b,
 .phone-route-table .my-hand-panel .hand .tile .half b {
   width: 74%;
   background: #000;
   box-shadow: none;
 }
 .line.phone-route .tile .bar,
+.line.french-phone-route .tile .bar,
 .phone-route-table .my-hand-panel .hand .tile .bar { background: #3b3329; }
 
 @media (max-width: 700px) {
@@ -5003,6 +5007,13 @@ button.hand-end-choice {
   }
   :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab { left: 2px; }
   :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab { right: 2px; }
+  /* Off the middle band. The side tabs sat at half height, which is exactly
+     where French's centre row runs, so both side arms turned after two bones
+     instead of three (owner, 2026-09-15: seven across the middle). The route
+     keeps a unit of felt around each tab, so even a tab just above the row
+     blocked its lane. */
+  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab,
+  :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab { top: 26%; }
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab > .table-rack,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-copy,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-duppy-cue { display: none; }
@@ -5121,22 +5132,12 @@ button.hand-end-choice {
   }
 }
 
-/* Mobile French bones meet flush, the same crisp faces as the phone partner
-   board (owner, 2026-09-14: "dominoes are not joined — air gaps"). The old
-   clipped reveal left a strip of table between joined bones. */
-@media (max-width: 700px) {
-  .line.french-phone-route .tile {
-    clip-path: none;
-    box-shadow: none;
-    border: 1px solid #a8a296;
-    border-radius: 2px;
-    padding: 1px;
-    background: #fffef9;
-  }
-  .line.french-phone-route .tile .half { padding: 1px; }
-  .line.french-phone-route .tile .half b { width: 74%; background: #000; box-shadow: none; }
-  .line.french-phone-route .tile .bar { background: #3b3329; }
-}
+/* French uses the ONE bone design, like every other game (owner, 2026-09-15:
+   "i thought the french domino would get the same design as the others").
+   It used to override the border, padding, pip size, pip colour and the
+   divider on phones, which is what made French bones read as a different set.
+   Bones inside an arm still meet flush; the felt between ARMS is the
+   pinwheel's spacing, not the bone's. */
 
 /* Practice's phone felt runs 12px past each screen edge to reach the rim, so a
    side tab 2px inside the felt sat 3px off the screen. */
@@ -5277,4 +5278,55 @@ button.hand-end-choice {
     left: 4px;
     right: 4px;
   }
+}
+
+/* The turn line, Pass and the pace control, down the side of the table on
+   desktop (owner, 2026-09-15). They used to sit in a wide box under the board
+   competing with the bones for the middle; the board is measured against this
+   strip like any other furniture, so the wood it frees goes to the dominoes. */
+@media (min-width: 701px) {
+  .table-felt.hand-on-felt > .hand-side-info {
+    position: absolute;
+    /* Inside the side player's own column: any wider and the board's left
+       edge is trimmed to clear it, which costs the bones a size. */
+    /* Clear of my own identity card, which owns the bottom-left corner. */
+    left: 8px;
+    bottom: 196px;
+    z-index: 5;
+    display: grid;
+    gap: 5px;
+    width: 96px;
+    padding: 7px 6px;
+    font-size: 11px;
+    border: 1px solid rgba(67, 199, 244, .3);
+    border-radius: 11px;
+    background: linear-gradient(145deg, rgba(4, 35, 52, .95), rgba(9, 73, 104, .92));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .26);
+  }
+  .table-felt.hand-on-felt > .hand-side-info > .eyebrow {
+    display: grid;
+    gap: 6px;
+    min-height: 0;
+    margin: 0;
+    text-align: left;
+  }
+  .table-felt.hand-on-felt > .hand-side-info .pass-action-row {
+    display: grid;
+    gap: 6px;
+    max-height: none;
+    white-space: normal;
+  }
+  .table-felt.hand-on-felt > .hand-side-info .pass-action { width: 100%; min-width: 0; padding-inline: 4px; }
+  .table-felt.hand-on-felt > .hand-side-info .practice-hand-pace { max-width: 100%; }
+  /* Without its header the hand panel is just bones. */
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand:not(:has(> .eyebrow)) { padding-top: 7px; }
+}
+
+/* The table header carries the title, sound, the table colour and Leave. On a
+   phone that is wider than the screen in one row, and Leave was pushed off the
+   edge when the colour picker joined it (owner, 2026-09-15). */
+.live-table-head > .spread { flex-wrap: wrap; row-gap: 6px; }
+@media (max-width: 700px) {
+  .live-table-head .felt-pick { gap: 4px; }
+  .live-table-head .felt-pick button { width: 24px; height: 24px; }
 }

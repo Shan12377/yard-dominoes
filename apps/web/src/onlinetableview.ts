@@ -15,7 +15,7 @@ import {
 } from './lounges.ts';
 import { createTable, joinTable } from './online.ts';
 import { profilePanel } from './profile.ts';
-import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone, phonePracticeGeometry, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits, deskRouteGeometry, DESK_ROUTE_STAGE_INSET, DESK_ROUTE_MIN_UNIT } from './render.ts';
+import { tileEl, renderBoard, scoreTrack, backsEl, el, crossRejectReason, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, frenchTabBlocks, frenchPinwheelPhone, phonePracticeGeometry, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits, deskRouteGeometry, DESK_ROUTE_STAGE_INSET, DESK_ROUTE_MIN_UNIT, ACROSS_CLIMB, placeSideInfo } from './render.ts';
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { fileReport } from './reports.ts';
 import { photoUrl } from './photo.ts';
@@ -29,6 +29,7 @@ import {
 } from '@yard/engine';
 import type { Move, TileId } from '@yard/engine';
 import * as sfx from './sfx.ts';
+import { FELTS, felt as chosenFelt, setFelt } from './felt.ts';
 
 /** Surface a failed request inline, next to whatever control triggered it —
  * same `.banner` treatment loungeview.ts uses for its room-level error, just
@@ -926,6 +927,22 @@ export function liveTableView(
   sound.setAttribute('aria-pressed', String(!sfxOff));
   sound.onclick = () => { sfx.setMuted(!sfxOff); rerender(); };
   top.appendChild(sound);
+  // The table's colour, the same choice Practice has (owner, 2026-09-15: "can
+  // the choice to change color be in lounge as well"). One saved setting for
+  // the whole app, so a colour picked here is the colour Practice opens with.
+  const colour = el('div', 'felt-pick');
+  colour.setAttribute('role', 'group');
+  colour.setAttribute('aria-label', 'Table colour');
+  for (const f of FELTS) {
+    const b = document.createElement('button');
+    b.dataset.felt = f.id;
+    b.title = f.label;
+    b.setAttribute('aria-label', f.label);
+    b.setAttribute('aria-pressed', String(f.id === chosenFelt()));
+    b.onclick = () => { setFelt(f.id); rerender(); };
+    colour.appendChild(b);
+  }
+  top.appendChild(colour);
   const leave = document.createElement('button');
   leave.className = 'act ghost';
   leave.textContent = 'Leave table';
@@ -1378,7 +1395,7 @@ export function liveTableView(
         // racks are the real boxes the route must keep clear of.
         const blockers: HTMLElement[] = window.innerWidth <= 700
           ? [...tableStations.values()]
-          : [...feltShell.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner, .in-felt-hand, .in-felt-actions')];
+          : [...feltShell.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner, .in-felt-hand, .in-felt-actions, .hand-side-info')];
         const blocked = blockers.map((station) => {
           const r = station.getBoundingClientRect();
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
@@ -1389,9 +1406,11 @@ export function liveTableView(
         const deskTrim = window.innerWidth > 700;
         // Phones: the ordinary rows at their own bone. Desktop: the centre-row
         // S at the biggest bone every hand fits (deskRouteGeometry).
+        // Across climbs three dominoes between rows; every other game two.
+        const layoutClimb = game.table.mode === 'across' ? ACROSS_CLIMB : undefined;
         const plainRoute = deskTrim
-          ? deskRouteGeometry(stageBox, blocked, routeMinUnit)
-          : phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked);
+          ? deskRouteGeometry(stageBox, blocked, routeMinUnit, undefined, layoutClimb)
+          : phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked, undefined, false, undefined, undefined, layoutClimb);
         const withRule = routeFirstRow === undefined ? null : plainRoute;
         const ruleFits = !!withRule && phoneRouteGeometryFits(withRule);
         lastPhoneRoute = plainRoute;
@@ -1402,9 +1421,10 @@ export function liveTableView(
         lastPhoneRouteInset = boardStage.style.inset || null;
       } else if (line.dataset.phoneRouteOverflow && line.dataset.phoneRouteOverflow !== '0'
         && lastPhoneRouteFit && lastPhoneRoute.unit > routeMinUnit) {
+        const relayClimb = game.table.mode === 'across' ? ACROSS_CLIMB : undefined;
         lastPhoneRoute = window.innerWidth > 700
-          ? deskRouteGeometry(lastPhoneRouteFit.box, lastPhoneRouteFit.blocked, routeMinUnit, lastPhoneRoute.unit - 1)
-          : phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1, routeMinUnit, lastPhoneRouteFit.blocked);
+          ? deskRouteGeometry(lastPhoneRouteFit.box, lastPhoneRouteFit.blocked, routeMinUnit, lastPhoneRoute.unit - 1, relayClimb)
+          : phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1, routeMinUnit, lastPhoneRouteFit.blocked, undefined, false, undefined, undefined, relayClimb);
       }
       const geo = lastPhoneRoute;
       feltSlot.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);
@@ -1596,6 +1616,24 @@ export function liveTableView(
       felt.appendChild(hand);
     }
   }
+  // Desktop: the turn line and Pass sit down the side, not across the middle
+  // (owner, 2026-09-15). Same strip as Practice.
+  if (window.innerWidth > 700 && !frenchTable) {
+    const eyebrows = [...felt.querySelectorAll<HTMLElement>('.my-hand-panel > .eyebrow')];
+    if (eyebrows.length) {
+      const side = el('div', 'hand-side-info');
+      for (const brow of eyebrows) side.appendChild(brow);
+      // The pace chooser stays with the bones: it is a setting, not the turn,
+      // and it made the side strip too tall to sit beside my own hand.
+      for (const pace of [...side.querySelectorAll<HTMLElement>('.practice-hand-pace, select')]) {
+        const host = felt.querySelector<HTMLElement>('.my-hand-panel.in-felt-hand');
+        if (host) host.appendChild(pace);
+      }
+      felt.appendChild(side);
+      requestAnimationFrame(() => { if (side.isConnected) placeSideInfo(felt, side); });
+    }
+  }
+
   handActions = placeBoardChoices(boardStage, handActions, choiceHandHost);
   if (handActions) {
     handActions.classList.add('in-felt-actions');

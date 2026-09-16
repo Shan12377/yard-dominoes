@@ -29,7 +29,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits, deskRouteGeometry, DESK_ROUTE_STAGE_INSET, DESK_ROUTE_MIN_UNIT } from './render.ts';
+import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits, deskRouteGeometry, DESK_ROUTE_STAGE_INSET, DESK_ROUTE_MIN_UNIT, ACROSS_CLIMB, placeSideInfo } from './render.ts';
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -2685,6 +2685,26 @@ function tableView(g: LocalGame): DocumentFragment {
   // always on screen. The mirrored Left/Right row under the hand only exists
   // for a board that can scroll an end out of view, and on a phone it made the
   // tray taller mid-turn, sliding it over the bottom rows of the fixed board.
+  // Desktop: the turn line and Pass move to a narrow strip down the side of
+  // the table (owner, 2026-09-15: "make the info more along the length of the
+  // side of the board ... so no competition with the dominoes playing on the
+  // board"). The middle of the wood is for bones only; the strip is measured
+  // like every other piece of furniture, so the board flows round it.
+  if (window.innerWidth > 700 && !frenchTable) {
+    const eyebrows = [...felt.querySelectorAll<HTMLElement>('.my-hand-panel > .eyebrow')];
+    if (eyebrows.length) {
+      const side = el('div', 'hand-side-info');
+      for (const brow of eyebrows) side.appendChild(brow);
+      // The pace chooser stays with the bones: it is a setting, not the turn,
+      // and it made the side strip too tall to sit beside my own hand.
+      for (const pace of [...side.querySelectorAll<HTMLElement>('.practice-hand-pace, select')]) {
+        const host = felt.querySelector<HTMLElement>('.my-hand-panel.in-felt-hand');
+        if (host) host.appendChild(pace);
+      }
+      felt.appendChild(side);
+      requestAnimationFrame(() => { if (side.isConnected) placeSideInfo(felt, side); });
+    }
+  }
   handActions = placeBoardChoices(boardStage, handActions, phoneFixedRoute ? null : choiceHandHost);
   if (handActions) {
     handActions.classList.add('in-felt-actions');
@@ -2801,7 +2821,7 @@ function tableView(g: LocalGame): DocumentFragment {
         // racks are the real boxes the route must keep clear of.
         const blockers: HTMLElement[] = window.innerWidth <= 700
           ? [...tableStations.values()]
-          : [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner, .in-felt-hand, .in-felt-actions')];
+          : [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity, .across-hand-own, .across-hand-partner, .in-felt-hand, .in-felt-actions, .hand-side-info')];
         const blocked = blockers.map((station) => {
           const r = station.getBoundingClientRect();
           return { left: r.left - originX, top: r.top - originY, right: r.right - originX, bottom: r.bottom - originY };
@@ -2813,9 +2833,11 @@ function tableView(g: LocalGame): DocumentFragment {
         const deskTrim = window.innerWidth > 700;
         // Phones: the ordinary rows at their own bone. Desktop: the centre-row
         // S at the biggest bone every hand fits (deskRouteGeometry).
+        // Across climbs three dominoes between rows; every other game two.
+        const layoutClimb = g.options.mode === 'across' ? ACROSS_CLIMB : undefined;
         const plainRoute = deskTrim
-          ? deskRouteGeometry(stageBox, blocked, routeMinUnit)
-          : phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked);
+          ? deskRouteGeometry(stageBox, blocked, routeMinUnit, undefined, layoutClimb)
+          : phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked, undefined, false, undefined, undefined, layoutClimb);
         const withRule = routeFirstRow === undefined ? null : plainRoute;
         const ruleFits = !!withRule && phoneRouteGeometryFits(withRule);
         lastPhoneRoute = plainRoute;
@@ -2829,9 +2851,10 @@ function tableView(g: LocalGame): DocumentFragment {
         // About one hand in a thousand outgrows the wood (see
         // PHONE_ROUTE_CORPUS_TOLERANCE). Lay it again one size smaller rather
         // than put a bone under a player or off the table.
+        const relayClimb = g.options.mode === 'across' ? ACROSS_CLIMB : undefined;
         lastPhoneRoute = window.innerWidth > 700
-          ? deskRouteGeometry(lastPhoneRouteFit.box, lastPhoneRouteFit.blocked, routeMinUnit, lastPhoneRoute.unit - 1)
-          : phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1, routeMinUnit, lastPhoneRouteFit.blocked);
+          ? deskRouteGeometry(lastPhoneRouteFit.box, lastPhoneRouteFit.blocked, routeMinUnit, lastPhoneRoute.unit - 1, relayClimb)
+          : phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1, routeMinUnit, lastPhoneRouteFit.blocked, undefined, false, undefined, undefined, relayClimb);
       }
       const geo = lastPhoneRoute;
       room.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);
