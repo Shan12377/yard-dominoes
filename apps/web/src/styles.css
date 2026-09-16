@@ -5570,6 +5570,18 @@ button.hand-end-choice {
     padding: 0;
     overflow: hidden;
   }
+  /* A row, not the grid the shared hand rule sizes its "width: 100%" bones
+     against: without a real width each bone took the whole strip and the
+     hands showed one giant half-bone. 26x52 is the phone bone, and it fits
+     the strip's 57px bone row. */
+  .in-felt-across-hands > .my-hand-panel .hand .tile {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 52px;
+    aspect-ratio: auto;
+    --w: 26px;
+    --h: 52px;
+  }
 }
 
 /* The top player's bones-left badge sits beside their photo in the Lounge,
