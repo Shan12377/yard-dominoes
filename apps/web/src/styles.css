@@ -4611,7 +4611,17 @@ button.hand-end-choice {
   .practice-room .table-player-station-left .table-seat-identity .avatar,
   .practice-room .table-player-station-right .table-seat-identity .avatar,
   .practice-room .table-player-station-left .table-seat-duppy,
-  .practice-room .table-player-station-right .table-seat-duppy {
+  .practice-room .table-player-station-right .table-seat-duppy,
+  /* The Lounge's side players as Practice draws them (owner, 2026-09-16:
+     "the open hand practice has the people perfect ... just need the same in
+     the lounge"). The 22px trim above dates from before the phone board
+     routed round the stations; it only hid who you are playing. */
+  .table-room .table-player-station-left .table-seat-identity,
+  .table-room .table-player-station-right .table-seat-identity,
+  .table-room .table-player-station-left .table-seat-identity .avatar,
+  .table-room .table-player-station-right .table-seat-identity .avatar,
+  .table-room .table-player-station-left .table-seat-duppy,
+  .table-room .table-player-station-right .table-seat-duppy {
     --seat-identity-size: 32px;
     width: 32px;
     height: 58px;
@@ -5566,3 +5576,13 @@ button.hand-end-choice {
 }
 .sign-in-banner > strong { color: var(--gold); font: 900 18px/1.1 var(--display); }
 .sign-in-banner > .act { justify-self: start; }
+
+/* Nothing of the deal shows until the deal is over: racks, open racks, faces
+   and tabs join the hand and the board under the shuffle, as in Practice
+   (owner, 2026-09-16: the hands were already there while it shuffled). */
+.practice-dealing .table-rack,
+.practice-dealing .table-seat-identity,
+.practice-dealing .station-tab,
+.practice-dealing .my-hand-panel,
+.practice-dealing .hand-side-info,
+.practice-dealing .in-felt-across-hands { opacity: 0; }

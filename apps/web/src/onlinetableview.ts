@@ -5,7 +5,7 @@
 // reads it and calls back into it.
 
 import { OnlineGame } from './onlinetable.ts';
-import { dealOverlay, confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
+import { dealOverlay, DEAL_ANIMATION_MS, confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
 import { coachReviewView } from './coachview.ts';
 import type { SeatInfo } from './onlinetable.ts';
 import {
@@ -591,7 +591,8 @@ let dealShownFor: string | null = null;
 let dealUntil = 0;
 /** Moves already down when the shuffle began; a newer one ends it early. */
 let dealSeenMoves = 0;
-const LOUNGE_DEAL_MS = 2600;
+/** The same shuffle length as Practice (owner, 2026-09-16); start-hand adds it to the opening turn. */
+const LOUNGE_DEAL_MS = DEAL_ANIMATION_MS;
 
 /** Who was watching at the last render, so an arrival can be noticed. */
 let watcherIdsSeen: Set<string> | null = null;
@@ -1681,7 +1682,10 @@ export function liveTableView(
     }
     if (hand && dealShownFor === hand.hand_id && played <= dealSeenMoves && Date.now() < dealUntil) {
       felt.classList.add('practice-dealing');
-      felt.appendChild(dealOverlay(() => { dealUntil = 0; game.holdDuppiesUntil(0); rerender(); }, true));
+      // The Lounge keeps its players' racks and faces on the felt's shell, not
+      // inside the felt, so the shell hides them for the deal too.
+      feltShell.classList.add('practice-dealing');
+      felt.appendChild(dealOverlay(() => { dealUntil = 0; game.holdDuppiesUntil(0); rerender(); }));
     }
   }
   requestAnimationFrame(() => requestAnimationFrame(refitMeasuredBoard));

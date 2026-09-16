@@ -133,7 +133,12 @@ test('Practice and the Lounge shuffle and deal one concealed bone to each seat i
   assert.match(shared, /for \(let i = 0; i < 28; i \+= 1\)/);
   assert.match(shared, /seats\[i % seats\.length\]/);
   assert.match(practiceSource, /dealOverlay\(finishPracticeDealAnimation\)/);
-  assert.match(onlineTableSource, /dealOverlay\([\s\S]{0,160}?, true\)/);
+  // The Lounge plays Practice's full shuffle, on the same clock (owner,
+  // 2026-09-16), and start-hand gives the opening turn that time.
+  assert.match(onlineTableSource, /const LOUNGE_DEAL_MS = DEAL_ANIMATION_MS;/);
+  assert.match(practiceSource, /reduced \? 260 : DEAL_ANIMATION_MS/);
+  const startHand = readFileSync(new URL('../../../supabase/functions/start-hand/index.ts', import.meta.url), 'utf8');
+  assert.match(startHand, /\+ DEAL_ANIMATION_SECONDS, 0\)/);
   assert.match(onlineTableSource, /game\.holdDuppiesUntil\(dealUntil\)/,
     'no Lounge duppy may play behind the opening shuffle');
   assert.match(practiceSource, /prefers-reduced-motion: reduce/);

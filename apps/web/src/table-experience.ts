@@ -131,6 +131,9 @@ export function frenchPhoneTab(station: HTMLElement, slot: string, bones: number
  * plays the `quick` one and is cleared the moment the first bone is laid
  * (owner, 2026-09-16: the shuffle in the Lounge too, desktop and phone).
  */
+/** How long the opening shuffle and deal plays, everywhere (start-hand gives the opening turn this much extra). */
+export const DEAL_ANIMATION_MS = 8_300;
+
 export function dealOverlay(onSkip: () => void, quick = false): HTMLElement {
   const make = (tag: string, cls: string, text?: string) => {
     const node = document.createElement(tag);

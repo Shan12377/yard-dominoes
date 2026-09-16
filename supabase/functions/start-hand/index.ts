@@ -10,6 +10,9 @@ import { deal } from '../_shared/engine/hand.ts';
 import { dealPlan } from '../_shared/engine/tiles.ts';
 import { duppyThinkSeconds } from '../_shared/engine/clock.ts';
 
+/** The client's opening shuffle-and-deal, rounded up (DEAL_ANIMATION_MS = 8300). */
+const DEAL_ANIMATION_SECONDS = 9;
+
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
   const { tableId, clientSeed } = await req.json() as { tableId: string; clientSeed?: string };
@@ -148,8 +151,11 @@ Deno.serve(handled(async (req) => {
   // early rout buy an unanswerable advantage in the hand that decides the set.
   await db.from('seats').update({ time_bank: 0 }).eq('table_id', tableId);
 
+  // The opening turn also covers the shuffle-and-deal every table plays first
+  // (DEAL_ANIMATION_MS in the client, 8.3s): nobody's clock runs, and no duppy
+  // poses, while the bones are still being dealt on screen (owner, 2026-09-16).
   await persist(db, handRow!.id, tableId, set!.id, state, seatUsers,
-    seats![state.turn].duppy_level ? duppyThinkSeconds(table.duppy_pace) : table.turn_seconds, 0);
+    (seats![state.turn].duppy_level ? duppyThinkSeconds(table.duppy_pace) : table.turn_seconds) + DEAL_ANIMATION_SECONDS, 0);
   await db.from('tables').update({ status: 'playing' }).eq('id', tableId);
 
   return json({ ok: true, handId: handRow!.id, commitment, turn: state.turn });

@@ -17,7 +17,7 @@ import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { DUPPY_PACE_LABELS, DUPPY_PACE_NAMES } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab, dealOverlay } from './table-experience.ts';
+import { confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab, dealOverlay, DEAL_ANIMATION_MS } from './table-experience.ts';
 import type { DuppyPace } from './local.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import { captureReferralCode } from './referral.ts';
@@ -432,7 +432,7 @@ function beginPracticeDealAnimation(): Promise<void> {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   return new Promise((resolve) => {
     practiceDealResolve = resolve;
-    practiceDealTimer = window.setTimeout(finishPracticeDealAnimation, reduced ? 260 : 8_300);
+    practiceDealTimer = window.setTimeout(finishPracticeDealAnimation, reduced ? 260 : DEAL_ANIMATION_MS);
   });
 }
 
