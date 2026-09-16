@@ -1352,7 +1352,7 @@ export function liveTableView(
       const copy = el('span', 'table-seat-copy');
       copy.append(
         el('strong', undefined, seatName(s)),
-        el('small', undefined, `${count} bone${count === 1 ? '' : 's'} · ${score} pt${score === 1 ? '' : 's'}`),
+        bonesAndPoints(count, score),
       );
       identity.appendChild(copy);
       const station = el('div', `table-player-station table-player-station-${slot}`);
@@ -1373,7 +1373,7 @@ export function liveTableView(
         const copy = el('span', 'table-seat-copy');
         copy.append(
           el('strong', undefined, slot === 'bottom' ? 'You' : 'Your partner seat'),
-          el('small', undefined, `${count} bone${count === 1 ? '' : 's'} · ${score} pt${score === 1 ? '' : 's'}`),
+          bonesAndPoints(count, score),
         );
         identity.appendChild(copy);
         identity.classList.add('across-controlled-identity');
@@ -2787,4 +2787,17 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     }
   }
   return panel;
+}
+
+/**
+ * "7 bones · 0 pts". The separator is its own span so a narrow side station
+ * can break the line there and read "7 bones" over "0 pts".
+ */
+function bonesAndPoints(count: number, score: number): HTMLElement {
+  const small = document.createElement('small');
+  const sep = document.createElement('span');
+  sep.className = 'copy-sep';
+  sep.textContent = ' · ';
+  small.append(`${count} bone${count === 1 ? '' : 's'}`, sep, `${score} pt${score === 1 ? '' : 's'}`);
+  return small;
 }

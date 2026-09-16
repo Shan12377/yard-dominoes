@@ -1372,7 +1372,7 @@ function practiceDuppyIdentity(g: LocalGame, seat: number): HTMLElement | null {
   const copy = el('span', 'table-seat-copy');
   copy.append(
     el('strong', undefined, g.seatLabel(seat)),
-    el('small', undefined, `${count} bone${count === 1 ? '' : 's'} · ${score} pt${score === 1 ? '' : 's'}`),
+    bonesAndPoints(count, score),
   );
   identity.append(duppy, copy);
   return identity;
@@ -3754,4 +3754,17 @@ if (localStorage.getItem(LOUNGES_VISITED_KEY)) {
   // whether this visitor would otherwise have triggered it.
   view = 'profile';
   void ensureLoungeModule();
+}
+
+/**
+ * "7 bones · 0 pts". The separator is its own span so a narrow side station
+ * can break the line there and read "7 bones" over "0 pts".
+ */
+function bonesAndPoints(count: number, score: number): HTMLElement {
+  const small = document.createElement('small');
+  const sep = document.createElement('span');
+  sep.className = 'copy-sep';
+  sep.textContent = ' · ';
+  small.append(`${count} bone${count === 1 ? '' : 's'}`, sep, `${score} pt${score === 1 ? '' : 's'}`);
+  return small;
 }

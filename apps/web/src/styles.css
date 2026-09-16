@@ -5811,3 +5811,46 @@ button.hand-end-choice {
     --h: calc(min(var(--hand-bone-short, 28px), 28px) * 2);
   }
 }
+
+/* Practice on a phone shows each side player's bones and points under the
+   face, as the Lounge does (owner, 2026-09-16), in the same compact block.
+   The station sits a little further in so the words are not cut by the
+   screen edge. French keeps its tabs. */
+@media (max-width: 700px) {
+  .practice-room .table-felt > :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy {
+    display: grid;
+    gap: 1px;
+    max-width: 34px;
+    text-align: center;
+  }
+  .practice-room .table-felt > :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy strong {
+    font-size: 9px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .practice-room .table-felt > :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy small {
+    display: block;
+    font-size: 8px;
+    line-height: 1.15;
+    letter-spacing: -.02em;
+    white-space: nowrap;
+  }
+  .practice-room .table-felt > :is(.table-player-station-left, .table-player-station-right):not(.station-tab) > .table-seat-identity {
+    flex: none;
+    height: auto;
+  }
+  .practice-room .table-felt > .table-player-station-left:not(.station-tab) { left: -4px; }
+  .practice-room .table-felt > .table-player-station-right:not(.station-tab) { right: -4px; }
+}
+
+/* Side players on a phone: "7 bones" over "0 pts", not a four-line wrap. */
+@media (max-width: 700px) {
+  :is(.practice-room, .table-room) :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy .copy-sep {
+    display: block;
+    height: 0;
+    overflow: hidden;
+  }
+  :is(.practice-room, .table-room) :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy small {
+    white-space: nowrap;
+  }
+}
