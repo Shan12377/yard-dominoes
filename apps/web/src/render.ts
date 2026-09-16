@@ -1303,6 +1303,9 @@ export const FRENCH_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: [3, 3], right: [
  */
 export const FRENCH_DESK_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: 4, right: 4, up: 3, down: 3 };
 
+/** An arm never turns more than a U (two quarter-turns) either way; see `spin`. */
+export const MAX_ARM_SPIN = 2;
+
 export function phoneFrenchPinwheel(input: {
   arms: ReadonlyArray<{ direction: CrossDirection; doubles: readonly boolean[] }>;
   legs?: FrenchPinwheelLegs;
@@ -1367,6 +1370,10 @@ export function phoneFrenchPinwheel(input: {
       direction, x: start[0], y: start[1], dir: direction,
       lastAcross: direction === 'up' || direction === 'down' ? 2 : 4, own: [] as Placed[],
       turns: 0, legBones: 0,
+      // Net quarter-turns so far, clockwise positive. Two is the U the legs
+      // plan lays; a third turn the same way heads back into the arm's own
+      // bones (owner, 2026-09-16, a left arm that curled up, right and down).
+      spin: 0,
     };
   });
   const all: Placed[] = [];
@@ -1407,7 +1414,8 @@ export function phoneFrenchPinwheel(input: {
     const straight = (ownQuarter: boolean, pastBottom = false) => straightFits(along, across, ownQuarter, pastBottom)
       ? { x: arm.x, y: arm.y, d: arm.dir, bone: rect(arm.x, arm.y, arm.dir, along, across), advance: along }
       : null;
-    const turn = (to: CrossDirection, ownQuarter: boolean, pastBottom = false) => {
+    const turn = (to: CrossDirection, ownQuarter: boolean, pastBottom = false, curl = false) => {
+      if (!curl && Math.abs(arm.spin + (to === clockwise[arm.dir] ? 1 : -1)) > MAX_ARM_SPIN) return null;
       const [tx, ty] = step[to];
       const leg = (x: number, y: number) => {
         const bone = rect(x, y, to, 4, 2);
@@ -1439,6 +1447,9 @@ export function phoneFrenchPinwheel(input: {
       chosen ??= straight(false, true) ?? turn(clockwise[arm.dir], false, true)
         ?? turn(anticlockwise[arm.dir], false, true);
     }
+    // Last resort before drawing a bone on top of others: the curl.
+    chosen ??= turn(clockwise[arm.dir], false, false, true) ?? turn(anticlockwise[arm.dir], false, false, true)
+      ?? turn(clockwise[arm.dir], false, true, true) ?? turn(anticlockwise[arm.dir], false, true, true);
     if (!chosen) {
       stuck += 1;
       chosen = { x: arm.x, y: arm.y, d: arm.dir, bone: rect(arm.x, arm.y, arm.dir, along, across), advance: along };
@@ -1450,6 +1461,7 @@ export function phoneFrenchPinwheel(input: {
     arm.x = chosen.x + sx * chosen.advance;
     arm.y = chosen.y + sy * chosen.advance;
     const turned = chosen.d !== arm.dir;
+    if (turned) arm.spin += chosen.d === clockwise[arm.dir] ? 1 : -1;
     arm.dir = chosen.d;
     arm.lastAcross = chosen.bone.w === chosen.advance ? chosen.bone.h : chosen.bone.w;
     if (turned) {

@@ -251,6 +251,7 @@ test('real French hands lay out on a phone without touching arms or covering pla
   const blocked: R[] = [{ x: 0, y: 21, w: 1, h: 2 }, { x: 25, y: 21, w: 1, h: 2 }, { x: 11, y: 0, w: 4, h: 1 }];
   let hands = 0;
   let clean = 0;
+  let curls = 0;
   for (let k = 0; hands < 200 && k < 2000; k++) {
     const order = [...tiles];
     for (let i = order.length - 1; i > 0; i--) {
@@ -274,6 +275,21 @@ test('real French hands lay out on a phone without touching arms or covering pla
       arms: board.arms.map((arm, a) => ({ direction: DIRS[a % 4], doubles: arm.tiles.map((t) => isDouble(t.tile)) })),
       order: armOrder, cols, rows, blocked,
     });
+    // An arm turns back into itself only when the alternative is a bone drawn
+    // on top of others (owner, 2026-09-16: "never turn back in on itself").
+    let curled = false;
+    slots.forEach((arm, a) => {
+      let dir: Dir = DIRS[a % 4];
+      let spin = 0;
+      arm.forEach((s, i) => {
+        if (i === 0) return;
+        const d = travel(arm[i - 1], s);
+        if (d !== dir) spin += CLOCKWISE[dir] === d ? 1 : -1;
+        dir = d;
+        if (Math.abs(spin) > 2) curled = true;
+      });
+    });
+    if (curled) curls += 1;
     if (stuck === 0) {
       clean += 1;
       assertSound(slots, cols, rows, blocked, `hand ${k}`);
@@ -287,5 +303,7 @@ test('real French hands lay out on a phone without touching arms or covering pla
   // Owner, 2026-09-15: keep three side bones on phones for now even though
   // fewer real hands fit cleanly (87 of 200 here; 330 of 400 with two). This
   // floor guards against it getting worse while the layout is revisited.
+  // Measured over 1000 hands: 384 curled before the guard, 93 after.
+  assert.ok(curls / hands <= 0.12, `${curls} of ${hands} hands curled an arm back on itself`);
   assert.ok(clean / hands >= 0.4, `only ${clean} of ${hands} hands fit a 390px phone without a fallback`);
 });

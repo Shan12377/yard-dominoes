@@ -5680,4 +5680,25 @@ button.hand-end-choice {
     box-sizing: border-box;
   }
   .table-room :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab > .station-tab-rack > i { margin-left: -24px; }
+  /* The top player's bones hang off the top edge the same way. */
+  /* The shell starts 15px above the wood: the tab sits 11px into the wood
+     and its bones hang in the wood's top 8px. */
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-top.station-tab { top: 26px; }
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-top.station-tab > .station-tab-rack {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    height: 8px;
+    overflow: hidden;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 3px;
+    transform: translateX(-50%);
+  }
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-top.station-tab > .station-tab-rack > i {
+    flex: none;
+    width: 16px;
+    height: 32px;
+    box-sizing: border-box;
+  }
 }
