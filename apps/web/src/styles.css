@@ -4537,7 +4537,7 @@ button.hand-end-choice {
 }
 
 @media (max-width: 700px) {
-  .table-room.across-room .live-felt,
+  /* Practice only: the Lounge's phone Across is the Partner table now. */
   .practice-room.across-room > .live-felt {
     height: max(520px, 70svh);
     min-height: 520px;
@@ -5622,3 +5622,9 @@ button.hand-end-choice {
 .practice-dealing .my-hand-panel,
 .practice-dealing .hand-side-info,
 .practice-dealing .in-felt-across-hands { opacity: 0; }
+
+/* Across on a phone: both hands are mine, so the partner seat's own portrait
+   was a second copy of my photo over the corner of the top strip. */
+@media (max-width: 700px) {
+  .table-room .felt-shell > .across-controlled-identity { display: none; }
+}
