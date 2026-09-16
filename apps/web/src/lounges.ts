@@ -33,7 +33,7 @@ export const TIER_PITCH: Record<Tier, { price: string; points: string[] }> = {
   guest: {
     price: 'Free forever',
     points: [
-      'Full game, every mode, ranked play',
+      'Full game, every mode',
       'The whole first three Academy belts',
       'One Coach review a day',
       'Verify every deal',
@@ -46,7 +46,7 @@ export const TIER_PITCH: Record<Tier, { price: string; points: string[] }> = {
       'Profile photo',
       'Weekly tournament entry',
       'Belts four and five — the tracking and tournament craft',
-      'Rankers Row lounge',
+      'Ranked play — your results move your rating',
       'Priority matchmaking',
     ],
   },
@@ -74,6 +74,14 @@ export interface Lounge {
   min_tier: Tier;
   capacity: number;
   sort_order: number;
+  /**
+   * What this room plays (0063), in the table form's keys: 'cutthroat',
+   * 'partner', 'openhand', 'across', 'french'. Null or absent = any game.
+   * Optional so a client ahead of the migration still works.
+   */
+  games?: string[] | null;
+  /** A room nobody is shown any more (Rankers Row, 0063). */
+  retired?: boolean;
 }
 
 export interface LoungeMessage {
@@ -455,10 +463,21 @@ export async function saveProfile(
   }
 }
 
+/** How a room's game keys read on a card and in its table form. */
+export const GAME_KEY_LABEL: Record<string, string> = {
+  cutthroat: 'Cut throat',
+  partner: 'Partner',
+  openhand: 'Open hand',
+  across: 'Across',
+  french: 'French',
+};
+
 export async function listLounges(): Promise<Lounge[]> {
   const { data, error } = await db().from('lounges').select('*').order('sort_order');
   if (error) throw new Error(error.message);
-  return data as Lounge[];
+  // Filtered here rather than in the query, so this works before 0063 adds
+  // the column as well as after.
+  return (data as Lounge[]).filter((lounge) => !lounge.retired);
 }
 
 export interface OpenTable {

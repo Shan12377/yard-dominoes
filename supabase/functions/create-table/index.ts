@@ -34,8 +34,17 @@ Deno.serve(handled(async (req) => {
   }
 
   if (body.loungeId) {
-    const { data: lounge } = await db.from('lounges').select('min_tier').eq('id', body.loungeId).single();
+    // select('*') so this runs before and after 0063 adds `games`/`retired`.
+    const { data: lounge } = await db.from('lounges').select('*').eq('id', body.loungeId).single();
     if (!lounge) throw new HttpError(404, 'no such lounge');
+    if (lounge.retired) throw new HttpError(410, 'this room has closed — pick another');
+    // A room plays only its own games (0063, owner 2026-09-16). French is a
+    // format under cut throat, so it has its own key.
+    const gameKey = body.format === 'french' ? 'french' : mode;
+    const games = Array.isArray(lounge.games) ? lounge.games as string[] : null;
+    if (games && games.length > 0 && !games.includes(gameKey)) {
+      throw new HttpError(422, `this room plays ${games.join(' and ')} — start that game here, or pick its own room`);
+    }
     const { data: profile } = await db.from('profiles').select('tier, tier_expires_at').eq('id', user.id).single();
     const mine = effectiveTier(profile ?? { tier: 'guest', tier_expires_at: null });
     if (TIER_RANK[mine] < TIER_RANK[lounge.min_tier]) {

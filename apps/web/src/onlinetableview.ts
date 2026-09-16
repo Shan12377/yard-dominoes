@@ -43,6 +43,8 @@ function showInlineError(host: HTMLElement, err: unknown): void {
 
 export async function openTablesPanel(
   loungeId: string,
+  /** The room's games (0063); null = any. */
+  games: string[] | null,
   onJoin: (tableId: string) => void,
   rerender: () => void,
   /** Who is looking, so a table only they can rejoin is shown only to them. */
@@ -53,7 +55,7 @@ export async function openTablesPanel(
   // play. On a phone, putting this after a long list of waiting tables turns
   // a simple first action into a scroll hunt.
   wrap.append(el('div', 'eyebrow', 'Play now'), el('h2', undefined, 'Start a table'));
-  wrap.appendChild(startTableForm(loungeId, onJoin));
+  wrap.appendChild(startTableForm(loungeId, onJoin, games));
 
   const open = el('section', 'open-tables-list');
   open.append(el('div', 'eyebrow', 'Open tables'), el('h3', undefined, 'Join a game already going'));
@@ -188,7 +190,7 @@ let startDuppy: DuppyLevel = 'ranker';
 let startClock: ClockName = 'yard';
 let startPace: DuppyPace = 'brisk';
 
-function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HTMLElement {
+function startTableForm(loungeId: string, onJoin: (tableId: string) => void, games: string[] | null = null): HTMLElement {
   const form = el('div', 'row');
   // French used to live only as a third option inside Cut throat's "Set"
   // dropdown — a player who specifically wants French had no way to find it
@@ -198,12 +200,20 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void): HT
   // server's own createSet() forces that pairing regardless of what this
   // form sends. See resolvedMode/resolvedFormat below.
   const mode = document.createElement('select');
-  mode.innerHTML = `<option value="partner">Partner — 2 v 2</option>`
-    + `<option value="openhand">Open hand — partner sees your tiles</option>`
-    + `<option value="across">Across — 2 players, you play both hands</option>`
-    + `<option value="cutthroat">Cut throat</option>`
-    + `<option value="french">French — race to 100, lowest wins</option>`;
+  // A room offers only the games it plays (owner, 2026-09-16); the server
+  // refuses anything else (create-table).
+  const offered = ([
+    ['partner', 'Partner — 2 v 2'],
+    ['openhand', 'Open hand — partner sees your tiles'],
+    ['across', 'Across — 2 players, you play both hands'],
+    ['cutthroat', 'Cut throat'],
+    ['french', 'French — race to 100, lowest wins'],
+  ] as const).filter(([key]) => !games || games.length === 0 || games.includes(key));
+  mode.innerHTML = offered.map(([key, label]) => `<option value="${key}">${label}</option>`).join('');
+  if (!offered.some(([key]) => key === startMode)) startMode = offered[0]?.[0] ?? 'partner';
   mode.value = startMode;
+  // One game: say it rather than offer a menu of one.
+  if (offered.length === 1) mode.disabled = true;
   const resolvedMode = (): GameMode => mode.value === 'french' ? 'cutthroat' : (mode.value as GameMode);
   const resolvedFormat = (): 'sixlove' | 'firstToSix' | 'french' =>
     mode.value === 'french' ? 'french' : (format.value as 'sixlove' | 'firstToSix');

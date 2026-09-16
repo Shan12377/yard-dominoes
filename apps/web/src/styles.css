@@ -5549,3 +5549,20 @@ button.hand-end-choice {
     left: calc(100% + 2px);
   }
 }
+
+/* Rooms by game (owner, 2026-09-16): the game is the headline tag, and a guest
+   sees one sign-in step above the list instead of a lock on every card. */
+.lounge-card .game-tag {
+  background: rgba(67, 199, 244, .16);
+  border-color: rgba(67, 199, 244, .55);
+  color: var(--sky);
+  font-weight: 800;
+}
+.sign-in-banner {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 201, 40, .55);
+}
+.sign-in-banner > strong { color: var(--gold); font: 900 18px/1.1 var(--display); }
+.sign-in-banner > .act { justify-self: start; }

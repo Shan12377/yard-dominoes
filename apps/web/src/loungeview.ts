@@ -13,7 +13,7 @@ import {
   ORIGIN_LABEL,
   addBredrin, removeBredrin, whereAreMyBredrins,
   sendInvite, pendingInvites, dismissInvite, watchInvites,
-  MIN_GIFT_COINS, giftCoins,
+  MIN_GIFT_COINS, giftCoins, GAME_KEY_LABEL,
   fetchPublicProfile,
   topRanked, avatarUrl, avatarAccessoryUrl, AVATAR_LABEL,
 } from './lounges.ts';
@@ -1355,6 +1355,27 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
     frag.appendChild(el('div', 'banner', loungeState.error));
   }
 
+  // Guests get one clear step, once (owner, 2026-09-16: five "Sign in to play"
+  // buttons read as five locked doors).
+  if (loungeState.isAnonymous) {
+    const banner = el('div', 'panel sign-in-banner');
+    banner.append(
+      el('strong', undefined, 'Sign in to play online'),
+      el('p', 'muted small', 'One tap with Google, or an email and password. Practice stays free with no sign-in.'),
+    );
+    const signIn = document.createElement('button');
+    signIn.className = 'act';
+    signIn.textContent = 'Sign in to play';
+    signIn.dataset.signInToPlay = 'true';
+    signIn.onclick = () => {
+      accountOpen = true;
+      accountMode = 'secure';
+      goToMembership();
+    };
+    banner.appendChild(signIn);
+    frag.appendChild(banner);
+  }
+
   for (const lounge of loungeState.lounges) {
     // Live occupancy needs presence per room; the list shows the gate and the
     // cap, and the true head-count appears once you are inside.
@@ -1366,12 +1387,11 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
     if (lounge.description) left.append(el('div', 'desc', lounge.description));
     const tags = el('div', 'row');
     tags.style.marginTop = '6px';
-    if (lounge.mode) {
-      const modeTag = lounge.mode === 'partner' ? 'Partners'
-        : lounge.mode === 'openhand' ? 'Open hand'
-          : 'Cut throat';
-      tags.append(el('span', 'gate', modeTag));
-    }
+    // The room's game, which is what a player is choosing (owner, 2026-09-16).
+    const games = lounge.games ?? null;
+    tags.append(el('span', 'gate game-tag', games?.length
+      ? games.map((key) => GAME_KEY_LABEL[key] ?? key).join(' · ')
+      : 'Every game'));
     if (lounge.min_tier !== 'guest') {
       // "Yardie only" reads as excluding VIP, but canEnter() gates on tier
       // RANK — VIP clears every lower floor too. "+" says so; VIP itself has
@@ -1391,17 +1411,8 @@ function loungeList(rerender: () => void, goToMembership: () => void): DocumentF
       enter.onclick = () => void openLounge(lounge, rerender);
       right.appendChild(enter);
     } else if (loungeState.isAnonymous) {
-      // The lock a player can fix right now: sign in, with one tap if they can.
-      const signIn = document.createElement('button');
-      signIn.className = 'act ghost';
-      signIn.textContent = 'Sign in to play';
-      signIn.dataset.signInToPlay = 'true';
-      signIn.onclick = () => {
-        accountOpen = true;
-        accountMode = 'secure';
-        goToMembership();
-      };
-      right.append(signIn);
+      // One sign-in, at the top of the list (below), not a lock on every card.
+      right.append(el('div', 'muted small', 'Sign in above to play'));
     } else {
       right.append(el('div', 'muted', gate.why ?? 'Locked'));
     }
@@ -1500,7 +1511,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   frag.appendChild(head);
 
   const tablesPanel = document.createElement('div');
-  void openTablesPanel(lounge.id, (tableId) => void attachTable(tableId, rerender),
+  void openTablesPanel(lounge.id, lounge.games ?? null, (tableId) => void attachTable(tableId, rerender),
     rerender, loungeState.me).then((panel) => {
     tablesPanel.replaceWith(panel);
   });
