@@ -180,6 +180,11 @@ export class ConflictError extends Error {
   constructor() { super('someone else moved first'); }
 }
 
+/** advance-duppy's 403: this account is not seated at that table (any more). */
+export class DuppyNotSeatedError extends Error {
+  constructor() { super('not seated at this table'); }
+}
+
 /** A harmless race while a visible Duppy turn is being resolved. */
 export class DuppyTurnConflictError extends Error {
   constructor() { super('duppy turn changed'); }
@@ -201,6 +206,9 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T> {
     }
     if (fn === 'advance-duppy' && error instanceof FunctionsHttpError && error.context?.status === 409) {
       throw new DuppyTurnConflictError();
+    }
+    if (fn === 'advance-duppy' && error instanceof FunctionsHttpError && error.context?.status === 403) {
+      throw new DuppyNotSeatedError();
     }
     // HttpError's message (lib.ts's `handled()`) lands in the response body,
     // not on `error.message` — the SDK only ever sets that to a generic

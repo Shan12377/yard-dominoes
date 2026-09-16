@@ -10,7 +10,7 @@
 
 import {
   supabase, startHand as apiStartHand, playMove as apiPlayMove, advanceDuppy as apiAdvanceDuppy, passPose as apiPassPose,
-  leaveSeat as apiLeaveSeat, watchTable, ConflictError, DuppyTurnConflictError, revealHand as apiRevealHand,
+  leaveSeat as apiLeaveSeat, watchTable, ConflictError, DuppyTurnConflictError, DuppyNotSeatedError, revealHand as apiRevealHand,
   requestReview as apiRequestReview, frenchReshuffle as apiFrenchReshuffle, settleHand as apiSettleHand,
   ReviewLimitError,
   type PublicHand, type TableSubscription,
@@ -779,11 +779,22 @@ export class OnlineGame {
 
   private async advanceDuppyTurn(handId: string, attempt = 0) {
     const hand = this.hand;
-    if (!hand || hand.hand_id !== handId || hand.status !== 'active'
+    if (this.left || this.isSpectator || !hand || hand.hand_id !== handId || hand.status !== 'active'
       || !this.seats[hand.turn]?.duppyLevel) return;
     try {
       await apiAdvanceDuppy(handId);
     } catch (err) {
+      // Left the table while the call was out: nothing here to retry or say.
+      if (this.left) return;
+      if (err instanceof DuppyNotSeatedError) {
+        // The server says this account holds no seat here any more (left on
+        // another screen, or the seat went to a duppy). Not a failure to
+        // report: refresh the seats and let whoever is seated drive the turn.
+        // It was 27 of today's advance-duppy calls, each ending in the owner's
+        // "could not advance the duppy turn" (2026-09-16).
+        await this.refetchSeats();
+        return;
+      }
       if (err instanceof DuppyTurnConflictError) {
         // Another seated browser may have won, or this browser reached the
         // edge of the server clock first. The fresh public state decides if a
@@ -1044,7 +1055,11 @@ export class OnlineGame {
     }
   }
 
+  /** Set once this table is left; see advanceDuppyTurn. */
+  private left = false;
+
   leave() {
+    this.left = true;
     this.clearDuppyTimer();
     this.sub?.stop();
     document.removeEventListener('visibilitychange', this.visListener);
