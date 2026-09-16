@@ -1527,7 +1527,15 @@ button.board-end-choice:focus-visible {
  * class carries the low opacity so it visually reads as "look, don't play". */
 .partner-hand { padding: 6px 8px 4px; }
 .partner-hand .hand { padding: 0; gap: 4px; }
-.partner-hand .tile.sm { --w: 22px; --h: 44px; cursor: default; }
+/* Open hand: my partner's bones are the SAME bones as mine (owner,
+   2026-09-16: "the other open hand domino looks different from my hand ...
+   can you make it look identical"). They used to be drawn at 22px, which read
+   as a different, blurrier set. Not interactive, so no hover lift. */
+.partner-hand .tile.sm {
+  --w: var(--hand-bone-short, var(--table-bone-short, 30px));
+  --h: calc(var(--hand-bone-short, var(--table-bone-short, 30px)) * 2);
+  cursor: default;
+}
 .partner-hand .tile.sm:hover { transform: none; }
 
 /* The free post-hand visual deal receipt: every starting hand, static and
@@ -4107,10 +4115,15 @@ button.act.small { font-size: 12px; padding: 7px 12px; }
 }
 .table-seat-identity .avatar-shell.live-video { --seat-identity-size: 32px; }
 @media (max-width: 700px) {
-  .table-seat-identity { --seat-identity-size: 30px; width: 30px; height: 30px; }
+  /* A 30px face is a thumbnail nobody can read (owner, 2026-09-16: "the
+     duppies at the side, i cannot see their face"). The same rule draws real
+     players, so this was everyone. The felt runs the full width of a phone
+     now, and the board measures these boxes, so the extra pixels come out of
+     the rim, not the bones. */
+  .table-seat-identity { --seat-identity-size: 42px; width: 42px; height: 42px; }
   .table-seat-identity .avatar-shell,
   .table-seat-identity .avatar,
-  .table-seat-identity .avatar-shell.live-video { width: 30px; height: 30px; --seat-identity-size: 30px; }
+  .table-seat-identity .avatar-shell.live-video { width: 42px; height: 42px; --seat-identity-size: 42px; }
   .table-seat-identity-top { top: 6px; left: 6px; }
   .table-seat-identity-bottom { bottom: 6px; left: calc(50% - 60px); }
   .table-seat-identity-left { left: 6px; top: 70px; }
@@ -4839,6 +4852,7 @@ button.hand-end-choice {
 .line.phone-route .tile { pointer-events: none; }
 .line.phone-route .tile,
 .line.french-phone-route .tile,
+.phone-route-table .partner-hand .hand .tile,
 .phone-route-table .my-hand-panel .hand .tile {
   clip-path: none;
   box-shadow: none;
@@ -4849,9 +4863,11 @@ button.hand-end-choice {
 }
 .line.phone-route .tile .half,
 .line.french-phone-route .tile .half,
+.phone-route-table .partner-hand .hand .tile .half,
 .phone-route-table .my-hand-panel .hand .tile .half { padding: 1px; }
 .line.phone-route .tile .half b,
 .line.french-phone-route .tile .half b,
+.phone-route-table .partner-hand .hand .tile .half b,
 .phone-route-table .my-hand-panel .hand .tile .half b {
   width: 74%;
   background: #000;
@@ -4859,6 +4875,7 @@ button.hand-end-choice {
 }
 .line.phone-route .tile .bar,
 .line.french-phone-route .tile .bar,
+.phone-route-table .partner-hand .hand .tile .bar,
 .phone-route-table .my-hand-panel .hand .tile .bar { background: #3b3329; }
 
 @media (max-width: 700px) {
@@ -5394,4 +5411,22 @@ button.hand-end-choice {
   background: rgba(5, 43, 67, .8);
   color: var(--sky);
   font: 700 12px/1.3 var(--mono);
+}
+
+/* My partner's open hand wears the same face as mine on a phone. It sits
+   outside the felt, so the phone-route rules above never reached it and it
+   kept the softer default — which is what read as blurry beside my own bones
+   (owner, 2026-09-16). */
+@media (max-width: 700px) {
+  .partner-hand .hand .tile {
+    clip-path: none;
+    box-shadow: none;
+    border: 1px solid #a8a296;
+    border-radius: 2px;
+    padding: 1px;
+    background: #fffef9;
+  }
+  .partner-hand .hand .tile .half { padding: 1px; }
+  .partner-hand .hand .tile .half b { width: 74%; background: #000; box-shadow: none; }
+  .partner-hand .hand .tile .bar { background: #3b3329; }
 }
