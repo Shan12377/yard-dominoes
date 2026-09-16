@@ -25,7 +25,7 @@ alter table public.lounges add column if not exists retired boolean not null def
 
 update public.lounges set
   games = null,
-  description = 'The welcome room. New to the game or just here to lime — every game plays here.',
+  description = 'The welcome room. Everybody welcome — learn the game, meet people, look for a four.',
   sort_order = 10
 where slug = 'yard-gate';
 
