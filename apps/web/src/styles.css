@@ -5012,7 +5012,13 @@ button.hand-end-choice {
      instead of three (owner, 2026-09-15: seven across the middle). The route
      keeps a unit of felt around each tab, so even a tab just above the row
      blocked its lane. */
-  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab,
+  /* Each tab sits on the side of the centre row its arm does NOT turn into.
+     The pinwheel turns clockwise: the LEFT arm turns UP, so the left tab sits
+     low; the RIGHT arm turns DOWN, so the right tab sits high. With both tabs
+     at half height the row was short; with both high, the left arm could not
+     turn up and ran on to the rim instead (owner, 2026-09-16, with a picture
+     of 5-5 carrying on left). */
+  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab { top: 72%; }
   :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab { top: 26%; }
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab > .table-rack,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-copy,
@@ -5262,13 +5268,15 @@ button.hand-end-choice {
 /* Lounge French on a phone: the felt runs edge to edge like Practice's, so the
    board has the columns the pinwheel needs (seven bones across the middle). */
 @media (max-width: 700px) {
-  .table-room .felt-shell.french-phone-shell {
+  .table-room .felt-shell.french-phone-shell,
+  .table-room .felt-shell.phone-wide-shell {
     width: calc(100% + 32px);
     max-width: none;
     margin-inline: -16px;
     padding-inline: 0;
   }
-  .table-room .felt-shell.french-phone-shell > .live-felt {
+  .table-room .felt-shell.french-phone-shell > .live-felt,
+  .table-room .felt-shell.phone-wide-shell > .live-felt {
     padding-inline: 0;
     border-left-width: 0;
     border-right-width: 0;
@@ -5362,3 +5370,28 @@ button.hand-end-choice {
 }
 .table-room .rail-section-standings .standing-row strong,
 .table-room .rail-section-standings .standing-row .score { color: var(--gold); }
+
+/* VIP wears it at the table and in the seat list (owner, 2026-09-16): the
+   brand's mango, small, never competing with the bones. */
+.seat-vip {
+  align-self: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--pip);
+  font: 900 9px/1.45 var(--mono);
+  letter-spacing: .1em;
+}
+.seat-gift { margin-top: 4px; }
+.seat-gift .act { width: 100%; }
+
+/* Somebody arrived to watch: one quiet line, six seconds, never a modal. */
+.watcher-notice {
+  margin-top: 6px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(67, 199, 244, .45);
+  background: rgba(5, 43, 67, .8);
+  color: var(--sky);
+  font: 700 12px/1.3 var(--mono);
+}

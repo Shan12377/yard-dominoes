@@ -9,7 +9,7 @@ import { confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from '.
 import { coachReviewView } from './coachview.ts';
 import type { SeatInfo } from './onlinetable.ts';
 import {
-  listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL,
+  listLoungeTables, reactionLabel, quickChatLabel, avatarUrl, AVATAR_LABEL, giftCoins, MIN_GIFT_COINS,
   avatarAccessoryUrl, backgroundUrl, myProfile,
   type OpenTable, type Avatar, type AvatarAccessory, type Background, type MyProfile,
 } from './lounges.ts';
@@ -571,6 +571,11 @@ function decorateSeat(card: HTMLElement, userId: string | null, name: string, so
 // and the chat draft already do.
 let activeRailTab: 'chat' | 'watchers' | 'standings' | 'log' | 'you' = 'chat';
 
+/** Who was watching at the last render, so an arrival can be noticed. */
+let watcherIdsSeen: Set<string> | null = null;
+let watcherNotice: { text: string; at: number } | null = null;
+const WATCHER_NOTICE_MS = 6000;
+
 // -------------------------------------------------------------------- you --
 // Profile editing — including coin balance and the buy-coins button, both
 // folded into profilePanel itself (profile.ts) — reachable without leaving
@@ -736,6 +741,8 @@ function tableSeatIdentity(s: SeatInfo, slot: SeatSlot, social?: TableSocial): H
       avatarShell.appendChild(accessory);
     }
     identity.appendChild(avatarShell);
+    // VIP wears it at the table (owner, 2026-09-16), in the brand's gold.
+    if (s.tier === 'vip') identity.appendChild(el('span', 'seat-vip', 'VIP'));
     decorateSeat(identity, s.userId, seatName(s), social);
   } else {
     // Duppies are fixed illustrated opponents, never a real profile. The
@@ -812,9 +819,41 @@ function seatCard(
   const score = game.scores[scoreIndex] ?? 0;
   card.append(el('div', 'seat-score', String(score)));
   if (s.userId && s.seatIndex !== game.mySeat) {
+    // Buy a bredrin a drink, at the table as well as in the lounge roster
+    // (owner, 2026-09-16: "Gifts should be on there 2").
+    card.appendChild(tableGiftButton(s.userId, rerender));
     card.appendChild(reportButton(s.userId, game.table.id, rerender));
   }
   return card;
+}
+
+/** The lounge's drink, offered at the table. One amount, the floor — see loungeview's own. */
+let tableGiftBusy: string | null = null;
+let tableGiftError: string | null = null;
+
+function tableGiftButton(toUserId: string, rerender: () => void): HTMLElement {
+  const wrap = el('div', 'seat-gift');
+  const btn = document.createElement('button');
+  btn.className = 'act ghost small';
+  btn.dataset.gift = toUserId;
+  btn.textContent = tableGiftBusy === toUserId ? 'Buying…' : `Buy a drink — ${MIN_GIFT_COINS} coins`;
+  btn.disabled = tableGiftBusy !== null;
+  btn.onclick = () => void (async () => {
+    tableGiftBusy = toUserId;
+    tableGiftError = null;
+    rerender();
+    try {
+      await giftCoins(toUserId, MIN_GIFT_COINS);
+    } catch (err) {
+      tableGiftError = err instanceof Error ? err.message : 'could not buy that drink';
+    } finally {
+      tableGiftBusy = null;
+      rerender();
+    }
+  })();
+  wrap.appendChild(btn);
+  if (tableGiftError && tableGiftBusy === null) wrap.append(el('div', 'muted small', tableGiftError));
+  return wrap;
 }
 
 /**
@@ -916,6 +955,29 @@ export function liveTableView(
 ): DocumentFragment {
   const frag = document.createDocumentFragment();
 
+  // Somebody came to watch (owner, 2026-09-16). Quiet and short-lived: a line
+  // under the table name for a few seconds, never a modal — a live hand is
+  // never interrupted (CLAUDE.md's settled rule).
+  const watchingNow = new Set((social?.watching ?? [])
+    .map((w) => w.user_id)
+    .filter((id) => id !== game.viewerId && !game.seats.some((seat) => seat.userId === id)));
+  if (watcherIdsSeen === null) {
+    watcherIdsSeen = watchingNow;
+  } else if (social?.watching) {
+    const names = new Map((social.watching ?? []).map((w) => [w.user_id, w.username]));
+    const arrived = [...watchingNow].filter((id) => !watcherIdsSeen!.has(id));
+    const left = [...watcherIdsSeen].filter((id) => !watchingNow.has(id));
+    if (arrived.length || left.length) {
+      const who = (ids: string[]) => ids.map((id) => names.get(id) ?? 'somebody').join(', ');
+      watcherNotice = arrived.length
+        ? { text: `${who(arrived)} ${arrived.length > 1 ? 'came' : 'came'} to watch`, at: Date.now() }
+        : { text: `${who(left)} stopped watching`, at: Date.now() };
+      watcherIdsSeen = watchingNow;
+      const mine = watcherNotice;
+      setTimeout(() => { if (watcherNotice === mine) { watcherNotice = null; rerender(); } }, WATCHER_NOTICE_MS);
+    }
+  }
+
   const head = el('div', 'panel live-table-head');
   // Which game this is, beside the lounge name (owner, 2026-09-16: "where it
   // says Yard Gate, can it say if its cut throat"). French is a format, not a
@@ -928,6 +990,11 @@ export function liveTableView(
           : 'Cut throat';
   head.append(el('div', 'eyebrow',
     social?.loungeName ? `${social.loungeName} · ${gameName}` : gameName));
+  if (watcherNotice && Date.now() - watcherNotice.at < WATCHER_NOTICE_MS) {
+    const notice = el('div', 'watcher-notice', watcherNotice.text);
+    notice.setAttribute('role', 'status');
+    head.appendChild(notice);
+  }
   const top = el('div', 'spread');
   top.append(el('h2', undefined, `Table ${game.table.joinCode}`));
   const sfxOff = sfx.muted();
@@ -1091,6 +1158,12 @@ export function liveTableView(
   const FRENCH_DESK_BLOCKERS = '.table-seat-identity, .table-rack, .in-felt-hand, .desktop-self-identity';
   if (frenchDeskPinwheel) boardStage.classList.add('french-desk-stage');
   // Mobile French takes the whole felt; its players are tabs at the rim.
+  // Every phone table runs the felt edge to edge (owner, 2026-09-16: "i want
+  // all the tables for mobile to fill out the width like the french game
+  // table ... so the dominoes can show bigger"). Width only: the route, the
+  // direction of play and everything else are untouched — the board simply
+  // measures a wider stage and picks a bigger bone.
+  if (window.innerWidth <= 700) feltShell.classList.add('phone-wide-shell');
   if (frenchTable && frenchPinwheelPhone()) {
     boardStage.classList.add('french-phone-stage');
     // The Lounge's own padding and rim left the phone board 316-340px wide,
@@ -2096,10 +2169,13 @@ function myHandPanel(
     // Keeping needs no server call: the pose is already sitting with me. The
     // button exists so the choice reads as a choice and the row can be
     // dismissed rather than hovering over the whole opening.
+    keep.dataset.keepPose = 'true';
     keep.onclick = () => { poseChoiceDismissed = game.hand?.hand_id ?? null; rerender(); };
     const pass = document.createElement('button');
     pass.className = 'act ghost';
     pass.textContent = 'Pass to partner';
+    // Same marker Practice carries, so a check can find this choice.
+    pass.dataset.passPose = 'true';
     pass.onclick = () => void game.passPose();
     row.append(keep, pass);
     panel.appendChild(row);

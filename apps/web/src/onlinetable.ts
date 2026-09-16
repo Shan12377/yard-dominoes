@@ -63,6 +63,8 @@ export interface SeatInfo {
   duppyLevel: string | null;
   /** Unspent seconds this seat carries into its next turn. Server-owned. */
   timeBank: number;
+  /** 'vip' wears a badge at the table (owner, 2026-09-16). Null for a duppy or an unknown profile. */
+  tier: string | null;
   /** rating_partner or rating_cutthroat, whichever this table's mode uses. Null for a duppy. */
   rating: number | null;
   /** Lifetime average, from profiles.total_move_ms / total_moves — not this hand's pace. Null with no moves recorded yet. */
@@ -323,6 +325,9 @@ export class OnlineGame {
    * matching the server — openhand's exclusion predates this and is not
    * this change's to revisit.
    */
+  /** Who is looking at this table, for views that must tell me from everyone else. */
+  get viewerId(): string | null { return this.myUserId; }
+
   canPassPoseNow(): boolean {
     if (this.table.mode !== 'partner' && this.table.mode !== 'across') return false;
     return this.hand?.status === 'active'
@@ -430,6 +435,7 @@ export class OnlineGame {
     username: string; origin: string | null; avatar: string | null;
     avatarAccessory: string | null;
     background: string | null; rating: number | null; avgMoveMs: number | null;
+    tier: string | null;
     fetchedAt: number;
   }>();
 
@@ -442,6 +448,7 @@ export class OnlineGame {
       avatar: s.user_id ? this.names.get(s.user_id)?.avatar ?? null : null,
       avatarAccessory: s.user_id ? this.names.get(s.user_id)?.avatarAccessory ?? null : null,
       background: s.user_id ? this.names.get(s.user_id)?.background ?? null : null,
+      tier: s.user_id ? this.names.get(s.user_id)?.tier ?? null : null,
       rating: s.user_id ? this.names.get(s.user_id)?.rating ?? null : null,
       avgMoveMs: s.user_id ? this.names.get(s.user_id)?.avgMoveMs ?? null : null,
       duppyLevel: s.duppy_level,
@@ -466,12 +473,12 @@ export class OnlineGame {
     const ratingColumn = this.ratingColumn();
     let { data, error } = await (db().from('profiles') as any)
       .select(SHARE_AVATAR_ACCESSORIES
-        ? `id, username, origin, avatar, avatar_accessory, background, total_move_ms, total_moves, ${ratingColumn}`
-        : `id, username, origin, avatar, background, total_move_ms, total_moves, ${ratingColumn}`)
+        ? `id, username, origin, avatar, avatar_accessory, background, tier, total_move_ms, total_moves, ${ratingColumn}`
+        : `id, username, origin, avatar, background, tier, total_move_ms, total_moves, ${ratingColumn}`)
       .in('id', due);
     if (error && (error.code === '42703' || error.code === 'PGRST204' || error.message.includes('avatar_accessory'))) {
       ({ data, error } = await (db().from('profiles') as any)
-        .select(`id, username, origin, avatar, background, total_move_ms, total_moves, ${ratingColumn}`)
+        .select(`id, username, origin, avatar, background, tier, total_move_ms, total_moves, ${ratingColumn}`)
         .in('id', due));
     }
     if (!data?.length) return;
@@ -485,6 +492,7 @@ export class OnlineGame {
         background: (row.background ?? null) as string | null,
         rating: ((row as any)[ratingColumn] ?? null) as number | null,
         avgMoveMs: totalMoves > 0 ? (row.total_move_ms as number) / totalMoves : null,
+        tier: ((row as any).tier ?? null) as string | null,
         fetchedAt: now,
       });
     }
@@ -495,6 +503,7 @@ export class OnlineGame {
             ...s, username: known.username, origin: known.origin, avatar: known.avatar,
             avatarAccessory: known.avatarAccessory,
             background: known.background, rating: known.rating, avgMoveMs: known.avgMoveMs,
+            tier: known.tier,
           }
         : s;
     });

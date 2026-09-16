@@ -638,6 +638,8 @@ export const QUICK_CHAT = [
   { id: 'say-six-love-dat', label: 'Six love dat' },
   { id: 'say-new-playa', label: 'New playa!' },
   { id: 'say-ready-fi-di-six', label: 'Ready fi di six!' },
+  // Owner, 2026-09-16.
+  { id: 'say-shuffle', label: 'Shuffle' },
 ] as const;
 
 export const REACTION_EVENT = 'reaction';
