@@ -1193,8 +1193,9 @@ export function liveTableView(
    */
   const holdFrenchPhoneStage = () => {
     if (!frenchTable || !frenchPinwheelPhone()) return;
-    boardStage.style.left = '4px';
-    boardStage.style.right = '4px';
+    // An 8px gap from the screen edge: no bone touches the side.
+    boardStage.style.left = '8px';
+    boardStage.style.right = '8px';
   };
   // Cut throat, partner and open hand on a phone: Practice's fixed board.
   // Every width since 2026-09-15, at the desktop bone size on desktop. Across

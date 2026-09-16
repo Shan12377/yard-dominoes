@@ -161,12 +161,17 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   so on desktop fitting it once fits it for the whole hand — 1368×900 lands on
   28px, the same bone the linear game uses, so it costs nothing there.
   **A phone is the deliberate exception and this has now been got wrong twice,
-  so it is written down plainly: never shrink the French bone on a phone.**
-  Fitting a late cross there works out at 20px, and 16px on a 360px screen,
-  against 28px for the linear game. Dominoes is played by older people and the
-  owner has ruled on it twice — the second time after a build shipped with 20px
-  phone bones. A board that is fully visible but unreadable is worse than one
-  that is readable and pans.
+  so it is written down plainly: never shrink the French bone on a phone to
+  make a board fit.** Fitting a late cross there works out at 20px, and 16px on
+  a 360px screen. Dominoes is played by older people and the owner has ruled on
+  it twice — the second time after a build shipped with 20px phone bones. A
+  board that is fully visible but unreadable is worse than one that is readable
+  and pans. **The fixed French phone bone is 26px (owner, 2026-09-16: "a tad
+  smaller"), the same as the other phone tables.** It was 28px; over 400
+  simulated hands on a 390px phone the step down cut hands where a bone had no
+  proper place from 65% to 28% and kept three bones each side of the chucha in
+  80% of hands. The Lounge's French stage keeps an 8px gap from each screen
+  edge so no bone touches the side. Change the size only when the owner asks.
   **A phone lays French as JamDom's four-way clockwise pinwheel (owner,
   2026-09-14).** `phoneFrenchPinwheel()` in render.ts: each arm heads out
   from the chucha towards the player who opened it, runs to the table edge and

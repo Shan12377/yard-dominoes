@@ -288,7 +288,11 @@ export function liveTableUnit(
     // surface. Preserve that ratio as the table grows and, critically, do not
     // consult the number played. A bone is one physical object from deal to
     // final play; the route must absorb a crowded board, never the bone size.
-    if (viewportWidth <= 700) return 14; // 28px short side on a phone.
+    // 26px short side on a phone (owner, 2026-09-16: "a tad smaller"), the
+    // same bone the other phone tables now use. Over 400 simulated hands on a
+    // 390px phone it cut hands with a bone that had no proper place from 65%
+    // to 28%, and kept three bones each side of the chucha in 80% of hands.
+    if (viewportWidth <= 700) return 13;
     // Desktop French bones are up to a quarter bigger than JamDom's ratio
     // (owner, 2026-09-15: "scale bones up about 25-30%"), but never so big
     // that the up and down arms, which run between the top player's rack and

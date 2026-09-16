@@ -5039,7 +5039,10 @@ button.hand-end-choice {
      at half height the row was short; with both high, the left arm could not
      turn up and ran on to the rim instead (owner, 2026-09-16, with a picture
      of 5-5 carrying on left). */
-  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab { top: 72%; }
+  /* 60%, not 72%: still below the centre row, so the left arm can turn up,
+     but clear of my own hand, its "Your hand" label and its turn glow, which
+     the lower tab sat inside (owner, 2026-09-16). */
+  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab { top: 60%; }
   :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab { top: 26%; }
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab > .table-rack,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-copy,
@@ -5304,8 +5307,8 @@ button.hand-end-choice {
     border-radius: 0;
   }
   .table-room .felt-shell.french-phone-shell .board-stage.french-phone-stage {
-    left: 4px;
-    right: 4px;
+    left: 8px;
+    right: 8px;
   }
 }
 
@@ -5469,4 +5472,80 @@ button.hand-end-choice {
   .table-rack-open .tile .half { padding: 1px; }
   .table-rack-open .tile .half b { width: 74%; background: #000; box-shadow: none; }
   .table-rack-open .tile .bar { background: #3b3329; }
+}
+
+/* Across on a phone: both hands are one fixed, thin strip across the table
+   (owner, 2026-09-16: "make that part more horizontal across and thinner").
+   Measured before: the partner hand was ~180x100 idle and grew to 328x195
+   when it lit up (turn line, Pass, "choose where it goes"), and the board —
+   measured against the idle size — had bones under it. Now the strip is the
+   same size in every state, so lighting up changes the colour and nothing
+   else, and the board is measured against the size it will really have. */
+@media (max-width: 700px) {
+  .in-felt-across-hands > .across-hand-own,
+  .in-felt-across-hands > .across-hand-partner {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+    transform: none;
+    height: 86px;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 22px minmax(0, 1fr);
+    align-content: start;
+    padding: 3px 8px 4px;
+  }
+  .in-felt-across-hands > .my-hand-panel > .eyebrow,
+  .in-felt-across-hands > .my-hand-panel.hand-turn-active > .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 0;
+    height: 22px;
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 11px;
+    line-height: 1;
+  }
+  .in-felt-across-hands > .my-hand-panel > .eyebrow > .pass-action-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 22px;
+    min-height: 0;
+    margin: 0 0 0 auto;
+    padding: 0;
+    font-size: 11px;
+  }
+  .in-felt-across-hands > .my-hand-panel > .eyebrow > .pass-action-row .pass-action {
+    min-height: 20px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+  /* Anything else a turn adds (the pose choice, the pace chooser) rides in
+     the header row or not at all: the strip never grows. */
+  .in-felt-across-hands > .my-hand-panel > :not(.eyebrow):not(.hand) { display: none; }
+  .in-felt-across-hands > .my-hand-panel .hand {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* The top player's bones-left badge sits beside their photo in the Lounge,
+   not on it (owner, 2026-09-16: "the number covers her face"). Practice
+   already moves it; the Lounge used the side-tab position, which lands on the
+   photo when the tab is the top one. */
+@media (max-width: 700px) {
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-top.station-tab::after {
+    top: 4px;
+    right: auto;
+    left: calc(100% + 2px);
+  }
 }
