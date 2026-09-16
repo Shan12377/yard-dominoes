@@ -636,9 +636,10 @@ test('a board that can be panned says so, and the pinned strip keeps compact sco
 
   // Owner restored the fast visual score: grey lamps at love, yellow lamps for
   // won points. They remain deliberately compact so the board keeps its room.
+  // Light grey since 2026-09-16: the dark grey sat too close to the blue strip.
   assert.match(styles,
-    /\.sticky-scores \.pips i[\s\S]{0,180}?background: #6f7b82/,
-    'unearned score lamps must be visible in muted grey');
+    /\.sticky-scores \.pips i[\s\S]{0,260}?background: #c3ccd1/,
+    'unearned score lamps must be a light grey that stands off the blue strip');
   assert.match(styles,
     /\.sticky-scores \.pips i\.lit[\s\S]{0,180}?background: #ffc928/,
     'earned score lamps must light yellow');
