@@ -8,6 +8,7 @@
 
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { ratingUpdatesForSet } from './rating-update.ts';
+import { effectiveTier } from './lib.ts';
 import type { RatedSeat } from './rating-update.ts';
 import type { GameMode } from './engine/types.ts';
 
@@ -31,7 +32,7 @@ export async function applyRatingUpdates(
   const rdColumn = mode === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
 
   const { data: profiles, error } = await db.from('profiles')
-    .select(`id, ${column}, ${rdColumn}`).in('id', humanIds);
+    .select(`id, tier, tier_expires_at, ${column}, ${rdColumn}`).in('id', humanIds);
   if (error || !profiles) {
     console.error('applyRatingUpdates: could not read profiles', error);
     return;
@@ -48,7 +49,16 @@ export async function applyRatingUpdates(
   });
 
   const updates = ratingUpdatesForSet(mode, seats, winnerSide);
+  // Ranking is the Yardie perk (owner, 2026-09-16, option B): every real set
+  // is still rated — a guest's current rating counts in everyone's expected
+  // score — but only a Yardie or VIP has their own rating written. A guest
+  // plays, and never ranks.
+  const member = (userId: string) => {
+    const p = byId.get(userId);
+    return effectiveTier({ tier: p?.tier ?? 'guest', tier_expires_at: p?.tier_expires_at ?? null }) !== 'guest';
+  };
   for (const update of updates) {
+    if (!member(update.userId)) continue;
     const { error: writeError } = await db.from('profiles')
       .update({ [column]: update.next.rating, [rdColumn]: update.next.rd })
       .eq('id', update.userId);

@@ -1998,7 +1998,7 @@ export function rankingsView(rerender: () => void): DocumentFragment {
   rankingsHeading.appendChild(el('span', 'heading-gloss', '(the leaderboard)'));
   head.append(rankingsHeading);
   head.append(el('p', 'muted',
-    'Every rated set moves this. Duppy-filled tables never count — only real games.'));
+    'Ranked play is a Yardie and VIP perk. Every real game moves a member\'s rating; duppy tables never count.'));
 
   const tabs = el('div', 'choices');
   for (const [value, label] of [['partner', 'Partner'], ['cutthroat', 'Cut Throat']] as const) {

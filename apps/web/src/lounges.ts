@@ -828,12 +828,17 @@ export async function topRanked(category: RatingCategory, limit = 20): Promise<R
   const ratingCol = category === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
   const rdCol = category === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
   const { data, error } = await db().from('profiles')
-    .select(`id, username, avatar, avatar_accessory, ${ratingCol}, ${rdCol}`)
+    .select(`id, username, avatar, avatar_accessory, tier, tier_expires_at, ${ratingCol}, ${rdCol}`)
     .lt(rdCol, 350)
+    .neq('tier', 'guest')
     .order(ratingCol, { ascending: false })
-    .limit(limit);
+    .limit(limit * 2);
   if (error || !data) return [];
-  return (data as any[]).map((row) => ({
+  // Ranking is the members' perk (owner, 2026-09-16): a lapsed membership
+  // drops off the board the same way it stops ranking.
+  const now = Date.now();
+  const current = (data as any[]).filter((row) => !row.tier_expires_at || Date.parse(row.tier_expires_at) > now);
+  return current.slice(0, limit).map((row) => ({
     userId: row.id,
     username: row.username,
     rating: row[ratingCol],
