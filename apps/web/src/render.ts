@@ -1309,6 +1309,8 @@ export const FRENCH_DESK_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: 4, right: 4
 
 /** An arm never turns more than a U (two quarter-turns) either way; see `spin`. */
 export const MAX_ARM_SPIN = 2;
+/** The longest straight run once an arm's planned legs are laid. */
+export const MAX_ARM_RUN = 4;
 
 export function phoneFrenchPinwheel(input: {
   arms: ReadonlyArray<{ direction: CrossDirection; doubles: readonly boolean[] }>;
@@ -1431,16 +1433,19 @@ export function phoneFrenchPinwheel(input: {
       return corner ?? leg(arm.x - dx + tx * (arm.lastAcross / 2), arm.y - dy + ty * (arm.lastAcross / 2));
     };
     const plan = (input.legs ?? FRENCH_PINWHEEL_LEGS)[arm.direction];
-    const legLength = (typeof plan === 'number' ? [plan] : plan)[arm.turns];
+    // After the planned legs, no straight run goes past MAX_ARM_RUN bones
+    // (owner, 2026-09-16: an arm ran six straight down under the hand
+    // because its turn was blocked and nothing else asked it to turn).
+    const legLength = (typeof plan === 'number' ? [plan] : plan)[arm.turns] ?? MAX_ARM_RUN;
     let chosen: ReturnType<typeof straight> = null;
     if (index === 0) {
       chosen = straight(true);
-    } else if (legLength !== undefined && arm.legBones === legLength) {
-      // The first leg is done: turn clockwise now, straight only if the turn
-      // has no room.
-      chosen = turn(clockwise[arm.dir], true) ?? straight(true);
-      chosen ??= turn(clockwise[arm.dir], false) ?? straight(false)
-        ?? turn(clockwise[arm.dir], false, true) ?? straight(false, true);
+    } else if (arm.legBones >= legLength) {
+      // The leg is done: turn clockwise, or outward when that is blocked;
+      // straight on only if neither turn has room.
+      chosen = turn(clockwise[arm.dir], true) ?? turn(anticlockwise[arm.dir], true) ?? straight(true);
+      chosen ??= turn(clockwise[arm.dir], false) ?? turn(anticlockwise[arm.dir], false) ?? straight(false)
+        ?? turn(clockwise[arm.dir], false, true) ?? turn(anticlockwise[arm.dir], false, true) ?? straight(false, true);
     } else {
       const turnsHere = double && !straightFits(4, 2, true);
       chosen = turnsHere

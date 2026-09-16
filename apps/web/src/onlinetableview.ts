@@ -2065,11 +2065,16 @@ function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
  */
 const handBoneCache = new Map<string, HTMLElement>();
 
+/** Where the current touch on a hand bone began; see myHandPanel's ontouchend. */
+let tapStart: { x: number; y: number } | null = null;
+
 function handBone(seat: number | null, tile: string): HTMLElement {
   const key = `${seat}:${tile}`;
   const cached = handBoneCache.get(key);
   if (cached) {
     cached.onclick = null;
+    cached.ontouchstart = null;
+    cached.ontouchend = null;
     cached.onkeydown = null;
     cached.removeAttribute('tabindex');
     return cached;
@@ -2200,6 +2205,20 @@ function myHandPanel(
         rerender();
       };
       node.onclick = choose;
+      // Select on the finger lifting, not on the click. The live table
+      // rebuilds every second or so, and iPhone Safari drops the click when
+      // the tapped bone is re-attached while the finger is down: the owner
+      // had to tap twice (2026-09-16). touchend still reaches this bone, and
+      // preventDefault stops the click that would otherwise toggle it back.
+      node.ontouchstart = (e) => { tapStart = e.touches[0] ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; };
+      node.ontouchend = (e) => {
+        const end = e.changedTouches[0];
+        const moved = !tapStart || !end || Math.hypot(end.clientX - tapStart.x, end.clientY - tapStart.y) > 12;
+        tapStart = null;
+        if (moved) return;
+        e.preventDefault();
+        choose();
+      };
       node.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
     }
     hand.appendChild(node);
