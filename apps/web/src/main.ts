@@ -2691,15 +2691,18 @@ function tableView(g: LocalGame): DocumentFragment {
   // board"). The middle of the wood is for bones only; the strip is measured
   // like every other piece of furniture, so the board flows round it.
   if (window.innerWidth > 700 && !frenchTable) {
-    const eyebrows = [...felt.querySelectorAll<HTMLElement>('.my-hand-panel > .eyebrow')];
+    // Across has two hands on the felt; only MY own bottom hand's line moves to
+    // the side, or the partner hand at the top loses its label.
+    const ownPanel = felt.querySelector<HTMLElement>('.in-felt-across-hands > .across-hand-own')
+      ?? felt.querySelector<HTMLElement>('.my-hand-panel.in-felt-hand');
+    const eyebrows = ownPanel ? [...ownPanel.querySelectorAll<HTMLElement>(':scope > .eyebrow')] : [];
     if (eyebrows.length) {
       const side = el('div', 'hand-side-info');
       for (const brow of eyebrows) side.appendChild(brow);
       // The pace chooser stays with the bones: it is a setting, not the turn,
       // and it made the side strip too tall to sit beside my own hand.
       for (const pace of [...side.querySelectorAll<HTMLElement>('.practice-hand-pace, select')]) {
-        const host = felt.querySelector<HTMLElement>('.my-hand-panel.in-felt-hand');
-        if (host) host.appendChild(pace);
+        ownPanel?.appendChild(pace);
       }
       felt.appendChild(side);
       requestAnimationFrame(() => { if (side.isConnected) placeSideInfo(felt, side); });

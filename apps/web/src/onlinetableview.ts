@@ -917,7 +917,17 @@ export function liveTableView(
   const frag = document.createDocumentFragment();
 
   const head = el('div', 'panel live-table-head');
-  if (social?.loungeName) head.append(el('div', 'eyebrow', social.loungeName));
+  // Which game this is, beside the lounge name (owner, 2026-09-16: "where it
+  // says Yard Gate, can it say if its cut throat"). French is a format, not a
+  // mode, so it is named on its own.
+  const gameName = game.table.format === 'french'
+    ? 'French'
+    : game.table.mode === 'partner' ? 'Partner'
+      : game.table.mode === 'openhand' ? 'Open hand'
+        : game.table.mode === 'across' ? 'Across'
+          : 'Cut throat';
+  head.append(el('div', 'eyebrow',
+    social?.loungeName ? `${social.loungeName} · ${gameName}` : gameName));
   const top = el('div', 'spread');
   top.append(el('h2', undefined, `Table ${game.table.joinCode}`));
   const sfxOff = sfx.muted();
@@ -1619,15 +1629,18 @@ export function liveTableView(
   // Desktop: the turn line and Pass sit down the side, not across the middle
   // (owner, 2026-09-15). Same strip as Practice.
   if (window.innerWidth > 700 && !frenchTable) {
-    const eyebrows = [...felt.querySelectorAll<HTMLElement>('.my-hand-panel > .eyebrow')];
+    // Across has two hands on the felt; only MY own bottom hand's line moves to
+    // the side, or the partner hand at the top loses its label.
+    const ownPanel = felt.querySelector<HTMLElement>('.in-felt-across-hands > .across-hand-own')
+      ?? felt.querySelector<HTMLElement>('.my-hand-panel.in-felt-hand');
+    const eyebrows = ownPanel ? [...ownPanel.querySelectorAll<HTMLElement>(':scope > .eyebrow')] : [];
     if (eyebrows.length) {
       const side = el('div', 'hand-side-info');
       for (const brow of eyebrows) side.appendChild(brow);
       // The pace chooser stays with the bones: it is a setting, not the turn,
       // and it made the side strip too tall to sit beside my own hand.
       for (const pace of [...side.querySelectorAll<HTMLElement>('.practice-hand-pace, select')]) {
-        const host = felt.querySelector<HTMLElement>('.my-hand-panel.in-felt-hand');
-        if (host) host.appendChild(pace);
+        ownPanel?.appendChild(pace);
       }
       felt.appendChild(side);
       requestAnimationFrame(() => { if (side.isConnected) placeSideInfo(felt, side); });

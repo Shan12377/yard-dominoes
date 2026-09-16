@@ -5289,9 +5289,10 @@ button.hand-end-choice {
     position: absolute;
     /* Inside the side player's own column: any wider and the board's left
        edge is trimmed to clear it, which costs the bones a size. */
-    /* Clear of my own identity card, which owns the bottom-left corner. */
+    /* Placed by measurement beside my own hand (placeSideInfo); these are
+       only the starting values for the first frame. */
     left: 8px;
-    bottom: 196px;
+    bottom: 132px;
     z-index: 5;
     display: grid;
     gap: 5px;
@@ -5330,3 +5331,27 @@ button.hand-end-choice {
   .live-table-head .felt-pick { gap: 4px; }
   .live-table-head .felt-pick button { width: 24px; height: 24px; }
 }
+
+/* The side rail reads as cards again (owner, 2026-09-16: "there could be some
+   color contrast on the side"). Measured at a live table, a rail panel's
+   background was IDENTICAL to the room behind it — a 1:1 ratio — so the whole
+   column was one flat blue field with a hairline edge. Text was never the
+   problem (8:1 to 14:1). Kingston Signal: the room stays signal blue, the
+   cards take the deeper wood tone with a top light, and the rail — the social
+   layer — is edged and titled in sky. Gold stays for scores and actions. */
+.table-room .rail-section.panel,
+.table-room .table-live-extras > .panel {
+  /* A solid card colour under the top light, so the fill reads even where a
+     gradient does not (and for any renderer that skips it). */
+  background-color: var(--wood);
+  background-image: linear-gradient(160deg, rgba(67, 199, 244, .16) 0%, rgba(5, 43, 67, 0) 62%);
+  /* 3:1 is the floor for a UI boundary; .75 of sky over this room measures
+     about 4.8:1. The heavier bottom edge is the thickness design.md asks of
+     every card. */
+  border: 1px solid rgba(67, 199, 244, .75);
+  border-bottom-color: rgba(3, 25, 40, .85);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .32);
+}
+.table-room .rail-section > .eyebrow { color: var(--sky); }
+.table-room .rail-section-standings .standing-row strong,
+.table-room .rail-section-standings .standing-row .score { color: var(--gold); }

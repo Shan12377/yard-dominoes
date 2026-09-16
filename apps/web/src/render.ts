@@ -2028,17 +2028,46 @@ export function centreCrossOnPose(stage: HTMLElement | null, line: HTMLElement |
 }
 
 /**
- * Put the turn strip in the side player's own column, in the tallest gap the
- * furniture leaves (owner, 2026-09-15: the info belongs down the side, not
- * across the middle). Measured rather than pinned: the rack grows and shrinks
- * with the bones left, so a fixed offset lands on top of it. The column is
- * already outside the board's trimmed edge, so wherever it lands here costs
- * the dominoes nothing.
+ * Put the turn strip beside my own hand (owner, 2026-09-16: it belongs "next
+ * to my hand to indicate when domino is sending"). Measured, not pinned: the
+ * hand is centred and its width changes with the bones left, and an earlier
+ * fixed offset put the strip behind the side player's rack. The bottom band
+ * already belongs to the hand, so a strip beside it costs the board nothing.
  */
 export function placeSideInfo(felt: HTMLElement, side: HTMLElement): void {
   const feltRect = felt.getBoundingClientRect();
   if (!feltRect.height) return;
-  const height = side.getBoundingClientRect().height || 48;
+  const hand = felt.querySelector<HTMLElement>('.my-hand-panel.in-felt-hand, .in-felt-across-hands > .across-hand-own');
+  const size = side.getBoundingClientRect();
+  const width = size.width || 96;
+  const height = size.height || 48;
+  const clear = (left: number, top: number) => !([...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity')]
+    .some((node) => {
+      if (node === side || side.contains(node)) return false;
+      const r = node.getBoundingClientRect();
+      if (!r.width) return false;
+      const x = r.left - feltRect.left;
+      const y = r.top - feltRect.top;
+      return left < x + r.width + 8 && x < left + width + 8 && top < y + r.height + 8 && y < top + height + 8;
+    }));
+  if (hand) {
+    const handRect = hand.getBoundingClientRect();
+    const handLeft = handRect.left - feltRect.left;
+    const handRight = handRect.right - feltRect.left;
+    const top = Math.round(handRect.top - feltRect.top + (handRect.height - height) / 2);
+    const leftSide = Math.round(handLeft - width - 12);
+    const rightSide = Math.round(handRight + 12);
+    for (const left of [leftSide, rightSide]) {
+      if (left >= 8 && left + width <= feltRect.width - 8 && clear(left, top)) {
+        side.style.left = `${left}px`;
+        side.style.right = 'auto';
+        side.style.top = `${Math.max(8, top)}px`;
+        side.style.bottom = 'auto';
+        return;
+      }
+    }
+  }
+  // No room beside the hand: the tallest free gap in my own side column.
   const column = [...felt.querySelectorAll<HTMLElement>('.table-seat-identity, .table-rack, .desktop-self-identity')]
     .filter((node) => node !== side && !side.contains(node))
     .map((node) => node.getBoundingClientRect())
@@ -2052,10 +2081,10 @@ export function placeSideInfo(felt: HTMLElement, side: HTMLElement): void {
     cursor = Math.max(cursor, box.bottom);
   }
   if (feltRect.height - 8 - cursor >= height + 12) gaps.push({ top: cursor, bottom: feltRect.height - 8 });
-  // Nearest my own hand: the lowest gap that fits.
   const chosen = gaps[gaps.length - 1];
+  side.style.left = '8px';
+  side.style.right = 'auto';
   if (!chosen) {
-    // No room in the column at all — sit beside the hand along the bottom.
     side.style.top = 'auto';
     side.style.bottom = '8px';
     return;
