@@ -536,9 +536,9 @@ describe('French: pass penalties', () => {
     // the live banner name every seat that just got boarded, not merely the
     // first one.
     assert.deepEqual(next.lastPenalties, [
-      { seat: 1, amount: 10, reason: 'board-pass' },
-      { seat: 2, amount: 10, reason: 'board-pass' },
-      { seat: 3, amount: 10, reason: 'board-pass' },
+      { seat: 1, amount: 10, reason: 'board-pass', by: 0, tile: '6-0', ends: [0, 5] },
+      { seat: 2, amount: 10, reason: 'board-pass', by: 0, tile: '6-0', ends: [0, 5] },
+      { seat: 3, amount: 10, reason: 'board-pass', by: 0, tile: '6-0', ends: [0, 5] },
     ]);
   });
 

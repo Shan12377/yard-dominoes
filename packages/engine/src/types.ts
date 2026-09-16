@@ -219,6 +219,14 @@ export interface PenaltyEvent {
   seat: number;
   amount: number;
   reason: 'board-pass' | 'triple-pass' | 'no-double-to-pose';
+  /**
+   * Board pass only: who shut the board, with which bone, and the open ends
+   * nobody could answer (owner, 2026-09-16: a player fined for "no answer"
+   * should see who did it and what number). Absent on older records.
+   */
+  by?: number;
+  tile?: TileId;
+  ends?: Pip[];
 }
 
 export interface HandState {

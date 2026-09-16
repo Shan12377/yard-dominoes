@@ -2295,10 +2295,37 @@ const PENALTY_REASON_TEXT: Record<PenaltyEvent['reason'], string> = {
  * everyone, not just the seat it happened to.
  */
 export function penaltyBanner(events: PenaltyEvent[], seatLabel: (seat: number) => string): HTMLElement {
-  const line = events
-    .map((e) => `${seatLabel(e.seat)} ${PENALTY_REASON_TEXT[e.reason]} — +${e.amount}`)
-    .join('  ·  ');
-  return el('div', 'banner penalty', line);
+  return el('div', 'banner penalty', penaltyLines(events, seatLabel).join('  ·  '));
+}
+
+const PIP_WORD = (pip: number) => (pip === 0 ? 'a blank' : `a ${pip}`);
+
+function listWords(words: string[], joiner: string): string {
+  return words.length <= 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} ${joiner} ${words.at(-1)}`;
+}
+
+/**
+ * One line per penalty, except a board pass: its fined seats share one line
+ * naming who shut the board, with which bone, and the numbers nobody had
+ * (owner, 2026-09-16: "who gave board pass and what domino ... no 3").
+ */
+export function penaltyLines(events: PenaltyEvent[], seatLabel: (seat: number) => string): string[] {
+  const lines: string[] = [];
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i];
+    if (e.reason !== 'board-pass' || e.by === undefined || !e.tile) {
+      lines.push(`${seatLabel(e.seat)} ${PENALTY_REASON_TEXT[e.reason]} — +${e.amount}`);
+      continue;
+    }
+    const group = [e];
+    while (i + 1 < events.length && events[i + 1].reason === 'board-pass'
+      && events[i + 1].by === e.by && events[i + 1].tile === e.tile) group.push(events[++i]);
+    const ends = e.ends?.length ? `, nobody had ${listWords(e.ends.map(PIP_WORD), 'or')}` : '';
+    const fined = listWords(group.map((g) => seatLabel(g.seat)), 'and');
+    const each = group.length > 1 ? ' each' : '';
+    lines.push(`Board pass: ${seatLabel(e.by)} played ${e.tile.replace('-', '/')}${ends} — ${fined} +${e.amount}${each}`);
+  }
+  return lines;
 }
 
 /**
@@ -2318,9 +2345,7 @@ export function frenchPenaltyLog(
   if (events.length === 0) return null;
   const wrap = el('div', 'french-penalties');
   wrap.append(el('div', 'eyebrow', 'Penalties this hand'));
-  events.forEach((e) => {
-    wrap.append(el('div', 'muted small', `${seatLabel(e.seat)} ${PENALTY_REASON_TEXT[e.reason]} — +${e.amount}`));
-  });
+  penaltyLines(events, seatLabel).forEach((line) => wrap.append(el('div', 'muted small', line)));
   return wrap;
 }
 

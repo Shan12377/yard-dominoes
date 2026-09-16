@@ -4630,12 +4630,32 @@ button.hand-end-choice {
   /* The rest of Practice's side face: the face alone fills its 58px column.
      With the name and counts still inside the same 58px box, the Lounge
      squeezed the portrait to a 22px sliver under the AI cue. */
+  /* The face keeps its own 32x58; the name, bones and points sit under it
+     (owner, 2026-09-16: the side players' points and bones were missing). */
   .table-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) > .table-seat-identity {
     flex-direction: column;
-    gap: 4px;
-    flex: 0 0 58px;
+    gap: 3px;
+    flex: none;
+    width: auto;
+    height: auto;
+    border-radius: 0;
   }
-  .table-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy { display: none; }
+  .table-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy {
+    display: grid;
+    gap: 1px;
+    max-width: 54px;
+    text-align: center;
+  }
+  .table-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy strong {
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .table-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy small {
+    font-size: 8px;
+    line-height: 1.15;
+    white-space: normal;
+  }
   /* The hand tray is transparent on a phone, so this padding was buying
      nothing visible while costing the board height directly above it. The
      bones themselves are untouched at 28x56. */
@@ -4873,7 +4893,10 @@ button.hand-end-choice {
 .line.french-phone-route .tile,
 .phone-route-table .partner-hand .hand .tile,
 .phone-route-table .table-rack-open .tile,
-.phone-route-table .my-hand-panel .hand .tile {
+.phone-route-table .my-hand-panel .hand .tile,
+/* French's hand wears the same crisp face as its board (owner, 2026-09-16:
+   "the ones played are very crisp ... same in my hands"). */
+.french-cross-live .my-hand-panel .hand .tile {
   clip-path: none;
   box-shadow: none;
   border: 1px solid #a8a296;
@@ -4885,12 +4908,14 @@ button.hand-end-choice {
 .line.french-phone-route .tile .half,
 .phone-route-table .partner-hand .hand .tile .half,
 .phone-route-table .table-rack-open .tile .half,
-.phone-route-table .my-hand-panel .hand .tile .half { padding: 1px; }
+.phone-route-table .my-hand-panel .hand .tile .half,
+.french-cross-live .my-hand-panel .hand .tile .half { padding: 1px; }
 .line.phone-route .tile .half b,
 .line.french-phone-route .tile .half b,
 .phone-route-table .partner-hand .hand .tile .half b,
 .phone-route-table .table-rack-open .tile .half b,
-.phone-route-table .my-hand-panel .hand .tile .half b {
+.phone-route-table .my-hand-panel .hand .tile .half b,
+.french-cross-live .my-hand-panel .hand .tile .half b {
   width: 74%;
   background: #000;
   box-shadow: none;
@@ -4899,7 +4924,8 @@ button.hand-end-choice {
 .line.french-phone-route .tile .bar,
 .phone-route-table .partner-hand .hand .tile .bar,
 .phone-route-table .table-rack-open .tile .bar,
-.phone-route-table .my-hand-panel .hand .tile .bar { background: #3b3329; }
+.phone-route-table .my-hand-panel .hand .tile .bar,
+.french-cross-live .my-hand-panel .hand .tile .bar { background: #3b3329; }
 
 @media (max-width: 700px) {
   /* The board takes the whole felt above the tray; the route flows round the
@@ -5627,4 +5653,31 @@ button.hand-end-choice {
    was a second copy of my photo over the corner of the top strip. */
 @media (max-width: 700px) {
   .table-room .felt-shell > .across-controlled-identity { display: none; }
+}
+
+/* Lounge French on a phone: the side players' face-down bones hang off the
+   screen edge, JamDom style (owner, 2026-09-16: "like its hanging off ...
+   quarter of it so its not taking on space"). A quarter of each 32x16 back
+   shows in an 8px strip at the edge; the photo sits just inside it. */
+@media (max-width: 700px) {
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab { left: 12px; }
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab { right: 12px; }
+  .table-room :is(.table-felt, .felt-shell) > :is(.table-player-station-left, .table-player-station-right).station-tab > .station-tab-rack {
+    position: absolute;
+    top: 50%;
+    width: 8px;
+    overflow: hidden;
+    flex-direction: column;
+    gap: 3px;
+    transform: translateY(-50%);
+  }
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab > .station-tab-rack { left: -12px; }
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab > .station-tab-rack { right: -12px; }
+  .table-room :is(.table-felt, .felt-shell) > :is(.table-player-station-left, .table-player-station-right).station-tab > .station-tab-rack > i {
+    flex: none;
+    width: 32px;
+    height: 16px;
+    box-sizing: border-box;
+  }
+  .table-room :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab > .station-tab-rack > i { margin-left: -24px; }
 }

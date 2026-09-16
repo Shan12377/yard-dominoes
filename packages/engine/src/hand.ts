@@ -587,10 +587,11 @@ export function applyMove(prev: HandState, move: Move): HandState {
   if (s.format === 'french' && move.kind !== 'pass' && blocksEveryoneElse(s, move.seat)) {
     const last = s.moveLog.length - 1;
     s.moveLog[last] = { ...s.moveLog[last], boardPass: true } as Move;
+    const ends = s.board ? [...new Set(openEnds(s.board))].sort((a, b) => a - b) : [];
     for (let seat = 0; seat < s.seatCount; seat++) {
       if (seat !== move.seat) {
         s.penalties[seat] += 10;
-        penaltyEvents.push({ seat, amount: 10, reason: 'board-pass' });
+        penaltyEvents.push({ seat, amount: 10, reason: 'board-pass', by: move.seat, tile: move.tile, ends });
       }
     }
   }
