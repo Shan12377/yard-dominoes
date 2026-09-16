@@ -341,6 +341,14 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   referral financials specifically (stats, cash-out requests, marking
   paid) in `referral-admin`. Only Candy has it. Granting `is_admin` to a
   new account does NOT also grant this; that's the point.
+- **A function keeps running the code it was DEPLOYED with, `_shared/` and
+  the vendored engine included.** Found the hard way 2026-09-16: `pass-pose`
+  was rewritten on 09-12 to pass the pose after the deal, but production still
+  ran the 08-07 build, so a player's "Pass to partner" silently did nothing.
+  Nineteen other functions were on pre-09-12 shared code at the same time.
+  `node scripts/check-functions-fresh.ts` lists anything stale (exit 1) by
+  comparing each function's deploy time against its own source and `_shared/`.
+  Run it after any `_shared/` or engine change, and redeploy what it names.
 - **Edge Functions deploy via the Supabase CLI** (`npx supabase functions
   deploy <name(s)> --project-ref iqixdijhckgilvyhduxb`), not by hand-assembling
   shared files through an MCP tool — the CLI resolves each function's real
