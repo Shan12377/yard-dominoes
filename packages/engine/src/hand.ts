@@ -442,6 +442,10 @@ function resolve(
  * turn it "really" is.
  */
 function blocksEveryoneElse(s: HandState, mover: number): boolean {
+  // A board pass needs the mover to be able to play again. If nobody at all
+  // can answer the board, mover included, the hand is blocked and everyone
+  // counts; that is not a board pass (owner, 2026-09-16).
+  if (legalMoves({ ...s, turn: mover }).every((m) => m.kind === 'pass')) return false;
   for (let seat = 0; seat < s.seatCount; seat++) {
     if (seat === mover) continue;
     const options = legalMoves({ ...s, turn: seat });

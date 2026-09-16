@@ -527,7 +527,8 @@ describe('French: pass penalties', () => {
   it('a play that leaves every other seat with nothing to answer costs each of them 10 points', () => {
     const state = frenchHand({
       board: { kind: 'linear', line: [{ tile: '5-6', crosswise: false }], leftEnd: 5, rightEnd: 6 },
-      hands: [['6-0', '1-1'], ['1-2', '1-3'], ['2-3', '2-4'], ['3-4', '4-4']],
+      // Seat 0 keeps 5-1, so it can play again: a true board pass.
+      hands: [['6-0', '5-1'], ['1-2', '1-3'], ['2-3', '2-4'], ['3-4', '4-4']],
       turn: 0,
     });
     const next = applyMove(state, { kind: 'play', seat: 0, tile: '6-0', end: 'right' });
@@ -540,6 +541,17 @@ describe('French: pass penalties', () => {
       { seat: 2, amount: 10, reason: 'board-pass', by: 0, tile: '6-0', ends: [0, 5] },
       { seat: 3, amount: 10, reason: 'board-pass', by: 0, tile: '6-0', ends: [0, 5] },
     ]);
+  });
+
+  it('no board pass when the player who shut the board cannot play again either: that is a blocked hand', () => {
+    const state = frenchHand({
+      board: { kind: 'linear', line: [{ tile: '5-6', crosswise: false }], leftEnd: 5, rightEnd: 6 },
+      hands: [['6-0', '1-1'], ['1-2', '1-3'], ['2-3', '2-4'], ['3-4', '4-4']],
+      turn: 0,
+    });
+    const next = applyMove(state, { kind: 'play', seat: 0, tile: '6-0', end: 'right' });
+    assert.deepEqual(next.penalties, [0, 0, 0, 0]);
+    assert.deepEqual(next.lastPenalties, []);
   });
 
   it('HandResult.penaltyLog carries the whole hand\'s penalty history through to hand end, not just the winning move\'s', () => {
@@ -727,7 +739,8 @@ describe('French: a board pass resets the three-passes-in-a-row run', () => {
 
   it('applyMove marks a board pass in the saved move log, where the server keeps it', () => {
     const state = stuckSeatZero([]);
-    const blocker = { ...state, turn: 1, hands: [['5-6'], ['1-2', '6-6'], ['4-5'], ['3-4']] } as HandState;
+    // Seat 1 keeps 1-3 and can play again, so this is a board pass.
+    const blocker = { ...state, turn: 1, hands: [['5-6'], ['1-2', '1-3'], ['4-5'], ['3-4']] } as HandState;
     const next = applyMove(blocker, { kind: 'playcross', seat: 1, tile: '1-2', arm: 0 });
     const last = next.moveLog[next.moveLog.length - 1] as any;
     assert.equal(last.boardPass, true);
