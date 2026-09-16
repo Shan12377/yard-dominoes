@@ -5352,6 +5352,13 @@ button.hand-end-choice {
   border-bottom-color: rgba(3, 25, 40, .85);
   box-shadow: 0 10px 24px rgba(0, 0, 0, .32);
 }
-.table-room .rail-section > .eyebrow { color: var(--sky); }
+/* A touch heavier than the app's other eyebrows: these are the rail's section
+   titles, and at 13px mono on a dark card the regular weight reads thin
+   (owner, 2026-09-16: "a little bit more thick/bold ... just a little"). */
+.table-room .rail-section > .eyebrow {
+  color: var(--sky);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+}
 .table-room .rail-section-standings .standing-row strong,
 .table-room .rail-section-standings .standing-row .score { color: var(--gold); }

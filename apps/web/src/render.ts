@@ -2057,12 +2057,22 @@ export function placeSideInfo(felt: HTMLElement, side: HTMLElement): void {
     const top = Math.round(handRect.top - feltRect.top + (handRect.height - height) / 2);
     const leftSide = Math.round(handLeft - width - 12);
     const rightSide = Math.round(handRight + 12);
+    // The strip GROWS when Pass appears, after it has been placed. Anchored by
+    // its top that growth ran it off the bottom edge of the felt (owner,
+    // 2026-09-16); anchored by its bottom it grows upward into open wood.
+    const wouldOverflow = top + height > feltRect.height - 8;
+    const onFelt = Math.max(8, Math.min(top, feltRect.height - height - 8));
     for (const left of [leftSide, rightSide]) {
-      if (left >= 8 && left + width <= feltRect.width - 8 && clear(left, top)) {
+      if (left >= 8 && left + width <= feltRect.width - 8 && clear(left, onFelt)) {
         side.style.left = `${left}px`;
         side.style.right = 'auto';
-        side.style.top = `${Math.max(8, top)}px`;
-        side.style.bottom = 'auto';
+        if (wouldOverflow) {
+          side.style.top = 'auto';
+          side.style.bottom = '8px';
+        } else {
+          side.style.top = `${onFelt}px`;
+          side.style.bottom = 'auto';
+        }
         return;
       }
     }
