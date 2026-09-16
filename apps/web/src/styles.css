@@ -5720,15 +5720,19 @@ button.hand-end-choice {
    each side station from 42px to 68px and cost the board a bone size. The
    score strip above the table still lists every player's points and bones. */
 @media (max-width: 700px) {
-  .table-room.across-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy { display: none; }
+  /* Bones and points stay in view (owner, 2026-09-16), in a compact block
+     under the face that keeps the slim station's width. */
+  .table-room.across-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy { max-width: 34px; }
+  .table-room.across-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy strong { font-size: 9px; }
+  .table-room.across-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy small { font-size: 8px; }
   /* Practice's side station: 4px padding, straddling the rim, counters from
      the same small token. */
   .table-room.across-room .felt-shell > :is(.table-player-station-left, .table-player-station-right) { padding: 4px; gap: 6px; }
   /* Straddling the rim like Practice; the shell clips the overhang at the
      screen edge so the page never scrolls sideways. */
   .table-room.across-room .felt-shell { overflow-x: clip; }
-  .table-room.across-room .felt-shell > .table-player-station-left { left: -12px; }
-  .table-room.across-room .felt-shell > .table-player-station-right { right: -12px; }
+  .table-room.across-room .felt-shell > .table-player-station-left { left: -4px; }
+  .table-room.across-room .felt-shell > .table-player-station-right { right: -4px; }
   .table-room.across-room :is(.table-player-station-left, .table-player-station-right) .backs { gap: 3px; }
   .table-room.across-room :is(.table-player-station-left, .table-player-station-right) .backs i {
     width: calc(var(--table-counter-short, 22px) * 2);
@@ -5798,10 +5802,12 @@ button.hand-end-choice {
     font-size: 13px;
   }
   .in-felt-across-hands > .my-hand-panel .hand { flex: 1 1 auto; min-width: 0; gap: 3px; }
+  /* The hands wear the board's own bone (capped at the strip's 28px), so a
+     played bone and a held one always match. */
   .in-felt-across-hands > .my-hand-panel .hand .tile {
-    width: 28px;
-    height: 56px;
-    --w: 28px;
-    --h: 56px;
+    width: min(var(--hand-bone-short, 28px), 28px);
+    height: calc(min(var(--hand-bone-short, 28px), 28px) * 2);
+    --w: min(var(--hand-bone-short, 28px), 28px);
+    --h: calc(min(var(--hand-bone-short, 28px), 28px) * 2);
   }
 }
