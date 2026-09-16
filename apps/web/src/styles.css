@@ -4627,6 +4627,15 @@ button.hand-end-choice {
     height: 58px;
     border-radius: 16px;
   }
+  /* The rest of Practice's side face: the face alone fills its 58px column.
+     With the name and counts still inside the same 58px box, the Lounge
+     squeezed the portrait to a 22px sliver under the AI cue. */
+  .table-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) > .table-seat-identity {
+    flex-direction: column;
+    gap: 4px;
+    flex: 0 0 58px;
+  }
+  .table-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy { display: none; }
   /* The hand tray is transparent on a phone, so this padding was buying
      nothing visible while costing the board height directly above it. The
      bones themselves are untouched at 28x56. */
@@ -5061,6 +5070,10 @@ button.hand-end-choice {
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-duppy,
   :is(.table-felt, .felt-shell) > .table-player-station.station-tab .table-seat-identity :is(.avatar, .avatar-shell) {
     position: relative;
+    /* The phone corner-seat offsets (top: 70px on the side identity) still
+       match this element, and position: relative turned them into a 70px
+       drop that left the side photos hanging below their tabs. */
+    inset: auto;
     width: 32px;
     height: 32px;
     min-width: 0;
@@ -5093,6 +5106,9 @@ button.hand-end-choice {
     box-sizing: border-box;
     box-shadow: 0 1px 4px rgba(5, 24, 50, .55);
   }
+  /* Side counts sit on the felt side of the photo, clear of the face. */
+  :is(.table-felt, .felt-shell) > .table-player-station-left.station-tab::after { right: -22px; }
+  :is(.table-felt, .felt-shell) > .table-player-station-right.station-tab::after { right: auto; left: -22px; }
   /* A plain word, not an icon, so it is obvious the tab opens. */
   .station-tab > .station-tab-cue {
     display: block;
@@ -5319,6 +5335,14 @@ button.hand-end-choice {
   .table-room .felt-shell.french-phone-shell .board-stage.french-phone-stage {
     left: 8px;
     right: 8px;
+  }
+  /* The shell already reaches the screen edges, so the French felt's own
+     12px bleed pushed the table (and the 8px bone guard) past them: the page
+     measured 402px wide on a 390px phone. */
+  .table-room .felt-shell.french-phone-shell > .live-felt.french-cross-live,
+  .table-room .felt-shell.phone-wide-shell > .live-felt.french-cross-live {
+    width: 100%;
+    margin-inline: 0;
   }
 }
 
