@@ -468,7 +468,47 @@ export function keepTileInView(stage: HTMLElement | null, tile: HTMLElement | nu
  * with touching halves matching, doubles crosswise in the line, and the line
  * snaking 90° at the table edge. Layout math lives in layout.ts.
  */
+/**
+ * Bones already on the table, by the key that identifies one: its tile and
+ * the way it lies. A redraw claims them instead of building new ones (owner,
+ * 2026-09-15: "the dominoes in the middle thats played" flicker). Every render
+ * used to wipe the board and rebuild every bone, so one new domino re-created
+ * the whole chain, which is what flickers. Reused nodes keep their exact
+ * pixels; only position and span are re-applied.
+ */
+function claimBones(host: HTMLElement): Map<string, HTMLElement> {
+  const kept = new Map<string, HTMLElement>();
+  for (const child of [...host.children]) {
+    const node = child as HTMLElement;
+    const tile = node.dataset?.tile;
+    if (!tile) { node.remove(); continue; }
+    const key = `${tile}:${node.classList.contains('h') ? 'h' : 'v'}:${node.classList.contains('hub') ? 'hub' : node.dataset.visibleHalves ?? ''}`;
+    if (kept.has(key)) { node.remove(); continue; }
+    kept.set(key, node);
+    node.remove();
+  }
+  return kept;
+}
+
+/** The key a bone is claimed by; see claimBones. */
+function boneKey(node: HTMLElement): string {
+  return `${node.dataset.tile}:${node.classList.contains('h') ? 'h' : 'v'}:${node.classList.contains('hub') ? 'hub' : node.dataset.visibleHalves ?? ''}`;
+}
+
+/** Put `built` on the board, reusing the identical bone already drawn if there is one. */
+function placeBone(host: HTMLElement, built: HTMLElement, kept: Map<string, HTMLElement>): HTMLElement {
+  const key = boneKey(built);
+  const reused = kept.get(key);
+  if (!reused) { host.appendChild(built); return built; }
+  kept.delete(key);
+  reused.style.cssText = built.style.cssText;
+  reused.className = built.className;
+  host.appendChild(reused);
+  return reused;
+}
+
 export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: BoardFit = {}) {
+  const keptBones = claimBones(host);
   host.innerHTML = '';
   if (!board) {
     host.style.gridTemplateColumns = '';
@@ -476,7 +516,7 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
     return opts.unit ?? opts.maxUnit ?? null;
   }
   assertRenderableBoard(board);
-  if (board.kind === 'cross') return renderCross(host, board, opts);
+  if (board.kind === 'cross') return renderCross(host, board, opts, keptBones);
   if (board.line.length === 0) {
     host.style.gridTemplateColumns = '';
     host.style.gridTemplateRows = '';
@@ -493,7 +533,7 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
       // A bone with no room left is the caller's cue to lay the hand again
       // one size smaller (main.ts); it must never sit under a player.
       host.dataset.phoneRouteOverflow = String(fixed.overflow);
-      appendPlacements(host, fixed.placements, 0, 0);
+      appendPlacements(host, fixed.placements, 0, 0, keptBones);
       return opts.unit;
     }
   }
@@ -526,13 +566,17 @@ export function renderBoard(host: HTMLElement, board: AnyBoard | null, opts: Boa
   return u;
 }
 
-function appendPlacements(host: HTMLElement, placements: TilePlacement[], minCol: number, minRow: number): void {
+function appendPlacements(
+  host: HTMLElement, placements: TilePlacement[], minCol: number, minRow: number,
+  kept?: Map<string, HTMLElement>,
+): void {
   placements.forEach((p, i) => {
     const node = boardTile(p);
     node.style.gridColumn = `${p.col - minCol + 1} / span ${p.colSpan}`;
     node.style.gridRow = `${p.row - minRow + 1} / span ${p.rowSpan}`;
     node.style.setProperty('--i', String(i));
-    host.appendChild(node);
+    if (kept) placeBone(host, node, kept);
+    else host.appendChild(node);
   });
 }
 
@@ -1490,7 +1534,7 @@ export function frenchTabBlocks(
  */
 const PHONE_PINWHEEL_MIN_COLS = 26;
 
-function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, box: BoardBox, u: number) {
+function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, box: BoardBox, u: number, kept?: Map<string, HTMLElement>) {
   const { cols, rows } = phoneCrossGrid(box, u);
   const armDirections = opts.viewerSeat === undefined
     ? board.arms.map((arm) => arm.direction)
@@ -1556,7 +1600,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
   const pose = tileEl(board.center);
   pose.classList.add('hub');
   place(pose, { x: cx - 1, y: cy - 2, w: 2, h: 4 });
-  host.appendChild(pose);
+  if (kept) placeBone(host, pose, kept); else host.appendChild(pose);
 
   const centerValue = halves(board.center)[0];
   board.arms.forEach((arm, armIndex) => {
@@ -1575,7 +1619,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
         crossArm: armIndex, crossStep: step,
       });
       place(node, s);
-      host.appendChild(node);
+      if (kept) placeBone(host, node, kept); else host.appendChild(node);
       anchor = outward;
       previous = [x, y];
     });
@@ -1583,7 +1627,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
   return u;
 }
 
-function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
+function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, kept?: Map<string, HTMLElement>) {
   const box = opts.box ?? feltBox();
   // One half-short-side unit is 15px in the 30×60 reference. Live callers
   // pin this before the deal; Watch Back may choose one smaller receipt size.
@@ -1609,7 +1653,7 @@ function renderCross(host: HTMLElement, board: CrossBoard, opts: BoardFit) {
   const requested = opts.fitCrossToBox === false || opts.frenchPinwheel ? pinned : Math.min(pinned, fitCap);
   const u = Math.max(readableFloor, Math.min(opts.maxUnit ?? MAX_UNIT, requested));
   // A phone keeps the readable bone and routes inside its own width.
-  if (opts.fitCrossToBox === false || opts.frenchPinwheel) return renderPhoneCross(host, board, opts, box, u);
+  if (opts.fitCrossToBox === false || opts.frenchPinwheel) return renderPhoneCross(host, board, opts, box, u, kept);
   const short = u * 2;
   const scale = short / 30;
   host.classList.add('french-reference-route');

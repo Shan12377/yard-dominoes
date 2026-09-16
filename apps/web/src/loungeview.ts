@@ -334,6 +334,23 @@ async function attachTable(tableId: string, rerender: () => void) {
  * Throw a reaction to the room. Everyone sees it beside your name, including
  * you — silently dropping your own is confusing when nobody replies.
  */
+/**
+ * The sticker and quick-chat bars, kept between renders (owner, 2026-09-15:
+ * the avatar and table flicker). Each bar builds one <img> per sticker, and a
+ * live table rebuilds the page about every two seconds — measured at 671 fresh
+ * images in twenty-five seconds, all of them here. The same node, moved into
+ * the new tree, does not re-decode anything.
+ */
+const barCache = new Map<string, { key: string; node: HTMLElement }>();
+
+function cachedBar(name: string, key: string, build: () => HTMLElement): HTMLElement {
+  const hit = barCache.get(name);
+  if (hit && hit.key === key) return hit.node;
+  const node = build();
+  barCache.set(name, { key, node });
+  return node;
+}
+
 function reactionBar(rerender: () => void): HTMLElement {
   const bar = el('div', 'reactions');
   const me = loungeState.me;
@@ -1494,7 +1511,7 @@ function room(lounge: Lounge, rerender: () => void): DocumentFragment {
   // --- chat ---------------------------------------------------------------
   const chat = chatPanel(lounge, rerender);
   chat.appendChild(voicePanel(rerender));
-  chat.appendChild(reactionBar(rerender));
+  chat.appendChild(cachedBar('lounge-reactions', `${loungeState.me !== null}:${loungeState.room !== null}`, () => reactionBar(rerender)));
 
   // --- roster -------------------------------------------------------------
   const rosterPanel = el('div', 'panel');
@@ -1614,8 +1631,8 @@ export function loungesView(rerender: () => void, goToMembership: () => void): D
       voicePanel: voicePanel(rerender),
       videoPanel: videoPanel(rerender),
       videoStreams: loungeState.videoStreams,
-      reactionBar: reactionBar(rerender),
-      quickChatBar: quickChatBar(rerender),
+      reactionBar: cachedBar('table-reactions', `${loungeState.me !== null}:${loungeState.room !== null}`, () => reactionBar(rerender)),
+      quickChatBar: cachedBar('table-quick-chat', `${loungeState.me !== null}:${loungeState.room !== null}`, () => quickChatBar(rerender)),
       watching: loungeState.roster.filter(
         (p) => p.table === loungeState.onlineGame!.table.id,
       ),

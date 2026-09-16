@@ -419,6 +419,9 @@ let countdownTimer: ReturnType<typeof setTimeout> | null = null;
  * real re-measure-and-rebuild when the box has actually changed.
  */
 let lastFeltBox: { width: number; height: number } | null = null;
+/** The board node itself, kept across rebuilds so played bones are never redrawn. */
+let lastLineNode: HTMLElement | null = null;
+let lastLineHandKey: string | null = null;
 // A pre-deal board occupies the whole felt; a dealt local hand reserves the
 // lower rail. Keep their measurements separate so the first dealt frame does
 // not briefly render below the rail.
@@ -577,13 +580,28 @@ let activeRailTab: 'chat' | 'watchers' | 'standings' | 'log' | 'you' = 'chat';
 let myProfileCache: MyProfile | null = null;
 let myProfileLoading = false;
 
+/**
+ * The built profile form, kept between renders (owner, 2026-09-15: flicker).
+ * It carries the avatar grid, accessories and backdrops — about fifty images —
+ * and a live table rebuilt all of them every couple of seconds even with this
+ * tab closed, which is most of the table's redraw cost. Anything the player
+ * does inside it clears the cache first (see the wrapped rerender), so the
+ * form still updates itself exactly as before.
+ */
+let youPanelNode: HTMLElement | null = null;
+let youPanelFor: unknown = null;
+
 function youPanel(rerender: () => void): HTMLElement {
   if (!myProfileCache && !myProfileLoading) {
     myProfileLoading = true;
     void myProfile().then((me) => { myProfileCache = me; myProfileLoading = false; rerender(); });
   }
   if (myProfileCache) {
-    return profilePanel(myProfileCache, rerender, (fresh) => { myProfileCache = fresh; });
+    if (youPanelNode && youPanelFor === myProfileCache) return youPanelNode;
+    const rebuild = () => { youPanelNode = null; youPanelFor = null; rerender(); };
+    youPanelNode = profilePanel(myProfileCache, rebuild, (fresh) => { myProfileCache = fresh; youPanelNode = null; youPanelFor = null; });
+    youPanelFor = myProfileCache;
+    return youPanelNode;
   }
   const wrap = el('div', 'panel');
   wrap.append(el('div', 'eyebrow', 'You'));
@@ -664,6 +682,28 @@ function reportButton(userId: string, tableId: string, rerender: () => void): HT
  * That makes the four sides read as four people without giving up the compact
  * status summaries below and around the table.
  */
+/**
+ * Portraits that survive a rebuild (owner, 2026-09-15: "the avatar keeps
+ * flickering ... even when its not my turn"). A Realtime update rebuilds the
+ * whole table — measured at 1,848 fresh <img> elements in thirty seconds —
+ * and every new element re-decodes its image, which is the flicker. The same
+ * node, kept per role and moved into the new tree, does not.
+ */
+const portraitCache = new Map<string, HTMLImageElement>();
+
+function portrait(key: string, src: string, size: number, alt: string, className: string): HTMLImageElement {
+  const cached = portraitCache.get(key);
+  const img = cached ?? document.createElement('img');
+  if (!cached) portraitCache.set(key, img);
+  img.className = className;
+  img.width = size;
+  img.height = size;
+  img.alt = alt;
+  img.onerror = null;
+  if (img.getAttribute('src') !== src) img.src = src;
+  return img;
+}
+
 function tableSeatIdentity(s: SeatInfo, slot: SeatSlot, social?: TableSocial): HTMLElement {
   const identity = el('div', `table-seat-identity table-seat-identity-${slot}`);
 
@@ -673,12 +713,8 @@ function tableSeatIdentity(s: SeatInfo, slot: SeatSlot, social?: TableSocial): H
     // same fallback is used in the lounge and profile preview.
     const avatarShell = document.createElement('span');
     avatarShell.className = 'avatar-shell';
-    const img = document.createElement('img');
-    img.className = 'avatar';
-    img.width = 32;
-    img.height = 32;
-    img.alt = s.avatar ? (AVATAR_LABEL[s.avatar as Avatar] ?? '') : '';
-    img.src = photoUrl(s.userId);
+    const img = portrait(`seat:${slot}:${s.userId}`, photoUrl(s.userId), 32,
+      s.avatar ? (AVATAR_LABEL[s.avatar as Avatar] ?? '') : '', 'avatar');
     img.onerror = () => {
       if (s.avatar) {
         img.onerror = null;
@@ -693,12 +729,9 @@ function tableSeatIdentity(s: SeatInfo, slot: SeatSlot, social?: TableSocial): H
     };
     avatarShell.appendChild(img);
     if (s.avatarAccessory) {
-      const accessory = document.createElement('img');
-      accessory.className = `avatar-accessory avatar-accessory-${s.avatarAccessory}`;
-      accessory.src = avatarAccessoryUrl(s.avatarAccessory as AvatarAccessory);
-      accessory.alt = '';
-      accessory.width = 22;
-      accessory.height = 22;
+      const accessory = portrait(`accessory:${slot}:${s.userId}`,
+        avatarAccessoryUrl(s.avatarAccessory as AvatarAccessory), 22, '',
+        `avatar-accessory avatar-accessory-${s.avatarAccessory}`);
       avatarShell.appendChild(accessory);
     }
     identity.appendChild(avatarShell);
@@ -711,13 +744,9 @@ function tableSeatIdentity(s: SeatInfo, slot: SeatSlot, social?: TableSocial): H
       ? s.duppyLevel : 'pickney') as DuppyLevel;
     identity.setAttribute('aria-label', `Duppy ${s.seatIndex + 1}: ${DUPPY_LABELS[level]} AI opponent`);
     const duppy = el('span', 'table-seat-duppy');
-    const portrait = document.createElement('img');
-    portrait.className = 'avatar';
-    portrait.src = duppyPersonaUrl(duppyPersona(level, s.seatIndex));
-    portrait.alt = '';
-    portrait.width = 32;
-    portrait.height = 32;
-    duppy.append(portrait, el('span', 'table-seat-duppy-cue', 'AI'));
+    const face = portrait(`duppy:${slot}:${s.seatIndex}`,
+      duppyPersonaUrl(duppyPersona(level, s.seatIndex)), 32, '', 'avatar');
+    duppy.append(face, el('span', 'table-seat-duppy-cue', 'AI'));
     identity.appendChild(duppy);
   }
   return identity;
@@ -1007,8 +1036,15 @@ export function liveTableView(
   // A French cross grows in four directions. Its mobile felt gets a little
   // more vertical room so late arms remain above—not underneath—the hand.
   if (handOnFelt && displayBoard?.kind === 'cross') felt.classList.add('french-cross-live');
-  const line = el('div', 'line');
-  if (!game.hand) line.classList.add('awaiting-deal');
+  // The played board survives a rebuild too, for the same reason as the
+  // portraits: a fresh .line means renderBoard redraws every bone that is
+  // already down, which the owner sees as the middle of the table flickering.
+  // Reused, its data-phone-route still matches and nothing is redrawn.
+  const lineHandKey = game.hand?.hand_id ?? 'undealt';
+  const line = lastLineNode && lastLineHandKey === lineHandKey ? lastLineNode : el('div', 'line');
+  lastLineNode = line;
+  lastLineHandKey = lineHandKey;
+  line.classList.toggle('awaiting-deal', !game.hand);
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
   // measured.
@@ -1030,7 +1066,24 @@ export function liveTableView(
   // Mobile French takes the whole felt; its players are tabs at the rim.
   if (frenchTable && frenchPinwheelPhone()) {
     boardStage.classList.add('french-phone-stage');
+    // The Lounge's own padding and rim left the phone board 316-340px wide,
+    // 22 columns, so it fell back to the row route (five bones across).
+    // Edge to edge like Practice, it gets the pinwheel's seven (owner,
+    // 2026-09-15).
+    feltShell.classList.add('french-phone-shell');
   }
+  /**
+   * The Lounge's stage guard measures its own rim and wrote an inset that
+   * reached 8px past an edge-to-edge French felt, making the PAGE wider than
+   * the phone (390px screen, 402px page). That inset is also pinned and
+   * restored every render, so the board is held inside the felt wherever it
+   * is applied, not only where it is first measured.
+   */
+  const holdFrenchPhoneStage = () => {
+    if (!frenchTable || !frenchPinwheelPhone()) return;
+    boardStage.style.left = '4px';
+    boardStage.style.right = '4px';
+  };
   // Cut throat, partner and open hand on a phone: Practice's fixed board.
   // Every width since 2026-09-15, at the desktop bone size on desktop. Across
   // too: its own rules decide who plays, not where bones go, and its old
@@ -1058,6 +1111,7 @@ export function liveTableView(
     : null;
   if (!frenchDeskPinwheel && frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
     boardStage.style.inset = lastFrenchGuardInset;
+    holdFrenchPhoneStage();
     boardStage.dataset.boardGuard = 'pinned-hand-square';
   }
   const acrossStageKey = game.table.mode === 'across' && game.hand
@@ -1235,6 +1289,7 @@ export function liveTableView(
       boardStage.style.inset = lastPhoneRouteInset!;
     } else if (!frenchDeskPinwheel && frenchGuardKey === lastFrenchGuardKey && lastFrenchGuardInset) {
       boardStage.style.inset = lastFrenchGuardInset;
+      holdFrenchPhoneStage();
       boardStage.dataset.boardGuard = 'pinned-hand-square';
     } else if (frenchDeskPinwheel) {
       // The whole felt; the pinwheel keeps clear of people itself.
@@ -1268,6 +1323,11 @@ export function liveTableView(
         reserveBoardStage(felt, boardStage, tableStations.values(),
           felt.querySelector<HTMLElement>('.in-felt-hand'), false);
       }
+      // The guard measures the Lounge's own rim and writes an inline inset
+      // that reached past the felt on a phone, making the PAGE wider than the
+      // screen (390px viewport, 402px page). The edge-to-edge French felt is
+      // already the whole screen: hold the board inside it.
+      holdFrenchPhoneStage();
       if (frenchGuardKey && boardStage.style.inset) {
         lastFrenchGuardKey = frenchGuardKey;
         lastFrenchGuardInset = boardStage.style.inset;
@@ -1825,6 +1885,27 @@ function countdown(game: OnlineGame, expiresAt: string): HTMLElement {
  * plain, unselectable display as partnerHandPanel, labelled for what it
  * actually is here: my own second hand waiting its turn.
  */
+/**
+ * My own bones, kept between rebuilds. Keyed by seat and tile, because Across
+ * puts two of my hands on the table at once and the same tile id must not be
+ * shared between them. Handlers and classes are re-applied by the caller.
+ */
+const handBoneCache = new Map<string, HTMLElement>();
+
+function handBone(seat: number | null, tile: string): HTMLElement {
+  const key = `${seat}:${tile}`;
+  const cached = handBoneCache.get(key);
+  if (cached) {
+    cached.onclick = null;
+    cached.onkeydown = null;
+    cached.removeAttribute('tabindex');
+    return cached;
+  }
+  const node = tileEl(tile as TileId);
+  handBoneCache.set(key, node);
+  return node;
+}
+
 function myOtherHandPanel(tiles: string[], label = 'Your other hand'): HTMLElement {
   const panel = el('div', 'panel partner-hand');
   panel.append(el('div', 'eyebrow', label));
@@ -1917,7 +1998,10 @@ function myHandPanel(
   hand.classList.toggle('double-row', dealCount >= 10);
 
   for (const tile of tiles) {
-    const node = tileEl(tile);
+    // The same bone across rebuilds (owner, 2026-09-15: flicker). A live table
+    // rebuilds every couple of seconds and rebuilt all seven bones each time.
+    const node = handBone(seat, tile);
+    node.className = 'tile';
     const can = playable.has(tile);
     node.classList.add(can ? 'playable' : 'dead');
     if (!passive && pendingTile === tile) node.classList.add('chosen');

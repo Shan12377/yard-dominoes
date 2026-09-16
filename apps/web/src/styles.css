@@ -5257,3 +5257,24 @@ button.hand-end-choice {
 /* Hide deal check sits under the verified table, clear of the technical details. */
 .deal-check-hide { margin-top: 10px; }
 .hands-left { margin: 10px 0; }
+
+/* Lounge French on a phone: the felt runs edge to edge like Practice's, so the
+   board has the columns the pinwheel needs (seven bones across the middle). */
+@media (max-width: 700px) {
+  .table-room .felt-shell.french-phone-shell {
+    width: calc(100% + 32px);
+    max-width: none;
+    margin-inline: -16px;
+    padding-inline: 0;
+  }
+  .table-room .felt-shell.french-phone-shell > .live-felt {
+    padding-inline: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-radius: 0;
+  }
+  .table-room .felt-shell.french-phone-shell .board-stage.french-phone-stage {
+    left: 4px;
+    right: 4px;
+  }
+}

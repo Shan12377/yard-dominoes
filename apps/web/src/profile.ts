@@ -375,6 +375,27 @@ function cashoutBlock(code: MyReferralCode, rerender: () => void): HTMLElement {
 // Send side, open to anyone signed in. Review side lives in adminSection
 // below, gated the same way reports are.
 let feedbackDraft = '';
+
+/**
+ * What you have typed or picked but not saved yet (owner, 2026-09-15: "i keep
+ * on adding a name and it wont save, it goes back"). A Realtime update in the
+ * Lounge rebuilds the whole page — about every two seconds at a live table —
+ * and this form was rebuilt from the SAVED profile each time, wiping the edit
+ * mid-typing. Drafts live above any rebuild, and are cleared once the server
+ * has the change.
+ */
+let nameDraft: string | null = null;
+let locationDraft: string | null = null;
+let originDraft: Origin | null | undefined;
+let genderDraft: Gender | null | undefined;
+
+/** Forget every unsaved edit — after a successful save. */
+function clearProfileDrafts(): void {
+  nameDraft = null;
+  locationDraft = null;
+  originDraft = undefined;
+  genderDraft = undefined;
+}
 let feedbackRating: number | null = null;
 let feedbackSending = false;
 let feedbackSent = false;
@@ -1033,7 +1054,8 @@ export function profilePanel(
 
   const name = document.createElement('input');
   name.className = 'field';
-  name.value = me.username;
+  name.value = nameDraft ?? me.username;
+  name.oninput = () => { nameDraft = name.value; };
   name.maxLength = 24;
   name.setAttribute('aria-label', 'Your name');
   basics.append(el('label', 'field-label', 'Name'), name);
@@ -1042,11 +1064,11 @@ export function profilePanel(
   basics.append(el('p', 'muted small',
     'Yard or foreign — both are Jamaican. Somebody in Brooklyn flying the '
     + 'flag is still foreign, and that is the point of asking.'));
-  let origin: Origin | null = me.origin;
+  let origin: Origin | null = originDraft === undefined ? me.origin : originDraft;
   const originRow = choiceRow(
     [['yardie', 'Yardie'], ['foreign', 'Foreign']],
     () => origin,
-    (v) => { origin = v as Origin | null; },
+    (v) => { origin = v as Origin | null; originDraft = origin; },
   );
   basics.appendChild(originRow);
 
@@ -1056,18 +1078,19 @@ export function profilePanel(
     + 'leave it blank and nobody sees a location on your card.'));
   const location = document.createElement('input');
   location.className = 'field';
-  location.value = me.location ?? '';
+  location.value = locationDraft ?? me.location ?? '';
+  location.oninput = () => { locationDraft = location.value; };
   location.maxLength = 60;
   location.placeholder = 'e.g. Kingston, JA or Brooklyn, NY';
   location.setAttribute('aria-label', 'Location');
   basics.append(location);
 
   basics.append(el('label', 'field-label', 'Call me (optional)'));
-  let gender: Gender | null = me.gender;
+  let gender: Gender | null = genderDraft === undefined ? me.gender : genderDraft;
   const genderRow = choiceRow(
     [['f', 'She'], ['m', 'He']],
     () => gender,
-    (v) => { gender = v as Gender | null; },
+    (v) => { gender = v as Gender | null; genderDraft = gender; },
   );
   basics.appendChild(genderRow);
   panel.appendChild(basics);
