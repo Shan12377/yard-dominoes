@@ -2421,6 +2421,9 @@ function tableView(g: LocalGame): DocumentFragment {
   // French needs room in both axes. Give the active cross a taller felt on
   // phones rather than squeezing its final arms behind the protected hand.
   if (handOnFelt && displayBoard?.kind === 'cross') felt.classList.add('french-cross-live');
+  // The hand wears French's crisp face from the deal, not only once the
+  // first bone makes the cross (owner, 2026-09-16).
+  if (g.options.format === 'french') felt.classList.add('french-table');
   // Mobile Practice copies the JamDom phone app (owner, 2026-09-14): a big
   // hand below the wood and a fixed board of smaller bones that never moves.
   // Desktop too since 2026-09-15 (owner: "every change that was done to the

@@ -1153,6 +1153,9 @@ export function liveTableView(
   // A French cross grows in four directions. Its mobile felt gets a little
   // more vertical room so late arms remain above—not underneath—the hand.
   if (handOnFelt && displayBoard?.kind === 'cross') felt.classList.add('french-cross-live');
+  // The hand wears French's crisp face from the deal, not only once the
+  // first bone makes the cross (owner, 2026-09-16).
+  if (game.table.format === 'french') felt.classList.add('french-table');
   // The played board survives a rebuild too, for the same reason as the
   // portraits: a fresh .line means renderBoard redraws every bone that is
   // already down, which the owner sees as the middle of the table flickering.

@@ -615,6 +615,10 @@ label.field > span {
 #app:has(.table-room) .sticky-scores .tile-count,
 #app:has(.practice-room) .sticky-scores .under-love,
 #app:has(.practice-room) .sticky-scores .tile-count { font-size: 11px; margin: 0; }
+/* The points themselves in bone white: the muted blue sat too close to the
+   blue scoreboard behind it (owner, 2026-09-16). */
+#app:has(.table-room) .sticky-scores .under-love,
+#app:has(.practice-room) .sticky-scores .under-love { color: #fff9ea; }
 .side-score { display: grid; gap: 6px; }
 /* Whose score is whose — this is the pinned scoreboard, on screen for the
    whole hand, so "who" needs to read at a glance, not be squinted at. */
@@ -1456,6 +1460,9 @@ button.board-end-choice:focus-visible {
   margin: auto;
 }
 .line.awaiting-deal:empty::after { content: 'Start the hand to deal the tiles'; }
+/* French on a phone: the hint sits in the middle of the wood, clear of the
+   top player's tab. */
+.french-phone-stage > .line:empty { height: 100%; }
 .line.french-reference-route {
   position: relative;
   display: block;
@@ -4896,7 +4903,7 @@ button.hand-end-choice {
 .phone-route-table .my-hand-panel .hand .tile,
 /* French's hand wears the same crisp face as its board (owner, 2026-09-16:
    "the ones played are very crisp ... same in my hands"). */
-.french-cross-live .my-hand-panel .hand .tile {
+:is(.french-cross-live, .french-table) .my-hand-panel .hand .tile {
   clip-path: none;
   box-shadow: none;
   border: 1px solid #a8a296;
@@ -4909,13 +4916,13 @@ button.hand-end-choice {
 .phone-route-table .partner-hand .hand .tile .half,
 .phone-route-table .table-rack-open .tile .half,
 .phone-route-table .my-hand-panel .hand .tile .half,
-.french-cross-live .my-hand-panel .hand .tile .half { padding: 1px; }
+:is(.french-cross-live, .french-table) .my-hand-panel .hand .tile .half { padding: 1px; }
 .line.phone-route .tile .half b,
 .line.french-phone-route .tile .half b,
 .phone-route-table .partner-hand .hand .tile .half b,
 .phone-route-table .table-rack-open .tile .half b,
 .phone-route-table .my-hand-panel .hand .tile .half b,
-.french-cross-live .my-hand-panel .hand .tile .half b {
+:is(.french-cross-live, .french-table) .my-hand-panel .hand .tile .half b {
   width: 74%;
   background: #000;
   box-shadow: none;
@@ -4925,7 +4932,7 @@ button.hand-end-choice {
 .phone-route-table .partner-hand .hand .tile .bar,
 .phone-route-table .table-rack-open .tile .bar,
 .phone-route-table .my-hand-panel .hand .tile .bar,
-.french-cross-live .my-hand-panel .hand .tile .bar { background: #3b3329; }
+:is(.french-cross-live, .french-table) .my-hand-panel .hand .tile .bar { background: #3b3329; }
 
 @media (max-width: 700px) {
   /* The board takes the whole felt above the tray; the route flows round the
