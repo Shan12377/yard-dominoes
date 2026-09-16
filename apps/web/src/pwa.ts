@@ -165,13 +165,47 @@ let updateApplied = false;
  * browser has re-fetched and diffed sw.js; if that turns anything up, the
  * normal `onUpdateReady` callback still fires and `updateBar()` picks it up.
  */
-export async function checkForUpdate(): Promise<'checked' | 'unsupported'> {
+/**
+ * The answer is only honest once any new version has finished downloading.
+ * `reg.update()` resolves as soon as the browser has compared sw.js; a new
+ * version then spends 30-60s installing (it caches the app's sounds and
+ * pictures) before it can be applied. Answering at that first moment told
+ * players "you're up to date" and then, a minute later, asked them to reload
+ * (owner, 2026-09-16). So a found update is waited for, and `onDownloading`
+ * lets the caller say what is happening meanwhile.
+ */
+export async function checkForUpdate(
+  onDownloading?: () => void,
+): Promise<'current' | 'ready' | 'unsupported'> {
   if (!('serviceWorker' in navigator)) return 'unsupported';
   const reg = await navigator.serviceWorker.getRegistration();
   if (!reg) return 'unsupported';
   await reg.update();
-  return 'checked';
+  if (reg.waiting) {
+    waitingWorker = reg.waiting;
+    return 'ready';
+  }
+  const next = reg.installing;
+  if (!next) return waitingWorker ? 'ready' : 'current';
+  onDownloading?.();
+  const installed = await new Promise<boolean>((resolve) => {
+    const settle = () => {
+      if (next.state === 'installed') resolve(true);
+      else if (next.state === 'redundant') resolve(false);
+    };
+    next.addEventListener('statechange', settle);
+    settle();
+    window.setTimeout(() => resolve(next.state === 'installed'), UPDATE_DOWNLOAD_LIMIT_MS);
+  });
+  if (installed) {
+    waitingWorker = reg.waiting ?? next;
+    return 'ready';
+  }
+  return waitingWorker ? 'ready' : 'current';
 }
+
+/** Longest a manual check waits for a new version to finish downloading. */
+const UPDATE_DOWNLOAD_LIMIT_MS = 120_000;
 
 /** Apply a pending update. Only call between hands. */
 export function applyUpdate() {

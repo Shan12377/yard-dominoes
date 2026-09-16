@@ -3354,6 +3354,7 @@ function legalFooter(): HTMLElement {
   return foot;
 }
 
+let downloadingUpdate = false;
 let checkingUpdate = false;
 let checkedUpToDate = false;
 
@@ -3366,22 +3367,22 @@ let checkedUpToDate = false;
 function checkForUpdateLink(): HTMLElement {
   const link = document.createElement('button');
   link.className = 'linky';
-  link.textContent = checkingUpdate ? 'Checking…' : checkedUpToDate ? "You're up to date" : 'Check for updates';
+  link.textContent = downloadingUpdate
+    ? 'Downloading the update…'
+    : checkingUpdate ? 'Checking…' : checkedUpToDate ? "You're up to date" : 'Check for updates';
   link.disabled = checkingUpdate;
   link.onclick = () => void (async () => {
     checkingUpdate = true;
     checkedUpToDate = false;
+    downloadingUpdate = false;
     render();
-    await checkForUpdate();
-    // `reg.update()` resolving only means the browser finished comparing
-    // sw.js byte-for-byte — if it differs, installing the new worker and
-    // firing the event that flips updatePending() true happens
-    // asynchronously afterward, not before. Give that a moment before
-    // trusting a negative result, or a genuine update can land a beat after
-    // this already told the player they were up to date.
-    await new Promise((r) => setTimeout(r, 1200));
+    // Waits for a found update to finish downloading before answering, so
+    // "up to date" is never followed a minute later by "reload" (pwa.ts).
+    const result = await checkForUpdate(() => { downloadingUpdate = true; render(); });
     checkingUpdate = false;
-    checkedUpToDate = !updatePending();
+    downloadingUpdate = false;
+    checkedUpToDate = result === 'current' && !updatePending();
+    // A ready update shows the reload bar on this render (updateBar reads updatePending()).
     render();
   })();
   return link;
