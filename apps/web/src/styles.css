@@ -5735,3 +5735,73 @@ button.hand-end-choice {
     height: var(--table-counter-short, 22px);
   }
 }
+
+/* Across on a phone, second pass (owner, 2026-09-16: the hands looked much
+   bigger than the played bones, "take up less space and be more close to the
+   edge"). The strip loses its header row: the label sits in a narrow column
+   beside the bones, so the strip is one bone tall plus 8px, hugging the rim.
+   Hand bones are 28px, the size the board now reaches with the room freed. */
+@media (max-width: 700px) {
+  .in-felt-across-hands > .across-hand-own,
+  .in-felt-across-hands > .across-hand-partner {
+    left: 2px;
+    right: 2px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 10px;
+  }
+  .in-felt-across-hands > .across-hand-own { bottom: 2px; }
+  .in-felt-across-hands > .across-hand-partner { top: 2px; }
+  /* Practice's table height, so the Lounge board reaches the same bone. */
+  #app:has(.table-room) .table-room.across-room .live-felt {
+    height: max(600px, calc(100svh - 72px));
+    min-height: max(600px, calc(100svh - 72px));
+  }
+  .in-felt-across-hands > .my-hand-panel > .eyebrow,
+  .in-felt-across-hands > .my-hand-panel.hand-turn-active > .eyebrow {
+    flex: 0 0 64px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-top: 2px;
+    gap: 3px;
+    height: 56px;
+    white-space: normal;
+    font-size: 9px;
+    line-height: 1.15;
+    letter-spacing: .06em;
+  }
+  .in-felt-across-hands > .my-hand-panel > .eyebrow > .pass-action-row {
+    order: -1;
+    height: auto;
+    margin: 0;
+    font-size: 9px;
+  }
+  .in-felt-across-hands > .my-hand-panel > .eyebrow > .pass-action-row > strong { display: none; }
+  /* With Pass showing, the button is the whole message: the long label
+     ("Your partner hand — your turn") wrapped to four lines and pushed Pass
+     out of the strip. */
+  .in-felt-across-hands > .my-hand-panel > .eyebrow:has(> .pass-action-row) {
+    font-size: 0;
+    justify-content: center;
+  }
+  .in-felt-across-hands > .my-hand-panel > .eyebrow > .pass-action-row .pass-action {
+    width: 62px;
+    min-width: 0;
+    min-height: 26px;
+    padding: 0;
+    justify-content: center;
+    text-align: center;
+    font-size: 13px;
+  }
+  .in-felt-across-hands > .my-hand-panel .hand { flex: 1 1 auto; min-width: 0; gap: 3px; }
+  .in-felt-across-hands > .my-hand-panel .hand .tile {
+    width: 28px;
+    height: 56px;
+    --w: 28px;
+    --h: 56px;
+  }
+}
