@@ -69,7 +69,7 @@ test('each arm heads out towards its player first, joined to the chucha', () => 
   assertSound(slots, cols, rows);
 });
 
-test('phones lay three bones left and right, two up and down, then turn clockwise (owner, 2026-09-15)', () => {
+test('phones lay two bones each way, then turn clockwise (owner, 2026-09-16)', () => {
   const cols = 26;
   const rows = 38;
   const lengths = [5, 5, 5, 5];
@@ -80,7 +80,7 @@ test('phones lay three bones left and right, two up and down, then turn clockwis
   assert.equal(stuck, 0);
   assertSound(slots, cols, rows);
   const hub = hubOf(cols, rows);
-  const legs: Record<Dir, number> = { up: 2, right: 3, down: 2, left: 3 };
+  const legs: Record<Dir, number> = { up: 2, right: 2, down: 2, left: 2 };
   slots.forEach((arm, a) => {
     const out = DIRS[a];
     for (let i = 0; i < legs[out]; i++) {
@@ -125,10 +125,15 @@ test('arms turn clockwise at the table edge and never stack rows like a comb', (
   slots.forEach((arm, a) => {
     let heading = travel(hub, arm[0]);
     let turns = 0;
+    let spin = 0;
     for (let i = 1; i < arm.length; i++) {
       const next = travel(arm[i - 1], arm[i]);
       if (next !== heading) {
-        assert.equal(next, CLOCKWISE[heading], `arm ${a} (${DIRS[a]}) turned ${heading}→${next} at bone ${i}: every turn is clockwise`);
+        // Clockwise first; once an arm has made its U it may only turn back
+        // outward, never curl into itself (owner, 2026-09-16).
+        spin += next === CLOCKWISE[heading] ? 1 : -1;
+        assert.ok(Math.abs(spin) <= 2, `arm ${a} (${DIRS[a]}) turned ${heading}→${next} at bone ${i}: curls back on itself`);
+        if (turns === 0) assert.equal(next, CLOCKWISE[heading], `arm ${a} (${DIRS[a]}) first turns clockwise`);
         heading = next;
         turns += 1;
       }

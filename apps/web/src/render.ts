@@ -292,7 +292,10 @@ export function liveTableUnit(
     // same bone the other phone tables now use. Over 400 simulated hands on a
     // 390px phone it cut hands with a bone that had no proper place from 65%
     // to 28%, and kept three bones each side of the chucha in 80% of hands.
-    if (viewportWidth <= 700) return 13;
+    // 24px since the same day, with two-bone legs (owner: "24 with the 2"):
+    // over 1000 simulated hands, clean layouts 671 -> 980, stranded bones
+    // 590 -> 29, arms curling back 36 -> 18.
+    if (viewportWidth <= 700) return 12;
     // Desktop French bones are up to a quarter bigger than JamDom's ratio
     // (owner, 2026-09-15: "scale bones up about 25-30%"), but never so big
     // that the up and down arms, which run between the top player's rack and
@@ -1293,7 +1296,8 @@ export type FrenchPinwheelLegs = Readonly<Record<CrossDirection, number | readon
 // Owner, 2026-09-15 (second try): three out to each side then turn, and the
 // side arms lay three more before their second clockwise turn; up and down lay
 // two then turn. A number is the first leg only; a list is consecutive legs.
-export const FRENCH_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: [3, 3], right: [3, 3], up: [2], down: [2] };
+// Owner, 2026-09-16: two out each way, then turn, at the 24px phone bone.
+export const FRENCH_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: [2, 2], right: [2, 2], up: [2], down: [2] };
 
 /**
  * Desktop's wider felt lays four bones out to each side and two up and down

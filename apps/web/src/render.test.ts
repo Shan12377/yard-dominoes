@@ -225,8 +225,8 @@ test('a live phone can cap a new board bone to the rack bone size', () => {
 test('live tables start with a deliberate readable hand and rack tier', () => {
   assert.equal(liveTableUnit(390, null), 14, 'phone bones have a 28px short side');
   assert.equal(liveTableUnit(1368, null), 26, 'desktop bones have a generous 52px short side');
-  assert.equal(liveTableUnit(390, null, true), 13,
-    'French uses the 26px phone bone the other tables use (owner, 2026-09-16)');
+  assert.equal(liveTableUnit(390, null, true), 12,
+    'French phones use a 24px bone with two-bone legs (owner, 2026-09-16: "24 with the 2")');
   assert.equal(liveTableUnit(938, null, true), 18,
     'French keeps a 36px floor on compact desktop (a quarter over JamDom’s 30px)');
   assert.equal(liveTableUnit(1368, emptyCrossBoard()), 21,
