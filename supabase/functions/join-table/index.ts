@@ -15,8 +15,12 @@ Deno.serve(handled(async (req) => {
   const { joinCode, tableId, seatIndex } = await req.json();
   const db = serviceClient();
 
+  // Codes are recycled once a table finishes (0061), so a finished table can
+  // share this code. Only a live table answers to it; without this filter
+  // .single() saw several rows and every Sit down / Rejoin on a reused code
+  // failed as "no table" (owner, 2026-09-16: rejoining left a duppy seated).
   const query = joinCode
-    ? db.from('tables').select('*').eq('join_code', String(joinCode).toUpperCase())
+    ? db.from('tables').select('*').eq('join_code', String(joinCode).toUpperCase()).neq('status', 'finished')
     : db.from('tables').select('*').eq('id', tableId);
   const { data: table } = await query.single();
   if (!table) throw new HttpError(404, 'no table with that code');

@@ -1310,7 +1310,7 @@ export const FRENCH_DESK_PINWHEEL_LEGS: FrenchPinwheelLegs = { left: 4, right: 4
 /** An arm never turns more than a U (two quarter-turns) either way; see `spin`. */
 export const MAX_ARM_SPIN = 2;
 /** The longest straight run once an arm's planned legs are laid. */
-export const MAX_ARM_RUN = 4;
+export const MAX_ARM_RUN = 3;
 
 export function phoneFrenchPinwheel(input: {
   arms: ReadonlyArray<{ direction: CrossDirection; doubles: readonly boolean[] }>;

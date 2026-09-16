@@ -595,8 +595,9 @@ label.field > span {
 #app:has(.practice-room) .sticky-scores .pips i {
   width: 11px;
   height: 11px;
-  background: #6f7b82;
-  border-color: rgba(255, 255, 255, .22);
+  /* Unwon lamps light grey, clear of the blue strip; won ones stay gold. */
+  background: #c3ccd1;
+  border-color: rgba(5, 43, 67, .6);
 }
 #app:has(.table-room) .sticky-scores .pips i.lit,
 #app:has(.practice-room) .sticky-scores .pips i.lit {
@@ -645,7 +646,9 @@ label.field > span {
 }
 /* The actual number a player is racing against ("how much do I need to
    lose") — this carries real weight now, not a footnote next to the pips. */
-.under-love { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--muted); }
+/* Bone white, not the muted blue: the points must stand off every blue
+   panel they sit on (owner, 2026-09-16), on phone and desktop alike. */
+.under-love { font-family: var(--mono); font-size: 14px; font-weight: 700; color: #fff9ea; }
 .tile-count { font-family: var(--mono); font-size: 14px; color: var(--muted); margin-top: 2px; }
 
 /* -------------------------------------------------------------- the board */
@@ -1913,7 +1916,8 @@ button.board-end-choice:focus-visible {
   white-space: nowrap;
 }
 .table-player-station .table-seat-copy small {
-  color: var(--muted);
+  /* Bones and points read off the blue station (owner, 2026-09-16). */
+  color: #e6eef2;
   font: 700 8px/1.1 var(--mono);
   white-space: nowrap;
 }
@@ -5038,7 +5042,7 @@ button.hand-end-choice {
     gap: 6px;
   }
   #app:has(.practice-room.french-phone-room) .practice-scorebar .under-love {
-    color: #43c7f4;
+    color: #fff9ea;
     font-weight: 900;
   }
   /* The separator belonged to the hidden tile count that followed it. */
@@ -5707,5 +5711,27 @@ button.hand-end-choice {
     width: 16px;
     height: 32px;
     box-sizing: border-box;
+  }
+}
+
+/* Lounge Across on a phone matches Practice's domino size (owner,
+   2026-09-16: "exactly as the practice"). Its side players are face and
+   bones only, as in Practice: the name/bones/points under the face widened
+   each side station from 42px to 68px and cost the board a bone size. The
+   score strip above the table still lists every player's points and bones. */
+@media (max-width: 700px) {
+  .table-room.across-room :is(.table-player-station-left, .table-player-station-right):not(.station-tab) .table-seat-copy { display: none; }
+  /* Practice's side station: 4px padding, straddling the rim, counters from
+     the same small token. */
+  .table-room.across-room .felt-shell > :is(.table-player-station-left, .table-player-station-right) { padding: 4px; gap: 6px; }
+  /* Straddling the rim like Practice; the shell clips the overhang at the
+     screen edge so the page never scrolls sideways. */
+  .table-room.across-room .felt-shell { overflow-x: clip; }
+  .table-room.across-room .felt-shell > .table-player-station-left { left: -12px; }
+  .table-room.across-room .felt-shell > .table-player-station-right { right: -12px; }
+  .table-room.across-room :is(.table-player-station-left, .table-player-station-right) .backs { gap: 3px; }
+  .table-room.across-room :is(.table-player-station-left, .table-player-station-right) .backs i {
+    width: calc(var(--table-counter-short, 22px) * 2);
+    height: var(--table-counter-short, 22px);
   }
 }

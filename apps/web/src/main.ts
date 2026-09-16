@@ -371,6 +371,9 @@ function stopNagging() {
  *  reason to gate this on the hand being over. */
 function leaveLocalGame() {
   game = null; review = null; reviewOpen = false;
+  // A bone tapped in the old game must not greet the next one with "that
+  // tile doesn't fit" (owner, 2026-09-16).
+  pendingTile = null;
   practiceDealAnimating = false;
   if (practiceDealTimer !== null) window.clearTimeout(practiceDealTimer);
   practiceDealTimer = null;
@@ -1970,11 +1973,10 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
     // place in the tray header.
     // Desktop too (2026-09-15): a row added under the bones grew the hand
     // panel up into the fixed board, laying the bottom row under the hand.
-    if (window.innerWidth > 700 || g.options.mode !== 'across') {
-      pace.replaceWith(askRow);
-    } else {
-      panel.appendChild(askRow);
-    }
+    // Across on a phone too: its thin strip shows only the header row and
+    // the bones, so a row under them was hidden and the hand stuck
+    // (owner, 2026-09-16: no 6 to play and no Pass to press).
+    pace.replaceWith(askRow);
   }
 
   const onlyPass = legal.length === 1 && legal[0].kind === 'pass';
@@ -1994,11 +1996,7 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
     // takes its place in the tray header, right beside the hand.
     // French on a phone had the same problem, so it gets the same fix.
     // Desktop too: under the bones it grew the panel into the board.
-    if (window.innerWidth > 700 || g.options.mode !== 'across') {
-      pace.replaceWith(passRow);
-    } else {
-      panel.appendChild(passRow);
-    }
+    pace.replaceWith(passRow);
   }
   return panel;
 }
