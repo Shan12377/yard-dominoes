@@ -17,7 +17,7 @@ import type { LeakStore, TalkTrigger } from '@yard/engine';
 import type { DuppyLevel, GameMode, HandReview, Move, PenaltyEvent, SetFormat, TileId } from '@yard/engine';
 import { DUPPY_PACE_LABELS, DUPPY_PACE_NAMES } from '@yard/engine';
 import { LocalGame } from './local.ts';
-import { confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
+import { confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab, dealOverlay } from './table-experience.ts';
 import type { DuppyPace } from './local.ts';
 import { duppyPersona, duppyPersonaUrl } from './duppy-persona.ts';
 import { captureReferralCode } from './referral.ts';
@@ -426,8 +426,8 @@ function finishPracticeDealAnimation(): void {
 }
 
 function beginPracticeDealAnimation(): Promise<void> {
-  practiceDealAnimating = window.matchMedia('(max-width: 700px)').matches;
-  if (!practiceDealAnimating) return Promise.resolve();
+  // Desktop too now, like the Lounge (owner, 2026-09-16).
+  practiceDealAnimating = true;
   if (practiceDealTimer !== null) window.clearTimeout(practiceDealTimer);
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   return new Promise((resolve) => {
@@ -448,33 +448,9 @@ async function showPracticeDeal(): Promise<void> {
   await finished;
 }
 
-/** A cheap transform-only deal: one concealed bone visits each seat in turn. */
+/** The opening shuffle and deal, shared with the Lounge (table-experience.ts). */
 function practiceDealOverlay(): HTMLElement {
-  const overlay = el('div', 'practice-deal-overlay');
-  overlay.setAttribute('role', 'status');
-  overlay.setAttribute('aria-label', 'Shuffling, then dealing one domino to each player in turn');
-  const mark = el('div', 'practice-deal-mark');
-  mark.append(el('strong', undefined, 'YAAD'), el('span', undefined, 'DOMINOES'));
-  const shuffle = el('div', 'practice-shuffle-pile');
-  for (let i = 0; i < 14; i += 1) {
-    const bone = el('i', 'practice-shuffle-bone');
-    bone.style.setProperty('--shuffle-index', String(i));
-    shuffle.appendChild(bone);
-  }
-  const flights = el('div', 'practice-deal-flights');
-  const seats = ['bottom', 'right', 'top', 'left'] as const;
-  for (let i = 0; i < 28; i += 1) {
-    const bone = el('i', `practice-deal-bone deal-to-${seats[i % seats.length]}`);
-    bone.style.setProperty('--deal-index', String(i));
-    bone.style.setProperty('--deal-slot', String(Math.floor(i / seats.length) - 3));
-    flights.appendChild(bone);
-  }
-  const skip = document.createElement('button');
-  skip.className = 'practice-deal-skip';
-  skip.textContent = 'Skip';
-  skip.onclick = finishPracticeDealAnimation;
-  overlay.append(mark, shuffle, flights, skip);
-  return overlay;
+  return dealOverlay(finishPracticeDealAnimation);
 }
 
 async function startGame(opts: {
@@ -1349,6 +1325,19 @@ function practiceTableRack(g: LocalGame, seat: number): HTMLElement | null {
   const count = g.hand?.hands[seat]?.length;
   if (count === undefined) return null;
   const slot = (['bottom', 'right', 'top', 'left'] as const)[seat];
+  // Open hand: my partner's bones lie face up in front of them, at the top of
+  // the table, exactly as the Lounge shows them (owner, 2026-09-16: "why is
+  // the open hand dominoes still down by my hand").
+  if (g.options.mode === 'openhand' && seat === (g.mySeat ^ 2)) {
+    const open = el('div', `table-rack table-rack-${slot} practice-table-rack table-rack-open`);
+    open.setAttribute('aria-label', `${g.seatLabel(seat)} has ${count} face-up tile${count === 1 ? '' : 's'}`);
+    for (const tile of g.hand?.hands[seat] ?? []) {
+      const node = tileEl(tile);
+      node.classList.add('sm', 'dead');
+      open.appendChild(node);
+    }
+    return open;
+  }
   const rack = el('div', `table-rack table-rack-${slot} practice-table-rack`);
   rack.classList.toggle('table-rack-many', count >= 10);
   rack.setAttribute('aria-label', `${g.seatLabel(seat)} has ${count} hidden tile${count === 1 ? '' : 's'}`);
@@ -2676,7 +2665,7 @@ function tableView(g: LocalGame): DocumentFragment {
     felt.classList.add('across-hands-on-felt');
     felt.appendChild(both);
   }
-  if (practiceDealAnimating && window.innerWidth <= 700) {
+  if (practiceDealAnimating) {
     felt.appendChild(practiceDealOverlay());
   }
   room.appendChild(felt);
@@ -3017,10 +3006,7 @@ function tableView(g: LocalGame): DocumentFragment {
   // Openhand: your partner's tiles above your own, on the same terms as the
   // online table — small, non-interactive, labelled. LocalGame holds the full
   // engine state, so this is a direct read; no RLS or subscription involved.
-  if (g.options.mode === 'openhand' && g.hand) {
-    const partnerSeat = g.mySeat ^ 2;
-    room.appendChild(partnerHandPanel(g.hand.hands[partnerSeat]));
-  }
+  // Open hand shows my partner's bones in their own rack now (practiceTableRack).
   if (!handOnFelt && g.options.mode !== 'across') room.appendChild(myHand(g));
 
   room.appendChild(soundToggle());

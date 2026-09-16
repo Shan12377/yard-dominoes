@@ -4853,6 +4853,7 @@ button.hand-end-choice {
 .line.phone-route .tile,
 .line.french-phone-route .tile,
 .phone-route-table .partner-hand .hand .tile,
+.phone-route-table .table-rack-open .tile,
 .phone-route-table .my-hand-panel .hand .tile {
   clip-path: none;
   box-shadow: none;
@@ -4864,10 +4865,12 @@ button.hand-end-choice {
 .line.phone-route .tile .half,
 .line.french-phone-route .tile .half,
 .phone-route-table .partner-hand .hand .tile .half,
+.phone-route-table .table-rack-open .tile .half,
 .phone-route-table .my-hand-panel .hand .tile .half { padding: 1px; }
 .line.phone-route .tile .half b,
 .line.french-phone-route .tile .half b,
 .phone-route-table .partner-hand .hand .tile .half b,
+.phone-route-table .table-rack-open .tile .half b,
 .phone-route-table .my-hand-panel .hand .tile .half b {
   width: 74%;
   background: #000;
@@ -4876,6 +4879,7 @@ button.hand-end-choice {
 .line.phone-route .tile .bar,
 .line.french-phone-route .tile .bar,
 .phone-route-table .partner-hand .hand .tile .bar,
+.phone-route-table .table-rack-open .tile .bar,
 .phone-route-table .my-hand-panel .hand .tile .bar { background: #3b3329; }
 
 @media (max-width: 700px) {
@@ -5429,4 +5433,40 @@ button.hand-end-choice {
   .partner-hand .hand .tile .half { padding: 1px; }
   .partner-hand .hand .tile .half b { width: 74%; background: #000; box-shadow: none; }
   .partner-hand .hand .tile .bar { background: #3b3329; }
+}
+
+/* The Lounge's quick opening shuffle: the same sequence as Practice, about
+   2.5s end to end, because a Lounge hand cannot wait for it. */
+.practice-deal-overlay.quick-deal .practice-deal-mark { animation-duration: 2.4s; }
+.practice-deal-overlay.quick-deal .practice-shuffle-bone { animation-duration: 1.1s; }
+.practice-deal-overlay.quick-deal .practice-deal-bone {
+  animation-duration: 360ms;
+  animation-delay: calc(1s + var(--deal-index) * 42ms);
+}
+
+/* Face-up bones in a rack (open hand) are the same bones as my hand: same
+   size and, on a phone, the same crisp face (owner, 2026-09-16: "the
+   dominoes still look different from the one in my hand"). */
+.table-rack-open .tile {
+  --w: var(--hand-bone-short, var(--table-bone-short));
+  --h: calc(var(--hand-bone-short, var(--table-bone-short)) * 2);
+}
+@media (min-width: 701px) {
+  .table-rack-open .tile {
+    --w: min(var(--table-bone-short), 40px);
+    --h: calc(min(var(--table-bone-short), 40px) * 2);
+  }
+}
+@media (max-width: 700px) {
+  .table-rack-open .tile {
+    clip-path: none;
+    box-shadow: none;
+    border: 1px solid #a8a296;
+    border-radius: 2px;
+    padding: 1px;
+    background: #fffef9;
+  }
+  .table-rack-open .tile .half { padding: 1px; }
+  .table-rack-open .tile .half b { width: 74%; background: #000; box-shadow: none; }
+  .table-rack-open .tile .bar { background: #3b3329; }
 }

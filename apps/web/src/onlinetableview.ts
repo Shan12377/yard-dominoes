@@ -5,7 +5,7 @@
 // reads it and calls back into it.
 
 import { OnlineGame } from './onlinetable.ts';
-import { confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
+import { dealOverlay, confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
 import { coachReviewView } from './coachview.ts';
 import type { SeatInfo } from './onlinetable.ts';
 import {
@@ -570,6 +570,18 @@ function decorateSeat(card: HTMLElement, userId: string | null, name: string, so
 // per-render, so the choice survives a re-render the same way reportOpenFor
 // and the chat draft already do.
 let activeRailTab: 'chat' | 'watchers' | 'standings' | 'log' | 'you' = 'chat';
+
+/**
+ * The opening shuffle at a Lounge table (owner, 2026-09-16), phone and
+ * desktop. A Lounge hand cannot wait for it — the clock and the duppies run on
+ * the server — so it is the short version, and it ends early the moment the
+ * first bone is down.
+ */
+let dealShownFor: string | null = null;
+let dealUntil = 0;
+/** Moves already down when the shuffle began; a newer one ends it early. */
+let dealSeenMoves = 0;
+const LOUNGE_DEAL_MS = 2600;
 
 /** Who was watching at the last render, so an arrival can be noticed. */
 let watcherIdsSeen: Set<string> | null = null;
@@ -1642,6 +1654,25 @@ export function liveTableView(
     keepTileInView(boardStage,
       lastTile ? line.querySelector(`[data-tile="${lastTile}"]`) : null);
   };
+  {
+    const hand = game.hand;
+    const played = hand?.move_log?.length ?? 0;
+    // A forced opening (the double-six) can already be down by the first
+    // picture of a hand, so "new" means at most the pose.
+    const fresh = !!hand && hand.status === 'active' && played <= 1;
+    if (fresh && hand && dealShownFor !== hand.hand_id) {
+      dealShownFor = hand.hand_id;
+      dealSeenMoves = played;
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      dealUntil = Date.now() + (reduced ? 260 : LOUNGE_DEAL_MS);
+      game.holdDuppiesUntil(dealUntil);
+      setTimeout(() => rerender(), (reduced ? 260 : LOUNGE_DEAL_MS) + 30);
+    }
+    if (hand && dealShownFor === hand.hand_id && played <= dealSeenMoves && Date.now() < dealUntil) {
+      felt.classList.add('practice-dealing');
+      felt.appendChild(dealOverlay(() => { dealUntil = 0; game.holdDuppiesUntil(0); rerender(); }, true));
+    }
+  }
   requestAnimationFrame(() => requestAnimationFrame(refitMeasuredBoard));
   // Realtime updates can replace the pre-measurement node just as Practice
   // Duppy turns do. Fit synchronously when this exact fragment is attached.

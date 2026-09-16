@@ -126,9 +126,16 @@ test('practice names an opponent play without repeating my own move under the ha
   assert.match(practiceSource, /setTimeout\([\s\S]*?\}, 2_500\)/);
 });
 
-test('mobile Practice shuffles and deals one concealed bone to each seat in turn', () => {
-  assert.match(practiceSource, /for \(let i = 0; i < 28; i \+= 1\)/);
-  assert.match(practiceSource, /seats\[i % seats\.length\]/);
+test('Practice and the Lounge shuffle and deal one concealed bone to each seat in turn', () => {
+  // The overlay is shared (table-experience.ts); Practice plays the full one,
+  // the Lounge the quick one because its clock never pauses.
+  const shared = readFileSync(new URL('./table-experience.ts', import.meta.url), 'utf8');
+  assert.match(shared, /for \(let i = 0; i < 28; i \+= 1\)/);
+  assert.match(shared, /seats\[i % seats\.length\]/);
+  assert.match(practiceSource, /dealOverlay\(finishPracticeDealAnimation\)/);
+  assert.match(onlineTableSource, /dealOverlay\([\s\S]{0,160}?, true\)/);
+  assert.match(onlineTableSource, /game\.holdDuppiesUntil\(dealUntil\)/,
+    'no Lounge duppy may play behind the opening shuffle');
   assert.match(practiceSource, /prefers-reduced-motion: reduce/);
   assert.match(styles, /\.practice-deal-bone[\s\S]{0,500}?will-change: transform, opacity/);
   assert.match(styles, /animation: practice-shuffle 3\.2s/);

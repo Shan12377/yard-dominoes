@@ -748,12 +748,28 @@ export class OnlineGame {
    * browser may request the same move; the function's version check means one
    * wins and all others harmlessly reload through Realtime.
    */
+  /** Until when duppy moves wait: the opening shuffle is on screen (see holdDuppiesUntil). */
+  private duppyHoldUntil = 0;
+
+  /**
+   * Keep the duppies' hands off the table until the opening shuffle has
+   * finished, as Practice does (owner, 2026-09-16). Only this browser's own
+   * request is delayed; the server's clock is untouched.
+   */
+  holdDuppiesUntil(ts: number) {
+    this.duppyHoldUntil = ts;
+    this.scheduleDuppyTurn();
+  }
+
   private scheduleDuppyTurn() {
     this.clearDuppyTimer();
     const hand = this.hand;
     if (this.isSpectator || !hand || hand.status !== 'active') return;
     if (!this.seats[hand.turn]?.duppyLevel || !hand.turn_expires_at) return;
-    const delay = Math.max(0, Date.parse(hand.turn_expires_at) - Date.now()) + 120;
+    const delay = Math.max(
+      Math.max(0, Date.parse(hand.turn_expires_at) - Date.now()) + 120,
+      this.duppyHoldUntil - Date.now(),
+    );
     const handId = hand.hand_id;
     this.duppyTimer = window.setTimeout(() => {
       this.duppyTimer = null;

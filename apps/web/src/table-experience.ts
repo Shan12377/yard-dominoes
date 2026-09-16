@@ -122,3 +122,44 @@ export function frenchPhoneTab(station: HTMLElement, slot: string, bones: number
   });
   sync();
 }
+
+/**
+ * The shuffle-and-deal that opens a hand: the YaadDominoes mark, a shuffling
+ * pile, then one concealed bone flying to each seat in turn. Transform-only,
+ * so it adds no layout work on slower phones. Practice plays the full
+ * version; a Lounge table cannot pause the server clock or the duppies, so it
+ * plays the `quick` one and is cleared the moment the first bone is laid
+ * (owner, 2026-09-16: the shuffle in the Lounge too, desktop and phone).
+ */
+export function dealOverlay(onSkip: () => void, quick = false): HTMLElement {
+  const make = (tag: string, cls: string, text?: string) => {
+    const node = document.createElement(tag);
+    node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const overlay = make('div', quick ? 'practice-deal-overlay quick-deal' : 'practice-deal-overlay');
+  overlay.setAttribute('role', 'status');
+  overlay.setAttribute('aria-label', 'Shuffling, then dealing one domino to each player in turn');
+  const mark = make('div', 'practice-deal-mark');
+  mark.append(make('strong', '', 'YAAD'), make('span', '', 'DOMINOES'));
+  const shuffle = make('div', 'practice-shuffle-pile');
+  for (let i = 0; i < 14; i += 1) {
+    const bone = make('i', 'practice-shuffle-bone');
+    bone.style.setProperty('--shuffle-index', String(i));
+    shuffle.appendChild(bone);
+  }
+  const flights = make('div', 'practice-deal-flights');
+  const seats = ['bottom', 'right', 'top', 'left'] as const;
+  for (let i = 0; i < 28; i += 1) {
+    const bone = make('i', `practice-deal-bone deal-to-${seats[i % seats.length]}`);
+    bone.style.setProperty('--deal-index', String(i));
+    bone.style.setProperty('--deal-slot', String(Math.floor(i / seats.length) - 3));
+    flights.appendChild(bone);
+  }
+  const skip = make('button', 'practice-deal-skip', 'Skip') as HTMLButtonElement;
+  skip.type = 'button';
+  skip.onclick = onSkip;
+  overlay.append(mark, shuffle, flights, skip);
+  return overlay;
+}
