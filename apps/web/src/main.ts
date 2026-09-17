@@ -29,7 +29,7 @@ import { playWalkthroughMusic, stopWalkthroughMusic } from './walkthrough-music.
 captureReferralCode();
 import { coachReviewView } from './coachview.ts';
 import { ACADEMY_VISUALS, FRENCH_GUIDE_CROSS, GAME_GUIDES, orientTeachingLine, scenarioFor, type DrillScenario } from './academycontent.ts';
-import { tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits, deskRouteGeometry, DESK_ROUTE_STAGE_INSET, DESK_ROUTE_MIN_UNIT, ACROSS_CLIMB, placeSideInfo } from './render.ts';
+import { frenchSetLine, tileEl, horizontalTileEl, renderBoard, backsEl, scoreTrack, el, crossRejectReason, penaltyBanner, frenchScoreBreakdown, frenchPenaltyLog, celebrateWinningTile, assertVisibleTilesDisjoint, liveTableUnit, liveLinearGeometry, liveAcrossRouteUnits, placeBoardChoices, reserveBoardStage, frenchCanvasUnit, phoneCrossGridKey, centreCrossOnPose, markPannable, keepTileInView, phonePracticeGeometry, frenchTabBlocks, frenchPinwheelPhone, DESK_FIRST_ROW_BONES, phoneRouteGeometryFits, deskRouteGeometry, DESK_ROUTE_STAGE_INSET, DESK_ROUTE_MIN_UNIT, ACROSS_CLIMB, placeSideInfo } from './render.ts';
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
@@ -1421,7 +1421,9 @@ function practiceGameOverCard(g: LocalGame): HTMLElement | null {
   const setOver = g.set.winnerSide !== null;
   card.append(el('strong', 'table-game-over-title', setOver ? 'SET OVER' : 'GAME OVER'));
   const line = setOver
-    ? (g.set.winnerSide === g.mySide ? 'You win the set' : 'The set goes against you')
+    ? (g.options.format === 'french'
+      ? frenchSetLine(g.set.scores, g.set.winnerSide!, g.mySeat, (seat) => g.seatLabel(seat))
+      : g.set.winnerSide === g.mySide ? 'You win the set' : 'The set goes against you')
     : r.tie
       ? 'Tied on count'
       : r.status === 'blocked'

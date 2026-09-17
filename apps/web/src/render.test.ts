@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { halves } from '@yard/engine';
 import type { Board, CrossBoard, Pip, PlacedTile, TileId } from '@yard/engine';
 import { orientLine, MIN_WIDTH_UNITS } from './layout.ts';
-import { assertRenderableBoard, assertVisibleTilesDisjoint, armDirectionFor, boardGuardInsets, crossArmDirections, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveAcrossRouteUnits, liveLinearGeometry, liveTableUnit, phoneCrossGrid, phoneCrossRoute, rowsOf } from './render.ts';
+import { frenchSetLine, assertRenderableBoard, assertVisibleTilesDisjoint, armDirectionFor, boardGuardInsets, crossArmDirections, frenchCanvasUnit, paddingBoxOf, chooseCrossFit, chooseCrossUnit, chooseUnit, crossPlacements, crossRejectReason, liveAcrossRouteUnits, liveLinearGeometry, liveTableUnit, phoneCrossGrid, phoneCrossRoute, rowsOf } from './render.ts';
 import type { BoardBox } from './render.ts';
 
 /**
@@ -985,4 +985,14 @@ test('a phone French board holds an ordinary hand without panning', () => {
   // be forced wider than the screen and pan sideways.
   assert.deepEqual(phoneCrossGrid({ width: 247, height: 322 }, 14), { cols: 16, rows: 23 });
   assert.deepEqual(phoneCrossGrid({ width: 120, height: 120 }, 14), { cols: 12, rows: 16 });
+});
+
+test('French says who had the lowest score, not "the set goes against you"', () => {
+  const name = (seat: number) => ['You', 'Duppy 2', 'Duppy 3', 'Duppy 4'][seat];
+  assert.equal(frenchSetLine([12, 104, 88, 91], 0, 0, name),
+    'You win: lowest score, 12. Someone reached 100, so the set stops there.');
+  assert.equal(frenchSetLine([87, 41, 100, 93], 1, 0, name),
+    'Duppy 2 wins with the lowest score, 41. You finished on 87.');
+  assert.equal(frenchSetLine([87, 41, 100, 93], 1, null, name),
+    'Duppy 2 wins with the lowest score, 41.');
 });

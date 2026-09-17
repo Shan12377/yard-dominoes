@@ -2312,6 +2312,27 @@ export function scoreTrack(
   return wrap;
 }
 
+/**
+ * French's end-of-set line. "You win the set" / "the set goes against you"
+ * told a player nothing about why: French is a race to 100 where the LOWEST
+ * score wins, and winning the last hand is not winning the set (owner,
+ * 2026-09-17, after winning a hand with 0 and reading the set as lost).
+ */
+export function frenchSetLine(
+  scores: readonly number[],
+  winnerSide: number,
+  mySeat: number | null,
+  seatName: (seat: number) => string,
+): string {
+  const low = scores[winnerSide];
+  const mine = mySeat === null ? null : scores[mySeat];
+  if (mySeat !== null && winnerSide === mySeat) {
+    return `You win: lowest score, ${low}. Someone reached 100, so the set stops there.`;
+  }
+  const theirs = `${seatName(winnerSide)} wins with the lowest score, ${low}`;
+  return mine === null ? `${theirs}.` : `${theirs}. You finished on ${mine}.`;
+}
+
 const PENALTY_REASON_TEXT: Record<PenaltyEvent['reason'], string> = {
   'board-pass': 'had no answer to the board',
   'triple-pass': 'passed three times running',

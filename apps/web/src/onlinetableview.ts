@@ -5,6 +5,7 @@
 // reads it and calls back into it.
 
 import { rankTier } from './ranktier.ts';
+import { frenchSetLine } from './render.ts';
 import { OnlineGame } from './onlinetable.ts';
 import { dealOverlay, DEAL_ANIMATION_MS, confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
 import { coachReviewView } from './coachview.ts';
@@ -2644,8 +2645,11 @@ function onlineGameOverCard(game: OnlineGame, rerender: () => void): HTMLElement
   const card = el('div', 'table-game-over');
   card.setAttribute('role', 'status');
   card.append(el('strong', 'table-game-over-title', setOver ? 'SET OVER' : 'GAME OVER'));
+  const french = game.table.format === 'french';
   const line = setOver
-    ? (game.isSpectator ? 'The set is decided' : game.winnerSide === game.mySide ? 'You win the set' : 'The set goes against you')
+    ? (french
+      ? frenchSetLine(game.scores, game.winnerSide!, game.isSpectator ? null : game.mySeat, name)
+      : game.isSpectator ? 'The set is decided' : game.winnerSide === game.mySide ? 'You win the set' : 'The set goes against you')
     : r.tie
       ? 'Tied on count'
       : r.status === 'blocked' && r.winnerSeat !== null
@@ -2791,7 +2795,9 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
     const setWinnerName = partnered
       ? (game.winnerSide === game.mySide ? 'You & partner' : 'Them')
       : describeSeat(game.winnerSide, game.seats, game.mySeat, partnered, game.mySide);
-    panel.append(el('p', 'muted', `Set over — ${setWinnerName} won.`));
+    panel.append(el('p', 'muted', game.table.format === 'french'
+      ? `Set over — ${frenchSetLine(game.scores, game.winnerSide, game.isSpectator ? null : game.mySeat, (seat) => describeSeat(seat, game.seats, game.mySeat, partnered, game.mySide))}`
+      : `Set over — ${setWinnerName} won.`));
     // Absent for a spectator, a duppy-mixed table (never rated), or while
     // the server's write is still catching up to this broadcast — see
     // onlinetable.ts's loadRatingAfter. Nothing shown beats a fabricated +0.
