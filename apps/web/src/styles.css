@@ -5866,8 +5866,11 @@ button.hand-end-choice {
    (owner, 2026-09-17). The table is about 80px shorter, and the hand sits on
    its own dark strip across the bottom so the wood visibly ends above it. */
 @media (max-width: 700px) {
+  /* Just enough wood that a long hand keeps its 28px bone instead of
+     dropping a size late on (owner, 2026-09-17), still shorter than the
+     Lounge's table. */
   .practice-room.jamdom-short-room > .live-felt {
-    height: calc(100svh - 152px);
+    height: calc(100svh - 104px);
     min-height: 460px;
   }
   /* JamDom's framed table: a dark inner border makes the wood read as one
