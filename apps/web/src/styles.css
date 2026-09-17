@@ -5996,3 +5996,31 @@ button.hand-end-choice {
 .trust-rough { color: #ff765e; }
 
 .rank-admin { color: #fff9ea; background: rgba(255, 90, 60, .25); border-color: #ff765e; }
+
+/* Practice French on a phone: the score strip is one thin line, so the top
+   player's bones are not crowded against it (owner, 2026-09-17: "its
+   blocking the duppy's hand at the top"). Four scores across, one row. */
+@media (max-width: 700px) {
+  #app:has(.practice-room.french-phone-room) .practice-scorebar {
+    padding: 2px 6px;
+    margin-bottom: 2px;
+    gap: 6px;
+  }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .scoreboard {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0 6px;
+  }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .side-name {
+    font-size: 9px;
+    letter-spacing: .02em;
+  }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .under-love { font-size: 12px; }
+  #app:has(.practice-room.french-phone-room) .practice-scorebar .act,
+  #app:has(.practice-room.french-phone-room) .practice-scorebar button {
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+  /* A little clear wood above the top player's hanging bones. */
+  .practice-room.french-phone-room .table-felt > .table-player-station-top.station-tab { top: 2px; }
+}

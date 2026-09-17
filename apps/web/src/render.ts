@@ -728,6 +728,11 @@ export function phonePracticeGeometry(
   };
   for (let u = maxUnit; u >= minUnit; u -= 1) {
     const grid = gridAt(u, layoutClimb);
+    // The grid floors at PHONE_ROUTE_MIN_COLS/ROWS, so on a narrow phone a
+    // big bone produces a grid WIDER than the wood and its last column sits
+    // off the table — the owner's clipped double-blank on a 360px Samsung
+    // (2026-09-17). Only use a bone whose grid actually fits the wood.
+    if (grid.cols * u > usableWidth || grid.rows * u > box.height) continue;
     const key = JSON.stringify([grid.cols, grid.rows, grid.origin, grid.blocked, firstRowBones ?? null, tolerance ?? null, sizingClimb]);
     let fits = phoneRouteFitCache.get(key);
     if (fits === undefined) {

@@ -2818,10 +2818,10 @@ function tableView(g: LocalGame): DocumentFragment {
         : window.innerWidth <= 700 ? PHONE_BOARD_MAX_UNIT : tableUnit;
       // Desktop may step down to any readable bone rather than lay one past the
       // wood (Across stopped at 22px and hid 6/1 under the table edge).
-      // The JamDom table never drops more than one bone size: 28px, or 26px
-      // for the rare hand that runs out of room (owner, 2026-09-17).
-      const routeMinUnit = practiceJamdomPhone ? PRACTICE_JAMDOM_UNIT - 1
-        : window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : DESK_ROUTE_MIN_UNIT;
+      // A bone off the edge of the wood is worse than a smaller bone: the
+      // relay may always step down as far as it needs (owner's clipped
+      // double-blank on a 360px Samsung, 2026-09-17, from a one-step floor).
+      const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : DESK_ROUTE_MIN_UNIT;
       // Desktop turns its centre row after three bones each side, so the
       // board snakes like the phone's instead of one long line.
       const routeFirstRow = window.innerWidth <= 700 ? undefined : DESK_FIRST_ROW_BONES;
