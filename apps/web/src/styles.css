@@ -5927,3 +5927,12 @@ button.hand-end-choice {
     box-shadow: 0 0 0 3px #ffc92833, 0 0 20px #ffc92825;
   }
 }
+
+/* Across's hand strips light up like every other tray: the gold ring plus
+   its soft glow, over the blue. */
+@media (max-width: 700px) {
+  .in-felt-across-hands > .my-hand-panel.hand-turn-active {
+    border-color: #ffc928;
+    box-shadow: 0 0 0 3px #ffc92833, 0 0 20px #ffc92825;
+  }
+}
