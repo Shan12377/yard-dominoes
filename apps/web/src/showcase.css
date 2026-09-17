@@ -68,14 +68,65 @@ body.showcase-body #app { max-width: none; padding: 0; }
 .showcase-brand .word-dominoes { color: var(--bone); }
 .showcase-sub { color: var(--sky); font: 700 24px/1.2 var(--mono); }
 .showcase-score { display: grid; gap: 8px; padding: 16px; border-radius: 12px; background: rgba(0, 0, 0, .25); }
-.showcase-score-row { display: flex; justify-content: space-between; font: 800 30px/1.2 var(--mono); color: #fff9ea; }
+.showcase-score-row { display: flex; justify-content: space-between; gap: 18px; font: 800 30px/1.2 var(--mono); color: #fff9ea; }
 .showcase-worth { font: 800 24px/1.2 var(--mono); color: #ffc928; }
 .showcase-caption {
   flex: 1;
   font: 700 44px/1.25 var(--body);
   color: #fff9ea;
 }
-.showcase-tip { padding: 18px; border: 2px solid #ffc928; border-radius: 14px; }
+.showcase-tip { flex: none; padding: 18px; border: 2px solid #ffc928; border-radius: 14px; }
 .showcase-tip-head { color: #ffc928; font: 800 22px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
 .showcase-tip-text { font: 600 30px/1.3 var(--body); }
 .showcase-cta { color: #43c7f4; font: 800 30px/1.2 var(--body); }
+.showcase-caption { flex: 0 0 auto; font-size: 36px; }
+.showcase-reason {
+  flex: 1;
+  font: 600 28px/1.3 var(--body);
+  color: #ffe38a;
+  overflow: hidden;
+  min-height: 0;
+}
+.showcase-reason:empty { visibility: hidden; }
+.showcase-bubble {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  max-width: 320px;
+  width: max-content;
+  padding: 10px 16px;
+  border: 2px solid #ffc928;
+  border-radius: 16px;
+  background: #fff9ea;
+  color: #052b43;
+  font: 800 24px/1.2 var(--body);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .35);
+}
+.showcase-seat-top .showcase-bubble { bottom: auto; top: calc(100% + 10px); }
+.showcase-intro {
+  position: absolute;
+  inset: 60px 70px;
+  z-index: 25;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  padding: 40px 50px;
+  border: 3px solid #ffc928;
+  border-radius: 22px;
+  background: rgba(5, 43, 67, .95);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .45);
+}
+.showcase-intro-now { color: #43c7f4; font: 800 26px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+.showcase-intro-title { color: #ffc928; font: 900 88px/1 var(--signage); }
+.showcase-intro-line { color: #fff9ea; font: 700 36px/1.3 var(--body); }
+.showcase-felt .practice-deal-overlay .practice-deal-skip { display: none; }
+.showcase-dealing .showcase-hand { visibility: hidden; }
+/* The stage never grows past 1080: the side panel keeps its own height. */
+.showcase-stage { grid-template-rows: 100%; }
+.showcase-side { min-height: 0; overflow: hidden; }
+.showcase-caption { font-size: 34px; }
+/* Side players' bubbles open towards the table, not off the screen edge. */
+.showcase-seat-left .showcase-bubble { left: 0; transform: none; }
+.showcase-seat-right .showcase-bubble { left: auto; right: 0; transform: none; }
