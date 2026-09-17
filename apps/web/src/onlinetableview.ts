@@ -114,12 +114,16 @@ export async function openTablesPanel(
       // the one player who could resume the game that all they could do was
       // spectate it.
       const canRejoin = meId !== null && t.recentLeavers.includes(meId);
+      // A seat left more than five minutes ago: anyone can take it, from the
+      // next hand (owner, 2026-09-17).
+      const canTakeSeat = !canRejoin && t.status === 'playing' && t.openSeats > 0;
+      if (canTakeSeat) row.append(el('span', 'open-table-seat-open', 'Seat open'));
       const join = document.createElement('button');
-      join.className = t.status === 'waiting' || canRejoin ? 'act' : 'act ghost';
-      join.textContent = t.status === 'waiting' ? 'Sit down' : canRejoin ? 'Rejoin' : 'Watch';
+      join.className = t.status === 'waiting' || canRejoin || canTakeSeat ? 'act' : 'act ghost';
+      join.textContent = t.status === 'waiting' ? 'Sit down' : canRejoin ? 'Rejoin' : canTakeSeat ? 'Join mid-game' : 'Watch';
       join.onclick = () => void (async () => {
         try {
-          if (t.status === 'waiting' || canRejoin) {
+          if (t.status === 'waiting' || canRejoin || canTakeSeat) {
             // A failed rejoin says so; quietly watching instead is how a
             // player ended up looking at a duppy in their own seat.
             await joinTable(t.joinCode);
@@ -1015,6 +1019,12 @@ export function liveTableView(
           : 'Cut throat';
   head.append(el('div', 'eyebrow',
     social?.loungeName ? `${social.loungeName} · ${gameName}` : gameName));
+  // Booked into a seat someone left (0065): seated as the next hand is dealt.
+  if (game.isSpectator && game.seats.some((s) => s.claimUserId && s.claimUserId === game.viewerId)) {
+    const booked = el('div', 'watcher-notice seat-booked', "You're in! You take your seat when the next hand is dealt.");
+    booked.setAttribute('role', 'status');
+    head.appendChild(booked);
+  }
   if (watcherNotice && Date.now() - watcherNotice.at < WATCHER_NOTICE_MS) {
     const notice = el('div', 'watcher-notice', watcherNotice.text);
     notice.setAttribute('role', 'status');

@@ -21,7 +21,23 @@ Deno.serve(handled(async (req) => {
   const { data: table } = await db.from('tables').select('*').eq('id', tableId).single();
   if (!table) throw new HttpError(404, 'no such table');
 
-  const { data: seats } = await db.from('seats').select('*').eq('table_id', tableId).order('seat_index');
+  let { data: seats } = await db.from('seats').select('*').eq('table_id', tableId).order('seat_index');
+  // Someone booked a seat that was left (join-table, 0065): they sit down as
+  // this hand is dealt, never part-way through one.
+  const booked = (seats ?? []).filter((s: any) => s.claim_user_id && !s.user_id);
+  const { data: liveHand } = booked.length > 0
+    ? await db.from('hand_public').select('hand_id').eq('table_id', tableId).eq('status', 'active').limit(1).maybeSingle()
+    : { data: null };
+  if (booked.length > 0 && !liveHand && !table.tournament_id) {
+    const now = new Date().toISOString();
+    for (const s of booked) {
+      await db.from('seats').update({
+        user_id: s.claim_user_id, duppy_level: null, connected_at: now,
+        claim_user_id: null, claimed_at: null, left_by_user_id: null, left_at: null,
+      }).eq('table_id', tableId).eq('seat_index', s.seat_index).is('user_id', null);
+    }
+    ({ data: seats } = await db.from('seats').select('*').eq('table_id', tableId).order('seat_index'));
+  }
   const seatUsers: (string | null)[] = seats!.map((s: any) => s.user_id);
   if (!seatUsers.includes(user.id)) throw new HttpError(403, 'you are not seated here');
   if (seats!.some((s: any) => !s.user_id && !s.duppy_level)) {

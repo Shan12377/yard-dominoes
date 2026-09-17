@@ -499,6 +499,11 @@ export interface OpenTable {
    * lounge advertises a dead table with nobody at it and offers to WATCH it.
    */
   recentLeavers: string[];
+  /**
+   * Seats a player left more than five minutes ago that nobody has booked:
+   * anyone may join mid-game and take one (0065, owner 2026-09-17).
+   */
+  openSeats: number;
 }
 
 /** Tables currently running or waiting for players inside one lounge. */
@@ -508,7 +513,7 @@ export async function listLoungeTables(loungeId: string): Promise<OpenTable[]> {
   // catches it — this cap is a second line of defense against the list
   // growing unbounded between sweeps, not the actual fix for staleness.
   const { data, error } = await db().from('tables')
-    .select('id, join_code, mode, format, seat_count, status, seats(user_id, left_by_user_id, left_at)')
+    .select('id, join_code, mode, format, seat_count, status, tournament_id, seats(user_id, left_by_user_id, left_at, claim_user_id)')
     .eq('lounge_id', loungeId)
     .in('status', ['waiting', 'playing'])
     .order('created_at', { ascending: false })
@@ -518,7 +523,7 @@ export async function listLoungeTables(loungeId: string): Promise<OpenTable[]> {
   // after the server would refuse it is a button that 409s.
   const cutoff = Date.now() - 5 * 60 * 1000;
   return (data as any[]).map((t) => {
-    const seats = t.seats as { user_id: string | null; left_by_user_id: string | null; left_at: string | null }[];
+    const seats = t.seats as { user_id: string | null; left_by_user_id: string | null; left_at: string | null; claim_user_id: string | null }[];
     return {
       id: t.id,
       joinCode: t.join_code,
@@ -533,6 +538,9 @@ export async function listLoungeTables(loungeId: string): Promise<OpenTable[]> {
       recentLeavers: seats
         .filter((s) => !s.user_id && s.left_by_user_id && s.left_at && Date.parse(s.left_at) > cutoff)
         .map((s) => s.left_by_user_id as string),
+      openSeats: t.status === 'playing' && !t.tournament_id
+        ? seats.filter((s) => !s.user_id && !s.claim_user_id && s.left_by_user_id && s.left_at && Date.parse(s.left_at) <= cutoff).length
+        : 0,
     };
   });
 }

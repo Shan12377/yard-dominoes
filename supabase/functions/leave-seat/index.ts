@@ -33,7 +33,13 @@ Deno.serve(handled(async (req) => {
   // together, since across never leaves a side half-human.
   const { data: mySeats } = await db.from('seats')
     .select('*').eq('table_id', tableId).eq('user_id', user.id);
-  if (!mySeats || mySeats.length === 0) throw new HttpError(403, 'you are not seated at this table');
+  if (!mySeats || mySeats.length === 0) {
+    // Only booked for the next hand (0065): leaving just drops the booking.
+    const { data: booked } = await db.from('seats').update({ claim_user_id: null, claimed_at: null })
+      .eq('table_id', tableId).eq('claim_user_id', user.id).select();
+    if (booked && booked.length > 0) return json({ ok: true });
+    throw new HttpError(403, 'you are not seated at this table');
+  }
 
   // Clears video_session_id too — a departing seat cannot still be
   // publishing video, and a duppy never can. Closes the gap left by a

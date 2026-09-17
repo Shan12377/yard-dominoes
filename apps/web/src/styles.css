@@ -5960,3 +5960,13 @@ button.hand-end-choice {
      Practice setup screen. */
   .in-felt-across-hands .practice-hand-pace { display: none; }
 }
+
+/* "Seat open" on a Lounge table someone left: join mid-game (0065). */
+.open-table-seat-open {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #104d43;
+  border: 1px solid #ffc928;
+  color: #ffe38a;
+  font: 800 12px/1.4 var(--mono);
+}

@@ -68,7 +68,7 @@ Deno.serve(handled(async (req) => {
     const cutoff = Date.now() - REJOIN_WINDOW_MS;
     const mySeats = seats!.filter((s: any) =>
       s.left_by_user_id === user.id && s.left_at !== null && Date.parse(s.left_at) > cutoff);
-    if (mySeats.length === 0) throw new HttpError(409, 'that game has already started');
+    if (mySeats.length === 0) return await takeOpenSeat(db, table, seats!, user.id, cutoff);
 
     const { error: rejoinErr } = await db.from('seats')
       .update({
@@ -147,3 +147,50 @@ Deno.serve(handled(async (req) => {
 
   return json({ ok: true, tableId: table.id, seatIndex: target.seat_index });
 }));
+
+/**
+ * A seat its player left more than REJOIN_WINDOW_MS ago goes to whoever asks
+ * (owner, 2026-09-17). During a hand the seat is booked and start-hand seats
+ * them at the next deal; between hands they sit now. Across seats come as the
+ * pair that left together. Never on a tournament table: that has its own
+ * substitutes line.
+ */
+async function takeOpenSeat(db: any, table: any, seats: any[], userId: string, cutoff: number) {
+  if (table.tournament_id) throw new HttpError(409, 'that game has already started');
+  const mine = seats.find((s) => s.user_id === userId);
+  if (mine) return json({ ok: true, tableId: table.id, seatIndex: mine.seat_index });
+  const booked = seats.find((s) => s.claim_user_id === userId);
+  if (booked) return json({ ok: true, tableId: table.id, seatIndex: booked.seat_index, pending: true });
+
+  const open = seats.filter((s) => !s.user_id && !s.claim_user_id && s.left_by_user_id
+    && s.left_at && Date.parse(s.left_at) <= cutoff);
+  if (open.length === 0) throw new HttpError(409, 'that game has already started');
+  const group = table.mode === 'across'
+    ? open.filter((s) => s.left_by_user_id === open[0].left_by_user_id)
+    : [open[0]];
+  const indexes = group.map((s) => s.seat_index);
+
+  const { data: latest } = await db.from('hand_public').select('status')
+    .eq('table_id', table.id).order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  const now = new Date().toISOString();
+
+  if (latest?.status !== 'active') {
+    const { data: seated, error } = await db.from('seats').update({
+      user_id: userId, duppy_level: null, connected_at: now,
+      left_by_user_id: null, left_at: null, claim_user_id: null, claimed_at: null,
+    }).eq('table_id', table.id).in('seat_index', indexes).is('user_id', null).select();
+    if (error) throw new HttpError(500, error.message);
+    if (!seated || seated.length !== indexes.length) throw new HttpError(409, 'someone else just took that seat — try again');
+    return json({ ok: true, tableId: table.id, seatIndex: indexes[0] });
+  }
+
+  const { data: claimed, error } = await db.from('seats').update({ claim_user_id: userId, claimed_at: now })
+    .eq('table_id', table.id).in('seat_index', indexes).is('user_id', null).is('claim_user_id', null).select();
+  if (error) throw new HttpError(500, error.message);
+  if (!claimed || claimed.length !== indexes.length) {
+    await db.from('seats').update({ claim_user_id: null, claimed_at: null })
+      .eq('table_id', table.id).eq('claim_user_id', userId);
+    throw new HttpError(409, 'someone else just took that seat — try again');
+  }
+  return json({ ok: true, tableId: table.id, seatIndex: indexes[0], pending: true });
+}

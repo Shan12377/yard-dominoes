@@ -63,6 +63,8 @@ export interface SeatInfo {
   duppyLevel: string | null;
   /** Unspent seconds this seat carries into its next turn. Server-owned. */
   timeBank: number;
+  /** Someone booked to take this left seat at the next deal (0065). */
+  claimUserId?: string | null;
   /** 'vip' wears a badge at the table (owner, 2026-09-16). Null for a duppy or an unknown profile. */
   tier: string | null;
   /** rating_partner or rating_cutthroat, whichever this table's mode uses. Null for a duppy. */
@@ -453,6 +455,7 @@ export class OnlineGame {
       avgMoveMs: s.user_id ? this.names.get(s.user_id)?.avgMoveMs ?? null : null,
       duppyLevel: s.duppy_level,
       timeBank: s.time_bank ?? 0,
+      claimUserId: s.claim_user_id ?? null,
     }));
     this.mySeat = this.myUserId
       ? this.seats.find((s) => s.userId === this.myUserId)?.seatIndex ?? null
