@@ -5873,7 +5873,7 @@ button.hand-end-choice {
   /* JamDom's framed table: a dark inner border makes the wood read as one
      square playing area inside the rim. */
   .practice-room.jamdom-phone-room > .live-felt {
-    box-shadow: inset 0 0 0 5px rgba(36, 22, 8, .55), inset 0 0 24px rgba(0, 0, 0, .35);
+    box-shadow: inset 0 0 0 5px rgba(5, 43, 67, .75), inset 0 0 24px rgba(0, 0, 0, .3);
   }
   .practice-room.jamdom-phone-room .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand {
     left: 0;
@@ -5883,9 +5883,10 @@ button.hand-end-choice {
     max-width: none;
     transform: none;
     border: 0;
-    border-top: 2px solid #33200e;
+    border-top: 2px solid rgba(67, 199, 244, .45);
     border-radius: 0 0 10px 10px;
-    background: linear-gradient(180deg, #3a2512, #24170b);
+    /* The brand's signal-blue panel, not wood (owner, 2026-09-17). */
+    background: linear-gradient(180deg, #0c4f73, #052b43);
     box-shadow: 0 -4px 10px rgba(0, 0, 0, .35);
   }
 }
