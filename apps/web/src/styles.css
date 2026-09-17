@@ -5970,3 +5970,24 @@ button.hand-end-choice {
   color: #ffe38a;
   font: 800 12px/1.4 var(--mono);
 }
+
+/* Rank tier chips (Yard Rating). Badge colours sit on the signal-blue panels. */
+.rank-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font: 800 12px/1.5 var(--mono);
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.rank-bench { color: #d9a066; }
+.rank-corner { color: #d7e1e8; }
+.rank-boss { color: #ffc928; }
+.rank-don { color: #9fe8ff; }
+.rank-legend { color: #b8f3ff; background: rgba(67, 199, 244, .18); }
+.rank-unranked { color: var(--muted); border-style: dashed; }
+
+.trust-respect { color: #2dd46f; }
+.trust-watch { color: #ffc928; }
+.trust-rough { color: #ff765e; }

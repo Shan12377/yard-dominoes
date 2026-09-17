@@ -4,6 +4,7 @@
 // No state lives here; OnlineGame (onlinetable.ts) owns it, this module only
 // reads it and calls back into it.
 
+import { rankTier } from './ranktier.ts';
 import { OnlineGame } from './onlinetable.ts';
 import { dealOverlay, DEAL_ANIMATION_MS, confirmTableExit, handTurnCue, stationTurnCue, frenchPhoneTab } from './table-experience.ts';
 import { coachReviewView } from './coachview.ts';
@@ -840,7 +841,7 @@ function seatCard(
   // hand's timing.
   if (s.userId && (s.rating !== null || s.avgMoveMs !== null)) {
     const bits: string[] = [];
-    if (s.rating !== null) bits.push(`${s.rating} rated`);
+    if (s.rating !== null) bits.push(s.tier && s.tier !== 'guest' ? `${rankTier(s.rating).name} · ${s.rating}` : 'Unranked');
     if (s.avgMoveMs !== null) bits.push(`avg ${(s.avgMoveMs / 1000).toFixed(1)}s`);
     card.append(el('div', 'meta seat-stats', bits.join(' · ')));
   }
@@ -2798,7 +2799,7 @@ function handResultPanel(game: OnlineGame, rerender: () => void): HTMLElement {
       if (delta !== 0) {
         const sign = delta > 0 ? '+' : '';
         panel.append(el('p', `rating-delta ${delta > 0 ? 'up' : 'down'}`,
-          `Rating ${sign}${delta} — now ${game.ratingAfter}`));
+          `Yard Rating ${sign}${delta} — now ${game.ratingAfter} · ${rankTier(game.ratingAfter).name}`));
       }
     }
   }

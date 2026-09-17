@@ -9,6 +9,7 @@
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { ratingUpdatesForSet } from './rating-update.ts';
 import { effectiveTier } from './lib.ts';
+import { sideOf } from './engine/tiles.ts';
 import type { RatedSeat } from './rating-update.ts';
 import type { GameMode } from './engine/types.ts';
 
@@ -19,11 +20,29 @@ import type { GameMode } from './engine/types.ts';
  * A no-op for any table with a duppy seat; `ratingUpdatesForSet` returns []
  * for those and this simply writes nothing.
  */
+/** Yard Rating never drops below this (owner, 2026-09-17). */
+export const RATING_FLOOR = 1000;
+/** A six-love win's gain is multiplied by this; the losers lose no extra. */
+export const SIX_LOVE_BONUS = 1.5;
+/** A losing side that won at least one hand this game loses this share less. */
+export const LOVE_SHIELD = 0.25;
+/** Below this Table Trust a player's games are unrated for them. */
+export const ROUGH_PLAY_TRUST = 75;
+
+export interface RatingOptions {
+  /** Only these players' ratings are written: those seated for the whole game. */
+  ratedUsers?: Set<string>;
+  sixLove?: boolean;
+  /** Did this side win at least one hand during the game? */
+  brokeLove?: (side: number) => boolean;
+}
+
 export async function applyRatingUpdates(
   db: SupabaseClient,
   mode: GameMode,
   seatUsers: (string | null)[],
   winnerSide: number,
+  options: RatingOptions = {},
 ): Promise<void> {
   const humanIds = seatUsers.filter((id): id is string => id !== null);
   if (humanIds.length !== seatUsers.length) return; // any duppy seat — not rated, cheap to bail before the query
@@ -32,7 +51,7 @@ export async function applyRatingUpdates(
   const rdColumn = mode === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
 
   const { data: profiles, error } = await db.from('profiles')
-    .select(`id, tier, tier_expires_at, ${column}, ${rdColumn}`).in('id', humanIds);
+    .select(`id, tier, tier_expires_at, table_trust, ${column}, ${rdColumn}`).in('id', humanIds);
   if (error || !profiles) {
     console.error('applyRatingUpdates: could not read profiles', error);
     return;
@@ -57,10 +76,21 @@ export async function applyRatingUpdates(
     const p = byId.get(userId);
     return effectiveTier({ tier: p?.tier ?? 'guest', tier_expires_at: p?.tier_expires_at ?? null }) !== 'guest';
   };
+  const sideOfUser = new Map<string, number>();
+  seatUsers.forEach((id, seat) => { if (id) sideOfUser.set(id, sideOf(seat, mode)); });
   for (const update of updates) {
     if (!member(update.userId)) continue;
+    if (options.ratedUsers && !options.ratedUsers.has(update.userId)) continue;
+    // Rough Play: behaviour never changes the rating, but it pauses it.
+    if ((byId.get(update.userId)?.table_trust ?? 100) < ROUGH_PLAY_TRUST) continue;
+    const before = byId.get(update.userId)?.[column] ?? 1200;
+    const side = sideOfUser.get(update.userId);
+    let delta = update.next.rating - before;
+    if (side === winnerSide && options.sixLove && delta > 0) delta *= SIX_LOVE_BONUS;
+    if (side !== winnerSide && delta < 0 && side !== undefined && options.brokeLove?.(side)) delta *= 1 - LOVE_SHIELD;
+    const rating = Math.max(RATING_FLOOR, Math.round(before + delta));
     const { error: writeError } = await db.from('profiles')
-      .update({ [column]: update.next.rating, [rdColumn]: update.next.rd })
+      .update({ [column]: rating, [rdColumn]: update.next.rd })
       .eq('id', update.userId);
     if (writeError) console.error('applyRatingUpdates: write failed', update.userId, writeError);
   }

@@ -1,5 +1,6 @@
 // POST /join-table  { joinCode }  or  { tableId, seatIndex }
 import { handled, json, requireUser, requireLoungeEmail, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
+import { adjustTrust, countStarted, TRUST } from '../_shared/game-end.ts';
 
 // A player who leaves mid-hand drops to a duppy fill-in (leave-seat), not a
 // truly open seat. This is how long they get to come back and reclaim it
@@ -70,10 +71,14 @@ Deno.serve(handled(async (req) => {
       s.left_by_user_id === user.id && s.left_at !== null && Date.parse(s.left_at) > cutoff);
     if (mySeats.length === 0) return await takeOpenSeat(db, table, seats!, user.id, cutoff);
 
+    // Back inside the window: the walk-off never happened (Table Trust, 0066).
+    const penalty = (mySeats[0].left_penalty ?? 0) as number;
+    if (penalty > 0) await adjustTrust(db, user.id, penalty, penalty === TRUST.loveWalk ? -1 : 0);
+
     const { error: rejoinErr } = await db.from('seats')
       .update({
         user_id: user.id, duppy_level: null, connected_at: new Date().toISOString(),
-        left_by_user_id: null, left_at: null,
+        left_by_user_id: null, left_at: null, left_penalty: null,
       })
       .eq('table_id', table.id).in('seat_index', mySeats.map((s: any) => s.seat_index))
       .eq('left_by_user_id', user.id);
@@ -109,7 +114,7 @@ Deno.serve(handled(async (req) => {
     // the check below catches that and undoes the half-claim rather than
     // leaving the pair split between two different people.
     const { data: claimed, error: claimErr } = await db.from('seats')
-      .update({ user_id: user.id, duppy_level: null, connected_at: new Date().toISOString() })
+      .update({ user_id: user.id, duppy_level: null, connected_at: new Date().toISOString(), sat_at: new Date().toISOString() })
       .eq('table_id', table.id).in('seat_index', openPair).is('user_id', null)
       .select();
     if (claimErr) throw new HttpError(500, claimErr.message);
@@ -142,7 +147,7 @@ Deno.serve(handled(async (req) => {
   }
 
   await db.from('seats').update({
-    user_id: user.id, duppy_level: null, connected_at: new Date().toISOString(),
+    user_id: user.id, duppy_level: null, connected_at: new Date().toISOString(), sat_at: new Date().toISOString(),
   }).eq('table_id', table.id).eq('seat_index', target.seat_index);
 
   return json({ ok: true, tableId: table.id, seatIndex: target.seat_index });
@@ -176,11 +181,12 @@ async function takeOpenSeat(db: any, table: any, seats: any[], userId: string, c
 
   if (latest?.status !== 'active') {
     const { data: seated, error } = await db.from('seats').update({
-      user_id: userId, duppy_level: null, connected_at: now,
-      left_by_user_id: null, left_at: null, claim_user_id: null, claimed_at: null,
+      user_id: userId, duppy_level: null, connected_at: now, sat_at: now, timeouts: 0,
+      left_by_user_id: null, left_at: null, left_penalty: null, claim_user_id: null, claimed_at: null,
     }).eq('table_id', table.id).in('seat_index', indexes).is('user_id', null).select();
     if (error) throw new HttpError(500, error.message);
     if (!seated || seated.length !== indexes.length) throw new HttpError(409, 'someone else just took that seat — try again');
+    await countStarted(db, [userId]);
     return json({ ok: true, tableId: table.id, seatIndex: indexes[0] });
   }
 

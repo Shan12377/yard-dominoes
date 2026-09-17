@@ -6,6 +6,7 @@
  * plainly rather than discovered after you click.
  */
 
+import { rankChip, trustChip } from './ranktier.ts';
 import {
   listLounges, myProfile, canEnter, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
@@ -693,11 +694,16 @@ const MEMBER_SINCE = new Intl.DateTimeFormat('en', { month: 'long', year: 'numer
  *  brand-new account's placeholder rating read as earned. */
 const PROVISIONAL_RD = 300;
 
-function ratingLine(label: string, rating: number, rd: number): HTMLElement {
+function ratingLine(label: string, rating: number, rd: number, guest = false): HTMLElement {
   const row = el('div', 'row');
   row.append(el('span', 'muted', label));
+  if (guest) {
+    // Ranking is the member perk: a guest's number is never saved.
+    row.append(rankChip(null, { guest: true }));
+    return row;
+  }
   row.append(el('span', 'mono', String(rating)));
-  if (rd >= PROVISIONAL_RD) row.append(el('span', 'muted small', '(provisional)'));
+  row.append(rankChip(rating, { provisional: rd >= PROVISIONAL_RD }));
   return row;
 }
 
@@ -750,8 +756,8 @@ function playerProfileCard(rerender: () => void): HTMLElement {
   panel.append(el('p', 'muted small', `Playing since ${MEMBER_SINCE.format(new Date(p.createdAt))}`));
 
   const stats = el('div', 'stack');
-  stats.appendChild(ratingLine('Partner rating', p.ratingPartner, p.rdPartner));
-  stats.appendChild(ratingLine('Cut throat rating', p.ratingCutthroat, p.rdCutthroat));
+  stats.appendChild(ratingLine('Partner Yard Rating', p.ratingPartner, p.rdPartner, p.tier === 'guest'));
+  stats.appendChild(ratingLine('Cut throat Yard Rating', p.ratingCutthroat, p.rdCutthroat, p.tier === 'guest'));
   const hands = el('div', 'row');
   hands.append(el('span', 'muted', 'Hands played'), el('span', 'mono', String(p.handsPlayed)));
   stats.appendChild(hands);
@@ -760,6 +766,22 @@ function playerProfileCard(rerender: () => void): HTMLElement {
     sixes.append(el('span', 'muted', 'Six love — given / taken'),
       el('span', 'mono', `${p.sixLovesGiven} / ${p.sixLovesTaken}`));
     stats.appendChild(sixes);
+  }
+  if (p.fairPlay) {
+    const f = p.fairPlay;
+    const line = (label: string, value: string) => {
+      const row = el('div', 'row');
+      row.append(el('span', 'muted', label), el('span', 'mono', value));
+      stats.appendChild(row);
+    };
+    const trustRow = el('div', 'row');
+    trustRow.append(el('span', 'muted', 'Table Trust'), trustChip(f.tableTrust));
+    stats.appendChild(trustRow);
+    line('Games played', String(f.gamesFinished));
+    if (f.gamesFinished > 0) line('Win rate', `${Math.round((f.gamesWon / f.gamesFinished) * 100)}%`);
+    if (f.gamesStarted > 0) line('Match completion', `${Math.min(100, Math.round((f.gamesFinished / f.gamesStarted) * 100))}%`);
+    line('Love-walks', String(f.loveWalks));
+    line('Win streak — now / best', `${f.winStreak} / ${f.bestWinStreak}`);
   }
   panel.appendChild(stats);
 
@@ -2035,7 +2057,7 @@ export function rankingsView(rerender: () => void): DocumentFragment {
         row.append(el('span', 'ranking-place', String(i + 1)));
         row.appendChild(rankedAvatar(p));
         row.append(el('span', 'ranking-name', p.username));
-        row.append(el('span', 'ranking-rating', String(p.rating)));
+        row.append(rankChip(p.rating), el('span', 'ranking-rating', String(p.rating)));
         list.appendChild(row);
       });
       board.appendChild(list);

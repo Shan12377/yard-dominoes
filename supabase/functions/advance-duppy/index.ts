@@ -10,7 +10,7 @@ import { applyMove } from '../_shared/engine/hand.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
 import { allowance, duppyThinkSeconds, type Clock } from '../_shared/engine/clock.ts';
-import { applyRatingUpdates } from '../_shared/apply-rating.ts';
+import { finishGame } from '../_shared/game-end.ts';
 
 Deno.serve(handled(async (req) => {
   // Five sequential round trips (auth, hands, sets, tables, seats) put this
@@ -96,7 +96,7 @@ Deno.serve(handled(async (req) => {
     }).eq('id', row.set_id);
     if (next.winnerSide !== null) {
       await db.from('tables').update({ status: 'finished' }).eq('id', table.id);
-      await applyRatingUpdates(db, table.mode, seatUsers, next.winnerSide);
+      await finishGame(db, table, row.set_id, next.winnerSide, next.sixLove);
     }
     return json({ ok: true, handOver: true, set: next });
   }

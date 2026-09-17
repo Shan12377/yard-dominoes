@@ -375,6 +375,35 @@ export interface PublicProfile {
   handsPlayed: number;
   sixLovesGiven: number;
   sixLovesTaken: number;
+  /** Table Trust and career stats (0066). Null until that data exists. */
+  fairPlay: FairPlay | null;
+}
+
+export interface FairPlay {
+  tableTrust: number;
+  loveWalks: number;
+  gamesStarted: number;
+  gamesFinished: number;
+  gamesWon: number;
+  winStreak: number;
+  bestWinStreak: number;
+}
+
+/** Read on its own so a missing column can never blank the whole profile. */
+async function fetchFairPlay(userId: string): Promise<FairPlay | null> {
+  const { data, error } = await (db().from('profiles') as any)
+    .select('table_trust, love_walks, games_started, games_finished, games_won, win_streak, best_win_streak')
+    .eq('id', userId).single();
+  if (error || !data) return null;
+  return {
+    tableTrust: data.table_trust ?? 100,
+    loveWalks: data.love_walks ?? 0,
+    gamesStarted: data.games_started ?? 0,
+    gamesFinished: data.games_finished ?? 0,
+    gamesWon: data.games_won ?? 0,
+    winStreak: data.win_streak ?? 0,
+    bestWinStreak: data.best_win_streak ?? 0,
+  };
 }
 
 export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
@@ -411,6 +440,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     handsPlayed: data.hands_played,
     sixLovesGiven: data.six_loves_given,
     sixLovesTaken: data.six_loves_taken,
+    fairPlay: await fetchFairPlay(userId),
   };
 }
 

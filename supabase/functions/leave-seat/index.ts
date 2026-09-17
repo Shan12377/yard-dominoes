@@ -19,6 +19,8 @@
 // "already started" block that applies to everyone else.
 
 import { handled, json, requireUser, serviceClient, HttpError } from '../_shared/lib.ts';
+import { adjustTrust, TRUST } from '../_shared/game-end.ts';
+import { sideOf } from '../_shared/engine/tiles.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -67,6 +69,18 @@ Deno.serve(handled(async (req) => {
     const { error: profileError } = await db.from('profiles')
       .update({ abandons: (profile?.abandons ?? 0) + 1 }).eq('id', user.id);
     if (profileError) throw new HttpError(500, profileError.message);
+
+    // Table Trust (0066): walking off costs 8, or 12 when your side is on
+    // love. Kept on the seat so a rejoin inside the window can give it back.
+    const { data: set } = await db.from('sets').select('scores')
+      .eq('table_id', tableId).is('winner_side', null)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const side = sideOf(mySeats[0].seat_index, table.mode);
+    const onLove = ((set?.scores as number[] | undefined)?.[side] ?? 0) === 0;
+    const penalty = onLove ? TRUST.loveWalk : TRUST.walkOff;
+    await adjustTrust(db, user.id, -penalty, onLove ? 1 : 0);
+    await db.from('seats').update({ left_penalty: penalty })
+      .eq('table_id', tableId).eq('left_by_user_id', user.id);
   }
 
   return json({ ok: true });

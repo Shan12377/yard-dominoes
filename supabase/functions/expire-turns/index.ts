@@ -10,7 +10,7 @@ import { legalMoves, applyMove } from '../_shared/engine/hand.ts';
 import { applyHandResult } from '../_shared/engine/set.ts';
 import { duppyMove } from '../_shared/engine/bots.ts';
 import { allowance, duppyThinkSeconds } from '../_shared/engine/clock.ts';
-import { applyRatingUpdates } from '../_shared/apply-rating.ts';
+import { finishGame } from '../_shared/game-end.ts';
 
 Deno.serve(handled(async () => {
   const db = serviceClient();
@@ -69,8 +69,12 @@ Deno.serve(handled(async () => {
       if (err instanceof Conflict) continue;
       throw err;
     }
-    await db.from('seats').update({ time_bank: 0 })
-      .eq('table_id', table.id).eq('seat_index', timedOut);
+    // A real person's turn the clock played counts towards a stall-out
+    // (Table Trust, 0066). A duppy's never does.
+    await db.from('seats').update({
+      time_bank: 0,
+      ...(seats[timedOut].user_id ? { timeouts: (seats[timedOut].timeouts ?? 0) + 1 } : {}),
+    }).eq('table_id', table.id).eq('seat_index', timedOut);
     moved++;
 
     // Mirror play-move's post-persist block: a forced timeout move can end a
@@ -99,7 +103,7 @@ Deno.serve(handled(async () => {
 
       if (next.winnerSide !== null) {
         await db.from('tables').update({ status: 'finished' }).eq('id', table.id);
-        await applyRatingUpdates(db, table.mode, seats.map((s: any) => s.user_id), next.winnerSide);
+        await finishGame(db, table, row.set_id, next.winnerSide, next.sixLove);
       }
     }
   }

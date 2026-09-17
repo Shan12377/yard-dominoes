@@ -5,6 +5,7 @@
 // guarantee, and it lives in these twenty lines.
 
 import { handled, json, requireUser, serviceClient, persist, HttpError } from '../_shared/lib.ts';
+import { countStarted } from '../_shared/game-end.ts';
 import { provablyFairShuffle, commit, randomSeed } from '../_shared/engine/shuffle.ts';
 import { deal } from '../_shared/engine/hand.ts';
 import { dealPlan } from '../_shared/engine/tiles.ts';
@@ -32,10 +33,11 @@ Deno.serve(handled(async (req) => {
     const now = new Date().toISOString();
     for (const s of booked) {
       await db.from('seats').update({
-        user_id: s.claim_user_id, duppy_level: null, connected_at: now,
-        claim_user_id: null, claimed_at: null, left_by_user_id: null, left_at: null,
+        user_id: s.claim_user_id, duppy_level: null, connected_at: now, sat_at: now, timeouts: 0,
+        claim_user_id: null, claimed_at: null, left_by_user_id: null, left_at: null, left_penalty: null,
       }).eq('table_id', tableId).eq('seat_index', s.seat_index).is('user_id', null);
     }
+    await countStarted(db, booked.map((s: any) => s.claim_user_id as string));
     ({ data: seats } = await db.from('seats').select('*').eq('table_id', tableId).order('seat_index'));
   }
   const seatUsers: (string | null)[] = seats!.map((s: any) => s.user_id);
@@ -69,6 +71,8 @@ Deno.serve(handled(async (req) => {
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
   if (!set) {
+    // A new game begins for everyone seated (career stats, 0066).
+    await countStarted(db, seatUsers.filter((id): id is string => !!id));
     // Paired modes (partner, openhand) score by SIDE, not seat — same
     // scoreboard shape, one entry per side. Cutthroat scores per seat.
     const sides = (table.mode === 'partner' || table.mode === 'openhand')

@@ -10,7 +10,7 @@ import { applyHandResult } from '../_shared/engine/set.ts';
 import type { Move } from '../_shared/engine/types.ts';
 import { afterTurn, allowance, usedBy, duppyThinkSeconds } from '../_shared/engine/clock.ts';
 import type { Clock } from '../_shared/engine/clock.ts';
-import { applyRatingUpdates } from '../_shared/apply-rating.ts';
+import { finishGame } from '../_shared/game-end.ts';
 
 Deno.serve(handled(async (req) => {
   const user = await requireUser(req);
@@ -103,7 +103,7 @@ Deno.serve(handled(async (req) => {
 
     if (next.winnerSide !== null) {
       await db.from('tables').update({ status: 'finished' }).eq('id', table!.id);
-      await applyRatingUpdates(db, table!.mode, seatUsers, next.winnerSide);
+      await finishGame(db, table!, row.set_id, next.winnerSide, next.sixLove);
     }
     return json({ ok: true, handOver: true, set: next });
   }
