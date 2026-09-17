@@ -260,7 +260,8 @@ export class OnlineGame {
   ratingBefore: number | null = null;
   ratingAfter: number | null = null;
 
-  private ratingColumn(): 'rating_partner' | 'rating_cutthroat' {
+  private ratingColumn(): 'rating_partner' | 'rating_cutthroat' | 'rating_french' {
+    if (this.table.format === 'french') return 'rating_french';
     return this.table.mode === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
   }
 

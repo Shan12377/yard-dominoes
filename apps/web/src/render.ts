@@ -2314,23 +2314,39 @@ export function scoreTrack(
 
 /**
  * French's end-of-set line. "You win the set" / "the set goes against you"
- * told a player nothing about why: French is a race to 100 where the LOWEST
- * score wins, and winning the last hand is not winning the set (owner,
- * 2026-09-17, after winning a hand with 0 and reading the set as lost).
+ * told a player nothing: French is a race to 100 where the LOWEST score wins,
+ * and winning the last hand is not winning the set (owner, 2026-09-17, after
+ * winning a hand with 0 and reading the set as lost). The hype is in who
+ * BUST — the owner's word for going past 100 — so the line names them, and a
+ * level lowest score is simply a tie for the win.
  */
 export function frenchSetLine(
   scores: readonly number[],
   winnerSide: number,
   mySeat: number | null,
   seatName: (seat: number) => string,
+  target = 100,
 ): string {
-  const low = scores[winnerSide];
-  const mine = mySeat === null ? null : scores[mySeat];
-  if (mySeat !== null && winnerSide === mySeat) {
-    return `You win: lowest score, ${low}. Someone reached 100, so the set stops there.`;
+  const low = Math.min(...scores);
+  const lowest = scores.flatMap((v, seat) => (v === low ? [seat] : []));
+  const bust = scores.flatMap((v, seat) => (v >= target ? [seat] : []));
+  const list = (seats: number[]) => (seats.length > 1
+    ? `${seats.slice(0, -1).map(seatName).join(', ')} and ${seatName(seats.at(-1)!)}`
+    : seatName(seats[0]));
+  const bustLine = bust.length
+    ? ` ${list(bust)} bust on ${Math.max(...bust.map((seat) => scores[seat]))}.`
+    : '';
+  if (lowest.length > 1) {
+    const mine = mySeat !== null && lowest.includes(mySeat);
+    return `Tie for the win: ${list(lowest)} on ${low}.${bustLine}${mine ? '' : ''}`;
   }
-  const theirs = `${seatName(winnerSide)} wins with the lowest score, ${low}`;
-  return mine === null ? `${theirs}.` : `${theirs}. You finished on ${mine}.`;
+  const winner = lowest[0] ?? winnerSide;
+  if (mySeat !== null && winner === mySeat) {
+    return `You win: lowest score, ${low}.${bustLine}`;
+  }
+  const mine = mySeat === null ? null : scores[mySeat];
+  const theirs = `${seatName(winner)} wins with the lowest score, ${low}.`;
+  return mine === null ? `${theirs}${bustLine}` : `${theirs} You finished on ${mine}.${bustLine}`;
 }
 
 const PENALTY_REASON_TEXT: Record<PenaltyEvent['reason'], string> = {

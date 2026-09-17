@@ -372,6 +372,9 @@ export interface PublicProfile {
   ratingCutthroat: number;
   rdPartner: number;
   rdCutthroat: number;
+  /** French keeps its own board (0067); null on an older row. */
+  ratingFrench: number | null;
+  rdFrench: number | null;
   handsPlayed: number;
   sixLovesGiven: number;
   sixLovesTaken: number;
@@ -393,6 +396,13 @@ export interface FairPlay {
 }
 
 /** Read on its own so a missing column can never blank the whole profile. */
+async function fetchFrenchRating(userId: string): Promise<{ rating: number; rd: number } | null> {
+  const { data, error } = await (db().from('profiles') as any)
+    .select('rating_french, rd_french').eq('id', userId).single();
+  if (error || !data) return null;
+  return { rating: data.rating_french ?? 1200, rd: data.rd_french ?? 350 };
+}
+
 async function fetchFairPlay(userId: string): Promise<FairPlay | null> {
   const { data, error } = await (db().from('profiles') as any)
     .select('is_admin, table_trust, love_walks, games_started, games_finished, games_won, win_streak, best_win_streak')
@@ -429,6 +439,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
   const fairPlay = await fetchFairPlay(userId);
+  const french = await fetchFrenchRating(userId);
   return {
     id: data.id,
     username: data.username,
@@ -442,6 +453,8 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     ratingCutthroat: data.rating_cutthroat,
     rdPartner: data.rd_partner,
     rdCutthroat: data.rd_cutthroat,
+    ratingFrench: french?.rating ?? null,
+    rdFrench: french?.rd ?? null,
     handsPlayed: data.hands_played,
     sixLovesGiven: data.six_loves_given,
     sixLovesTaken: data.six_loves_taken,
@@ -850,7 +863,7 @@ export async function liveNowPlayers(): Promise<LivePlayer[]> {
 // mode: 'cutthroat' under the hood (set.ts's createSet). There is no way to
 // split French out for display without a schema change — don't invent a
 // third category the data can't actually back.
-export type RatingCategory = 'cutthroat' | 'partner';
+export type RatingCategory = 'cutthroat' | 'partner' | 'french';
 
 export interface RankedPlayer {
   userId: string;
@@ -869,8 +882,10 @@ export interface RankedPlayer {
  * needed for a read this un-sensitive.
  */
 export async function topRanked(category: RatingCategory, limit = 20): Promise<RankedPlayer[]> {
-  const ratingCol = category === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
-  const rdCol = category === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
+  const ratingCol = category === 'french' ? 'rating_french'
+    : category === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
+  const rdCol = category === 'french' ? 'rd_french'
+    : category === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
   const { data, error } = await db().from('profiles')
     .select(`id, username, avatar, avatar_accessory, tier, tier_expires_at, ${ratingCol}, ${rdCol}`)
     .lt(rdCol, 350)

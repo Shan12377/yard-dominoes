@@ -987,12 +987,14 @@ test('a phone French board holds an ordinary hand without panning', () => {
   assert.deepEqual(phoneCrossGrid({ width: 120, height: 120 }, 14), { cols: 12, rows: 16 });
 });
 
-test('French says who had the lowest score, not "the set goes against you"', () => {
+test('French names the lowest score and who bust, and calls a level score a tie', () => {
   const name = (seat: number) => ['You', 'Duppy 2', 'Duppy 3', 'Duppy 4'][seat];
   assert.equal(frenchSetLine([12, 104, 88, 91], 0, 0, name),
-    'You win: lowest score, 12. Someone reached 100, so the set stops there.');
+    'You win: lowest score, 12. Duppy 2 bust on 104.');
   assert.equal(frenchSetLine([87, 41, 100, 93], 1, 0, name),
-    'Duppy 2 wins with the lowest score, 41. You finished on 87.');
+    'Duppy 2 wins with the lowest score, 41. You finished on 87. Duppy 3 bust on 100.');
+  assert.equal(frenchSetLine([41, 41, 100, 93], 0, 0, name),
+    'Tie for the win: You and Duppy 2 on 41. Duppy 3 bust on 100.');
   assert.equal(frenchSetLine([87, 41, 100, 93], 1, null, name),
-    'Duppy 2 wins with the lowest score, 41.');
+    'Duppy 2 wins with the lowest score, 41. Duppy 3 bust on 100.');
 });

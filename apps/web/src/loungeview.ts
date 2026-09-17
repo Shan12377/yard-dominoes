@@ -763,6 +763,9 @@ function playerProfileCard(rerender: () => void): HTMLElement {
   } else {
     stats.appendChild(ratingLine('Partner Yard Rating', p.ratingPartner, p.rdPartner, p.tier === 'guest'));
     stats.appendChild(ratingLine('Cut throat Yard Rating', p.ratingCutthroat, p.rdCutthroat, p.tier === 'guest'));
+    if (p.ratingFrench !== null) {
+      stats.appendChild(ratingLine('French Yard Rating', p.ratingFrench, p.rdFrench ?? 350, p.tier === 'guest'));
+    }
   }
   const hands = el('div', 'row');
   hands.append(el('span', 'muted', 'Hands played'), el('span', 'mono', String(p.handsPlayed)));
@@ -2031,7 +2034,7 @@ export function rankingsView(rerender: () => void): DocumentFragment {
     'Ranked play is a Yardie and VIP perk. Every real game moves a member\'s rating; duppy tables never count.'));
 
   const tabs = el('div', 'choices');
-  for (const [value, label] of [['partner', 'Partner'], ['cutthroat', 'Cut Throat']] as const) {
+  for (const [value, label] of [['partner', 'Partner'], ['cutthroat', 'Cut Throat'], ['french', 'French']] as const) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'choice';

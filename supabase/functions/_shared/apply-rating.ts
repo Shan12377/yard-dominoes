@@ -30,6 +30,8 @@ export const LOVE_SHIELD = 0.25;
 export const ROUGH_PLAY_TRUST = 75;
 
 export interface RatingOptions {
+  /** 'french' writes the French rating instead of the cut-throat one. */
+  format?: string;
   /** Only these players' ratings are written: those seated for the whole game. */
   ratedUsers?: Set<string>;
   sixLove?: boolean;
@@ -47,8 +49,11 @@ export async function applyRatingUpdates(
   const humanIds = seatUsers.filter((id): id is string => id !== null);
   if (humanIds.length !== seatUsers.length) return; // any duppy seat — not rated, cheap to bail before the query
 
-  const column = mode === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
-  const rdColumn = mode === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
+  // French has its own board (0067): it is cut-throat mode underneath, but a
+  // race to 100 where the lowest score wins is its own skill.
+  const french = options.format === 'french';
+  const column = french ? 'rating_french' : mode === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
+  const rdColumn = french ? 'rd_french' : mode === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
 
   const { data: profiles, error } = await db.from('profiles')
     .select(`id, tier, tier_expires_at, table_trust, is_admin, ${column}, ${rdColumn}`).in('id', humanIds);

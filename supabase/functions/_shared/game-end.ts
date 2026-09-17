@@ -16,7 +16,7 @@ const clampTrust = (value: number) => Math.max(0, Math.min(100, value));
 
 export async function finishGame(
   db: SupabaseClient,
-  table: { id: string; mode: GameMode },
+  table: { id: string; mode: GameMode; format?: string },
   setId: string,
   winnerSide: number,
   sixLove: boolean,
@@ -38,6 +38,7 @@ export async function finishGame(
   }
 
   await applyRatingUpdates(db, table.mode, seats.map((s: any) => s.user_id), winnerSide, {
+    format: table.format,
     ratedUsers: new Set(seats.filter(fullGame).map((s: any) => s.user_id as string)),
     sixLove,
     brokeLove: (side) => scoredSides.has(side),
