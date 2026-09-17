@@ -1,0 +1,81 @@
+/* Yard TV (/showcase): a fixed 1920x1080 broadcast stage in Yard branding. */
+body.showcase-body { margin: 0; overflow: hidden; background: #031c2c; }
+body.showcase-body #app { max-width: none; padding: 0; }
+.showcase-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: 0 0;
+  display: grid;
+  grid-template-columns: 1380px 1fr;
+  gap: 24px;
+  padding: 28px;
+  box-sizing: border-box;
+  background: linear-gradient(145deg, var(--signal-hi), var(--signal) 48%, var(--signal-lo));
+  color: var(--ink);
+  font-family: var(--body);
+}
+.showcase-table { position: relative; }
+.showcase-felt.table-felt {
+  position: absolute;
+  inset: 150px 230px 150px 230px;
+  max-height: none;
+  overflow: hidden;
+  padding: 0;
+  display: block;
+}
+.showcase-board { position: absolute; top: 20px; left: 20px; width: 880px; height: 680px; }
+.showcase-board .line { display: grid; }
+.showcase-seat {
+  position: absolute;
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid rgba(67, 199, 244, .45);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #0c4f73, #052b43);
+}
+/* Whose turn: Yard's green tray with the gold ring and glow. */
+.showcase-seat.showcase-turn {
+  border-color: #ffc928;
+  background: #104d43;
+  box-shadow: 0 0 0 4px #ffc92833, 0 0 26px #ffc92840;
+}
+.showcase-seat-head { display: flex; align-items: center; gap: 12px; }
+.showcase-face { width: 64px; height: 64px; border-radius: 50%; border: 3px solid #ffc928; object-fit: cover; }
+.showcase-name { font: 800 26px/1 var(--body); }
+.showcase-hand { display: flex; gap: 5px; }
+.showcase-hand .tile { --w: 30px; --h: 60px; }
+.showcase-seat-bottom { left: 50%; bottom: 0; transform: translateX(-50%); }
+.showcase-seat-top { left: 50%; top: 0; transform: translateX(-50%); }
+.showcase-seat-left, .showcase-seat-right { top: 50%; transform: translateY(-50%); width: 210px; }
+.showcase-seat-left { left: 0; }
+.showcase-seat-right { right: 0; }
+.showcase-seat-left .showcase-hand, .showcase-seat-right .showcase-hand { flex-wrap: wrap; }
+.showcase-side {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 30px;
+  border: 2px solid rgba(67, 199, 244, .45);
+  border-radius: 18px;
+  background: rgba(5, 43, 67, .85);
+}
+.showcase-brand { font: 900 64px/1 var(--signage); letter-spacing: -.03em; }
+.showcase-brand .word-yaad { color: var(--gold); }
+.showcase-brand .word-dominoes { color: var(--bone); }
+.showcase-sub { color: var(--sky); font: 700 24px/1.2 var(--mono); }
+.showcase-score { display: grid; gap: 8px; padding: 16px; border-radius: 12px; background: rgba(0, 0, 0, .25); }
+.showcase-score-row { display: flex; justify-content: space-between; font: 800 30px/1.2 var(--mono); color: #fff9ea; }
+.showcase-worth { font: 800 24px/1.2 var(--mono); color: #ffc928; }
+.showcase-caption {
+  flex: 1;
+  font: 700 44px/1.25 var(--body);
+  color: #fff9ea;
+}
+.showcase-tip { padding: 18px; border: 2px solid #ffc928; border-radius: 14px; }
+.showcase-tip-head { color: #ffc928; font: 800 22px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+.showcase-tip-text { font: 600 30px/1.3 var(--body); }
+.showcase-cta { color: #43c7f4; font: 800 30px/1.2 var(--body); }

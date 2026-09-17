@@ -20,5 +20,14 @@ export default defineConfig({
     },
   },
   server: { port: 5173, https: localHttps },
-  build: { target: 'es2022' },
+  build: {
+    target: 'es2022',
+    // Yard TV (/showcase) is its own page, so the stream loads only what it needs.
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        showcase: fileURLToPath(new URL('./showcase.html', import.meta.url)),
+      },
+    },
+  },
 });

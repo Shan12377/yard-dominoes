@@ -12,7 +12,7 @@
  *     network.
  */
 
-const VERSION = 'yaaddominoes-v193';
+const VERSION = 'yaaddominoes-v194';
 const SHELL = `${VERSION}-shell`;
 
 // Bumping VERSION invalidates everything below.
@@ -79,6 +79,8 @@ self.addEventListener('fetch', (event) => {
 
   // Navigations: network first, cached shell only when genuinely offline.
   if (request.mode === 'navigate') {
+    // Yard TV is its own page; never let it become the cached app shell.
+    if (url.pathname.startsWith('/showcase')) return;
     event.respondWith(
       fetch(request)
         .then((res) => {
