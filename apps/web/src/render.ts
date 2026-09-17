@@ -2228,7 +2228,12 @@ export function reserveBoardStage(
   // playable board rectangle.
   if (acrossOwn) obstacles.push({ edge: 'bottom', rect: acrossOwn.getBoundingClientRect() });
   if (acrossPartner) obstacles.push({ edge: 'top', rect: acrossPartner.getBoundingClientRect() });
-  if (actionDock) obstacles.push({ edge: 'bottom', rect: actionDock.getBoundingClientRect() });
+  // The pass-the-pose question sits over an empty board and is gone at the
+  // first play. Counting it measured the whole hand on a shorter stage, and
+  // every bone, hand and board, came out a size smaller (owner, 2026-09-17).
+  if (actionDock && !actionDock.querySelector('[data-pass-pose], [data-keep-pose]')) {
+    obstacles.push({ edge: 'bottom', rect: actionDock.getBoundingClientRect() });
+  }
   const guard = boardGuardInsets(feltRect, stageRect, obstacles, gutter, square);
   boardStage.dataset.boardGuard = square ? 'measured-square' : 'measured-rect';
   boardStage.style.inset = `${Math.ceil(guard.top)}px ${Math.ceil(guard.right)}px ${Math.ceil(guard.bottom)}px ${Math.ceil(guard.left)}px`;

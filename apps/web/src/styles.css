@@ -5936,3 +5936,27 @@ button.hand-end-choice {
     box-shadow: 0 0 0 3px #ffc92833, 0 0 20px #ffc92825;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Hand tray branding, one rule for every game (owner, 2026-09-17: "branding is
+   important"). Waiting: a signal-blue tray. Your turn: the same tray turns
+   green with the gold ring and its glow. See .claude/rules/design.md.
+   ------------------------------------------------------------------------ */
+/* Across turns green on your turn like every other tray, phone and desktop. */
+.in-felt-across-hands > .my-hand-panel.hand-turn-active {
+  border-color: #ffc928;
+  background: #104d43;
+  box-shadow: 0 0 0 3px #ffc92833, 0 0 20px #ffc92825;
+}
+@media (max-width: 700px) {
+  /* Phone hands that sat bare on the wood while waiting (the Lounge games and
+     Practice French) get the blue tray Practice already shows. */
+  .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand:not(.hand-turn-active) {
+    border-color: rgba(67, 199, 244, .45);
+    border-radius: 10px;
+    background: linear-gradient(180deg, #0c4f73, #052b43);
+  }
+  /* The Duppy speed choice does not fit Across's thin strip; it stays on the
+     Practice setup screen. */
+  .in-felt-across-hands .practice-hand-pace { display: none; }
+}

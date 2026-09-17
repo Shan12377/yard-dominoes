@@ -49,6 +49,25 @@ onto generic cards.
 --sky:        #43C7F4;  /* social connection and secondary energy */
 ```
 
+## Hand tray states (owner-confirmed, 2026-09-17)
+
+Every game, Practice and Lounge, phone and desktop, draws the player's own
+hand tray the same two ways. Do not invent a third look for a new mode or a
+new layout.
+
+| State | Background | Edge | Glow |
+|---|---|---|---|
+| Waiting | signal blue (`#0c4f73` → `#052b43`) | sky blue, 45% | none needed |
+| Your turn | green `#104d43` | 2px mango gold `#ffc928` | `0 0 0 3px #ffc92833, 0 0 20px #ffc92825` |
+
+- The tray never sits bare on the wood, and never borrows a competitor's
+  colour (a copied JamDom wood strip broke this once; it was reverted).
+- Wood belongs to the table surface only. Panels are signal blue.
+- A new layout (thin strips, docked trays, side strips) must keep both
+  states. Resetting `border` or `background` on a tray drops the gold turn
+  ring; check the turn state on screen after any tray change.
+- The owner loves the gold ring; it is the turn signal. Keep it.
+
 ## Type
 
 - **Display** — the local `Impact`/condensed fallback stack. Poster-weight and
