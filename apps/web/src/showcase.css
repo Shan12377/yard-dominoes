@@ -141,3 +141,15 @@ body.showcase-body #app { max-width: none; padding: 0; }
 .showcase-seat-left .showcase-name, .showcase-seat-right .showcase-name { font-size: 23px; line-height: 1.1; overflow-wrap: anywhere; }
 .showcase-seat-head { min-width: 0; }
 .showcase-name { min-width: 0; }
+/* The side panel always fits caption, reason and tip, even with the extra
+   "This hand is worth 2" line in the score box. */
+.showcase-side { gap: 16px; padding: 26px; }
+.showcase-brand { font-size: 56px; }
+.showcase-score-row { font-size: 27px; }
+.showcase-worth { font-size: 22px; }
+.showcase-caption { font-size: 31px; line-height: 1.22; }
+.showcase-reason { flex: 1 1 auto; font-size: 25px; line-height: 1.28; overflow: visible; }
+.showcase-tip { padding: 14px 16px; }
+.showcase-tip-head { font-size: 19px; margin-bottom: 6px; }
+.showcase-tip-text { font-size: 25px; }
+.showcase-cta { font-size: 27px; }
