@@ -1113,6 +1113,11 @@ export function liveTableView(
     ));
   }
   scoreWrap.appendChild(board);
+  // A hand worth more than one (after a bruk, or a tied replay) says so,
+  // so nobody is surprised when a win lands 2 (owner, 2026-09-17).
+  if (game.table.format !== 'french' && game.handValue > 1 && game.winnerSide === null) {
+    scoreWrap.appendChild(el('div', 'hand-worth', `This hand is worth ${game.handValue}`));
+  }
   if (game.hand?.status === 'active' && game.hand.turn_expires_at) {
     const clock = countdown(game, game.hand.turn_expires_at);
     clock.classList.add('turn-clock-top');

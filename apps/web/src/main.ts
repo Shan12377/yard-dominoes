@@ -1245,7 +1245,9 @@ function scoreboard(g: LocalGame): HTMLElement {
   if (g.set.handValue > 1) {
     meta.append(el('div', 'side-name', g.set.playoff
       ? 'One all — this hand plays two'
-      : `Replay — worth ${g.set.handValue}`));
+      : g.set.poseMustBeDoubleSix && g.set.scores.every((v) => v === 0) && g.set.handsPlayed > 0 && !(g.hand?.result?.tie)
+        ? `After the bruk — worth ${g.set.handValue}`
+        : `Replay — worth ${g.set.handValue}`));
   }
   // Format belongs in the table header, not a third scoreboard column. On a
   // phone that third column forced the two actual scores onto separate rows

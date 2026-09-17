@@ -5854,3 +5854,10 @@ button.hand-end-choice {
     white-space: nowrap;
   }
 }
+
+/* "This hand is worth 2" in the Lounge score strip. */
+.sticky-scores .hand-worth {
+  color: #ffc928;
+  font: 800 12px/1.2 var(--mono);
+  letter-spacing: .04em;
+}

@@ -67,6 +67,8 @@ export function leadingSide(s: SetState): number | null {
  *     before anyone reaches 6, the score returns to zero points each."
  *     Previously ANY non-leader winning wiped the board, which made a cut
  *     throat six-love set close to unplayable.
+ *   - The hand after any bruk is worth 2 to whoever wins it (owner,
+ *     2026-09-17). A new set starts at 1.
  *   - Under "one all play two", a bruk that would happen while the leader sits
  *     on exactly 1 is replaced by a playoff hand worth two points, so the
  *     winner jumps straight to 2-0 rather than starting over.
@@ -244,14 +246,13 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
   s.scores = s.scores.map(() => 0);
   s.poseMustBeDoubleSix = true;
 
-  if (oneAllPlayTwo && leaderScore === 1) {
-    // One all, play two: no reset to a fresh set, a two-point decider instead.
-    s.handValue = 2;
-    s.playoff = true;
-  } else {
-    s.handValue = 1;
-    s.playoff = false;
-  }
+  // The hand after a bruk is worth 2 to whoever wins it (owner, 2026-09-17:
+  // "whenever a partner or individual bruk a game, it starts at 2 points the
+  // next winning team"). A new set, after a six love or with new people,
+  // starts at 1 (createSet). `playoff` still marks the one-all case so the
+  // table can name it.
+  s.handValue = 2;
+  s.playoff = oneAllPlayTwo && leaderScore === 1;
   return s;
 }
 

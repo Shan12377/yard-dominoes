@@ -151,8 +151,21 @@ describe('six love', () => {
     s = applyHandResult(s, won(1)); // the trailing side strikes
     assert.deepEqual(s.scores, [0, 0], 'everything resets — they do not score 1');
     assert.equal(s.poseMustBeDoubleSix, true, 'the double-six opens after a bruk');
-    assert.equal(s.handValue, 1);
+    assert.equal(s.handValue, 2, 'the hand after a bruk is worth 2 (owner, 2026-09-17)');
     assert.equal(s.winnerSide, null);
+
+    s = applyHandResult(s, won(0));
+    assert.deepEqual(s.scores, [2, 0], 'whoever wins the hand after the bruk takes 2');
+    assert.equal(s.handValue, 1, 'and the hand after that is back to 1');
+  });
+
+  test('a new set starts at 1, even after a six love', () => {
+    let s = createSet({ mode: 'partner', format: 'sixlove', oneAllPlayTwo: false });
+    assert.equal(s.handValue, 1);
+    for (let i = 0; i < 6; i++) s = applyHandResult(s, won(0));
+    assert.equal(s.winnerSide, 0);
+    const next = createSet({ mode: 'partner', format: 'sixlove', oneAllPlayTwo: false });
+    assert.equal(next.handValue, 1);
   });
 
   test('a five-nil lead is worth nothing if they win the sixth', () => {
@@ -193,13 +206,13 @@ describe('one all play two', () => {
     assert.equal(s.handValue, 1);
   });
 
-  test('with the rule off, one all simply bruks', () => {
+  test('with the rule off, one all simply bruks (and the next hand is worth 2, like any bruk)', () => {
     let s = createSet({ mode: 'partner', format: 'sixlove', oneAllPlayTwo: false });
     s = applyHandResult(s, won(0));
     s = applyHandResult(s, won(1));
     assert.deepEqual(s.scores, [0, 0]);
     assert.equal(s.playoff, false);
-    assert.equal(s.handValue, 1);
+    assert.equal(s.handValue, 2);
   });
 });
 
@@ -237,9 +250,9 @@ describe('tied blocked hands', () => {
     s = applyHandResult(s, won(0)); // 2-0
     s = applyHandResult(s, tied);   // replay worth 2
     assert.equal(s.handValue, 2);
-    s = applyHandResult(s, won(1)); // leaders lose the replay
+    s = applyHandResult(s, won(1)); // leaders lose the replay: a bruk
     assert.deepEqual(s.scores, [0, 0]);
-    assert.equal(s.handValue, 1);
+    assert.equal(s.handValue, 2, 'the hand after the bruk is worth 2');
   });
 });
 
