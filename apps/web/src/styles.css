@@ -5861,3 +5861,37 @@ button.hand-end-choice {
   font: 800 12px/1.2 var(--mono);
   letter-spacing: .04em;
 }
+
+/* Practice cut throat, partner and open hand on a phone, JamDom's way
+   (owner, 2026-09-17). The table is about 80px shorter, and the hand sits on
+   its own dark strip across the bottom so the wood visibly ends above it. */
+@media (max-width: 700px) {
+  .practice-room.jamdom-short-room > .live-felt {
+    height: calc(100svh - 152px);
+    min-height: 460px;
+  }
+  /* JamDom's framed table: a dark inner border makes the wood read as one
+     square playing area inside the rim. */
+  .practice-room.jamdom-phone-room > .live-felt {
+    box-shadow: inset 0 0 0 5px rgba(36, 22, 8, .55), inset 0 0 24px rgba(0, 0, 0, .35);
+  }
+  .practice-room.jamdom-phone-room .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    transform: none;
+    border: 0;
+    border-top: 2px solid #33200e;
+    border-radius: 0 0 10px 10px;
+    background: linear-gradient(180deg, #3a2512, #24170b);
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, .35);
+  }
+}
+
+/* Practice's side players sit a few px past the rim (v186); clip the
+   overhang so the page never scrolls sideways on a phone. */
+@media (max-width: 700px) {
+  .practice-room { overflow-x: clip; }
+}

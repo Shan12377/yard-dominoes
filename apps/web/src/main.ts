@@ -1547,6 +1547,15 @@ function phoneRouteGridOf(geo: PhoneRouteGrid): PhoneRouteGrid {
 }
 /** Largest board bone mobile Practice draws (40px); the measured wood usually decides first. */
 const PHONE_BOARD_MAX_UNIT = 20;
+/**
+ * Practice cut throat's shorter JamDom phone table holds a 28px bone. Its wood
+ * cannot hold every sizing hand at that size, so the sizing check is loosened;
+ * a hand that runs out of room is laid again one size smaller. The check's own
+ * estimate is optimistic, so this was settled in real games: cut throat kept
+ * 28px in 3 of 3, partner in 2 of 3, open hand in 1 of 4 (2026-09-17).
+ */
+const PRACTICE_JAMDOM_UNIT = 14;
+const PRACTICE_JAMDOM_TOLERANCE = 240;
 const PHONE_BOARD_MIN_UNIT = 8;
 let lastFrenchGuardInset: string | null = null;
 /**
@@ -2429,6 +2438,15 @@ function tableView(g: LocalGame): DocumentFragment {
   // Desktop too since 2026-09-15 (owner: "every change that was done to the
   // mobile that made it precise"), at the desktop bone size.
   // Across too, as in the Lounge: its rules decide who plays, not where bones go.
+  // Practice cut throat, partner and open hand on a phone, JamDom's way
+  // (owner, 2026-09-17: "the board is too long", bones a size bigger): a
+  // shorter wood with the hand on its own strip below, and 28px bones in the
+  // hand and on the board. Across and French keep their own layouts.
+  const practiceJamdomLook = window.innerWidth <= 700 && g.options.format !== 'french' && g.options.mode !== 'across';
+  // 28px only where real games held it: cut throat on its shorter table.
+  // Partner and open hand at 28px shrank mid-hand in 1 of 3 games even on
+  // today's table, so they keep their measured bone (owner, 2026-09-17).
+  const practiceJamdomPhone = practiceJamdomLook && g.options.mode === 'cutthroat';
   const phoneFixedRoute = g.options.format !== 'french';
   const phoneRouteKey = phoneFixedRoute ? `${g.fairness?.handId ?? 'undealt'}:${window.innerWidth}` : null;
   const lockedPhoneRoute = phoneRouteKey !== null && phoneRouteKey === lastPhoneRouteKey ? lastPhoneRoute : null;
@@ -2444,6 +2462,11 @@ function tableView(g: LocalGame): DocumentFragment {
   };
   if (phoneFixedRoute) {
     room.classList.add('phone-route-room');
+    room.classList.toggle('jamdom-phone-room', practiceJamdomLook);
+    // Only cut throat takes the shorter wood: in real games it held its 28px
+    // bone (0 of 3 shrank), while partner (1 of 3) and open hand (3 of 4)
+    // ran out of room on it (owner, 2026-09-17).
+    room.classList.toggle('jamdom-short-room', practiceJamdomPhone);
     felt.classList.add('phone-route-table');
     boardStage.classList.add('phone-route-stage');
     // Hand and board are one set at one size (owner, 2026-09-14: "the domino
@@ -2451,7 +2474,7 @@ function tableView(g: LocalGame): DocumentFragment {
     // width, start from 26px; the refit below sets the measured size. The tray
     // has a fixed height, so this never resizes the board above it.
     const measuredHere = lastPhoneRoute && lastPhoneRouteKey?.endsWith(`:${window.innerWidth}`);
-    room.style.setProperty('--hand-bone-short', `${(measuredHere ? lastPhoneRoute!.unit : 13) * 2}px`);
+    room.style.setProperty('--hand-bone-short', `${(measuredHere ? lastPhoneRoute!.unit : practiceJamdomPhone ? PRACTICE_JAMDOM_UNIT : 13) * 2}px`);
   }
   // First pass: the cached real box once we have one (near-instant, no
   // flash), or feltBox()'s window-based guess before the felt has ever been
@@ -2790,7 +2813,8 @@ function tableView(g: LocalGame): DocumentFragment {
     lastFeltHasHandRail = handOnFelt;
     if (phoneFixedRoute && displayBoard?.kind !== 'cross') {
       // Phones choose their own bone; desktop keeps its current size (owner).
-      const routeMaxUnit = window.innerWidth <= 700 ? PHONE_BOARD_MAX_UNIT : tableUnit;
+      const routeMaxUnit = practiceJamdomPhone ? PRACTICE_JAMDOM_UNIT
+        : window.innerWidth <= 700 ? PHONE_BOARD_MAX_UNIT : tableUnit;
       // Desktop may step down to any readable bone rather than lay one past the
       // wood (Across stopped at 22px and hid 6/1 under the table edge).
       const routeMinUnit = window.innerWidth <= 700 ? PHONE_BOARD_MIN_UNIT : DESK_ROUTE_MIN_UNIT;
@@ -2832,7 +2856,8 @@ function tableView(g: LocalGame): DocumentFragment {
         const layoutClimb = g.options.mode === 'across' ? ACROSS_CLIMB : undefined;
         const plainRoute = deskTrim
           ? deskRouteGeometry(stageBox, blocked, routeMinUnit, undefined, layoutClimb)
-          : phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked, undefined, false, undefined, undefined, layoutClimb);
+          : phonePracticeGeometry(stageBox, routeMaxUnit, routeMinUnit, blocked, undefined, false,
+            practiceJamdomPhone ? PRACTICE_JAMDOM_TOLERANCE : undefined, undefined, layoutClimb);
         const withRule = routeFirstRow === undefined ? null : plainRoute;
         const ruleFits = !!withRule && phoneRouteGeometryFits(withRule);
         lastPhoneRoute = plainRoute;
@@ -2849,7 +2874,10 @@ function tableView(g: LocalGame): DocumentFragment {
         const relayClimb = g.options.mode === 'across' ? ACROSS_CLIMB : undefined;
         lastPhoneRoute = window.innerWidth > 700
           ? deskRouteGeometry(lastPhoneRouteFit.box, lastPhoneRouteFit.blocked, routeMinUnit, lastPhoneRoute.unit - 1, relayClimb)
-          : phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1, routeMinUnit, lastPhoneRouteFit.blocked, undefined, false, undefined, undefined, relayClimb);
+          : phonePracticeGeometry(lastPhoneRouteFit.box, lastPhoneRoute.unit - 1, routeMinUnit, lastPhoneRouteFit.blocked, undefined, false,
+            // One size down, not straight to the strictest fit (a 28px
+            // JamDom hand that ran out of room dropped to 22px at once).
+            practiceJamdomPhone ? PRACTICE_JAMDOM_TOLERANCE : undefined, undefined, relayClimb);
       }
       const geo = lastPhoneRoute;
       room.style.setProperty('--hand-bone-short', `${geo.unit * 2}px`);
