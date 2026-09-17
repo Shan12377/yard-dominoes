@@ -48,13 +48,16 @@ export async function finishGame(
   for (const s of seats) if (s.user_id) people.set(s.user_id, [...(people.get(s.user_id) ?? []), s]);
   for (const [userId, mine] of people) {
     const { data: p } = await db.from('profiles')
-      .select('table_trust, games_finished, games_won, win_streak, best_win_streak').eq('id', userId).single();
+      .select('is_admin, table_trust, games_finished, games_won, win_streak, best_win_streak').eq('id', userId).single();
     if (!p) continue;
     const won = mine.some((s) => sideOf(s.seat_index, table.mode) === winnerSide);
     const streak = won ? (p.win_streak ?? 0) + 1 : 0;
     let trust = p.table_trust ?? 100;
-    if (mine.some(fullGame)) trust += TRUST.cleanFinish;
-    if (mine.reduce((n, s) => n + (s.timeouts ?? 0), 0) >= STALL_OUT_TIMEOUTS) trust -= TRUST.stallOut;
+    // Admins carry no Table Trust (owner, 2026-09-17).
+    if (!p.is_admin) {
+      if (mine.some(fullGame)) trust += TRUST.cleanFinish;
+      if (mine.reduce((n, s) => n + (s.timeouts ?? 0), 0) >= STALL_OUT_TIMEOUTS) trust -= TRUST.stallOut;
+    }
     const { error } = await db.from('profiles').update({
       table_trust: clampTrust(trust),
       games_finished: (p.games_finished ?? 0) + 1,
@@ -78,8 +81,8 @@ export async function countStarted(db: SupabaseClient, userIds: string[]): Promi
 
 /** Table Trust taken for walking off a game in progress; given back on a rejoin. */
 export async function adjustTrust(db: SupabaseClient, userId: string, delta: number, loveWalkDelta = 0): Promise<void> {
-  const { data: p } = await db.from('profiles').select('table_trust, love_walks').eq('id', userId).single();
-  if (!p) return;
+  const { data: p } = await db.from('profiles').select('is_admin, table_trust, love_walks').eq('id', userId).single();
+  if (!p || p.is_admin) return;
   await db.from('profiles').update({
     table_trust: clampTrust((p.table_trust ?? 100) + delta),
     love_walks: Math.max(0, (p.love_walks ?? 0) + loveWalkDelta),

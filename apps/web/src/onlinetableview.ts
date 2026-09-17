@@ -841,7 +841,8 @@ function seatCard(
   // hand's timing.
   if (s.userId && (s.rating !== null || s.avgMoveMs !== null)) {
     const bits: string[] = [];
-    if (s.rating !== null) bits.push(s.tier && s.tier !== 'guest' ? `${rankTier(s.rating).name} · ${s.rating}` : 'Unranked');
+    if (s.isAdmin) bits.push('Admin');
+    else if (s.rating !== null) bits.push(s.tier && s.tier !== 'guest' ? `${rankTier(s.rating).name} · ${s.rating}` : 'Unranked');
     if (s.avgMoveMs !== null) bits.push(`avg ${(s.avgMoveMs / 1000).toFixed(1)}s`);
     card.append(el('div', 'meta seat-stats', bits.join(' · ')));
   }

@@ -5991,3 +5991,5 @@ button.hand-end-choice {
 .trust-respect { color: #2dd46f; }
 .trust-watch { color: #ffc928; }
 .trust-rough { color: #ff765e; }
+
+.rank-admin { color: #fff9ea; background: rgba(255, 90, 60, .25); border-color: #ff765e; }

@@ -51,7 +51,7 @@ export async function applyRatingUpdates(
   const rdColumn = mode === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
 
   const { data: profiles, error } = await db.from('profiles')
-    .select(`id, tier, tier_expires_at, table_trust, ${column}, ${rdColumn}`).in('id', humanIds);
+    .select(`id, tier, tier_expires_at, table_trust, is_admin, ${column}, ${rdColumn}`).in('id', humanIds);
   if (error || !profiles) {
     console.error('applyRatingUpdates: could not read profiles', error);
     return;
@@ -81,6 +81,8 @@ export async function applyRatingUpdates(
   for (const update of updates) {
     if (!member(update.userId)) continue;
     if (options.ratedUsers && !options.ratedUsers.has(update.userId)) continue;
+    // Admins play unranked; the players at their table are still rated.
+    if (byId.get(update.userId)?.is_admin) continue;
     // Rough Play: behaviour never changes the rating, but it pauses it.
     if ((byId.get(update.userId)?.table_trust ?? 100) < ROUGH_PLAY_TRUST) continue;
     const before = byId.get(update.userId)?.[column] ?? 1200;

@@ -756,8 +756,14 @@ function playerProfileCard(rerender: () => void): HTMLElement {
   panel.append(el('p', 'muted small', `Playing since ${MEMBER_SINCE.format(new Date(p.createdAt))}`));
 
   const stats = el('div', 'stack');
-  stats.appendChild(ratingLine('Partner Yard Rating', p.ratingPartner, p.rdPartner, p.tier === 'guest'));
-  stats.appendChild(ratingLine('Cut throat Yard Rating', p.ratingCutthroat, p.rdCutthroat, p.tier === 'guest'));
+  if (p.isAdmin) {
+    const row = el('div', 'row');
+    row.append(el('span', 'muted', 'Rank'), el('span', 'rank-chip rank-admin', 'Admin'));
+    stats.appendChild(row);
+  } else {
+    stats.appendChild(ratingLine('Partner Yard Rating', p.ratingPartner, p.rdPartner, p.tier === 'guest'));
+    stats.appendChild(ratingLine('Cut throat Yard Rating', p.ratingCutthroat, p.rdCutthroat, p.tier === 'guest'));
+  }
   const hands = el('div', 'row');
   hands.append(el('span', 'muted', 'Hands played'), el('span', 'mono', String(p.handsPlayed)));
   stats.appendChild(hands);
@@ -774,9 +780,11 @@ function playerProfileCard(rerender: () => void): HTMLElement {
       row.append(el('span', 'muted', label), el('span', 'mono', value));
       stats.appendChild(row);
     };
-    const trustRow = el('div', 'row');
-    trustRow.append(el('span', 'muted', 'Table Trust'), trustChip(f.tableTrust));
-    stats.appendChild(trustRow);
+    if (!p.isAdmin) {
+      const trustRow = el('div', 'row');
+      trustRow.append(el('span', 'muted', 'Table Trust'), trustChip(f.tableTrust));
+      stats.appendChild(trustRow);
+    }
     line('Games played', String(f.gamesFinished));
     if (f.gamesFinished > 0) line('Win rate', `${Math.round((f.gamesWon / f.gamesFinished) * 100)}%`);
     if (f.gamesStarted > 0) line('Match completion', `${Math.min(100, Math.round((f.gamesFinished / f.gamesStarted) * 100))}%`);

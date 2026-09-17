@@ -377,9 +377,12 @@ export interface PublicProfile {
   sixLovesTaken: number;
   /** Table Trust and career stats (0066). Null until that data exists. */
   fairPlay: FairPlay | null;
+  /** Admins play unranked and show an Admin badge instead of a rank. */
+  isAdmin: boolean;
 }
 
 export interface FairPlay {
+  isAdmin: boolean;
   tableTrust: number;
   loveWalks: number;
   gamesStarted: number;
@@ -392,10 +395,11 @@ export interface FairPlay {
 /** Read on its own so a missing column can never blank the whole profile. */
 async function fetchFairPlay(userId: string): Promise<FairPlay | null> {
   const { data, error } = await (db().from('profiles') as any)
-    .select('table_trust, love_walks, games_started, games_finished, games_won, win_streak, best_win_streak')
+    .select('is_admin, table_trust, love_walks, games_started, games_finished, games_won, win_streak, best_win_streak')
     .eq('id', userId).single();
   if (error || !data) return null;
   return {
+    isAdmin: !!data.is_admin,
     tableTrust: data.table_trust ?? 100,
     loveWalks: data.love_walks ?? 0,
     gamesStarted: data.games_started ?? 0,
@@ -424,6 +428,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
   }
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
+  const fairPlay = await fetchFairPlay(userId);
   return {
     id: data.id,
     username: data.username,
@@ -440,7 +445,8 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     handsPlayed: data.hands_played,
     sixLovesGiven: data.six_loves_given,
     sixLovesTaken: data.six_loves_taken,
-    fairPlay: await fetchFairPlay(userId),
+    fairPlay,
+    isAdmin: !!fairPlay?.isAdmin,
   };
 }
 
@@ -869,6 +875,7 @@ export async function topRanked(category: RatingCategory, limit = 20): Promise<R
     .select(`id, username, avatar, avatar_accessory, tier, tier_expires_at, ${ratingCol}, ${rdCol}`)
     .lt(rdCol, 350)
     .neq('tier', 'guest')
+    .not('is_admin', 'is', true)
     .order(ratingCol, { ascending: false })
     .limit(limit * 2);
   if (error || !data) return [];

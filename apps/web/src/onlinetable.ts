@@ -63,6 +63,8 @@ export interface SeatInfo {
   duppyLevel: string | null;
   /** Unspent seconds this seat carries into its next turn. Server-owned. */
   timeBank: number;
+  /** Admins play unranked (owner, 2026-09-17). */
+  isAdmin?: boolean;
   /** Someone booked to take this left seat at the next deal (0065). */
   claimUserId?: string | null;
   /** 'vip' wears a badge at the table (owner, 2026-09-16). Null for a duppy or an unknown profile. */
@@ -438,6 +440,7 @@ export class OnlineGame {
     avatarAccessory: string | null;
     background: string | null; rating: number | null; avgMoveMs: number | null;
     tier: string | null;
+    isAdmin: boolean;
     fetchedAt: number;
   }>();
 
@@ -451,6 +454,7 @@ export class OnlineGame {
       avatarAccessory: s.user_id ? this.names.get(s.user_id)?.avatarAccessory ?? null : null,
       background: s.user_id ? this.names.get(s.user_id)?.background ?? null : null,
       tier: s.user_id ? this.names.get(s.user_id)?.tier ?? null : null,
+      isAdmin: s.user_id ? this.names.get(s.user_id)?.isAdmin ?? false : false,
       rating: s.user_id ? this.names.get(s.user_id)?.rating ?? null : null,
       avgMoveMs: s.user_id ? this.names.get(s.user_id)?.avgMoveMs ?? null : null,
       duppyLevel: s.duppy_level,
@@ -476,12 +480,12 @@ export class OnlineGame {
     const ratingColumn = this.ratingColumn();
     let { data, error } = await (db().from('profiles') as any)
       .select(SHARE_AVATAR_ACCESSORIES
-        ? `id, username, origin, avatar, avatar_accessory, background, tier, total_move_ms, total_moves, ${ratingColumn}`
-        : `id, username, origin, avatar, background, tier, total_move_ms, total_moves, ${ratingColumn}`)
+        ? `id, username, origin, avatar, avatar_accessory, background, tier, is_admin, total_move_ms, total_moves, ${ratingColumn}`
+        : `id, username, origin, avatar, background, tier, is_admin, total_move_ms, total_moves, ${ratingColumn}`)
       .in('id', due);
     if (error && (error.code === '42703' || error.code === 'PGRST204' || error.message.includes('avatar_accessory'))) {
       ({ data, error } = await (db().from('profiles') as any)
-        .select(`id, username, origin, avatar, background, tier, total_move_ms, total_moves, ${ratingColumn}`)
+        .select(`id, username, origin, avatar, background, tier, is_admin, total_move_ms, total_moves, ${ratingColumn}`)
         .in('id', due));
     }
     if (!data?.length) return;
@@ -496,6 +500,7 @@ export class OnlineGame {
         rating: ((row as any)[ratingColumn] ?? null) as number | null,
         avgMoveMs: totalMoves > 0 ? (row.total_move_ms as number) / totalMoves : null,
         tier: ((row as any).tier ?? null) as string | null,
+        isAdmin: !!(row as any).is_admin,
         fetchedAt: now,
       });
     }
@@ -506,7 +511,7 @@ export class OnlineGame {
             ...s, username: known.username, origin: known.origin, avatar: known.avatar,
             avatarAccessory: known.avatarAccessory,
             background: known.background, rating: known.rating, avgMoveMs: known.avgMoveMs,
-            tier: known.tier,
+            tier: known.tier, isAdmin: known.isAdmin,
           }
         : s;
     });
