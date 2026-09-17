@@ -5915,3 +5915,15 @@ button.hand-end-choice {
     linear-gradient(92deg, rgba(45, 22, 8, .24), transparent 19%, rgba(255, 221, 166, .08) 44%, transparent 69%, rgba(38, 18, 7, .2)),
     linear-gradient(165deg, var(--felt-hi), var(--felt) 45%, var(--felt-lo));
 }
+
+/* The JamDom hand strip keeps Yard's turn light: on your turn it lights up
+   with the gold ring, exactly as the tray always has (owner, 2026-09-17: "the
+   gold strip to light up ... I LOVE THAT"). */
+@media (max-width: 700px) {
+  .practice-room.jamdom-phone-room .table-felt.hand-on-felt > .my-hand-panel.in-felt-hand.hand-turn-active {
+    border: 2px solid #ffc928;
+    border-radius: 0 0 10px 10px;
+    background: #104d43;
+    box-shadow: 0 0 0 3px #ffc92833, 0 0 20px #ffc92825;
+  }
+}
