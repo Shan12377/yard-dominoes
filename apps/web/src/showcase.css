@@ -130,3 +130,14 @@ body.showcase-body #app { max-width: none; padding: 0; }
 /* Side players' bubbles open towards the table, not off the screen edge. */
 .showcase-seat-left .showcase-bubble { left: 0; transform: none; }
 .showcase-seat-right .showcase-bubble { left: auto; right: 0; transform: none; }
+/* The shuffle is Practice's phone-sized animation; on a TV table it read as
+   a small ring nobody noticed (owner, 2026-09-17). Draw it big. */
+.showcase-felt .practice-deal-overlay > * { transform: scale(2.6); transform-origin: center; }
+.showcase-felt .practice-deal-overlay { background: rgba(5, 43, 67, .35); }
+/* No "Pose to open the board" hint on a stream: the caption says it. */
+.showcase-board .line:empty::after { content: none; }
+/* Long names such as Uncle Desmond stay inside the side boxes. */
+.showcase-seat-left, .showcase-seat-right { width: 250px; box-sizing: border-box; }
+.showcase-seat-left .showcase-name, .showcase-seat-right .showcase-name { font-size: 23px; line-height: 1.1; overflow-wrap: anywhere; }
+.showcase-seat-head { min-width: 0; }
+.showcase-name { min-width: 0; }
