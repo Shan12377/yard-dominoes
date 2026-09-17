@@ -6024,3 +6024,42 @@ button.hand-end-choice {
   /* A little clear wood above the top player's hanging bones. */
   .practice-room.french-phone-room .table-felt > .table-player-station-top.station-tab { top: 2px; }
 }
+
+/* Lounge French on a phone (owner, 2026-09-17): a shorter hand banner, so the
+   board gets the room, and the top player sits right at the top of the wood,
+   laid out across rather than boxed in. */
+@media (max-width: 700px) {
+  .table-room .felt-shell:has(> .live-felt.french-cross-live) > .table-player-station-top:not(.station-tab) {
+    top: 2px;
+    max-width: calc(100% - 12px);
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 6px;
+  }
+  .table-room .felt-shell:has(> .live-felt.french-cross-live) > .table-player-station-top:not(.station-tab) .table-rack .backs {
+    flex-direction: row;
+  }
+  .table-room .live-felt.french-cross-live > .my-hand-panel.in-felt-hand {
+    padding: 2px 6px 4px;
+  }
+  .table-room .live-felt.french-cross-live > .my-hand-panel.in-felt-hand > .eyebrow {
+    min-height: 0;
+    margin: 0 0 1px;
+    font-size: 11px;
+    line-height: 20px;
+  }
+  .table-room .live-felt.french-cross-live > .my-hand-panel.in-felt-hand > .eyebrow > .pass-action-row {
+    margin: 0 0 0 auto;
+    font-size: 11px;
+  }
+  .table-room .live-felt.french-cross-live > .my-hand-panel.in-felt-hand > .eyebrow > .pass-action-row .pass-action {
+    min-height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .table-room .live-felt.french-cross-live > .my-hand-panel.in-felt-hand .hand {
+    margin-top: 1px;
+    padding-block: 1px;
+  }
+}
