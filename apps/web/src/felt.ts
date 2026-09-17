@@ -49,7 +49,37 @@ export function setFelt(id: string) {
   applyFelt();
 }
 
+const NIGHT_KEY = 'yard:night-table';
+
+/**
+ * Night table (owner, 2026-09-17): dims the wood for late play instead of a
+ * brightness slider. The app is already dark; only the table glares.
+ */
+export function nightTable(): boolean {
+  try { return localStorage.getItem(NIGHT_KEY) === '1'; } catch { return false; }
+}
+
+export function setNightTable(on: boolean) {
+  try { localStorage.setItem(NIGHT_KEY, on ? '1' : '0'); } catch { /* private mode */ }
+  applyFelt();
+}
+
+/** The moon button that sits after the colour swatches. */
+export function nightTableButton(after: () => void): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'night-toggle';
+  b.textContent = '☾';
+  b.title = 'Night table';
+  b.setAttribute('aria-label', 'Night table');
+  b.setAttribute('aria-pressed', String(nightTable()));
+  b.onclick = () => { setNightTable(!nightTable()); after(); };
+  return b;
+}
+
 /** Called once at boot and again on every change. */
 export function applyFelt() {
   document.documentElement.dataset.felt = felt();
+  if (nightTable()) document.documentElement.dataset.nightTable = 'true';
+  else delete document.documentElement.dataset.nightTable;
 }

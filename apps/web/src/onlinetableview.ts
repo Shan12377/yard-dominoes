@@ -29,7 +29,7 @@ import {
 } from '@yard/engine';
 import type { Move, TileId } from '@yard/engine';
 import * as sfx from './sfx.ts';
-import { FELTS, felt as chosenFelt, setFelt } from './felt.ts';
+import { FELTS, felt as chosenFelt, setFelt, nightTableButton } from './felt.ts';
 
 /** Surface a failed request inline, next to whatever control triggered it —
  * same `.banner` treatment loungeview.ts uses for its room-level error, just
@@ -1044,6 +1044,7 @@ export function liveTableView(
     b.onclick = () => { setFelt(f.id); rerender(); };
     colour.appendChild(b);
   }
+  colour.appendChild(nightTableButton(() => rerender()));
   top.appendChild(colour);
   const leave = document.createElement('button');
   leave.className = 'act ghost';

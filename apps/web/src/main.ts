@@ -35,7 +35,7 @@ import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
 import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
 import * as sfx from './sfx.ts';
-import { applyFelt, FELTS, felt, setFelt } from './felt.ts';
+import { applyFelt, FELTS, felt, setFelt, nightTableButton } from './felt.ts';
 import { needsLayoutRenderForResize } from './viewport.ts';
 import {
   platform, promptInstall, watchInstallability, registerServiceWorker,
@@ -2390,6 +2390,7 @@ function feltPicker(): HTMLElement {
     b.onclick = () => { setFelt(f.id); render(); };
     wrap.appendChild(b);
   }
+  wrap.appendChild(nightTableButton(() => render()));
   return wrap;
 }
 

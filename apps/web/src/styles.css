@@ -5896,3 +5896,22 @@ button.hand-end-choice {
 @media (max-width: 700px) {
   .practice-room { overflow-x: clip; }
 }
+
+/* Night table: the moon after the colour swatches dims the wood only. The
+   dominoes, faces and panels stay as they are. */
+.felt-pick .night-toggle {
+  display: grid;
+  place-items: center;
+  border-color: rgba(67, 199, 244, .45);
+  background: #052b43;
+  color: #fff9ea;
+  font: 700 20px/1 var(--body);
+}
+.practice-room .felt-pick .night-toggle { font-size: 18px; }
+.live-table-head .felt-pick .night-toggle { font-size: 14px; }
+:root[data-night-table="true"] .table-felt {
+  background:
+    linear-gradient(rgba(4, 10, 18, .42), rgba(4, 10, 18, .42)),
+    linear-gradient(92deg, rgba(45, 22, 8, .24), transparent 19%, rgba(255, 221, 166, .08) 44%, transparent 69%, rgba(38, 18, 7, .2)),
+    linear-gradient(165deg, var(--felt-hi), var(--felt) 45%, var(--felt-lo));
+}
