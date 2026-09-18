@@ -178,3 +178,54 @@ body.showcase-body #app { max-width: none; padding: 0; }
 .showcase-shuffle-bone.showcase-shuffle-dealt {
   transition: transform 340ms cubic-bezier(.2, .8, .3, 1);
 }
+
+/* Points at the seat (owner, 2026-09-18): the score a viewer needs while
+   watching the table, without reading the side panel. Gold like every other
+   score in the app; coral once a French seat is near the 100 that busts. */
+.showcase-points {
+  margin-left: auto;
+  min-width: 58px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(5, 43, 67, .75);
+  border: 2px solid #ffc928;
+  color: #ffc928;
+  font: 800 26px/1.1 var(--mono, ui-monospace, monospace);
+  text-align: center;
+}
+.showcase-points.showcase-points-love {
+  border-color: rgba(185, 220, 235, .5);
+  color: #b9dceb;
+  font-size: 20px;
+}
+.showcase-points.showcase-points-high { border-color: #ff5a3c; color: #ff5a3c; }
+.showcase-seat-left .showcase-points, .showcase-seat-right .showcase-points { font-size: 22px; min-width: 48px; }
+/* The side seats are narrow (they sit beside the felt, not above it), so the
+   pill went on the same line as the name and broke it mid-word — "Keis ha".
+   Names never wrap; on those two seats the points sit under the face. */
+.showcase-name { white-space: nowrap; }
+.showcase-seat-left .showcase-seat-head, .showcase-seat-right .showcase-seat-head { flex-wrap: wrap; }
+.showcase-seat-left .showcase-points, .showcase-seat-right .showcase-points { margin-left: 0; }
+
+/* The wordmark over the shuffle, the same one the app's own deal carries
+   (owner, 2026-09-18: brand it like the other games). Big enough to read on a
+   1080p stream, and gone before the first bone is dealt. */
+.showcase-shuffle-mark {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  color: #fff8dc;
+  filter: drop-shadow(0 6px 10px rgba(5, 24, 50, .75));
+  transition: opacity 320ms ease, transform 320ms ease;
+}
+.showcase-shuffle-mark strong { color: #ffc928; font: 900 96px/.9 var(--display); letter-spacing: .03em; }
+.showcase-shuffle-mark span { font: 900 32px/1 var(--mono, ui-monospace, monospace); letter-spacing: .24em; }
+.showcase-shuffle-mark.showcase-shuffle-mark-out {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(.94);
+}

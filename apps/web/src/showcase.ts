@@ -159,7 +159,7 @@ class Showcase {
   private readonly felt = el('div', 'showcase-felt table-felt');
   private readonly boardStage = el('div', 'showcase-board');
   private readonly line = el('div', 'line');
-  private readonly seats: { box: HTMLElement; face: HTMLImageElement; name: HTMLElement; hand: HTMLElement; bubble: HTMLElement }[] = [];
+  private readonly seats: { box: HTMLElement; face: HTMLImageElement; name: HTMLElement; points: HTMLElement; hand: HTMLElement; bubble: HTMLElement }[] = [];
   private readonly title = el('div', 'showcase-sub');
   private readonly score = el('div', 'showcase-score');
   private readonly caption = el('div', 'showcase-caption');
@@ -187,14 +187,19 @@ class Showcase {
       face.className = 'showcase-face';
       face.alt = '';
       const name = el('div', 'showcase-name');
+      // Points at the seat, not only in the side panel (owner, 2026-09-18).
+      // A viewer watching the table should never have to look away from it to
+      // know where the game stands — and in French, where the whole game is a
+      // race to 100, the number beside the player IS the game.
+      const points = el('div', 'showcase-points');
       const head = el('div', 'showcase-seat-head');
-      head.append(face, name);
+      head.append(face, name, points);
       const hand = el('div', 'showcase-hand');
       const bubble = el('div', 'showcase-bubble');
       bubble.hidden = true;
       box.append(head, hand, bubble);
       table.appendChild(box);
-      this.seats.push({ box, face, name, hand, bubble });
+      this.seats.push({ box, face, name, points, hand, bubble });
     });
 
     const side = el('aside', 'showcase-side');
@@ -275,9 +280,19 @@ class Showcase {
       this.line.style.top = `${geo.top}px`;
       this.line.style.margin = '0';
     }
-    this.seats.forEach(({ box, hand: rack }, seat) => {
+    const french = this.spec.format === 'french';
+    this.seats.forEach(({ box, hand: rack, points }, seat) => {
       box.classList.toggle('showcase-turn', !!hand && hand.status === 'active' && hand.turn === seat);
       rack.replaceChildren(...(hand?.hands[seat] ?? []).map((t) => tileEl(t)));
+      // A partner's points belong to the side, so both seats of a side show
+      // the same number — that is what the pair is actually playing for.
+      const score = partnered(this.spec) ? set.scores[seat % 2] ?? 0 : set.scores[seat] ?? 0;
+      points.textContent = score === 0 && !french ? 'love' : String(score);
+      points.classList.toggle('showcase-points-love', score === 0 && !french);
+      // French counts UP to 100 and the lowest score wins, so a big number is
+      // bad news there and must not wear the winning colour.
+      points.classList.toggle('showcase-points-high', french && score >= 70);
+      points.setAttribute('aria-label', `${this.name(seat)}: ${score} point${score === 1 ? '' : 's'}`);
     });
     const row = (label: string, value: string) => {
       const r = el('div', 'showcase-score-row');
@@ -406,6 +421,12 @@ class Showcase {
     this.caption.textContent = 'Shuffling.';
     this.reason.textContent = '';
     const layer = el('div', 'showcase-shuffle');
+    // The wordmark the app's own deal carries, so Yard TV's shuffle is branded
+    // like every other game's (owner, 2026-09-18). It sits over the jumble and
+    // clears the moment the dealing starts, so it never hides a bone landing.
+    const mark = el('div', 'showcase-shuffle-mark');
+    mark.append(el('strong', undefined, 'YAAD'), el('span', undefined, 'DOMINOES'));
+    layer.appendChild(mark);
     this.table.appendChild(layer);
 
     const left = this.felt.offsetLeft, top = this.felt.offsetTop;
@@ -445,6 +466,7 @@ class Showcase {
     // Dealt to the wood in front of each seat, not onto the seat card: the
     // hands are hidden while dealing, so a card-centred target landed the
     // bones across the player's own name.
+    mark.classList.add('showcase-shuffle-mark-out');
     this.caption.textContent = 'Dealing — seven each.';
     const drop = (slot: number, nth: number): [number, number] => {
       const spread = (nth - 3) * 26;
