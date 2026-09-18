@@ -6064,9 +6064,28 @@ button.hand-end-choice {
   }
 }
 
-/* Top of the yard — the front door's three highest Partner ratings (owner,
-   2026-09-17). Borrows the leaderboard's own row grid so the same faces read
-   identically here and on the full board. */
+/* Top of the yard — the front door's single highest-rated player across every
+   game (owner, 2026-09-17). One face, big enough to be a person rather than a
+   list entry, and the rating in the leaderboard's own gold mono. */
 .yard-top { margin-top: 12px; }
-.yard-top .ranking-row { grid-template-columns: 28px 40px 1fr auto; }
+.yard-top-row {
+  display: grid; grid-template-columns: 56px 1fr auto;
+  align-items: center; gap: 12px; padding: 10px 12px;
+  border-radius: var(--r); background: var(--wood-hi);
+}
+.yard-top-row .avatar { width: 56px; height: 56px; object-fit: cover; }
+.yard-top-initial {
+  display: grid; place-items: center; width: 56px; height: 56px;
+  border-radius: 50%; border: 2px solid var(--bone-shade);
+  background: var(--sand-hi); color: var(--gold);
+  font-family: var(--display); font-size: 24px; line-height: 1;
+}
+.yard-top-who { display: grid; gap: 2px; min-width: 0; }
+.yard-top-name {
+  font-family: var(--body); font-weight: 700; font-size: 17px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.yard-top-rating {
+  font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--gold);
+}
 .yard-top-foot { margin: 10px 0 0; }
