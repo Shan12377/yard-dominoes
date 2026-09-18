@@ -1987,9 +1987,13 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
   const partnerHand = g.partnerSeat !== null && seat === g.partnerSeat;
   handTurnCue(panel, live);
   if (!passive && !g.isMyTurn()) pendingTile = null;
-  const handHeader = el('div', 'eyebrow', live
+  const handHeader = el('div', 'eyebrow');
+  // A span, not a bare text node, so the note below can hide the label and
+  // take the whole width — on a 390px phone the two together truncated the
+  // one thing the player needs to read.
+  handHeader.appendChild(el('span', 'hand-eyebrow-label', live
     ? (pendingTile ? 'Choose where it goes' : partnerHand ? 'Your partner hand — your turn' : 'Your turn')
-    : partnerHand ? 'Your partner hand' : 'Your hand');
+    : partnerHand ? 'Your partner hand' : 'Your hand'));
   // This is practice's Duppy thinking interval, not an invented move clock.
   // Keeping it in the hand tray makes it reachable during a game without
   // turning the practice page back into the old stack of controls below wood.
@@ -2071,6 +2075,7 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
     panel.appendChild(row);
   }
 
+  let rejectRow: HTMLElement | null = null;
   if (!passive && pendingTile && g.hand?.status === 'active') {
     const board = g.hand?.board ?? null;
     const linear = board?.kind === 'linear' ? board : null;
@@ -2079,8 +2084,25 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
     const choice = el('div', 'row');
     choice.dataset.boardChoice = 'true';
     if (options.length === 0) {
+      // "It doesn't fit" is a note, not a decision, so it never becomes a
+      // floating dock: `placeBoardChoices` only lifts real destination
+      // buttons onto the board, and a buttonless dock stayed where the dock
+      // lives — absolutely positioned at the bottom of the felt, which on a
+      // phone is exactly where the bones are. It covered the hand, so the
+      // next bone could not be tapped at all (owner, 2026-09-18: "it blocks
+      // the rest of the hand"). It goes in the tray header instead, the
+      // same place Pass and the pose question go, and tapping it puts the
+      // bone back down.
       const reason = cross ? crossRejectReason(cross, pendingTile) : null;
-      choice.append(el('span', 'muted', reason ?? "That tile doesn't fit the board right now."));
+      rejectRow = el('div', 'pass-action-row hand-reject-row');
+      rejectRow.setAttribute('role', 'status');
+      rejectRow.append(el('strong', undefined, reason ?? "That bone doesn't fit the board right now."));
+      const drop = document.createElement('button');
+      drop.className = 'act pass-action';
+      drop.textContent = 'OK';
+      drop.dataset.rejectDismiss = 'true';
+      drop.onclick = () => { pendingTile = null; render(); };
+      rejectRow.appendChild(drop);
     } else {
       choice.append(el('span', 'muted', options.length === 1 ? 'Play it?' : 'Which end?'));
       for (const move of options) {
@@ -2118,8 +2140,8 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
         b.onclick = () => { pendingTile = null; void g.play(move); };
         choice.appendChild(b);
       }
+      panel.appendChild(choice);
     }
-    panel.appendChild(choice);
   }
 
   // French round 2+ with no double: fined 10 and the player names who poses
@@ -2167,6 +2189,19 @@ function myHand(g: LocalGame, seat: number = g.activeSeat(), passive = false): H
     // French on a phone had the same problem, so it gets the same fix.
     // Desktop too: under the bones it grew the panel into the board.
     pace.replaceWith(passRow);
+  }
+
+  // Last in line: Pass and the pose question are decisions and outrank a
+  // note. If one of them already took the header slot, the note is dropped
+  // rather than stacked — its text is only ever "that bone won't go down",
+  // which those rows already imply.
+  // `parentElement`, not `isConnected`: the panel is still detached while it
+  // is being built, so isConnected is false for everything here. What this
+  // actually asks is whether Pass or the pose question already took the slot,
+  // which leaves `pace` with no parent.
+  if (rejectRow && pace.parentElement) {
+    pace.replaceWith(rejectRow);
+    handHeader.classList.add('eyebrow-reject');
   }
   return panel;
 }
@@ -2791,10 +2826,21 @@ function tableView(g: LocalGame): DocumentFragment {
   const passSlot = recentPassSeat === null
     ? null
     : (['bottom', 'right', 'top', 'left'] as const)[recentPassSeat];
-  const passHost = passSlot
-    ? tableStations.get(passSlot)?.querySelector<HTMLElement>('.table-seat-copy')
-    : null;
-  if (passCallout) (passHost ?? felt).appendChild(passCallout);
+  const passStation = passSlot ? tableStations.get(passSlot) ?? null : null;
+  // A French phone turns every station into a closed tab, and a tab hides
+  // `.table-seat-copy` outright — so PASS was being appended into a
+  // display:none element and nobody ever saw a duppy pass (owner,
+  // 2026-09-18). On a tab it hangs off the tab itself instead, and the tab
+  // flashes with it.
+  const passTab = passStation?.classList.contains('station-tab') ? passStation : null;
+  const passHost = passTab ?? passStation?.querySelector<HTMLElement>('.table-seat-copy') ?? null;
+  if (passCallout) {
+    if (passTab) {
+      passTab.classList.add('station-tab-passed');
+      passCallout.classList.add('station-tab-pass');
+    }
+    (passHost ?? felt).appendChild(passCallout);
+  }
   const playCallout = practicePlayCallout(g);
   const playSlot = recentPlaySeat === null
     ? null

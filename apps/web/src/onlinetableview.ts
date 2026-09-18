@@ -1409,7 +1409,17 @@ export function liveTableView(
     ? tableStations.get(lastMoveSlot)?.querySelector<HTMLElement>('.table-seat-copy')
     : null;
   const lastPass = passCallout(game);
-  if (lastPass) (calloutHost ?? feltShell).appendChild(lastPass);
+  if (lastPass) {
+    // Same as Practice: a French phone's station is a tab, and a tab hides
+    // `.table-seat-copy`, so PASS landed inside a display:none element.
+    const station = lastMoveSlot ? tableStations.get(lastMoveSlot) ?? null : null;
+    const tab = station?.classList.contains('station-tab') ? station : null;
+    if (tab) {
+      tab.classList.add('station-tab-passed');
+      lastPass.classList.add('station-tab-pass');
+    }
+    (tab ?? calloutHost ?? feltShell).appendChild(lastPass);
+  }
   const lastPlay = playCallout(game);
   if (lastPlay) (calloutHost ?? feltShell).appendChild(lastPlay);
   // An undealt table is still a game surface, not a form page. Keep the
@@ -2270,6 +2280,7 @@ function myHandPanel(
     panel.appendChild(row);
   }
 
+  let rejectRow: HTMLElement | null = null;
   if (!passive && pendingTile && game.hand?.status === 'active') {
     // The pip value on each end, not just the bare direction — "I thought
     // this was the right end" is a real argument at a real table, and the
@@ -2281,8 +2292,20 @@ function myHandPanel(
     const choice = el('div', 'row');
     choice.dataset.boardChoice = 'true';
     if (options.length === 0) {
+      // In the header, like Practice: a buttonless dock is not lifted onto
+      // the board by placeBoardChoices, so it stayed where the dock sits —
+      // absolutely positioned at the bottom of the felt, over the bones,
+      // leaving the rest of the hand untappable (owner, 2026-09-18).
       const reason = cross ? crossRejectReason(cross, pendingTile) : null;
-      choice.append(el('span', 'muted', reason ?? "That tile doesn't fit the board right now."));
+      rejectRow = el('div', 'pass-action-row hand-reject-row');
+      rejectRow.setAttribute('role', 'status');
+      rejectRow.append(el('strong', undefined, reason ?? "That bone doesn't fit the board right now."));
+      const drop = document.createElement('button');
+      drop.className = 'act pass-action';
+      drop.textContent = 'OK';
+      drop.dataset.rejectDismiss = 'true';
+      drop.onclick = () => { pendingTile = null; rerender(); };
+      rejectRow.appendChild(drop);
     } else {
       choice.append(el('span', 'muted', options.length === 1 ? 'Play it?' : 'Which end?'));
       for (const move of options) {
@@ -2323,8 +2346,8 @@ function myHandPanel(
         b.onclick = () => { pendingTile = null; void game.play(move); };
         choice.appendChild(b);
       }
+      panel.appendChild(choice);
     }
-    panel.appendChild(choice);
   }
 
   // French round 2+ with no double: fined 10 and the player names who poses
@@ -2364,6 +2387,12 @@ function myHandPanel(
     // In the header, like Practice: under the bones it grew the panel into
     // the fixed board and laid its bottom row under the hand.
     (panel.querySelector<HTMLElement>(':scope > .eyebrow') ?? panel).appendChild(passRow);
+  }
+
+  // Behind Pass and the pose question, which are decisions rather than notes.
+  const header = panel.querySelector<HTMLElement>(':scope > .eyebrow');
+  if (rejectRow && !header?.querySelector('.pass-action-row')) {
+    (header ?? panel).appendChild(rejectRow);
   }
 
   // French's paid reshuffle. The 50-70 window and the once-per-set limit

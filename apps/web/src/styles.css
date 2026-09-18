@@ -6089,3 +6089,79 @@ button.hand-end-choice {
   font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--gold);
 }
 .yard-top-foot { margin: 10px 0 0; }
+
+/* "That bone doesn't fit" — a note, not a decision (owner, 2026-09-18: as a
+   floating dock it covered the bones and the rest of the hand could not be
+   tapped). It sits in the tray header like Pass, in coral rather than the
+   gold reserved for an action, and stays one line on a phone. */
+.hand-reject-row {
+  border-color: rgba(255, 90, 60, .75);
+  color: var(--ink);
+  text-align: left;
+}
+.hand-reject-row > strong { font-weight: 600; }
+.hand-reject-row .pass-action { min-width: 56px; }
+@media (max-width: 700px) {
+  .my-hand-panel > .eyebrow > .hand-reject-row {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 2px 4px 2px 8px;
+    gap: 6px;
+    justify-content: flex-start;
+    font-size: 12px;
+  }
+  /* Two lines rather than an ellipsis: "Doesn't touch the 0 in the mid…"
+     cuts off the half of the sentence that says what to do about it. The
+     tray is anchored to the bottom of the felt, so the extra line grows
+     upward over empty felt and no bone moves. */
+  .my-hand-panel > .eyebrow > .hand-reject-row > strong {
+    white-space: normal;
+    line-height: 1.15;
+    font-size: 11px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .my-hand-panel > .eyebrow > .hand-reject-row .pass-action {
+    min-width: 44px; min-height: 32px; padding: 2px 10px; font-size: 12px;
+  }
+}
+/* While the "doesn't fit" note is up it takes the header's whole width; the
+   label and the note together truncated the note on a 390px phone. */
+.my-hand-panel > .eyebrow.eyebrow-reject > .hand-eyebrow-label { display: none; }
+
+/* A pass shown on a French phone tab (owner, 2026-09-18: a duppy's pass has
+   to come up). The tab hides `.table-seat-copy`, so the chip hangs off the
+   tab's inner edge instead, in coral — passing is information, not an
+   action — and the tab itself flashes so the eye is taken to whose pass it
+   was. */
+.table-player-station.station-tab > .table-pass-callout.station-tab-pass {
+  position: absolute;
+  z-index: 12;
+  top: 50%;
+  min-width: 0;
+  padding: 4px 9px;
+  background: var(--blood);
+  color: var(--bone);
+  font-size: 11px;
+  letter-spacing: .08em;
+  transform: translateY(-50%);
+  animation: table-pass-callout 300ms cubic-bezier(.2,.9,.2,1.15) both;
+}
+.table-player-station-left.station-tab > .table-pass-callout.station-tab-pass { left: calc(100% + 6px); }
+.table-player-station-right.station-tab > .table-pass-callout.station-tab-pass { right: calc(100% + 6px); }
+.table-player-station-top.station-tab > .table-pass-callout.station-tab-pass {
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+.table-player-station.station-tab.station-tab-passed {
+  box-shadow: 0 0 0 2px var(--blood), 0 0 14px rgba(255, 90, 60, .45);
+  border-radius: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .table-player-station.station-tab > .table-pass-callout.station-tab-pass { animation: none; }
+}
