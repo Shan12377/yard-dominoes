@@ -145,6 +145,14 @@ function fullSet(): TileId[] {
 /** `&fast=1` runs the whole rotation quickly, to check it before going live. */
 const FAST = new URLSearchParams(location.search).has('fast');
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, FAST ? ms / 12 : ms));
+
+/** The subscribe nudge's rhythm: once every few minutes, held long enough to
+ *  read twice, then gone. `?fast` shortens it the same way every other beat
+ *  on this page is shortened, so it can be checked without a five-minute
+ *  wait. */
+const SUBSCRIBE_FIRST_MS = FAST ? 6_000 : 75_000;
+const SUBSCRIBE_EVERY_MS = FAST ? 20_000 : 210_000;
+const SUBSCRIBE_HOLD_MS = FAST ? 4_000 : 18_000;
 const bone = (tile: TileId) => tile.replace('-', '/');
 const pipWord = (pip: number) => (pip === 0 ? 'blank' : String(pip));
 const listOr = (words: string[]) => (words.length > 1 ? `${words.slice(0, -1).join(', ')} or ${words.at(-1)}` : words[0] ?? '');
@@ -165,6 +173,13 @@ class Showcase {
   private readonly caption = el('div', 'showcase-caption');
   private readonly reason = el('div', 'showcase-reason');
   private readonly tip = el('div', 'showcase-tip-text');
+  /**
+   * The subscribe nudge. Deliberately occasional rather than permanent: a
+   * badge that is always there stops being read after a minute, and a stream
+   * that begs constantly is the thing people mute. It slides in under the
+   * play line, holds long enough to read twice, and goes away.
+   */
+  private readonly subscribe = el('div', 'showcase-subscribe');
 
   constructor(root: HTMLElement) {
     document.title = 'Yard TV · YaadDominoes';
@@ -208,8 +223,20 @@ class Showcase {
     const tipBox = el('div', 'showcase-tip');
     tipBox.append(el('div', 'showcase-tip-head', 'Yard tip'), this.tip);
     side.append(brand, this.title, this.score, this.caption, this.reason, tipBox,
-      el('div', 'showcase-cta', 'Play free at yaaddominoes.com'));
+      el('div', 'showcase-cta', 'Play free at yaaddominoes.com'),
+      this.subscribe);
     this.stage.append(table, side);
+
+    this.subscribe.append(el('span', 'showcase-subscribe-mark', '\u25b6'),
+      el('span', undefined, 'Subscribe for more Jamaican dominoes'));
+    this.subscribe.setAttribute('role', 'note');
+    // Every SUBSCRIBE_EVERY_MS, visible for SUBSCRIBE_HOLD_MS. The first one
+    // waits, so it never lands over the opening card a new viewer is reading.
+    const showSubscribe = () => {
+      this.subscribe.classList.add('showcase-subscribe-in');
+      setTimeout(() => this.subscribe.classList.remove('showcase-subscribe-in'), SUBSCRIBE_HOLD_MS);
+    };
+    setTimeout(() => { showSubscribe(); setInterval(showSubscribe, SUBSCRIBE_EVERY_MS); }, SUBSCRIBE_FIRST_MS);
 
     let tipIndex = 0;
     this.tip.textContent = TIPS[0];

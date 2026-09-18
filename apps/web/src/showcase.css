@@ -229,3 +229,39 @@ body.showcase-body #app { max-width: none; padding: 0; }
   opacity: 0;
   transform: translate(-50%, -50%) scale(.94);
 }
+
+/* The subscribe nudge (owner, 2026-09-18). Occasional, not permanent: it
+   slides up under the play line, holds, and leaves. Gentle enough not to pull
+   the eye off a live hand — no bounce, no flash — and it simply appears and
+   disappears for anyone who has asked for less motion. */
+.showcase-subscribe {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: -6px;
+  padding: 12px 18px;
+  border: 2px solid #ff5a3c;
+  border-radius: 999px;
+  background: rgba(255, 90, 60, .14);
+  color: #fff9ea;
+  font: 800 24px/1.15 var(--body);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 520ms ease, transform 520ms ease;
+  pointer-events: none;
+}
+.showcase-subscribe.showcase-subscribe-in { opacity: 1; transform: translateY(0); }
+.showcase-subscribe-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 27px;
+  border-radius: 7px;
+  background: #ff5a3c;
+  color: #fff9ea;
+  font-size: 15px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .showcase-subscribe { transition: opacity 200ms linear; transform: none; }
+  .showcase-subscribe.showcase-subscribe-in { transform: none; }
+}
