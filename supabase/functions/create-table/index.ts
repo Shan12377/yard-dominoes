@@ -1,5 +1,5 @@
 // POST /create-table
-import { handled, json, requireUser, requireLoungeEmail, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
+import { handled, json, requireUser, requireLoungeEmail, serviceClient, HttpError, effectiveTier, TIER_RANK, requireNoOtherLiveTable } from '../_shared/lib.ts';
 import { clockByName, duppyPaceByName } from '../_shared/engine/clock.ts';
 
 Deno.serve(handled(async (req) => {
@@ -10,6 +10,9 @@ Deno.serve(handled(async (req) => {
   requireLoungeEmail(user);
   const body = await req.json();
   const db = serviceClient();
+
+  // Opening a table seats you at it, so it is the same door as join-table.
+  await requireNoOtherLiveTable(db, user.id);
 
   const seatCount = Number(body.seatCount ?? 4);
   if (![2, 3, 4].includes(seatCount)) throw new HttpError(422, 'seat count must be 2, 3 or 4');

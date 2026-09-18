@@ -1,5 +1,5 @@
 // POST /join-table  { joinCode }  or  { tableId, seatIndex }
-import { handled, json, requireUser, requireLoungeEmail, serviceClient, HttpError, effectiveTier, TIER_RANK } from '../_shared/lib.ts';
+import { handled, json, requireUser, requireLoungeEmail, serviceClient, HttpError, effectiveTier, TIER_RANK, requireNoOtherLiveTable } from '../_shared/lib.ts';
 import { adjustTrust, countStarted, TRUST } from '../_shared/game-end.ts';
 
 // A player who leaves mid-hand drops to a duppy fill-in (leave-seat), not a
@@ -60,6 +60,8 @@ Deno.serve(handled(async (req) => {
     }
     assignedSeat = (signup.seat_index ?? null) as number | null;
   }
+
+  await requireNoOtherLiveTable(db, user.id, table.id);
 
   const { data: seats } = await db.from('seats').select('*').eq('table_id', table.id).order('seat_index');
 

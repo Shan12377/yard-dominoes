@@ -372,9 +372,14 @@ export interface PublicProfile {
   ratingCutthroat: number;
   rdPartner: number;
   rdCutthroat: number;
-  /** French keeps its own board (0067); null on an older row. */
+  /** French keeps its own board (0067), Across and Open hand theirs (0068);
+   *  null on an older row, or wherever that column does not exist yet. */
   ratingFrench: number | null;
   rdFrench: number | null;
+  ratingAcross: number | null;
+  rdAcross: number | null;
+  ratingOpenhand: number | null;
+  rdOpenhand: number | null;
   handsPlayed: number;
   sixLovesGiven: number;
   sixLovesTaken: number;
@@ -395,12 +400,28 @@ export interface FairPlay {
   bestWinStreak: number;
 }
 
-/** Read on its own so a missing column can never blank the whole profile. */
-async function fetchFrenchRating(userId: string): Promise<{ rating: number; rd: number } | null> {
+/** The boards added after the original two (French 0067, Across and Open
+ *  hand 0068). Read on its own so a missing column can never blank the whole
+ *  profile — an older database simply shows the two it has. */
+interface OwnBoard { rating: number; rd: number }
+async function fetchLaterBoards(userId: string): Promise<Record<'french' | 'across' | 'openhand', OwnBoard | null>> {
+  const empty = { french: null, across: null, openhand: null };
   const { data, error } = await (db().from('profiles') as any)
-    .select('rating_french, rd_french').eq('id', userId).single();
-  if (error || !data) return null;
-  return { rating: data.rating_french ?? 1200, rd: data.rd_french ?? 350 };
+    .select('rating_french, rd_french, rating_across, rd_across, rating_openhand, rd_openhand')
+    .eq('id', userId).single();
+  if (error || !data) {
+    // 0068 may not be applied yet: fall back to asking for French alone
+    // rather than dropping the board this profile already had.
+    const { data: fr } = await (db().from('profiles') as any)
+      .select('rating_french, rd_french').eq('id', userId).single();
+    if (!fr) return empty;
+    return { ...empty, french: { rating: fr.rating_french ?? 1200, rd: fr.rd_french ?? 350 } };
+  }
+  return {
+    french: { rating: data.rating_french ?? 1200, rd: data.rd_french ?? 350 },
+    across: { rating: data.rating_across ?? 1200, rd: data.rd_across ?? 350 },
+    openhand: { rating: data.rating_openhand ?? 1200, rd: data.rd_openhand ?? 350 },
+  };
 }
 
 async function fetchFairPlay(userId: string): Promise<FairPlay | null> {
@@ -439,7 +460,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
   if (!data) return null;
   const expired = data.tier_expires_at && Date.parse(data.tier_expires_at) < Date.now();
   const fairPlay = await fetchFairPlay(userId);
-  const french = await fetchFrenchRating(userId);
+  const later = await fetchLaterBoards(userId);
   return {
     id: data.id,
     username: data.username,
@@ -453,8 +474,12 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     ratingCutthroat: data.rating_cutthroat,
     rdPartner: data.rd_partner,
     rdCutthroat: data.rd_cutthroat,
-    ratingFrench: french?.rating ?? null,
-    rdFrench: french?.rd ?? null,
+    ratingFrench: later.french?.rating ?? null,
+    rdFrench: later.french?.rd ?? null,
+    ratingAcross: later.across?.rating ?? null,
+    rdAcross: later.across?.rd ?? null,
+    ratingOpenhand: later.openhand?.rating ?? null,
+    rdOpenhand: later.openhand?.rd ?? null,
     handsPlayed: data.hands_played,
     sixLovesGiven: data.six_loves_given,
     sixLovesTaken: data.six_loves_taken,
@@ -858,12 +883,10 @@ export async function liveNowPlayers(): Promise<LivePlayer[]> {
 // --------------------------------------------------------------- ranking --
 // The two categories a set actually gets rated into — see
 // _shared/apply-rating.ts's own column choice, which this mirrors exactly.
-// 'partner' also covers openhand and across (they share one rating column);
-// French shares 'cutthroat's column too, since French tables carry
-// mode: 'cutthroat' under the hood (set.ts's createSet). There is no way to
-// split French out for display without a schema change — don't invent a
-// third category the data can't actually back.
-export type RatingCategory = 'cutthroat' | 'partner' | 'french';
+// One board per game: French took its own in 0067, Across and Open hand in
+// 0068, so all five now have a column of their own to read. Never add a
+// category the schema cannot actually back.
+export type RatingCategory = 'cutthroat' | 'partner' | 'french' | 'across' | 'openhand';
 
 export interface RankedPlayer {
   userId: string;
@@ -882,10 +905,8 @@ export interface RankedPlayer {
  * needed for a read this un-sensitive.
  */
 export async function topRanked(category: RatingCategory, limit = 20): Promise<RankedPlayer[]> {
-  const ratingCol = category === 'french' ? 'rating_french'
-    : category === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
-  const rdCol = category === 'french' ? 'rd_french'
-    : category === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
+  const ratingCol = `rating_${category}`;
+  const rdCol = `rd_${category}`;
   const { data, error } = await db().from('profiles')
     .select(`id, username, avatar, avatar_accessory, tier, tier_expires_at, ${ratingCol}, ${rdCol}`)
     .lt(rdCol, 350)

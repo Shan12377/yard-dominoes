@@ -766,6 +766,12 @@ function playerProfileCard(rerender: () => void): HTMLElement {
     if (p.ratingFrench !== null) {
       stats.appendChild(ratingLine('French Yard Rating', p.ratingFrench, p.rdFrench ?? 350, p.tier === 'guest'));
     }
+    if (p.ratingAcross !== null) {
+      stats.appendChild(ratingLine('Across Yard Rating', p.ratingAcross, p.rdAcross ?? 350, p.tier === 'guest'));
+    }
+    if (p.ratingOpenhand !== null) {
+      stats.appendChild(ratingLine('Open hand Yard Rating', p.ratingOpenhand, p.rdOpenhand ?? 350, p.tier === 'guest'));
+    }
   }
   const hands = el('div', 'row');
   hands.append(el('span', 'muted', 'Hands played'), el('span', 'mono', String(p.handsPlayed)));
@@ -1972,10 +1978,9 @@ export function adminDashboardView(rerender: () => void): DocumentFragment {
 }
 
 // -------------------------------------------------------------- rankings --
-// Two real categories, matching exactly what apply-rating.ts writes to —
-// Partner also covers openhand and across (one shared column), and French
-// shares Cut Throat's column since a French table is mode: 'cutthroat'
-// under the hood. Not four tabs; the data can only actually back two.
+// One tab per game, matching exactly what apply-rating.ts writes to: every
+// game now has its own rating column (French 0067, Across and Open hand
+// 0068). Never add a tab the schema cannot back.
 let rankingCategory: RatingCategory = 'partner';
 const rankingCache = new Map<RatingCategory, RankedPlayer[]>();
 let rankingLoading = false;
@@ -2034,7 +2039,8 @@ export function rankingsView(rerender: () => void): DocumentFragment {
     'Ranked play is a Yardie and VIP perk. Every real game moves a member\'s rating; duppy tables never count.'));
 
   const tabs = el('div', 'choices');
-  for (const [value, label] of [['partner', 'Partner'], ['cutthroat', 'Cut Throat'], ['french', 'French']] as const) {
+  for (const [value, label] of [['partner', 'Partner'], ['cutthroat', 'Cut Throat'], ['french', 'French'],
+    ['across', 'Across'], ['openhand', 'Open hand']] as const) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'choice';

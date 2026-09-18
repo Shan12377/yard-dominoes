@@ -49,11 +49,21 @@ export async function applyRatingUpdates(
   const humanIds = seatUsers.filter((id): id is string => id !== null);
   if (humanIds.length !== seatUsers.length) return; // any duppy seat — not rated, cheap to bail before the query
 
-  // French has its own board (0067): it is cut-throat mode underneath, but a
-  // race to 100 where the lowest score wins is its own skill.
-  const french = options.format === 'french';
-  const column = french ? 'rating_french' : mode === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
-  const rdColumn = french ? 'rd_french' : mode === 'cutthroat' ? 'rd_cutthroat' : 'rd_partner';
+  // Every game keeps its own board. French (0067) is cut-throat mode
+  // underneath, but a race to 100 where the lowest score wins is its own
+  // skill; Across and Open hand (0068) are partner's ruleset underneath, and
+  // holding two seats yourself, or playing with a partner's bones face up, is
+  // likewise not the same game. Hence the format check ahead of the mode one.
+  //
+  // Across writes the same user twice (one update per seat of their side).
+  // Both updates are computed from the same pre-set snapshot and are
+  // therefore identical, so the second write is a no-op, not double credit.
+  const board = options.format === 'french' ? 'french'
+    : mode === 'across' ? 'across'
+    : mode === 'openhand' ? 'openhand'
+    : mode === 'cutthroat' ? 'cutthroat' : 'partner';
+  const column = `rating_${board}`;
+  const rdColumn = `rd_${board}`;
 
   const { data: profiles, error } = await db.from('profiles')
     .select(`id, tier, tier_expires_at, table_trust, is_admin, ${column}, ${rdColumn}`).in('id', humanIds);

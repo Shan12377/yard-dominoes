@@ -6063,3 +6063,10 @@ button.hand-end-choice {
     padding-block: 1px;
   }
 }
+
+/* Top of the yard — the front door's three highest Partner ratings (owner,
+   2026-09-17). Borrows the leaderboard's own row grid so the same faces read
+   identically here and on the full board. */
+.yard-top { margin-top: 12px; }
+.yard-top .ranking-row { grid-template-columns: 28px 40px 1fr auto; }
+.yard-top-foot { margin: 10px 0 0; }

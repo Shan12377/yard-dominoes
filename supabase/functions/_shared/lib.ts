@@ -128,6 +128,34 @@ export interface HandRow {
  * database column is needed and there is only ever one place to change if the
  * rule ever splits further.
  */
+/**
+ * One table at a time (owner, 2026-09-17). Two open tables means one of them
+ * is running your turn clock while you think at the other, so the seat you
+ * are not looking at collects timed-out moves and stall-outs.
+ *
+ * Both doors ask this: join-table and create-table, which seats its creator
+ * itself. A seat you LEFT does not count — leave-seat nulls `user_id`, so a
+ * rejoin inside the window still passes — and neither does the table you are
+ * already sitting at, via `exceptTableId`.
+ */
+export async function requireNoOtherLiveTable(
+  db: SupabaseClient,
+  userId: string,
+  exceptTableId?: string,
+): Promise<void> {
+  let query = db.from('seats').select('table_id, tables!inner(status)')
+    .eq('user_id', userId).neq('tables.status', 'finished');
+  if (exceptTableId) query = query.neq('table_id', exceptTableId);
+  const { data, error } = await query;
+  if (error) {
+    console.error('requireNoOtherLiveTable: could not read seats', error);
+    return; // never block a legitimate sit-down on a read failure
+  }
+  if (data && data.length > 0) {
+    throw new HttpError(409, 'you are already seated at another table — leave that one first');
+  }
+}
+
 export function openingTileForFormat(format: SetFormat): TileId {
   return format === 'french' ? '0-0' : '6-6';
 }

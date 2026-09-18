@@ -260,8 +260,12 @@ export class OnlineGame {
   ratingBefore: number | null = null;
   ratingAfter: number | null = null;
 
-  private ratingColumn(): 'rating_partner' | 'rating_cutthroat' | 'rating_french' {
+  /** Mirrors _shared/apply-rating.ts's own board choice exactly: each game
+   *  keeps its own Yard Rating (French 0067, Across and Open hand 0068). */
+  private ratingColumn(): 'rating_partner' | 'rating_cutthroat' | 'rating_french' | 'rating_across' | 'rating_openhand' {
     if (this.table.format === 'french') return 'rating_french';
+    if (this.table.mode === 'across') return 'rating_across';
+    if (this.table.mode === 'openhand') return 'rating_openhand';
     return this.table.mode === 'cutthroat' ? 'rating_cutthroat' : 'rating_partner';
   }
 

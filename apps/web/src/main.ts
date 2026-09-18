@@ -121,6 +121,119 @@ function scheduleSiteHandsFetch(): void {
   else window.addEventListener('load', start, { once: true });
 }
 
+/**
+ * Top of the yard — the three highest Partner Yard Ratings, on the front door
+ * where a visitor sees them before they have tapped anything (owner,
+ * 2026-09-17: the leaderboard was one tab inside the Lounge, so nobody met
+ * the yard's best players on the way in). Same raw PostgREST fetch and same
+ * deferred schedule as the hands tally above, for the same reason: the
+ * offline bundle must not grow a Supabase client for it, and an optional
+ * request must never join the first-paint chain.
+ *
+ * Partner is the board it shows because it is the most played. The strip is
+ * a door to the full five-board leaderboard, not a replacement for it.
+ */
+interface YardLeader { id: string; username: string; avatar: string | null; rating: number }
+let yardLeaders: YardLeader[] | null = null;
+let yardLeadersFetched = false;
+let yardLeadersScheduled = false;
+
+async function fetchYardLeaders() {
+  if (yardLeadersFetched) return;
+  yardLeadersFetched = true;
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  if (!url || !anon) return;
+  // Mirrors topRanked() in lounges.ts: members only, never an admin, and
+  // never an account still on the untouched 350 deviation (Glicko's "never
+  // actually rated here"). Over-fetches so lapsed memberships can be dropped
+  // below without leaving a short list.
+  const query = 'select=id,username,avatar,rating_partner,tier_expires_at'
+    + '&rd_partner=lt.350&tier=neq.guest&is_admin=not.is.true'
+    + '&order=rating_partner.desc&limit=12';
+  try {
+    const res = await fetch(`${url}/rest/v1/profiles?${query}`, {
+      headers: { apikey: anon, Authorization: `Bearer ${anon}` },
+    });
+    if (!res.ok) return;
+    const rows = await res.json() as {
+      id: string; username: string; avatar: string | null;
+      rating_partner: number; tier_expires_at: string | null;
+    }[];
+    const now = Date.now();
+    yardLeaders = rows
+      .filter((r) => !r.tier_expires_at || Date.parse(r.tier_expires_at) > now)
+      .slice(0, 3)
+      .map((r) => ({ id: r.id, username: r.username, avatar: r.avatar, rating: r.rating_partner }));
+    if (yardLeaders.length > 0) render();
+  } catch {
+    // The front door reads fine without it.
+  }
+}
+
+function scheduleYardLeadersFetch(): void {
+  if (yardLeadersFetched || yardLeadersScheduled) return;
+  yardLeadersScheduled = true;
+  const start = () => setTimeout(() => void fetchYardLeaders(), 10_000);
+  if (document.readyState === 'complete') start();
+  else window.addEventListener('load', start, { once: true });
+}
+
+/** Their real photo first, then the illustrated face they picked — the same
+ *  fallback chain every seat card and the leaderboard itself uses. */
+function yardLeaderFace(leader: YardLeader): HTMLElement {
+  const shell = el('span', 'avatar-shell');
+  const img = document.createElement('img');
+  img.className = 'avatar';
+  img.width = 40;
+  img.height = 40;
+  img.alt = '';
+  img.loading = 'lazy';
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const preset = leader.avatar ? `/avatars/${leader.avatar}.webp` : null;
+  img.src = url
+    ? `${url}/storage/v1/object/public/profile-photos/${leader.id}/photo.webp`
+    : (preset ?? '');
+  img.onerror = () => {
+    if (preset && img.src !== new URL(preset, location.origin).href) {
+      img.src = preset;
+    } else {
+      img.onerror = null;
+      img.remove();
+    }
+  };
+  shell.appendChild(img);
+  return shell;
+}
+
+/** Null until the deferred fetch has actually found ranked members, so an
+ *  empty board never draws an empty panel on the front door. */
+function yardLeadersStrip(): HTMLElement | null {
+  scheduleYardLeadersFetch();
+  if (!yardLeaders || yardLeaders.length === 0) return null;
+  const panel = el('div', 'panel yard-top');
+  panel.append(el('div', 'eyebrow', 'Top of the yard'));
+  const list = el('div', 'ranking-list');
+  yardLeaders.forEach((leader, i) => {
+    const row = el('div', 'ranking-row');
+    row.append(el('span', 'ranking-place', String(i + 1)));
+    row.appendChild(yardLeaderFace(leader));
+    row.append(el('span', 'ranking-name', leader.username));
+    row.append(el('span', 'ranking-rating', String(leader.rating)));
+    list.appendChild(row);
+  });
+  panel.appendChild(list);
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'linky';
+  more.textContent = 'See every board';
+  more.onclick = () => { view = 'rankings'; void ensureLoungeModule(); render(); };
+  const foot = el('p', 'muted small yard-top-foot');
+  foot.append('Partner Yard Rating. ', more, '.');
+  panel.appendChild(foot);
+  return panel;
+}
+
 // yaaddominoes.com/terms and /privacy open those pages directly: Google's
 // sign-in branding (and any store listing) needs a real address for each.
 let view: View = location.pathname === '/terms' ? 'terms' : location.pathname === '/privacy' ? 'privacy' : 'play';
@@ -3638,6 +3751,8 @@ function render() {
       // Carries the green of the felt into the signal-blue room so the half
       // below the fold still reads as the same table rather than another site.
       next.appendChild(el('div', 'yard-band'));
+      const leaders = yardLeadersStrip();
+      if (leaders) next.appendChild(leaders);
       const card = installCard();
       if (card) next.appendChild(card);
       next.appendChild(lobby());
