@@ -27,7 +27,6 @@ import type {
 import { ACROSS_CLIMB, deskRouteGeometry, el, penaltyLines, renderBoard, tileEl } from './render.ts';
 import { DUPPY_PERSONAS, duppyPersonaUrl } from './duppy-persona.ts';
 import type { DuppyPersona } from './duppy-persona.ts';
-import { dealOverlay, DEAL_ANIMATION_MS } from './table-experience.ts';
 import { lineFor, speak } from './speak.ts';
 import './styles.css';
 import './showcase.css';
@@ -156,6 +155,7 @@ class Showcase {
   private cast: DuppyPersona[] = ALL_PERSONAS.slice(0, 4);
   private spec: GameSpec = GAMES[0];
   private readonly stage = el('div', 'showcase-stage');
+  private readonly table = el('div', 'showcase-table');
   private readonly felt = el('div', 'showcase-felt table-felt');
   private readonly boardStage = el('div', 'showcase-board');
   private readonly line = el('div', 'line');
@@ -177,7 +177,7 @@ class Showcase {
     window.addEventListener('resize', fit);
     fit();
 
-    const table = el('div', 'showcase-table');
+    const table = this.table;
     this.boardStage.appendChild(this.line);
     this.felt.appendChild(this.boardStage);
     table.appendChild(this.felt);
@@ -385,14 +385,84 @@ class Showcase {
     card.remove();
   }
 
+  /**
+   * The real 28 bones, face down on the real table, jumbled and then dealt
+   * one at a time round the seats — not the app's branded deal animation,
+   * which covered the felt with an abstract card and showed nothing that was
+   * actually happening (owner, 2026-09-18: "I don't like the fake shuffle").
+   *
+   * Positions are worked out in the table's own layout coordinates
+   * (offsetLeft/offsetTop), never getBoundingClientRect: the whole stage is
+   * scaled to fit the viewport, so measured boxes are in scaled pixels and
+   * would put every bone in the wrong place at any size but 1920x1080.
+   *
+   * Deals round the table, seven each, the way a person deals. The engine
+   * hands out `order.slice(seat * 7, ...)` in blocks, which is the same 28
+   * bones to the same four seats — nothing here decides who gets what, it
+   * only shows the count going round.
+   */
   private async shuffleAndDeal() {
     this.stage.classList.add('showcase-dealing');
-    this.caption.textContent = 'Shuffling and dealing.';
+    this.caption.textContent = 'Shuffling.';
     this.reason.textContent = '';
-    const overlay = dealOverlay(() => {});
-    this.felt.appendChild(overlay);
-    await wait(DEAL_ANIMATION_MS);
-    overlay.remove();
+    const layer = el('div', 'showcase-shuffle');
+    this.table.appendChild(layer);
+
+    const left = this.felt.offsetLeft, top = this.felt.offsetTop;
+    const width = this.felt.offsetWidth, height = this.felt.offsetHeight;
+    const centreX = left + width / 2, centreY = top + height / 2;
+    const place = (bone: HTMLElement, x: number, y: number, turn: number) => {
+      bone.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) rotate(${Math.round(turn)}deg)`;
+    };
+
+    const bones: HTMLElement[] = [];
+    for (let i = 0; i < 28; i += 1) {
+      const bone = el('i', 'showcase-shuffle-bone');
+      place(bone, centreX - 18, centreY - 36, 0);
+      layer.appendChild(bone);
+      bones.push(bone);
+    }
+    // One frame at the stacked pack before the first scatter, or the browser
+    // coalesces both into no movement at all.
+    await wait(80);
+
+    const scatter = () => {
+      for (const bone of bones) {
+        place(bone,
+          centreX - 18 + (Math.random() - 0.5) * width * 0.6,
+          centreY - 36 + (Math.random() - 0.5) * height * 0.5,
+          (Math.random() - 0.5) * 90);
+      }
+    };
+    for (let round = 0; round < 3; round += 1) {
+      scatter();
+      await wait(620);
+    }
+    // Gathered back into a squared-up pack, so the deal comes off a stack.
+    bones.forEach((bone, i) => place(bone, centreX - 18 + (i % 2) * 3, centreY - 36 - i * 0.8, (i % 2 ? 1 : -1) * 2));
+    await wait(700);
+
+    // Dealt to the wood in front of each seat, not onto the seat card: the
+    // hands are hidden while dealing, so a card-centred target landed the
+    // bones across the player's own name.
+    this.caption.textContent = 'Dealing — seven each.';
+    const drop = (slot: number, nth: number): [number, number] => {
+      const spread = (nth - 3) * 26;
+      if (slot === 0) return [centreX - 18 + spread, top + height - 96];
+      if (slot === 1) return [left + width - 66, centreY - 36 + spread];
+      if (slot === 2) return [centreX - 18 + spread, top + 24];
+      return [left + 30, centreY - 36 + spread];
+    };
+    for (let i = 0; i < 28; i += 1) {
+      const seat = i % 4;
+      const [x, y] = drop(seat, Math.floor(i / 4));
+      const bone = bones[27 - i];
+      bone.classList.add('showcase-shuffle-dealt');
+      place(bone, x, y, 0);
+      await wait(120);
+    }
+    await wait(420);
+    layer.remove();
     this.stage.classList.remove('showcase-dealing');
   }
 

@@ -153,3 +153,28 @@ body.showcase-body #app { max-width: none; padding: 0; }
 .showcase-tip-head { font-size: 19px; margin-bottom: 6px; }
 .showcase-tip-text { font-size: 25px; }
 .showcase-cta { font-size: 27px; }
+
+/* The real shuffle (owner, 2026-09-18). Twenty-eight face-down bones on the
+   actual felt: jumbled, squared into a pack, then dealt round the seats. The
+   old branded overlay is gone — it hid the table and showed nothing real. */
+.showcase-shuffle {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.showcase-shuffle-bone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 36px;
+  height: 72px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #fff9ea, #e8dcc0);
+  border: 1px solid rgba(36, 22, 8, .25);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .35);
+  transition: transform 620ms cubic-bezier(.22, .68, .32, 1);
+}
+.showcase-shuffle-bone.showcase-shuffle-dealt {
+  transition: transform 340ms cubic-bezier(.2, .8, .3, 1);
+}
