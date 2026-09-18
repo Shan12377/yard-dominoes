@@ -322,7 +322,7 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-17, `www.yaaddominoes.com` serves commit `PENDING`
+- As of 2026-09-17, `www.yaaddominoes.com` serves commit `2391def`
   (v207: Top of the yard shows the single highest-rated player across all five
   boards, named with the game they run; v206: one table at a time (join-table and create-table both refuse a second
   live seat), Across and Open hand get their own Yard Ratings (0068 applied,
