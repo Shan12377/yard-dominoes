@@ -9,6 +9,8 @@ test('the landing review is responsive text, not a screenshot or a temporary pla
   assert.match(main, /document\.createElement\('blockquote'\)/);
   assert.match(main, /Super cool real domino game!!/);
   assert.match(main, /rating\.setAttribute\('aria-label', '5 out of 5 stars'\)/);
+  // The reviewer is a named person (owner, 2026-09-18), not "a player".
+  assert.match(main, /cite\.textContent = 'Orlando, YaadDominoes player'/);
   assert.match(main, /next\.appendChild\(playerReview\(\)\)/);
   assert.doesNotMatch(main, /player_1597c7f6|20h ago/);
 });

@@ -927,7 +927,8 @@ function playerReview(): HTMLElement {
     'Super cool real domino game!! I love to play dominoes and this game helps me to keep enjoying my favorite board game!'));
   const attribution = document.createElement('footer');
   const cite = document.createElement('cite');
-  cite.textContent = 'YaadDominoes player';
+  // Named at the owner's word, 2026-09-18: he is a real player, not a stand-in.
+  cite.textContent = 'Orlando, YaadDominoes player';
   attribution.append('— ', cite);
   quote.appendChild(attribution);
 
