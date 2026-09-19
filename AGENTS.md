@@ -227,9 +227,9 @@ legal opinion and processor.
 - When a test fails, work out whether the test or the code is wrong before
   changing either. Several tests encode rules that look wrong and are not.
 - Do not add a dependency to `packages/engine`. Ask first.
-- French is built: cross board, chucha opening, doubling (own double ×2,
+- French is built: cross board, double-blank opening, doubling (own double ×2,
   doubled again when the winner's own final tile was a double, stacking to
-  ×4), the +10 pass penalties, the blocked-tie chucha reshuffle — the set
+  ×4), the +10 pass penalties, the blocked-tie double-blank reshuffle — the set
   ends the instant ANY seat's score reaches or crosses 100, lowest score at
   that moment wins outright (confirmed against real play; an earlier
   "last-one-under-target-survives" design was wrong) — and the coin-tied

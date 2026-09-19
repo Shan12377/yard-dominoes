@@ -3530,7 +3530,7 @@ code.seed { font-family: var(--mono); font-size: 10px; color: var(--muted); word
   .practice-room .table-felt.hand-on-felt { overflow: visible; }
   .practice-room .table-player-station-left { left: -12px; }
   .practice-room .table-player-station-right { right: -12px; }
-  /* A French cross spends space above, below, left and right of the chucha.
+  /* A French cross spends space above, below, left and right of the double blank.
      Its own taller board-first surface lets the renderer show a crowded
      cross in full above the docked hand instead of clipping its final arm. */
   .table-room .live-felt.french-cross-live,

@@ -202,7 +202,7 @@ export class LocalGame {
       // set, so the previous winner never got to pose at all.
       poseMustBeDoubleSix: this.set.poseMustBeDoubleSix,
       // French, round 2+ only — round 1 (and a tie-break reshuffle) already
-      // forces the chucha specifically via poseMustBeDoubleSix above; this
+      // forces the double blank specifically via poseMustBeDoubleSix above; this
       // is the "any double, your choice, or you're fined and it passes to
       // someone who has one" rule for every hand after that.
       poseMustBeAnyDouble:

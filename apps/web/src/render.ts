@@ -250,7 +250,7 @@ export interface BoardFit {
    * instead (phoneCrossRoute). The desktop reference route is 30 units wide
    * and turned every arm in columns a phone could not show, which hid the
    * joining bones. Only a rare long arm pans, vertically, still joined to the
-   * centre; centreCrossOnPose() keeps the chucha in the middle when it does.
+   * centre; centreCrossOnPose() keeps the double blank in the middle when it does.
    */
   fitCrossToBox?: boolean;
   /**
@@ -274,7 +274,7 @@ export interface BoardBox { width: number; height: number }
 /** The live board's pre-deal physical size, in half-bone units. */
 /** Desktop French: viewport height not available to the up and down arms (bars, rack, hand). */
 const FRENCH_DESK_CHROME_PX = 360;
-/** Units of height the up and down arms need together: chucha, two bones and a double each, with felt. */
+/** Units of height the up and down arms need together: double blank, two bones and a double each, with felt. */
 const FRENCH_DESK_BAND_UNITS = 28;
 
 export function liveTableUnit(
@@ -291,7 +291,7 @@ export function liveTableUnit(
     // 26px short side on a phone (owner, 2026-09-16: "a tad smaller"), the
     // same bone the other phone tables now use. Over 400 simulated hands on a
     // 390px phone it cut hands with a bone that had no proper place from 65%
-    // to 28%, and kept three bones each side of the chucha in 80% of hands.
+    // to 28%, and kept three bones each side of the double blank in 80% of hands.
     // 24px since the same day, with two-bone legs (owner: "24 with the 2"):
     // over 1000 simulated hands, clean layouts 671 -> 980, stranded bones
     // 590 -> 29, arms curling back 36 -> 18.
@@ -751,7 +751,7 @@ interface CrossLayout {
    * Unlike TilePlacement's col/row (0-based, +1'd at DOM-application time —
    * see renderBoard's linear path), these are 1-based CSS grid line numbers,
    * applied directly. The cross board's centring math reads more clearly
-   * that way, since the chucha's own position (centerCol/centerRow) is
+   * that way, since the double blank's own position (centerCol/centerRow) is
    * naturally a 1-based grid line to begin with.
    */
   placements: TilePlacement[];
@@ -846,7 +846,7 @@ function layoutSingleTurnArm(line: OrientedTile[], laneUnits: number): TilePlace
  * French cross board, pure layout math — same split as chooseUnit/layoutLine
  * for the linear board, so this is unit-testable without a DOM.
  *
- * Whatever double opened the hand sits at centre — the chucha (0-0) in
+ * Whatever double opened the hand sits at centre — the double blank (0-0) in
  * round 1, or the winner's own choice in round 2+ (see
  * HandState.poseMustBeAnyDouble) — with up to 4 arms beginning outward in
  * fixed order: right (0), left (1), up (2), down (3). Each arm then turns
@@ -903,7 +903,7 @@ export function crossPlacements(
         ? laneUnits.horizontal : laneUnits.vertical;
     layoutSingleTurnArm(oriented, lane).forEach((p, index) => {
       // The canonical first run is centred on zero before rotation around the
-      // chucha. Every arm then occupies exactly one private quadrant.
+      // double blank. Every arm then occupies exactly one private quadrant.
       const localX = p.col;
       const localY = p.row - 2;
       const corners = [
@@ -1165,7 +1165,7 @@ const PHONE_CROSS_MIN_ROWS = 16;
  * screenshot, 2026-09-13). The phone therefore routes inside its OWN width.
  */
 export function phoneCrossGrid(box: BoardBox, unit: number): { cols: number; rows: number } {
-  // Even columns keep the chucha on a whole unit.
+  // Even columns keep the double blank on a whole unit.
   const cols = Math.max(PHONE_CROSS_MIN_COLS, Math.floor(box.width / unit / 2) * 2);
   const rows = Math.max(PHONE_CROSS_MIN_ROWS, Math.floor(box.height / unit));
   return { cols, rows };
@@ -1181,7 +1181,7 @@ export function phoneCrossGridKey(box: BoardBox, unit: number): string {
  *
  * The first bone always heads towards the player who opened the arm. After
  * that each arm owns one pinwheel quarter of the board: it runs rows back
- * and forth across its band and grows away from the chucha. Nothing ever
+ * and forth across its band and grows away from the double blank. Nothing ever
  * leaves the board's width. An unusually long arm grows past the top or
  * bottom instead, which is a short vertical pan that stays joined to the
  * centre, never a run that disappears off the side and comes back.
@@ -1269,7 +1269,7 @@ export function phoneCrossRoute(
 
 /**
  * Mobile French as JamDom lays it (owner, 2026-09-14): a four-way clockwise
- * pinwheel. Each arm heads out from the chucha towards its player, runs to the
+ * pinwheel. Each arm heads out from the double blank towards its player, runs to the
  * table edge and turns clockwise, and keeps turning clockwise inside its own
  * quarter, so no arm folds back and forth into stacked rows ("a comb"). The
  * comb in `phoneCrossRoute()` also laid doubles along the arm; here a double
@@ -1286,11 +1286,11 @@ export function phoneCrossRoute(
  * stage scrolls down to it). Growing downward keeps every bone already down
  * exactly where it was. A bone with no room even then counts in `stuck`.
  *
- * Coordinates are grid units from the top-left; the chucha stands upright in
+ * Coordinates are grid units from the top-left; the double blank stands upright in
  * the middle, as `phoneCrossRoute()` places it.
  */
 /**
- * How many bones each arm lays straight out from the chucha before its first
+ * How many bones each arm lays straight out from the double blank before its first
  * clockwise turn, as JamDom lays French (owner, 2026-09-15, with a JamDom
  * table for reference): left and right lay two then turn up and down, up and
  * down lay three then turn right and left. The short legs keep the pinwheel
@@ -1325,7 +1325,7 @@ export function phoneFrenchPinwheel(input: {
   rows: number;
   blocked?: ReadonlyArray<{ x: number; y: number; w: number; h: number }>;
   /**
-   * Desktop: stand the chucha halfway between the top player's rack and my
+   * Desktop: stand the double blank halfway between the top player's rack and my
    * hand rather than halfway down the felt, so the up and down arms get the
    * same room (owner, 2026-09-15: all four arms 3-4 bones before turning).
    */
@@ -1363,7 +1363,7 @@ export function phoneFrenchPinwheel(input: {
       : d === 'down' ? { ...r, h: r.h + by } : { ...r, y: r.y - by, h: r.h + by };
   const near = (a: Rect, b: Rect, gap: number) =>
     a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap;
-  // Each arm's clockwise quarter, relative to the chucha (x -1..1, y -2..2).
+  // Each arm's clockwise quarter, relative to the double blank (x -1..1, y -2..2).
   // Neighbouring quarters meet on an edge, so lanes of different arms never
   // overlap; the bones inside them keep a unit of felt from each other.
   const quarter: Record<CrossDirection, (l: Rect) => boolean> = {
@@ -1510,7 +1510,7 @@ function crossFaces(
  * gets 24 and keeps the row route and keeps the players'
  * tabs off its width, the way it always kept their full badges off. Decided by
  * viewport width, not a measured stage: the first measurement of a hand can
- * come in narrower than the settled one, and deciding from it drew the chucha
+ * come in narrower than the settled one, and deciding from it drew the double blank
  * on the row route and then moved it onto the pinwheel.
  */
 export const PHONE_FRENCH_PINWHEEL_MIN_WIDTH = 370;
@@ -1596,7 +1596,7 @@ function renderPhoneCross(host: HTMLElement, board: CrossBoard, opts: BoardFit, 
     })();
   // Chosen from the viewport, like the stage: the first draw of a hand can
   // work from a guessed stage, and choosing by its columns started a hand on
-  // the row route and then moved the chucha onto the pinwheel.
+  // the row route and then moved the double blank onto the pinwheel.
   const pinwheel = (opts.frenchPinwheel || frenchPinwheelPhone())
     && Math.max(cols, PHONE_PINWHEEL_MIN_COLS) === cols
     ? phoneFrenchPinwheel({
@@ -2010,7 +2010,7 @@ export function boardGuardInsets(
  * `align-items: safe center` falls back to START alignment once content is
  * bigger than its box — correct for a snaking line, wrong for a cross, whose
  * whole shape is read outward from the centre. Measured on a 430px phone: a
- * 420px canvas in a 332px stage put the chucha 44px right of centre and left
+ * 420px canvas in a 332px stage put the double blank 44px right of centre and left
  * the entire right arm off-screen with nothing to say so.
  *
  * Centring the SCROLL instead keeps the pose where the eye expects it and

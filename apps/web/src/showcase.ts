@@ -350,7 +350,7 @@ class Showcase {
     if (!('tile' in move)) return `${who} plays.`;
     if (move.kind === 'pose') {
       if (move.tile === '6-6') return `${who} poses the double-six. It opens the first hand.`;
-      if (move.tile === '0-0') return `${who} poses the double-blank, the chucha. It opens French.`;
+      if (move.tile === '0-0') return `${who} poses the double-blank, the double blank. It opens French.`;
       return `${who} poses the ${bone(move.tile)} to start the hand.`;
     }
     const ends = after.board ? [...new Set(openEnds(after.board))].map(pipWord) : [];

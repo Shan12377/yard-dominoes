@@ -83,7 +83,7 @@ export interface DealInput {
   poseMustBeDoubleSix: boolean;
   /**
    * Which tile must lead the opening pose when poseMustBeDoubleSix is true.
-   * Defaults to 6-6 for every format except French, where it's the chucha
+   * Defaults to 6-6 for every format except French, where it's the double blank
    * (0-0). If nobody holds the requested tile, the engine falls back to
    * highest-double / heaviest-tile just as it does for a missing 6-6.
    */
@@ -96,7 +96,7 @@ export interface DealInput {
    * fines the original 10 points (folded into the returned HandState's own
    * `penalties`, same as every other French penalty). Never combine with
    * poseMustBeDoubleSix — that one forces a SPECIFIC tile (round 1's
-   * chucha, or a tie-break reshuffle), this forces ANY double.
+   * double blank, or a tie-break reshuffle), this forces ANY double.
    */
   poseMustBeAnyDouble?: boolean;
   /** Format defaults to 'sixlove'. Only 'french' changes engine behavior. */
@@ -265,7 +265,7 @@ function linearLegalPlays(hand: TileId[], board: Board, seat: number): Move[] {
  * French cross-board legal plays.
  *
  * Filling phase (arms.length < 4): must play a tile with a half matching the
- * centre's own pip value (the chucha's blank in round 1, or whatever double
+ * centre's own pip value (the double blank's own blank in round 1, or whatever double
  * the winner posed in round 2+ — see HandState.poseMustBeAnyDouble). Each
  * such play creates the next arm attached to a centre corner.
  *
@@ -479,11 +479,11 @@ export function applyMove(prev: HandState, move: Move): HandState {
     case 'pose': {
       const [a, b] = halves(move.tile);
       s.hands[move.seat] = s.hands[move.seat].filter((t) => t !== move.tile);
-      // Every French pose is a double — round 1 forces the chucha
+      // Every French pose is a double — round 1 forces the double blank
       // specifically (poseMustBeDoubleSix + openingTile '0-0'), round 2+
       // forces the winner's own choice of double (poseMustBeAnyDouble) —
       // so any French pose builds a fresh cross centred on whatever was
-      // posed, not just the chucha. Per pagat.com/domino/cross/french.html,
+      // posed, not just the double blank. Per pagat.com/domino/cross/french.html,
       // "the first double played [in a hand] acts as a spinner" generally,
       // not only the double-blank.
       if (s.format === 'french' && isDouble(move.tile)) {

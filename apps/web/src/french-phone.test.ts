@@ -5,7 +5,7 @@ import { phoneFrenchPinwheel, FRENCH_DESK_PINWHEEL_LEGS } from './render.ts';
 import type { PhoneCrossSlot } from './render.ts';
 
 // Mobile French, owner 2026-09-14: JamDom's four-way clockwise pinwheel. Each
-// arm runs out from the chucha towards its player and turns clockwise, so no
+// arm runs out from the double blank towards its player and turns clockwise, so no
 // arm stacks rows on top of another. Since 2026-09-15 the first turn comes
 // after JamDom's short legs: two bones left and right, three up and down. Doubles stand across
 // the arm they arrive on; a double on a turn makes the L. Bones are laid in
@@ -43,7 +43,7 @@ function assertSound(slots: PhoneCrossSlot[][], cols: number, rows: number, bloc
   const every = slots.flatMap((arm, a) => arm.map((s, i) => ({ s, a, i })));
   for (const { s, a, i } of every) {
     assert.ok(s.x >= 0 && s.x + s.w <= cols, `${label} arm ${a} bone ${i} leaves the ${cols}-column board`);
-    assert.ok(!overlap(s, hub), `${label} arm ${a} bone ${i} covers the chucha`);
+    assert.ok(!overlap(s, hub), `${label} arm ${a} bone ${i} covers the double blank`);
     for (const b of blocked) assert.ok(!overlap(s, b), `${label} arm ${a} bone ${i} covers a player tab`);
   }
   for (let p = 0; p < every.length; p++) for (let q = p + 1; q < every.length; q++) {
@@ -53,11 +53,11 @@ function assertSound(slots: PhoneCrossSlot[][], cols: number, rows: number, bloc
   }
   slots.forEach((arm, a) => arm.forEach((s, i) => {
     const before = i === 0 ? hub : arm[i - 1];
-    assert.ok(sharedEdge(before, s) >= 2, `${label} arm ${a} bone ${i} does not join ${i === 0 ? 'the chucha' : 'the bone before it'}`);
+    assert.ok(sharedEdge(before, s) >= 2, `${label} arm ${a} bone ${i} does not join ${i === 0 ? 'the double blank' : 'the bone before it'}`);
   }));
 }
 
-test('each arm heads out towards its player first, joined to the chucha', () => {
+test('each arm heads out towards its player first, joined to the double blank', () => {
   const cols = 26;
   const rows = 38;
   const { slots, stuck } = phoneFrenchPinwheel({

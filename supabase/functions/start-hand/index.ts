@@ -81,7 +81,7 @@ Deno.serve(handled(async (req) => {
       table_id: tableId,
       scores: new Array(sides).fill(0),
       // Always true, matching the engine's createSet: the first hand of every
-      // set opens with the required tile LED (6-6, or French's chucha), on
+      // set opens with the required tile LED (6-6, or French's double blank), on
       // casual tables too. This matters most online, because the lounge's
       // create-table form never sends `tournament` — every online table is
       // casual, so anything conditional on that flag would mean no online set
@@ -140,16 +140,16 @@ Deno.serve(handled(async (req) => {
     // winner never got to pose.
     poseMustBeDoubleSix: set!.pose_must_be_double_six,
     // French, round 2+ only — round 1 (and a tie-break reshuffle) already
-    // forces the chucha specifically via poseMustBeDoubleSix above; this is
+    // forces the double blank specifically via poseMustBeDoubleSix above; this is
     // the "any double, your choice, or you're fined and it passes to
     // someone who has one" rule for every hand after that.
     poseMustBeAnyDouble:
       table.format === 'french' && !set!.pose_must_be_double_six,
-    // French round 1 is opened by whoever holds the chucha (0-0). The
+    // French round 1 is opened by whoever holds the double blank (0-0). The
     // pose_must_be_double_six flag stays TRUE for that first hand (createSet
     // sets it), and openingTile switches from 6-6 to 0-0 for French.
     openingTile: table.format === 'french' ? '0-0' : '6-6',
-    // Required so the pose branch in applyMove can tell a chucha pose is
+    // Required so the pose branch in applyMove can tell a double blank pose is
     // French and build a cross board — openingTile alone doesn't do this.
     format: table.format,
   });

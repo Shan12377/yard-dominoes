@@ -220,7 +220,7 @@ test('boardAfter rebuilds the exact same cross board the real engine produced', 
   }
 });
 
-test('a French board grows by exactly one tile per step, chucha included', () => {
+test('a French board grows by exactly one tile per step, double blank included', () => {
   const rand = mulberry32(7);
   const { moves, poser } = fakeFrenchHand(rand);
   const replay = decodeHand(encodeHand(moves, poser, 0, 4, 'french'))!;

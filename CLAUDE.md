@@ -169,12 +169,12 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   and pans. **The fixed French phone bone is 26px (owner, 2026-09-16: "a tad
   smaller"), the same as the other phone tables.** It was 28px; over 400
   simulated hands on a 390px phone the step down cut hands where a bone had no
-  proper place from 65% to 28% and kept three bones each side of the chucha in
+  proper place from 65% to 28% and kept three bones each side of the double blank in
   80% of hands. The Lounge's French stage keeps an 8px gap from each screen
   edge so no bone touches the side. Change the size only when the owner asks.
   **A phone lays French as JamDom's four-way clockwise pinwheel (owner,
   2026-09-14).** `phoneFrenchPinwheel()` in render.ts: each arm heads out
-  from the chucha towards the player who opened it, runs to the table edge and
+  from the double blank towards the player who opened it, runs to the table edge and
   turns clockwise, and keeps turning clockwise inside its own quarter, so no
   arm folds back and forth into stacked rows. The older `phoneCrossRoute()`
   did exactly that ("a comb", owner's complaint) and laid doubles along the
@@ -217,7 +217,7 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
   French penalty banner floats instead of pushing the table down 88px and
   back, and French's Pass control sits in the tray header like the linear
   game's.
-  `centreCrossOnPose()` still holds the chucha in the middle of any stage that
+  `centreCrossOnPose()` still holds the double blank in the middle of any stage that
   pans: `align-items: safe center` start-aligns anything larger than its box,
   which measured 44px of drift and hid a whole arm.
 - `docs/prototypes/authentic-table.html` is the live-table composition authority:
@@ -433,7 +433,10 @@ Jamaican players notice these immediately. All are covered by tests.
   way — do not make either conditional on `tournament`, because the lounge's
   create-table form never sends that field, so every online table is casual and
   a conditional would mean no online set ever forces the six. French is the
-  same rule with the chucha (0-0) as its opening tile.
+  same rule with the double blank (0-0) as its opening tile. **"Double blank" is not
+  Jamaican** (owner, 2026-09-19) — it is Spanish-Caribbean domino vocabulary.
+  It survives in older code comments and test names; never put it in front of
+  a player, and never list it as yard vocabulary. Say "double blank".
 - **The six is forced at exactly three moments, and `tournament` is not one of
   them.** A set's first hand, a tied blocked hand's replay, and the hand after
   a bruk — identical in casual and tournament play. Every other hand is opened
@@ -799,8 +802,8 @@ legal opinion and processor.
 - When a test fails, work out whether the test or the code is wrong before
   changing either. Several tests encode rules that look wrong and are not.
 - Do not add a dependency to `packages/engine`. Ask first.
-- French is built: cross board, chucha opening, doubling, the +10 pass
-  penalties, the blocked-tie chucha reshuffle — the set
+- French is built: cross board, double blank opening, doubling, the +10 pass
+  penalties, the blocked-tie double blank reshuffle — the set
   ends the instant ANY seat's score reaches or crosses 100, lowest score at
   that moment wins outright (confirmed against real play; an earlier
   "last-one-under-target-survives" design was wrong) — and the coin-tied

@@ -166,7 +166,7 @@ export function boardAfter(replay: ReplayHand, count: number): AnyBoard | null {
     const [a, b] = halves(step.tile);
 
     if (!board) {
-      // Every French pose is a double (round 1 forces the chucha, round 2+
+      // Every French pose is a double (round 1 forces the double blank, round 2+
       // forces the winner's own choice — see poseMustBeAnyDouble in
       // hand.ts), so any French pose builds a cross centred on whatever was
       // posed, matching applyMove's own pose branch.

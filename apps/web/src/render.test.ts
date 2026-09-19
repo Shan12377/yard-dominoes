@@ -479,20 +479,20 @@ function crossBoardWithOneTile(
   return { kind: 'cross', center: '0-0', arms, doublesPlayed: [] };
 }
 
-test('an empty cross board centres the chucha with room to spare on every side', () => {
+test('an empty cross board centres the double blank with room to spare on every side', () => {
   const { totalCols, totalRows, placements } = crossPlacements(emptyCrossBoard());
   assert.equal(placements.length, 1);
-  const chucha = placements[0];
-  assert.equal(chucha.colSpan, 2);
-  assert.equal(chucha.rowSpan, 2);
+  const doubleBlank = placements[0];
+  assert.equal(doubleBlank.colSpan, 2);
+  assert.equal(doubleBlank.rowSpan, 2);
   // Centred: equal buffer on both sides, not flush against one edge.
-  assert.equal(chucha.col - 1, totalCols - (chucha.col + chucha.colSpan - 1));
-  assert.equal(chucha.row - 1, totalRows - (chucha.row + chucha.rowSpan - 1));
+  assert.equal(doubleBlank.col - 1, totalCols - (doubleBlank.col + doubleBlank.colSpan - 1));
+  assert.equal(doubleBlank.row - 1, totalRows - (doubleBlank.row + doubleBlank.rowSpan - 1));
 });
 
 // Regression: round 2+ can centre a French cross on ANY double the winner
-// posed (3-3, 6-6, ...), not only the chucha. The centre placement's faces
-// were hardcoded to [0, 0] from when the chucha was the only possible
+// posed (3-3, 6-6, ...), not only the double blank. The centre placement's faces
+// were hardcoded to [0, 0] from when the double blank was the only possible
 // centre — a live board showed this exact bug, rendering a posed 6-6 as a
 // blank tile. Faces must track board.center, whatever it actually is.
 test('the centre tile renders the pips of whatever double was actually posed, not always blank', () => {
@@ -513,7 +513,7 @@ test('the same live phone cap applies to an early French cross', () => {
 // 1 (the half that actually matches the centre) on the OUTER end and the
 // unrelated 6 on the inner end — backwards. Anchor must track the centre's
 // real pip value.
-test('the first tile of an arm orients its centre-matching half inward, even on a non-chucha spinner', () => {
+test('the first tile of an arm orients its centre-matching half inward, even on a non-double-blank spinner', () => {
   const board: CrossBoard = {
     kind: 'cross',
     center: '1-1',
@@ -548,11 +548,11 @@ test('a double lies crosswise: long side is PERPENDICULAR to the arm, not squeez
 });
 
 test('a crosswise double is centred on its arm\'s own band, not flush to one side', () => {
-  // The chucha's band is [chucha.col, chucha.col + 1] — a crosswise tile
+  // The double blank's band is [doubleBlank.col, doubleBlank.col + 1] — a crosswise tile
   // across-span of 4 centred on that band starts exactly 1 unit earlier.
   const { placements } = crossPlacements(crossBoardWithOneTile(2, '3-3', true));
-  const [chucha, up] = placements;
-  assert.equal(up.col, chucha.col - 1);
+  const [doubleBlank, up] = placements;
+  assert.equal(up.col, doubleBlank.col - 1);
 });
 
 test('a crosswise double never requests a column or row below the grid start, even when the opposite arm is still empty', () => {
@@ -947,7 +947,7 @@ test('a phone French route never leaves the board width, and no arm touches anot
     for (const dir of ['up', 'right', 'down', 'left'] as const) {
       const route = phoneCrossRoute(dir, cols, rows, 16);
       assert.equal(route.length, 16);
-      assert.ok(joined(hub, route[0]), `${dir} first bone must join the chucha (${cols}x${rows})`);
+      assert.ok(joined(hub, route[0]), `${dir} first bone must join the double blank (${cols}x${rows})`);
       const [hx, hy] = heads[dir];
       const firstCentre = [route[0].x + route[0].w / 2 - cols / 2, route[0].y + route[0].h / 2 - Math.floor(rows / 2)];
       assert.ok(firstCentre[0] * hx + firstCentre[1] * hy > 0, `${dir} first bone must head towards its player`);
@@ -955,7 +955,7 @@ test('a phone French route never leaves the board width, and no arm touches anot
         assert.ok(s.x >= 0 && s.x + s.w <= cols, `${dir}#${i} leaves the ${cols}-column board`);
         assert.equal(s.orient, s.w === 4 ? 'h' : 'v');
         if (i) assert.ok(joined(route[i - 1], s), `${dir}#${i} does not join the bone before it (${cols}x${rows})`);
-        assert.ok(!overlap(hub, s), `${dir}#${i} covers the chucha`);
+        assert.ok(!overlap(hub, s), `${dir}#${i} covers the double blank`);
         for (const other of placed) {
           assert.ok(!near(other.r, s), `${dir}#${i} touches the ${other.arm} arm (${cols}x${rows})`);
         }

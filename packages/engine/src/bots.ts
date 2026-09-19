@@ -106,7 +106,7 @@ export interface PublicView {
   /** Format is needed so bot stubs re-enter the engine's cross vs linear branches. */
   format: SetFormat;
   /**
-   * Which tile the forced pose must be — 6-6 outside French, 0-0 (chucha)
+   * Which tile the forced pose must be — 6-6 outside French, 0-0, the double blank
    * inside French round 1. Legal-move enumeration needs this: the bot's stub
    * hand goes through the same `legalMoves` path players do, and without the
    * right opening tile the forced-pose branch returns no moves.

@@ -4,7 +4,7 @@ import type { HandResult, SetOptions, SetState } from './types.ts';
 export function createSet(options: Partial<SetOptions> = {}): SetState {
   const inputFormat = options.format ?? 'sixlove';
   // French has fixed defaults that would otherwise be caller boilerplate on
-  // every start-set call: target is 100 (first to hit it LOSES), the chucha
+  // every start-set call: target is 100 (first to hit it LOSES), the double blank
   // must lead round 1 regardless, and the whole thing is cutthroat-4.
   // Overrides still land because `...options` follows.
   const french = inputFormat === 'french';
@@ -107,7 +107,7 @@ export function applyHandResult(prev: SetState, result: HandResult): SetState {
   // so they add zero — the "winner scores zero" property falls out for free.
   //
   // A blocked tie doesn't use the sixlove-style escalating replay — it
-  // forces the chucha open and replays flat: the replay's winner takes +2,
+  // forces the double blank open and replays flat: the replay's winner takes +2,
   // nobody else scores anything for it, and a tie AGAIN just repeats the
   // reshuffle (frenchTieBreak stays true) rather than climbing in value.
   //

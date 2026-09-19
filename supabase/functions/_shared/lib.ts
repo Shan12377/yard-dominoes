@@ -123,7 +123,7 @@ export interface HandRow {
 }
 
 /**
- * Which tile the forced-pose branch must lead. French round 1 uses the chucha
+ * Which tile the forced-pose branch must lead. French round 1 uses the double blank
  * (0-0); every other format uses the double-six. Derived from format so no new
  * database column is needed and there is only ever one place to change if the
  * rule ever splits further.
@@ -176,7 +176,7 @@ export function toState(row: HandRow, seatCount: number, mode: GameMode, format:
     mode,
     // Required on HandState — without it, applyMove's pose branch
     // (`s.format === 'french'`) is always false server-side even for a real
-    // French table, so a chucha pose builds a linear board instead of a
+    // French table, so a double blank pose builds a linear board instead of a
     // cross one. openingTile alone isn't enough; this was missing here.
     format,
     hands: row.hands,

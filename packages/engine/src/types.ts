@@ -36,11 +36,11 @@ export type GameMode = 'cutthroat' | 'partner' | 'openhand' | 'across';
  *               if the winner's own final tile was a double. Pass penalties
  *               (+10 for a seat's own third real pass running, +10 to every
  *               seat a board-blocking play shuts out — see HandResult.penalties)
- *               accrue mid-hand. A blocked tie forces the chucha open and
+ *               accrue mid-hand. A blocked tie forces the double blank open and
  *               replays flat for a +2 bonus (SetState.frenchTieBreak) rather
  *               than the sixlove-style escalating replay. Crossing `target`
  *               puts a seat OUT, not the set — play continues among survivors
- *               until exactly one remains, who wins outright. The chucha
+ *               until exactly one remains, who wins outright. The double blank
  *               (0-0) opens round 1 and sits at the centre of a 4-armed cross
  *               board (see CrossBoard below). The coin-tied mid-hand reshuffle
  *               (2 coins, once per set, only while a score sits 50-70) lives
@@ -96,7 +96,7 @@ export interface CrossArm {
 
 /**
  * French cross board. Centred on whatever double was posed to open the hand
- * — the chucha (0-0) in round 1, or the winner's own choice of double in
+ * — the double blank (0-0) in round 1, or the winner's own choice of double in
  * round 2 onward (see HandState.poseMustBeAnyDouble). Up to 4 arms extend
  * outward, one per corner matching the centre's own pip value.
  */
@@ -125,7 +125,7 @@ export type Move =
   /**
    * French cross-board play. arm is an index into CrossBoard.arms. During the
    * filling phase (arms.length < 4) arm equals arms.length — the engine
-   * appends a new arm attached to the chucha. Post-fill arm is 0..3.
+   * appends a new arm attached to the double blank. Post-fill arm is 0..3.
    */
   | { kind: 'playcross'; seat: number; tile: TileId; arm: number; boardPass?: boolean }
   /**
@@ -238,7 +238,7 @@ export interface HandState {
   board: AnyBoard | null;
   /**
    * Only used for French. The engine needs to know the format to build a
-   * CrossBoard on the chucha pose and to branch legalMoves/applyMove on cross
+   * CrossBoard on the double blank pose and to branch legalMoves/applyMove on cross
    * rules. Defaults are set in deal().
    */
   format: SetFormat;
@@ -265,7 +265,7 @@ export interface HandState {
   poseMustBeDoubleSix: boolean;
   /**
    * French only, round 2 onward (never true alongside poseMustBeDoubleSix —
-   * round 1's chucha and a tie-break reshuffle both force one SPECIFIC
+   * round 1's double blank and a tie-break reshuffle both force one SPECIFIC
    * tile, this forces ANY double). The poser must lead some double they
    * hold, their own choice among however many they have. deal() is what
    * actually enforces the "or someone else poses, and you're fined" half of
@@ -277,7 +277,7 @@ export interface HandState {
   /**
    * The tile the poser must lead when poseMustBeDoubleSix is true. Defaults
    * to 6-6 for every format except French, where round 1 is opened by the
-   * chucha (0-0) holder leading the 0-0. Derived from format at rehydration
+   * double blank (0-0) holder leading the 0-0. Derived from format at rehydration
    * time; not persisted to the DB.
    */
   openingTile: TileId;
@@ -337,7 +337,7 @@ export interface SetState {
   sixLove: boolean;
   /**
    * True when the last French hand ended tied for lowest count and the table
-   * is replaying with the chucha forced open to break it. The replay's
+   * is replaying with the double blank forced open to break it. The replay's
    * winner scores a flat +2 instead of the normal pip total; everyone else
    * scores nothing for that hand. Stays true across repeated ties until
    * someone wins outright. Every other format leaves this false.
