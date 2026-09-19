@@ -279,7 +279,7 @@ class Showcase {
   }
 
   private geometry() {
-    const box = { width: 880, height: 680 };
+    const box = { width: 880, height: 660 };
     return this.spec.mode === 'across'
       ? deskRouteGeometry(box, [], 12, 26, ACROSS_CLIMB)
       : deskRouteGeometry(box, [], 12, 26);
@@ -290,7 +290,7 @@ class Showcase {
     if (board?.kind === 'cross') {
       this.line.removeAttribute('style');
       renderBoard(this.line, board, {
-        box: { width: 880, height: 680 }, unit: 16, maxUnit: 16, minUnit: 8,
+        box: { width: 880, height: 660 }, unit: 16, maxUnit: 16, minUnit: 8,
         fitCrossToBox: true, frenchPinwheel: true, moveLog: hand?.moveLog, viewerSeat: 0,
       });
     } else {

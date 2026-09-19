@@ -265,3 +265,21 @@ body.showcase-body #app { max-width: none; padding: 0; }
   .showcase-subscribe { transition: opacity 200ms linear; transform: none; }
   .showcase-subscribe.showcase-subscribe-in { transform: none; }
 }
+
+/* Bigger hands for phone viewers (owner, 2026-09-19, looking at the live
+   stream on a phone: "are the dominoes in the hand too small?"). They were —
+   most YouTube watching is on a phone, where a 1920-wide frame is squeezed to
+   about 400px, so a 30px bone lands at roughly 6px and its pips are gone.
+   40x80 survives that squeeze and still leaves the felt the middle of the
+   frame. The side seats widen to match, so seven bones stay two tidy rows. */
+.showcase-hand .tile { --w: 36px; --h: 72px; }
+.showcase-hand { gap: 6px; }
+/* Narrow enough that a side card never reaches the board: at 290px the left
+   seat sat over the first 40px of the played line. Four bones a row at this
+   size fit inside 230. */
+.showcase-seat-left, .showcase-seat-right { width: 230px; }
+/* The clear band between the top and bottom seat cards is 676px once the
+   hands are this size, so the played board is 660 tall and sits centred in
+   it: measured top seat ends at 202, board runs 208-868, bottom seat starts
+   at 878. Nothing overlaps the line at either end. */
+.showcase-board { top: 20px; height: 660px; }
