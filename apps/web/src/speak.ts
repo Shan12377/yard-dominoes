@@ -37,9 +37,17 @@ const VOICES: Record<number, Partial<Record<TalkTrigger, Clip[]>>> = { 1: IVY };
 
 const MUTE_KEY = 'yard:mute-duppy';
 
-/** Muting must be one tap and must stick between sessions. */
+/**
+ * Muting must be one tap and must stick between sessions — and silence is
+ * where every browser starts, until somebody says otherwise (sound.ts).
+ */
 export function muted(): boolean {
-  try { return localStorage.getItem(MUTE_KEY) === '1'; } catch { return false; }
+  try { return localStorage.getItem(MUTE_KEY) !== '0'; } catch { return true; }
+}
+
+/** The raw stored value, for the lobby's sound question. */
+export function storedChoice(): string | null {
+  try { return localStorage.getItem(MUTE_KEY); } catch { return null; }
 }
 
 export function setMuted(next: boolean) {

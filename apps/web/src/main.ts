@@ -33,7 +33,9 @@ import { frenchSetLine, tileEl, horizontalTileEl, renderBoard, backsEl, scoreTra
 import type { PhoneRouteGrid, StageRect } from './render.ts';
 import { boardAfter, encodeHand, handFromUrl, shareUrl } from './replay.ts';
 import type { ReplayHand } from './replay.ts';
-import { hasVoice, lineFor, muted, setMuted, speak } from './speak.ts';
+import { hasVoice, lineFor, muted, setMuted, speak, storedChoice as storedVoiceChoice } from './speak.ts';
+import { choiceFrom, SOUND_HINTS, SOUND_LABELS, storedFor } from './sound.ts';
+import type { SoundChoice } from './sound.ts';
 import * as sfx from './sfx.ts';
 import { applyFelt, FELTS, felt, setFelt, nightTableButton } from './felt.ts';
 import { needsLayoutRenderForResize } from './viewport.ts';
@@ -1281,8 +1283,22 @@ function lobby(): HTMLElement {
   // the six opens a set, a tied replay and the hand after a bruk on every
   // table — and "tournament" already names something real here: a scheduled
   // event played by real people. See CLAUDE.md.
+  // Asked on the way in, not hunted for afterwards (owner, 2026-09-19): the
+  // site must be safe to open at work, on a bus, or in a house with somebody
+  // asleep. Silence is what it does until this says otherwise.
+  const sound = document.createElement('select');
+  sound.innerHTML = (['off', 'table', 'all'] as SoundChoice[]).map((choice) =>
+    `<option value="${choice}">${SOUND_LABELS[choice]} — ${SOUND_HINTS[choice]}</option>`).join('');
+  sound.value = choiceFrom(sfx.storedChoice(), storedVoiceChoice());
+  sound.onchange = () => {
+    const [table, voices] = storedFor(sound.value as SoundChoice);
+    sfx.setMuted(table === '1');
+    setMuted(voices === '1');
+  };
+
   for (const [label, control] of [
     ['Game', mode], ['Duppies', duppy], ['Duppy pace', duppyPace], ['Placing bones', placing],
+    ['Sound', sound],
   ] as const) {
     const field = el('label', 'field');
     field.append(el('span', undefined, label), control);

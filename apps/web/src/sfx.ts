@@ -19,8 +19,18 @@
 
 const SFX_MUTE_KEY = 'yard:mute-sfx';
 
+/**
+ * Silent unless this browser has explicitly allowed sound — see sound.ts.
+ * An absent key used to mean "make noise", which is how a first visit
+ * announced itself in somebody's quiet office (owner, 2026-09-19).
+ */
 export function muted(): boolean {
-  try { return localStorage.getItem(SFX_MUTE_KEY) === '1'; } catch { return false; }
+  try { return localStorage.getItem(SFX_MUTE_KEY) !== '0'; } catch { return true; }
+}
+
+/** The raw stored value, for the lobby's sound question. */
+export function storedChoice(): string | null {
+  try { return localStorage.getItem(SFX_MUTE_KEY); } catch { return null; }
 }
 
 export function setMuted(next: boolean) {
