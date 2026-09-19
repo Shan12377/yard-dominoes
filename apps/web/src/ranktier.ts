@@ -54,3 +54,19 @@ export function trustChip(trust: number): HTMLElement {
   chip.textContent = `${trust}% · ${level.label}`;
   return chip;
 }
+
+/**
+ * How a player's average move time reads at a table. Speed is a real domino
+ * reputation — the incumbent's own ranking tutorials spend as long on idling
+ * as on winning — and `profiles.total_move_ms` has been collecting it since
+ * the first migration with nothing ever showing it.
+ *
+ * Deliberately three plain descriptions rather than a score: this is
+ * character, not rank, and it never touches the Yard Rating.
+ */
+export function movePace(averageMs: number): string {
+  const seconds = averageMs / 1000;
+  const shown = seconds < 10 ? seconds.toFixed(1) : String(Math.round(seconds));
+  const label = seconds < 5 ? 'quick hand' : seconds < 12 ? 'steady' : 'takes their time';
+  return `${shown}s · ${label}`;
+}

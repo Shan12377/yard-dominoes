@@ -383,6 +383,10 @@ export interface PublicProfile {
   handsPlayed: number;
   sixLovesGiven: number;
   sixLovesTaken: number;
+  /** Move speed, the stat JamDom's own ranking tutorials lean on and ours
+   *  has been collecting since 0001 without ever showing it. Null until
+   *  enough moves exist for an average to mean anything. */
+  averageMoveMs: number | null;
   /** Table Trust and career stats (0066). Null until that data exists. */
   fairPlay: FairPlay | null;
   /** Admins play unranked and show an Admin badge instead of a rank. */
@@ -444,9 +448,11 @@ async function fetchFairPlay(userId: string): Promise<FairPlay | null> {
 export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
   const publicColumns = SHARE_AVATAR_ACCESSORIES
     ? `id, username, tier, tier_expires_at, origin, avatar, avatar_accessory, location, created_at,
-      rating_partner, rating_cutthroat, rd_partner, rd_cutthroat, hands_played, six_loves_given, six_loves_taken`
+      rating_partner, rating_cutthroat, rd_partner, rd_cutthroat, hands_played, six_loves_given, six_loves_taken,
+      total_move_ms, total_moves`
     : `id, username, tier, tier_expires_at, origin, avatar, location, created_at,
-      rating_partner, rating_cutthroat, rd_partner, rd_cutthroat, hands_played, six_loves_given, six_loves_taken`;
+      rating_partner, rating_cutthroat, rd_partner, rd_cutthroat, hands_played, six_loves_given, six_loves_taken,
+      total_move_ms, total_moves`;
   let { data, error } = await (db().from('profiles') as any)
     .select(publicColumns)
     .eq('id', userId).single();
@@ -454,7 +460,7 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     ({ data, error } = await (db().from('profiles') as any)
       .select(`id, username, tier, tier_expires_at, origin, avatar, location, created_at,
         rating_partner, rating_cutthroat, rd_partner, rd_cutthroat,
-        hands_played, six_loves_given, six_loves_taken`)
+        hands_played, six_loves_given, six_loves_taken, total_move_ms, total_moves`)
       .eq('id', userId).single());
   }
   if (!data) return null;
@@ -483,6 +489,11 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
     handsPlayed: data.hands_played,
     sixLovesGiven: data.six_loves_given,
     sixLovesTaken: data.six_loves_taken,
+    // Twenty moves before an average is shown: one slow first game would
+    // otherwise brand somebody a dawdler for good.
+    averageMoveMs: (data.total_moves ?? 0) >= 20 && data.total_move_ms
+      ? Math.round(data.total_move_ms / data.total_moves)
+      : null,
     fairPlay,
     isAdmin: !!fairPlay?.isAdmin,
   };

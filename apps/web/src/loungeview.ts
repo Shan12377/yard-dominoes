@@ -6,7 +6,7 @@
  * plainly rather than discovered after you click.
  */
 
-import { rankChip, trustChip } from './ranktier.ts';
+import { rankChip, trustChip, movePace } from './ranktier.ts';
 import {
   listLounges, myProfile, canEnter, sendMessage, enterLounge,
   startCheckout, loungesAvailable, TIER_LABEL, TIER_PITCH, TIER_RANK,
@@ -776,6 +776,14 @@ function playerProfileCard(rerender: () => void): HTMLElement {
   const hands = el('div', 'row');
   hands.append(el('span', 'muted', 'Hands played'), el('span', 'mono', String(p.handsPlayed)));
   stats.appendChild(hands);
+  // Speed is a real domino reputation — the incumbent's own ranking videos
+  // spend as long on idling as on winning, and ours has been measuring it
+  // quietly since the first migration.
+  if (p.averageMoveMs !== null) {
+    const row = el('div', 'row');
+    row.append(el('span', 'muted', 'Average move'), el('span', 'mono', movePace(p.averageMoveMs)));
+    stats.appendChild(row);
+  }
   if (p.sixLovesGiven || p.sixLovesTaken) {
     const sixes = el('div', 'row');
     sixes.append(el('span', 'muted', 'Six love — given / taken'),
