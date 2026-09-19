@@ -322,7 +322,7 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-19, `www.yaaddominoes.com` serves commit `PENDING`
+- As of 2026-09-19, `www.yaaddominoes.com` serves commit `d92cd25`
   (v216: the site is silent until somebody asks for sound, and the Practice
   lobby asks on the way in; v215: average move speed on the player card; v214: Yard TV shuffles as a real swirl and its captions name the stronger
   play honestly, "Like & subscribe", lounge code box says it is optional; v213: Yard TV hands readable on a phone (36x72), board fitted between the
