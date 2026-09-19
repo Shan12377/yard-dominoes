@@ -392,14 +392,27 @@ function startTableForm(loungeId: string, onJoin: (tableId: string) => void, gam
   return form;
 }
 
+/**
+ * A code is the exception, not the door (owner, 2026-09-19: his brother read
+ * the bare "Join code" box at the top of the lounge list as a requirement and
+ * thought he could not play without one). The box now says out loud what it
+ * is for, and says the ordinary way in first.
+ */
 export function joinByCodeField(onJoin: (tableId: string) => void): HTMLElement {
+  const panel = el('div', 'panel join-code-panel');
+  panel.append(el('strong', undefined, 'Got a code from a bredrin?'));
+  panel.append(el('p', 'muted small',
+    'Only needed for somebody\u2019s own table. To just play, pick a room below '
+    + 'and sit at any open seat \u2014 no code, nobody to wait for.'));
   const row = el('div', 'row');
   const input = document.createElement('input');
-  input.placeholder = 'Join code';
+  input.className = 'field';
+  input.placeholder = 'Table code';
+  input.setAttribute('aria-label', 'Table code from a friend');
   input.maxLength = 6;
   const go = document.createElement('button');
   go.className = 'act ghost';
-  go.textContent = 'Join';
+  go.textContent = 'Join that table';
   go.onclick = () => void (async () => {
     const code = input.value.trim();
     if (!code) return;
@@ -411,7 +424,8 @@ export function joinByCodeField(onJoin: (tableId: string) => void): HTMLElement 
     }
   })();
   row.append(input, go);
-  return row;
+  panel.appendChild(row);
+  return panel;
 }
 
 let pendingTile: string | null = null;

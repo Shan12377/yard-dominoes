@@ -322,8 +322,9 @@ Detailed rules live in `.claude/rules/` and load when you touch matching files.
 - `origin/main` is a stale, disconnected development baseline. Never infer
   what is live from `main`; inspect the YaadDominoes Vercel project's current
   production deployment and its exact commit SHA.
-- As of 2026-09-19, `www.yaaddominoes.com` serves commit `32af963`
-  (v213: Yard TV hands readable on a phone (36x72), board fitted between the
+- As of 2026-09-19, `www.yaaddominoes.com` serves commit `PENDING`
+  (v214: Yard TV shuffles as a real swirl and its captions name the stronger
+  play honestly, "Like & subscribe", lounge code box says it is optional; v213: Yard TV hands readable on a phone (36x72), board fitted between the
   seat cards; v212: Yard TV's occasional subscribe nudge under the play line; v211: Yard TV shows each seat's points on the table and brands the shuffle
   with the wordmark; v210: Yard TV shuffles the real 28 bones on the real felt and deals them
   round the seats, instead of the branded deal overlay; v209: the front page review is credited to Orlando by name; v208: a bone that doesn't fit no longer covers the hand (the note moved to

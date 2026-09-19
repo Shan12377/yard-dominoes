@@ -6165,3 +6165,10 @@ button.hand-end-choice {
 @media (prefers-reduced-motion: reduce) {
   .table-player-station.station-tab > .table-pass-callout.station-tab-pass { animation: none; }
 }
+
+/* "Got a code from a bredrin?" — the lounge's code box (owner, 2026-09-19).
+   Quiet enough that it reads as the exception it is, not the way in. */
+.join-code-panel > strong { display: block; font: 700 15px/1.2 var(--body); }
+.join-code-panel > .muted { margin: 4px 0 10px; }
+.join-code-panel .row { gap: 8px; }
+.join-code-panel input.field { flex: 1 1 140px; min-width: 0; text-transform: uppercase; }

@@ -22,7 +22,7 @@ import {
   legalMoves, openEnds, publicView, TALK_CHANCE,
 } from '@yard/engine';
 import type {
-  DuppyLevel, GameMode, HandState, Move, SetFormat, SetState, TalkTrigger, TileId,
+  DuppyLevel, GameMode, HandState, Move, MoveAdvice, SetFormat, SetState, TalkTrigger, TileId,
 } from '@yard/engine';
 import { ACROSS_CLIMB, deskRouteGeometry, el, penaltyLines, renderBoard, tileEl } from './render.ts';
 import { DUPPY_PERSONAS, duppyPersonaUrl } from './duppy-persona.ts';
@@ -228,7 +228,7 @@ class Showcase {
     this.stage.append(table, side);
 
     this.subscribe.append(el('span', 'showcase-subscribe-mark', '\u25b6'),
-      el('span', undefined, 'Subscribe for more Jamaican dominoes'));
+      el('span', undefined, 'Like & subscribe for more Jamaican dominoes'));
     this.subscribe.setAttribute('role', 'note');
     // Every SUBSCRIBE_EVERY_MS, visible for SUBSCRIBE_HOLD_MS. The first one
     // waits, so it never lands over the opening card a new viewer is reading.
@@ -362,35 +362,73 @@ class Showcase {
   }
 
   /** Why this bone and not another: the engine's own advice for this seat. */
+  /**
+   * Why this bone and not another. `adviseMoves` comes back ranked best
+   * first, and that ranking is the whole basis of the sentence.
+   *
+   * Two cases, because a duppy does not always take the strongest line and
+   * this is a teaching channel (owner, 2026-09-19, after reading a caption
+   * that did not make sense): if the played bone IS the top-ranked one, the
+   * sentence compares it with the genuine runner-up — the play somebody
+   * would actually have argued for. If it is NOT, the caption says which
+   * bone was stronger instead of inventing a defence of a weaker move.
+   * The old version compared against whatever alternative happened to come
+   * first in the list, which is how you end up explaining why a good bone
+   * beats one nobody was considering.
+   */
   private why(before: HandState, move: Move): string | null {
     if (move.kind !== 'play' && move.kind !== 'playcross') return null;
     const legal = legalMoves(before);
     const tiles = new Set(legal.flatMap((m) => ('tile' in m ? [m.tile] : [])));
     if (tiles.size < 2) return null;
-    const advice = adviseMoves(publicView(before, move.seat), legal, 'general');
-    const chosen = advice.find((a) => a.tile === move.tile);
-    const other = advice.find((a) => a.tile !== move.tile);
-    if (!chosen || !other) return null;
+    const ranked = adviseMoves(publicView(before, move.seat), legal, 'general');
+    const index = ranked.findIndex((a) => a.tile === move.tile);
+    const chosen = ranked[index];
+    if (!chosen) return null;
     const who = this.name(move.seat);
     const names = (seats: number[]) => listAnd(seats.map((s) => this.name(s)));
-    const reasons: string[] = [];
-    if (chosen.goesOut) reasons.push('it is the last bone, so it wins the hand');
-    if (chosen.forcesOpponents.length) {
-      reasons.push(`it leaves ${listAnd([...new Set(chosen.endsAfter)].map(pipWord))} open, and ${names(chosen.forcesOpponents)} cannot play on that`);
+
+    /** The strongest single reason to prefer `pick` over `instead`, or null. */
+    const reasonFor = (pick: MoveAdvice, instead: MoveAdvice): string | null => {
+      if (pick.goesOut) return 'it is the last bone, so it wins the hand';
+      // The two strongest things a yard player actually plays for, above any
+      // talk of heavy bones: shutting the table out so the board comes
+      // straight back, and refusing to open a number you cannot answer.
+      if (pick.comesBackToMe) {
+        return `every other seat is stuck on what it leaves, so the board comes straight back to ${who}`;
+      }
+      if (pick.forcesOpponents.length) {
+        return `it leaves ${listAnd([...new Set(pick.endsAfter)].map((pip) => pipWord(pip)))} open, and ${names(pick.forcesOpponents)} cannot play on that`;
+      }
+      if (partnered(this.spec) && instead.strandsPartner.length && !pick.strandsPartner.length) {
+        return `the ${bone(instead.tile)} would leave a ${listOr([...new Set(instead.strandsPartner)].map((pip) => pipWord(pip)))}, and ${who}'s partner has already passed on it`;
+      }
+      if (!pick.cannotAnswer.length && instead.cannotAnswer.length) {
+        return `${who} can still answer whatever it leaves, but the ${bone(instead.tile)} would leave a ${listOr([...new Set(instead.cannotAnswer)].map((pip) => pipWord(pip)))} ${who} has no more of`;
+      }
+      if (!pick.opensNew.length && instead.opensNew.length) {
+        return `it puts out no new number, while the ${bone(instead.tile)} would open a ${listOr([...new Set(instead.opensNew)].map((pip) => pipWord(pip)))} for the whole table`;
+      }
+      if (pick.unloadsDouble) return 'it gets the double off before it can get stuck';
+      if (pick.pipsShed >= instead.pipsShed + 3) {
+        return `it drops ${pick.pipsShed} pips, a heavier bone, in case the board blocks`;
+      }
+      return null;
+    };
+
+    if (index === 0) {
+      const runnerUp = ranked.find((a) => a.tile !== move.tile);
+      if (!runnerUp) return null;
+      const reason = reasonFor(chosen, runnerUp);
+      return reason ? `Why the ${bone(move.tile)}, not the ${bone(runnerUp.tile)}? Because ${reason}.` : null;
     }
-    if (partnered(this.spec) && other.strandsPartner.length && !chosen.strandsPartner.length) {
-      reasons.push(`the ${bone(other.tile)} would leave a ${listOr([...new Set(other.strandsPartner)].map(pipWord))}, and ${who}'s partner has already passed on it`);
-    }
-    if (chosen.unloadsDouble) reasons.push('it gets the double off before it can get stuck');
-    if (!chosen.cannotAnswer.length && other.cannotAnswer.length) {
-      reasons.push(`${who} can still answer whatever it leaves, but the ${bone(other.tile)} would leave a ${listOr([...new Set(other.cannotAnswer)].map(pipWord))} ${who} has no more of`);
-    }
-    if (!reasons.length && chosen.pipsShed >= other.pipsShed + 3) {
-      reasons.push(`it drops ${chosen.pipsShed} pips, a heavier bone, in case the board blocks`);
-    }
-    if (!reasons.length) return null;
-    return `Why the ${bone(move.tile)}, not the ${bone(other.tile)}? Because ${reasons[0]}.`;
+
+    const best = ranked[0];
+    if (!best || best.tile === move.tile) return null;
+    const reason = reasonFor(best, chosen);
+    return reason ? `The ${bone(best.tile)} was the stronger play: ${reason}.` : null;
   }
+
 
   private describeEnd(hand: HandState, set: SetState, before: SetState): string {
     const r = hand.result!;
@@ -462,55 +500,92 @@ class Showcase {
     const place = (bone: HTMLElement, x: number, y: number, turn: number) => {
       bone.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) rotate(${Math.round(turn)}deg)`;
     };
+    // Where a bone sits in the spread. Kept per bone so the swirl can move
+    // each one a little at a time instead of teleporting the whole set.
+    const at = Array.from({ length: 28 }, () => ({ x: 0, y: 0, turn: 0 }));
 
     const bones: HTMLElement[] = [];
     for (let i = 0; i < 28; i += 1) {
       const bone = el('i', 'showcase-shuffle-bone');
-      place(bone, centreX - 18, centreY - 36, 0);
       layer.appendChild(bone);
       bones.push(bone);
     }
-    // One frame at the stacked pack before the first scatter, or the browser
-    // coalesces both into no movement at all.
+    // Spread face down across the middle of the table, the way a set is
+    // tipped out before anyone touches it.
+    const spread = (bone: HTMLElement, i: number) => {
+      const s = at[i];
+      s.x = centreX - 18 + (Math.random() - 0.5) * width * 0.56;
+      s.y = centreY - 36 + (Math.random() - 0.5) * height * 0.46;
+      s.turn = (Math.random() - 0.5) * 120;
+      place(bone, s.x, s.y, s.turn);
+    };
+    bones.forEach(spread);
     await wait(80);
 
-    const scatter = () => {
-      for (const bone of bones) {
-        place(bone,
-          centreX - 18 + (Math.random() - 0.5) * width * 0.6,
-          centreY - 36 + (Math.random() - 0.5) * height * 0.5,
-          (Math.random() - 0.5) * 90);
-      }
+    // The swirl (owner, 2026-09-19: the old version stacked them into a neat
+    // pack and left the last pair sitting in the middle, which is not what a
+    // yard shuffle looks like). Hands keep moving over the spread: each pass
+    // nudges every bone a short distance and turns it, so the whole set is
+    // always in motion and never lines up.
+    const swirl = (strength: number) => {
+      bones.forEach((bone, i) => {
+        const s = at[i];
+        const angle = Math.random() * Math.PI * 2;
+        const reach = (30 + Math.random() * 90) * strength;
+        s.x = Math.max(left + 20, Math.min(left + width - 56, s.x + Math.cos(angle) * reach));
+        s.y = Math.max(top + 20, Math.min(top + height - 92, s.y + Math.sin(angle) * reach));
+        s.turn += (Math.random() - 0.5) * 140;
+        place(bone, s.x, s.y, s.turn);
+      });
     };
-    for (let round = 0; round < 3; round += 1) {
-      scatter();
-      await wait(620);
+    for (let pass = 0; pass < 6; pass += 1) {
+      swirl(1);
+      await wait(360);
     }
-    // Gathered back into a squared-up pack, so the deal comes off a stack.
-    bones.forEach((bone, i) => place(bone, centreX - 18 + (i % 2) * 3, centreY - 36 - i * 0.8, (i % 2 ? 1 : -1) * 2));
-    await wait(700);
 
-    // Dealt to the wood in front of each seat, not onto the seat card: the
-    // hands are hidden while dealing, so a card-centred target landed the
-    // bones across the player's own name.
+    // Drawn straight out of the spread, one at a time round the table — never
+    // off a stack. The bones still on the table keep shifting under the hands
+    // while the drawing happens, so nothing is ever left sitting abandoned.
     mark.classList.add('showcase-shuffle-mark-out');
     this.caption.textContent = 'Dealing — seven each.';
     const drop = (slot: number, nth: number): [number, number] => {
-      const spread = (nth - 3) * 26;
-      if (slot === 0) return [centreX - 18 + spread, top + height - 96];
-      if (slot === 1) return [left + width - 66, centreY - 36 + spread];
-      if (slot === 2) return [centreX - 18 + spread, top + 24];
-      return [left + 30, centreY - 36 + spread];
+      const along = (nth - 3) * 26;
+      if (slot === 0) return [centreX - 18 + along, top + height - 96];
+      if (slot === 1) return [left + width - 66, centreY - 36 + along];
+      if (slot === 2) return [centreX - 18 + along, top + 24];
+      return [left + 30, centreY - 36 + along];
     };
-    for (let i = 0; i < 28; i += 1) {
-      const seat = i % 4;
-      const [x, y] = drop(seat, Math.floor(i / 4));
-      const bone = bones[27 - i];
-      bone.classList.add('showcase-shuffle-dealt');
-      place(bone, x, y, 0);
-      await wait(120);
+    // Whichever bone is nearest the seat being dealt to is the one that hand
+    // would actually pick up.
+    const undealt = bones.map((bone, i) => ({ bone, i }));
+    for (let n = 0; n < 28; n += 1) {
+      const seat = n % 4;
+      const [x, y] = drop(seat, Math.floor(n / 4));
+      let pick = 0;
+      let best = Infinity;
+      undealt.forEach((entry, index) => {
+        const s = at[entry.i];
+        const d = (s.x - x) ** 2 + (s.y - y) ** 2;
+        if (d < best) { best = d; pick = index; }
+      });
+      const [taken] = undealt.splice(pick, 1);
+      taken.bone.classList.add('showcase-shuffle-dealt');
+      place(taken.bone, x, y, 0);
+      // Every few draws the remaining bones shift again — a real table never
+      // holds still while somebody is dealing off it.
+      if (n % 4 === 3 && undealt.length) {
+        undealt.forEach(({ bone, i }) => {
+          const s = at[i];
+          const angle = Math.random() * Math.PI * 2;
+          s.x = Math.max(left + 20, Math.min(left + width - 56, s.x + Math.cos(angle) * 22));
+          s.y = Math.max(top + 20, Math.min(top + height - 92, s.y + Math.sin(angle) * 22));
+          s.turn += (Math.random() - 0.5) * 40;
+          place(bone, s.x, s.y, s.turn);
+        });
+      }
+      await wait(110);
     }
-    await wait(420);
+    await wait(380);
     layer.remove();
     this.stage.classList.remove('showcase-dealing');
   }
